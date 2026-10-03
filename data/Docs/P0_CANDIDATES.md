@@ -18,6 +18,12 @@ Two additional candidates remain **P0 scope candidates but not ingestion-unblock
 - **ACME CLD Flame** — NASA describes quantitative measurements of flame size, structure, temperature, soot and stability in gaseous methane/ethylene co-flow flames, including near-extinction and highly sooting regimes. citeturn888466search0
 - **FLEX-2** — NASA GRC describes droplet combustion under controlled environments, including sub-buoyant convective flow, droplet arrays, and practical/surrogate fuels. citeturn888466search10turn458684search43
 
+## Bucket check (2026-10-03)
+
+A full recursive listing of the public `s3://nasa-psi/` bucket (388,602 objects, ~30 TB) contains **only three investigations: `DSI/` (directional solidification), `OASIS/` (smectic liquid crystals) and `pk4/` (complex plasma)**. None of the P0 combustion investigations above (BASS-II, FLEX, SAFFIRE-I, SPICE, ACME/CLD, FLEX-2) are in the bucket; their files must be obtained through the PSI web portal instead. Keyword hits for "droplet" (OASIS liquid-crystal droplets) and "burning" (PK-4 plasma logs) are not combustion data.
+
+`FF-PSI-DSI` has been added to the registry as a P2, non-combustion reference source; its docs and one sample run (`Data/S1 activity 4.zip`) are mirrored under `data/raw/nasa_psi/DSI/`.
+
 ## Why these sources belong in P0
 
 They span the core fire-safety dimensions needed by the MVP: **solid-material flammability, liquid-droplet combustion, large-scale spacecraft fire behavior, and soot/smoke behavior**. NASA's own combustion-program inventory identifies BASS-II, FLEX, SPICE, SAFFIRE-I/II/III, ACME experiments, CFI, and related investigations as complete/publicly catalogued combustion investigations. citeturn697647search0
