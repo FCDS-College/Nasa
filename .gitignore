@@ -1,0 +1,5 @@
+# Mirrored source data: immutable originals live outside Git (see data/Docs/DAY1_DATA_ACQUISITION.md)
+data/raw/
+# Full nasa-psi bucket listing is ~110 MB (over GitHub's 100 MB limit); regenerate with `aws s3 ls --recursive`
+data/manifests/nasa_psi_full_listing.txt
+__pycache__/
