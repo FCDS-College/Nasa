@@ -1,0 +1,70 @@
+{
+  "analysisId": "an_987654_xyz",
+  "imageId": null,
+  "pipelineVersion": "cv-pytorch-v1.0.0",
+  "preprocessing": {
+    "orientation": "normalized",
+    "colorSpace": "RGB",
+    "resizingRule": "standard-512x512",
+    "denoisingVersion": "v1.0"
+  },
+  "detection": {
+    "status": "PRESENT",
+    "confidence": null,
+    "boundingBox": {
+      "ymin":  null,
+      "xmin": null,
+      "ymax":  null,
+      "xmax": null
+    },
+    "modelVersion": "det-v1.0"
+  },
+  "segmentation": {
+    "maskType": "binary",
+    "maskUri": null,
+    "maskChecksum":null,
+    "overlayArtifactUri":null
+  },
+  "measurements": {
+    "geometry": {
+      "pixelArea": null,
+      "centroid": {
+        "x":  null,
+        "y":  null
+      },
+      "perimeter":  null,
+      "aspectRatio":  null,
+      "circularity":  null
+    },
+    "appearance": {
+      "colorSpaceStatistics": {
+        "colorSpace": "RGB",
+        "meanR": null,
+        "meanG": null,
+        "meanB": null,
+      },
+      "saturationScore": 0.85
+    }
+  },
+  "confidenceAndQualityFlags": {
+    "detectorConfidence": 0.96,
+    "segmenterConfidence": 0.94,
+    "qualityFlags": {
+      "blur": false,
+      "saturationClipping": false,
+      "lowLight": false,
+      "multipleFlames": false,
+      "occlusion": false,
+      "scaleAbsent": true,
+      "calibrationAbsent": true
+    }
+  },
+  "scientificInterpretation": {
+    "classification": "MEASURED",
+    "calibrationState": "ABSENT",
+    "warnings": [
+      "Scale calibration absent: spatial measurements are reported in pixels, not direct physical units.",
+      "Temperature cannot be directly claimed from RGB imagery without proper calibration and spectral assumptions[cite: 8]."
+    ]
+  }
+}
