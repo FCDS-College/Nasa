@@ -1,0 +1,3 @@
+# sha256sum -c needs LF line endings
+data/checksums/*.txt text eol=lf
+data/metadata/*.jsonl text eol=lf

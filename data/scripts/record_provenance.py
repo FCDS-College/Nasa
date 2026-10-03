@@ -65,6 +65,7 @@ def main():
         keep_meta = [l for l in METADATA.read_text(encoding="utf-8").splitlines()
                      if l and json.loads(l)["source_id"] != source_id]
 
+    recorded_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     sums, meta, mismatches, unlisted = [], [], [], []
     for path in files:
         key = f"{investigation}/{path.relative_to(local_root).as_posix()}"
@@ -87,8 +88,10 @@ def main():
             "size_bytes": size,
             "listing_size_bytes": expected.get(key),
             "sha256": digest,
-            "retrieval_timestamp_utc": datetime.fromtimestamp(path.stat().st_mtime, timezone.utc)
-                                               .strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "retrieval_timestamp_utc": recorded_at,
+            # aws s3 cp sets mtime to the object's S3 LastModified, not the download time.
+            "remote_last_modified_utc": datetime.fromtimestamp(path.stat().st_mtime, timezone.utc)
+                                                .strftime("%Y-%m-%dT%H:%M:%SZ"),
             "is_original": True,
             "parent_file_id": None,
         }))
@@ -96,8 +99,9 @@ def main():
 
     CHECKSUMS.parent.mkdir(parents=True, exist_ok=True)
     METADATA.parent.mkdir(parents=True, exist_ok=True)
-    CHECKSUMS.write_text("\n".join(keep_sums + sums) + "\n", encoding="utf-8")
-    METADATA.write_text("\n".join(keep_meta + meta) + "\n", encoding="utf-8")
+    # LF endings: on Windows, CRLF makes `sha256sum -c` read "\r" as part of the path.
+    CHECKSUMS.write_text("\n".join(keep_sums + sums) + "\n", encoding="utf-8", newline="\n")
+    METADATA.write_text("\n".join(keep_meta + meta) + "\n", encoding="utf-8", newline="\n")
 
     print(f"\n{len(files)} files recorded for {source_id}; "
           f"{len(unlisted)} not in listing; {len(mismatches)} size mismatches")
