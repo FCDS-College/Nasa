@@ -52,7 +52,7 @@ The access route is the PSI API. `GET https://psi.nasa.gov/geode-py/ws/studies/<
 | **BASS-II** (solid fuels, forced flow) | PSI-25 v4 | 695 | 274.6 GB | **244 test MP4s** + 52 "still sequence" MP4s (17.7 GB) · **109 original-video zips** (`.ts`, 2 camera views, ~400 MB each; 24.3 GB) · **91 zips of Nikon RAW `.NEF` stills** (~13 MB/photo, ~54 per zip; 135 GB) · 127 proof-sheet PDFs | **Experimental table, 129 tests**: fuel material/thickness, flow setting, O₂ % (initial/final), CO₂, CO, frames shot |
 | **FLEX** (droplets, suppressants) | PSI-69 v5 | 6,555 | 923.8 GB | **1,420 zips of BMP frame sequences**. The sample zip held 1,466 frames of 640×480 24-bit BMP plus a `.txt` log. Also 228 MP4s (38 GB) and 120 calibration files | Fuel × diluent class in the folder name: MeOH or heptane × CO₂/Xe/He/N₂ (e.g. MeOH-CO₂ 280 zips, heptane-CO₂ 219, MeOH-Xe 204 …) + experimental table |
 | **SAFFIRE-I** (large fabric fire, Cygnus) | PSI-98 v4 | 76 | 12.3 GB | 62 zips, e.g. `SAFFIRE_I_F2C2_Mapped_jpeg.zip` = 778 JPEG frames | Experimental table + sensor xlsx |
-| **SPICE** (co-flow soot/smoke point) | PSI-107 v4 | 188 | 7.0 GB | 101 zips (PNG downlink frame grabs), 18 MP4s; **30 Earth-gravity files** alongside the reduced-gravity data | Experimental tables (27 xls), µg vs 1 g pairs |
+| **SPICE** (co-flow soot/smoke point) | PSI-107 v4 | 188 | 7.0 GB | 101 zips (PNG downlink frame grabs, Nikon NEF stills, JPEGs), 18 MP4s. The 30 "Earth Gravity" files are **ground calibration sheets** (airflow, fuel flow), **not** 1 g flame images | Experimental tables (27 xls), flight flame-length table |
 
 **Scale.** FLEX alone is plausibly on the order of 10⁶ frames (1,420 sequences × ~1,000+ frames, extrapolated from one sampled zip; *estimate*). BASS-II adds ~244 videos and ~5,000 RAW stills. The bottleneck is **labelling and storage, not data availability**.
 
@@ -95,13 +95,11 @@ The search API at `https://images-api.nasa.gov/search?q=…&media_type=image` ra
 
 ## 6. Recommended plan for the CV / NN layers
 
-1. **Pilot download (~5–8 GB, about an hour):**
-   - BASS-II: the experimental table plus ~15 test MP4s chosen to span materials, O₂ levels and flow settings (most are 5–11 MB).
-   - FLEX: 1–2 BMP zips per fuel × diluent class (8 classes × ~300 MB).
-   - SAFFIRE-I: 1 JPEG zip.
-   - SPICE: 1 µg and 1 1 g frame-grab zip.
-
-   Record provenance with the existing `data/scripts/record_provenance.py` pattern, extended for PSI keys.
+1. **Pilot download (103 files, 3.13 GB)**, selected in `data/manifests/psi_pilot_selection.csv` (each row has a `reason`), downloaded with `data/scripts/psi_download.py`, and recorded with `record_provenance.py <PSI-ID> <SOURCE_ID> psi_api`:
+   - BASS-II: all documents and the experimental table, plus **17 test MP4s** (≤ 80 MB each; the median BASS-II test video is ~42 MB). Up to 2 per fuel family: PMMA rod, film, slab, spherical section, other PMMA, SIBAL and Nomex fabric, wax candle. Initial O₂ spans 13.6–22.2 %.
+   - FLEX: documents, the experimental table, and **1 BMP-sequence zip per fuel × diluent class** (8 classes, nearest to 300 MB).
+   - SAFFIRE-I: documents, plus the F2C2 camera's raw and mapped JPEG frames.
+   - SPICE: documents, flight JPEGs, one downlink frame-grab zip, the flight flame-length table and the ground calibration sheets.
 2. **Frame extraction** into derived storage, never touching the originals:
    - Sample every *k*-th frame per test, so near-duplicate frames don't dominate.
    - Each frame record keeps `parent_file_id`, its frame index or timecode, and the test ID from the experimental table.
