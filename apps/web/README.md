@@ -1,36 +1,63 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Flame in Freefall — Web
+
+Next.js frontend for the Flame in Freefall scientific research and analysis platform.
+
+## Requirements
+
+- Node.js 22+
+- npm 10+
 
 ## Getting Started
 
-First, run the development server:
+From the repository root:
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+    npm --prefix apps/web install
+    npm --prefix apps/web run dev
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Available Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+    npm --prefix apps/web run dev
+    npm --prefix apps/web run lint
+    npm --prefix apps/web run typecheck
+    npm --prefix apps/web run build
+    npm --prefix apps/web run start
 
-## Learn More
+- dev — Start the development server.
+- lint — Run ESLint.
+- typecheck — Run TypeScript checks without emitting files.
+- build — Create a production build.
+- start — Start the production server.
 
-To learn more about Next.js, take a look at the following resources:
+## Environment Variables
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Frontend environment variables belong in a local `.env.local` file.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Do not commit secrets or credentials.
 
-## Deploy on Vercel
+The API base URL will be added here once the backend API contract is finalized.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Example:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+    NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+
+## Folder Conventions
+
+    apps/web/
+    ├── app/            # Next.js App Router pages and routes
+    ├── components/     # Reusable UI and layout components
+    ├── lib/            # Frontend utilities and API client
+    ├── public/         # Static assets
+    ├── package.json
+    ├── tsconfig.json
+    └── README.md
+
+## Architecture Rules
+
+- The frontend consumes documented API contracts.
+- The frontend must not access PostgreSQL, Redis, object storage, or other databases directly.
+- API communication belongs in lib/.
+- Reusable UI belongs in components/.
+- Route-specific pages belong in app/.
+- Scientific claims must expose their evidence and provenance when the backend provides it.

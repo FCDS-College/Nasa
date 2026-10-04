@@ -1,7 +1,6 @@
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { MetricCard } from "@/components/ui/MetricCard";
-import { StateCard } from "@/components/ui/StateCard";
 
 export default function Home() {
   return (
@@ -52,11 +51,6 @@ export default function Home() {
           </p>
         </Card>
 
-        <StateCard
-          title="Frontend Status"
-          message="Next.js application shell is running successfully."
-          status="success"
-        />
       </section>
     </div>
   );
