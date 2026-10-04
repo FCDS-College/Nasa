@@ -4,16 +4,16 @@ Implements DAY1_DATA_ACQUISITION.md section 3 (per-object provenance) and the
 section 8 checksum criterion. Original files are only read, never modified.
 
 Two mirror layouts are supported:
-  s3       data/raw/nasa_psi/<INVESTIGATION>/...   from the public s3://nasa-psi bucket,
+  s3       datasets/raw/nasa_psi/<INVESTIGATION>/...   from the public s3://nasa-psi bucket,
            sizes checked against manifests/nasa_psi_full_listing.txt
-  psi_api  data/raw/psi_api/<PSI-ID>/...           from the psi.nasa.gov download API
-           (data/scripts/psi_download.py), sizes checked against
+  psi_api  datasets/raw/psi_api/<PSI-ID>/...           from the psi.nasa.gov download API
+           (knowledge/ingestion/psi_download.py), sizes checked against
            manifests/psi_combustion_file_inventory.csv
 
 Usage:
-    python data/scripts/record_provenance.py INVESTIGATION SOURCE_ID [s3|psi_api]
-    python data/scripts/record_provenance.py DSI FF-PSI-DSI
-    python data/scripts/record_provenance.py PSI-25 FF-PSI-25 psi_api
+    python knowledge/ingestion/record_provenance.py INVESTIGATION SOURCE_ID [s3|psi_api]
+    python knowledge/ingestion/record_provenance.py DSI FF-PSI-DSI
+    python knowledge/ingestion/record_provenance.py PSI-25 FF-PSI-25 psi_api
 """
 import csv
 import hashlib
@@ -26,7 +26,7 @@ from email.utils import parsedate_to_datetime
 from pathlib import Path
 from urllib.parse import urlencode
 
-DATA_DIR = Path(__file__).resolve().parents[1]
+DATA_DIR = Path(__file__).resolve().parents[2] / "datasets"
 RAW_DIRS = {"s3": DATA_DIR / "raw" / "nasa_psi", "psi_api": DATA_DIR / "raw" / "psi_api"}
 LISTING = DATA_DIR / "manifests" / "nasa_psi_full_listing.txt"
 INVENTORY = DATA_DIR / "manifests" / "psi_combustion_file_inventory.csv"

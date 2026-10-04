@@ -2,7 +2,7 @@
 
 **Source ID:** `FF-PSI-DSI` · **Priority:** P2 (reference, non-combustion) · **Report date:** 2026-10-04
 **Canonical location:** `s3://nasa-psi/DSI/` (public, anonymous access, `us-west-2`)
-**Local mirror:** `data/raw/nasa_psi/DSI/` (git-ignored) · **Provenance:** `data/metadata/files.jsonl`, `data/checksums/sha256.txt`
+**Local mirror:** `datasets/raw/nasa_psi/DSI/` (git-ignored) · **Provenance:** `datasets/metadata/files.jsonl`, `datasets/checksums/sha256.txt`
 
 ---
 
@@ -170,7 +170,7 @@ The values come from the English sheets of the four `*Solidification Plan.xlsx` 
 | Sample frame check | HR1 frame 0: pixel min/max/mean = 0 / 235 / 47.8, not saturated |
 | Why this run | It is the smallest complete low-velocity run (3.1 GB), and V = 0.5 µm/s is in the cellular regime where the taskbook reports oscillations and multiplets |
 
-The archive is kept zipped as the immutable original. Any extraction must go to a derived location (for example `data/derived/DSI/…`) with `parent_file_id` set, per `DAY1_DATA_ACQUISITION.md` §3.
+The archive is kept zipped as the immutable original. Any extraction must go to a derived location (for example `datasets/derived/DSI/…`) with `parent_file_id` set, per `DAY1_DATA_ACQUISITION.md` §3.
 
 ---
 
@@ -185,8 +185,8 @@ The archive is kept zipped as the immutable original. Any extraction must go to 
 | `DSI/Data/S1 activity 4.zip` | 1 | 3,076,946,537 |
 | **Total** | **21** | **≈ 3.10 GB** |
 
-- `data/metadata/files.jsonl` holds one record per file. Fields: `file_id`, `source_id`, `original_filename`, `remote_object_key`, `canonical_source_url`, `local_path`, `content_type`, `size_bytes`, `listing_size_bytes`, `sha256`, `retrieval_timestamp_utc`, `remote_last_modified_utc`, `is_original`, `parent_file_id`.
-- `data/checksums/sha256.txt` is in `sha256sum` format with LF endings, which `.gitattributes` enforces.
+- `datasets/metadata/files.jsonl` holds one record per file. Fields: `file_id`, `source_id`, `original_filename`, `remote_object_key`, `canonical_source_url`, `local_path`, `content_type`, `size_bytes`, `listing_size_bytes`, `sha256`, `retrieval_timestamp_utc`, `remote_last_modified_utc`, `is_original`, `parent_file_id`.
+- `datasets/checksums/sha256.txt` is in `sha256sum` format with LF endings, which `.gitattributes` enforces.
 - Status against the `DAY1_DATA_ACQUISITION.md` §8 acceptance criteria:
 
 | Criterion | DSI status |
@@ -194,19 +194,19 @@ The archive is kept zipped as the immutable original. Any extraction must go to 
 | Registry row exists | ✅ `FF-PSI-DSI` in `source_registry.csv` |
 | Persistent identifier | ⚠️ none recorded. A PSI DOI for DSI was not looked up. |
 | SHA-256 for every mirrored file | ✅ 21/21 |
-| Originals immutable | ✅ read-only use; `data/raw/` is git-ignored |
+| Originals immutable | ✅ read-only use; `datasets/raw/` is git-ignored |
 | Metadata ↔ file records joinable | ✅ via `sha256` / `remote_object_key` |
 | Fact → exact source file/location | ⚠️ possible at file level; no evidence records extracted yet |
 | No unverified S3 path hard-coded | ✅ every key comes from the bucket listing |
 
 To reproduce:
 ```bash
-aws s3 cp --no-sign-request --recursive "s3://nasa-psi/DSI/" data/raw/nasa_psi/DSI/ \
+aws s3 cp --no-sign-request --recursive "s3://nasa-psi/DSI/" datasets/raw/nasa_psi/DSI/ \
   --exclude "*" --include "DECLIC-DSI DoD.docx" --include "SRD/*" \
   --include "Taskbook Downloads/*" --include "Data/*Solidification Plan.xlsx" \
   --include "Data/S1 activity 4.zip"
-python data/scripts/record_provenance.py DSI FF-PSI-DSI
-(cd data && sha256sum -c checksums/sha256.txt)
+python knowledge/ingestion/record_provenance.py DSI FF-PSI-DSI
+(cd datasets && sha256sum -c checksums/sha256.txt)
 ```
 
 ---
@@ -231,7 +231,7 @@ python data/scripts/record_provenance.py DSI FF-PSI-DSI
 |---|---|---|
 | Combustion evidence / RAG answers | ❌ | Wrong domain |
 | RAG infrastructure testing | ✅ limited | 15 clean, text-layer documents (SRD plus 13 taskbook reports) for chunking, citation-locator and abstention tests. Abstention example: "Does DSI say anything about flame spread?" should return evidence-insufficient. |
-| CV pipeline (`CV/contract.json`) | ✅ as a stand-in | 4,027 real microgravity greyscale frames to test validation, preprocessing, segmentation and geometry features, plus the `scaleAbsent`/`calibrationAbsent` flags. The cellular interface is a structured, segmentable pattern. **It does not train flame detection**, because flames are RGB, self-luminous objects. |
+| CV pipeline (`cv/contracts/analysis_result.json`) | ✅ as a stand-in | 4,027 real microgravity greyscale frames to test validation, preprocessing, segmentation and geometry features, plus the `scaleAbsent`/`calibrationAbsent` flags. The cellular interface is a structured, segmentable pattern. **It does not train flame detection**, because flames are RGB, self-luminous objects. |
 | Experiment Explorer / data model | ✅ | The flight plans map directly to `Experiment` and `ExperimentCondition` (velocity, travel, furnace set-points, image rate) and are a good first exercise of the units policy (mm/s → µm/s, °C). |
 | Ingestion / provenance contract | ✅ | Already exercised end to end. Repeat the same path for BASS-II and FLEX once they are obtained. |
 

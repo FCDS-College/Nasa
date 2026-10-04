@@ -1,5 +1,10 @@
-# Mirrored source data: immutable originals live outside Git (see data/Docs/DAY1_DATA_ACQUISITION.md)
-data/raw/
+# Mirrored source data: immutable originals live outside Git (see docs/data/DAY1_DATA_ACQUISITION.md)
+datasets/raw/
 # Full nasa-psi bucket listing is ~110 MB (over GitHub's 100 MB limit); regenerate with `aws s3 ls --recursive`
-data/manifests/nasa_psi_full_listing.txt
+datasets/manifests/nasa_psi_full_listing.txt
 __pycache__/
+# Derived artefacts (frame extractions, conversions) are rebuilt from raw; keep them out of Git
+datasets/derived/
+# TEMPORARY: leftover pre-restructure folder holding an extracted copy of S1 activity 4 (locked by another program).
+# Move it to datasets/derived/DSI/ and delete this line.
+data/

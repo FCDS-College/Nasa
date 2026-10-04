@@ -1,15 +1,15 @@
 """Download selected NASA PSI files through the public psi.nasa.gov download API.
 
 The API returns a short-lived signed S3 URL per file (no account needed). Files are
-mirrored byte-for-byte to data/raw/psi_api/<PSI-ID>/<path inside psi-data/<PSI-ID>/>,
+mirrored byte-for-byte to datasets/raw/psi_api/<PSI-ID>/<path inside psi-data/<PSI-ID>/>,
 written to a .part file first and renamed only after the size matches the inventory.
 Re-running skips complete files and resumes partial ones.
 
 Afterwards record checksums/provenance with:
-    python data/scripts/record_provenance.py <PSI-ID> <SOURCE_ID> psi_api
+    python knowledge/ingestion/record_provenance.py <PSI-ID> <SOURCE_ID> psi_api
 
 Usage:
-    python data/scripts/psi_download.py data/manifests/psi_pilot_selection.csv [--workers 4]
+    python knowledge/ingestion/psi_download.py datasets/manifests/psi_pilot_selection.csv [--workers 4]
 """
 import argparse
 import csv
@@ -20,7 +20,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from urllib.parse import urlencode
 
-DATA_DIR = Path(__file__).resolve().parents[1]
+DATA_DIR = Path(__file__).resolve().parents[2] / "datasets"
 RAW_ROOT = DATA_DIR / "raw" / "psi_api"
 API = "https://psi.nasa.gov/geode-py/ws/studies/{psi_id}/download?"
 CHUNK = 4 * 1024 * 1024

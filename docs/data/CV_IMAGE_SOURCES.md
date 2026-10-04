@@ -1,7 +1,7 @@
 # Flame Image Sources for the CV / NN Layers
 
-**Date:** 2026-10-04 · **Purpose:** find enough real microgravity flame imagery to build, train and evaluate the CV pipeline (`CV/contract.json`, `CV/pipline.py`) and the PyTorch learning layer (MVP plan §5.7, §5.9, §10).
-**Machine-readable inventory:** `data/manifests/psi_combustion_file_inventory.csv` (7,514 files, one row per PSI object)
+**Date:** 2026-10-04 · **Purpose:** find enough real microgravity flame imagery to build, train and evaluate the CV pipeline (`cv/contracts/analysis_result.json`, `cv/pipeline.py`) and the PyTorch learning layer (MVP plan §5.7, §5.9, §10).
+**Machine-readable inventory:** `datasets/manifests/psi_combustion_file_inventory.csv` (7,514 files, one row per PSI object)
 
 ---
 
@@ -95,11 +95,16 @@ The search API at `https://images-api.nasa.gov/search?q=…&media_type=image` ra
 
 ## 6. Recommended plan for the CV / NN layers
 
-1. **Pilot download (103 files, 3.13 GB)**, selected in `data/manifests/psi_pilot_selection.csv` (each row has a `reason`), downloaded with `data/scripts/psi_download.py`, and recorded with `record_provenance.py <PSI-ID> <SOURCE_ID> psi_api`:
+1. **Pilot download (103 files, 3.13 GB)**, selected in `datasets/manifests/psi_pilot_selection.csv` (each row has a `reason`), downloaded with `knowledge/ingestion/psi_download.py`, and recorded with `record_provenance.py <PSI-ID> <SOURCE_ID> psi_api`:
    - BASS-II: all documents and the experimental table, plus **17 test MP4s** (≤ 80 MB each; the median BASS-II test video is ~42 MB). Up to 2 per fuel family: PMMA rod, film, slab, spherical section, other PMMA, SIBAL and Nomex fabric, wax candle. Initial O₂ spans 13.6–22.2 %.
    - FLEX: documents, the experimental table, and **1 BMP-sequence zip per fuel × diluent class** (8 classes, nearest to 300 MB).
    - SAFFIRE-I: documents, plus the F2C2 camera's raw and mapped JPEG frames.
    - SPICE: documents, flight JPEGs, one downlink frame-grab zip, the flight flame-length table and the ground calibration sheets.
+
+   **Result (2026-10-04):**
+   - 100 of 103 files were mirrored to `datasets/raw/psi_api/`. All 100 are recorded in `datasets/metadata/files.jsonl`, sizes match the inventory, SHA-256 verifies, every zip opens, and all 17 MP4s have valid headers.
+   - Frame counts: FLEX ≈ 9,200 frames across 8 sequences (BMP and TIFF, depending on camera); SAFFIRE-I 1,556 JPEG frames; SPICE 65 PNG/JPEG frames.
+   - Three documents are **unavailable on NASA's side**: BASS-II `Test.Matrices.xlsx` and `ReadMe.docx`, and SAFFIRE `Offgassing Testing Strategy.pdf`. The API returns links to removed legacy objects (S3 404 for every version), so they cannot be downloaded until PSI fixes them.
 2. **Frame extraction** into derived storage, never touching the originals:
    - Sample every *k*-th frame per test, so near-duplicate frames don't dominate.
    - Each frame record keeps `parent_file_id`, its frame index or timecode, and the test ID from the experimental table.

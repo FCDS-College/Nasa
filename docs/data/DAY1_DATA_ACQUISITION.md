@@ -56,13 +56,13 @@ For SPICE, NASA PSI reports 6.47 GB for the investigation, again favoring manife
 ## 5. CLI bootstrap
 
 ```bash
-mkdir -p data/raw/psi data/manifests data/derived
+mkdir -p datasets/raw/psi datasets/manifests datasets/derived
 
-aws s3 ls --no-sign-request s3://nasa-psi/ > data/manifests/nasa_psi_root_listing.txt
+aws s3 ls --no-sign-request s3://nasa-psi/ > datasets/manifests/nasa_psi_root_listing.txt
 
 # After discovering the canonical object prefix from the PSI manifest:
-# aws s3 ls --no-sign-request s3://nasa-psi/<prefix>/ --recursive > data/manifests/<source_id>.listing.txt
-# aws s3 cp --no-sign-request s3://nasa-psi/<object-key> data/raw/psi/<source_id>/
+# aws s3 ls --no-sign-request s3://nasa-psi/<prefix>/ --recursive > datasets/manifests/<source_id>.listing.txt
+# aws s3 cp --no-sign-request s3://nasa-psi/<object-key> datasets/raw/psi/<source_id>/
 ```
 
 ### Important
