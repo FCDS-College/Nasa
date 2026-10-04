@@ -5,6 +5,3 @@ datasets/manifests/nasa_psi_full_listing.txt
 __pycache__/
 # Derived artefacts (frame extractions, conversions) are rebuilt from raw; keep them out of Git
 datasets/derived/
-# TEMPORARY: leftover pre-restructure folder holding an extracted copy of S1 activity 4 (locked by another program).
-# Move it to datasets/derived/DSI/ and delete this line.
-data/

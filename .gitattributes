@@ -1,3 +1,18 @@
 # sha256sum -c needs LF line endings
 datasets/checksums/*.txt text eol=lf
 datasets/metadata/*.jsonl text eol=lf
+# Never convert line endings in binary documents/media (ReportLab PDFs are pure ASCII and get misdetected as text)
+*.pdf  binary
+*.docx binary
+*.xlsx binary
+*.xls  binary
+*.pptx binary
+*.ppt  binary
+*.zip  binary
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.bmp  binary
+*.tif  binary
+*.mp4  binary
+*.ico  binary
