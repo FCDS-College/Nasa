@@ -1,0 +1,10 @@
+{
+  "sampleId": "FF-PSI-25",
+  "intakeStatus": "APPROVED",
+  "sourceType": "NASA_Microgravity_Combustion",
+  "validationRules": {
+    "mimeCheck": "passed",
+    "checksumGenerated": true,
+    "dimensionValid": true
+  }
+}
