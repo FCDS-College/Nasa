@@ -1,0 +1,4744 @@
+{
+  "openapi": "3.1.0",
+  "jsonSchemaDialect": "https://spec.openapis.org/oas/3.1/dialect/base",
+  "info": {
+    "title": "Flame in Freefall API",
+    "version": "0.1.0",
+    "summary": "Frontend-facing REST contract for the Flame in Freefall scientific dashboard.",
+    "description": "Contract-first specification (MVP plan §12, DAY2_TASKS Lead deliverable). **No route in this document is implemented yet** — `apps/api` does not exist. Every operation carries `x-implementation-status`. When the FastAPI service lands it must serve an equivalent document at `/api/openapi.json`, and a contract test must diff it against this file.\n\nConventions: snake_case JSON; RFC 3339 UTC timestamps; ULID resource IDs; nullable means 'not present or not established' (never 0 for missing); every JSON success body has `meta`; every error body is `ErrorResponse`.\n\nScientific rules encoded in the schema: no temperature field exists; pixel measurements are `measured`, scale-derived physical sizes are `estimated`; AI interpretation is separate from measurements and limited to inferred/hypothesized/unsupported claim classes; evidence is only source content or deterministic calculation.",
+    "license": {
+      "name": "Proprietary (team internal)",
+      "identifier": "LicenseRef-Proprietary"
+    }
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Same origin as the dashboard (recommended: proxy /api from Next.js)."
+    }
+  ],
+  "tags": [
+    {
+      "name": "System",
+      "description": "Health and status."
+    },
+    {
+      "name": "Dashboard",
+      "description": "Aggregates for the home screen."
+    },
+    {
+      "name": "Research",
+      "description": "Search, documents, experiments."
+    },
+    {
+      "name": "Evidence",
+      "description": "Evidence and provenance."
+    },
+    {
+      "name": "Analysis",
+      "description": "Flame image analysis and history."
+    }
+  ],
+  "security": [
+    {},
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/api/health": {
+      "get": {
+        "operationId": "getHealth",
+        "summary": "System health and dependency status",
+        "description": "Liveness + readiness of the Flame API and each dependency. Public; never reveals hosts, DSNs or secrets. Returns 200 for healthy/degraded and 503 for unhealthy — both with a HealthResponse body. The frontend must show *unknown* until the first response arrives (DAY2_TASKS: no hard-coded 'System Online').",
+        "tags": [
+          "System"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestIdHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Healthy or degraded.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                },
+                "examples": {
+                  "degraded": {
+                    "summary": "Development stack before the first index publication",
+                    "value": {
+                      "status": "degraded",
+                      "environment": "development",
+                      "version": {
+                        "api_version": "0.1.0",
+                        "build_id": null,
+                        "git_sha": "695fca8"
+                      },
+                      "knowledge_version": null,
+                      "services": {
+                        "api": {
+                          "status": "up",
+                          "required": true,
+                          "latency_ms": 0.4,
+                          "checked_at": "2026-10-05T09:30:00Z",
+                          "version": "0.1.0",
+                          "message": null
+                        },
+                        "database": {
+                          "status": "up",
+                          "required": true,
+                          "latency_ms": 2.1,
+                          "checked_at": "2026-10-05T09:30:00Z",
+                          "version": "PostgreSQL 16",
+                          "message": null
+                        },
+                        "vector_index": {
+                          "status": "down",
+                          "required": false,
+                          "latency_ms": null,
+                          "checked_at": "2026-10-05T09:30:00Z",
+                          "version": null,
+                          "message": "No index has been published yet."
+                        },
+                        "object_storage": {
+                          "status": "up",
+                          "required": true,
+                          "latency_ms": 3.8,
+                          "checked_at": "2026-10-05T09:30:00Z",
+                          "version": null,
+                          "message": null
+                        },
+                        "cache": {
+                          "status": "up",
+                          "required": false,
+                          "latency_ms": 0.9,
+                          "checked_at": "2026-10-05T09:30:00Z",
+                          "version": null,
+                          "message": null
+                        },
+                        "cv_model": {
+                          "status": "unknown",
+                          "required": false,
+                          "latency_ms": null,
+                          "checked_at": null,
+                          "version": null,
+                          "message": "CV worker not deployed."
+                        },
+                        "llm": {
+                          "status": "disabled",
+                          "required": false,
+                          "latency_ms": null,
+                          "checked_at": null,
+                          "version": null,
+                          "message": null
+                        },
+                        "aura": {
+                          "status": "disabled",
+                          "required": false,
+                          "latency_ms": null,
+                          "checked_at": null,
+                          "version": null,
+                          "message": "FLAME_AURA_ENABLED is false."
+                        }
+                      },
+                      "meta": {
+                        "request_id": "req_01J9Z3K8V5Q2N7X4M6R1T0W8YB",
+                        "generated_at": "2026-10-05T09:30:00Z",
+                        "api_version": "0.1.0"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Unhealthy: a required service is down. Body is still a HealthResponse.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "x-implementation-status": "not_implemented",
+        "security": []
+      }
+    },
+    "/api/dashboard/counts": {
+      "get": {
+        "operationId": "getDashboardCounts",
+        "summary": "Dashboard counts (documents, experiments, analyses)",
+        "description": "One aggregated read so the three metric cards share a single timestamp and a single loading/error state. On any database failure returns 503 DATABASE_UNAVAILABLE — never zeros (a zero is a real value; the UI keeps showing '—').",
+        "tags": [
+          "Dashboard"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestIdHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current counts.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardCountsResponse"
+                },
+                "examples": {
+                  "counts": {
+                    "summary": "Illustrative counts (3 NTRS PDFs, 129 BASS-II tests)",
+                    "value": {
+                      "documents": 3,
+                      "experiments": 129,
+                      "analyses": 0,
+                      "analyses_in_progress": 0,
+                      "knowledge_version": null,
+                      "meta": {
+                        "request_id": "req_01J9Z3K8V5Q2N7X4M6R1T0W8YB",
+                        "generated_at": "2026-10-05T09:30:00Z",
+                        "api_version": "0.1.0"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "description": "A dependency is unavailable. Codes: DATABASE_UNAVAILABLE.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              },
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-implementation-status": "not_implemented",
+        "security": [
+          {},
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/search": {
+      "get": {
+        "operationId": "search",
+        "summary": "Search documents and experiments",
+        "description": "Ranked search over published document passages and experiment records. Lexical (Postgres FTS) first; hybrid when the vector index is published (see retrieval.mode). Deviation from MVP plan §12 (`POST /api/search`): GET is used because every filter fits in query parameters and results are cacheable/linkable.",
+        "tags": [
+          "Research"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestIdHeader"
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "description": "Search text.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "description": "Restrict to one result type; both when omitted.",
+            "schema": {
+              "$ref": "#/components/schemas/SearchResultType"
+            }
+          },
+          {
+            "name": "source_id",
+            "in": "query",
+            "required": false,
+            "style": "form",
+            "explode": true,
+            "description": "Restrict to these registry source IDs (repeat the parameter).",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[A-Z0-9][A-Z0-9_-]{2,63}$"
+              },
+              "maxItems": 20
+            }
+          },
+          {
+            "name": "experiment_id",
+            "in": "query",
+            "required": false,
+            "description": "Restrict to passages/records linked to this experiment.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "description": "ULID (MVP plan §9 / DAY2_TASKS: ULID primary keys)."
+            }
+          },
+          {
+            "name": "domain",
+            "in": "query",
+            "required": false,
+            "description": "Domain filter.",
+            "schema": {
+              "$ref": "#/components/schemas/SearchDomain",
+              "default": "combustion"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "description": "Results per page.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Search results (possibly empty).",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResponse"
+                },
+                "examples": {
+                  "documentHit": {
+                    "summary": "Real excerpt: NASA/TM-2000-209773, PDF page 5",
+                    "value": {
+                      "query": "flame spread low gravity oxygen",
+                      "results": [
+                        {
+                          "result_id": "01J9Z3M2A7D4F6H8K0N2Q4S6T8:v1:4",
+                          "result_type": "document",
+                          "rank": 1,
+                          "score": 0.42,
+                          "title": "Testing and Selection of Fire-Resistant Materials for Spacecraft Use",
+                          "snippet": "Research shows that flammability and fire-spread rates in low gravity are sensitive to forced convection (ventilation flows) and atmospheric-oxygen concentration.",
+                          "highlights": [
+                            {
+                              "start": 58,
+                              "end": 69
+                            }
+                          ],
+                          "source": {
+                            "source_id": "FF-NTRS-20000034017",
+                            "title": "Testing and Selection of Fire-Resistant Materials for Spacecraft Use",
+                            "short_name": "NASA/TM-2000-209773",
+                            "repository": "NASA NTRS",
+                            "persistent_identifier": null,
+                            "license": null,
+                            "access_url": "https://ntrs.nasa.gov/citations/20000034017"
+                          },
+                          "document_id": "01J9Z3M2A7D4F6H8K0N2Q4S6T8",
+                          "document_type": "technical_report",
+                          "experiment_id": null,
+                          "experiment": null,
+                          "evidence_id": "01J9Z3N5B8C1E3G5J7M9P1R3T5",
+                          "has_evidence": true,
+                          "locator": {
+                            "type": "page",
+                            "page": 5,
+                            "section": "ABSTRACT",
+                            "row": null,
+                            "frame_index": null,
+                            "label": "p. 5"
+                          },
+                          "ingested_at": "2026-10-05T08:00:00Z"
+                        }
+                      ],
+                      "pagination": {
+                        "page": 1,
+                        "page_size": 20,
+                        "total_items": 1,
+                        "total_pages": 1
+                      },
+                      "filters": {
+                        "type": null,
+                        "source_id": [],
+                        "experiment_id": null,
+                        "domain": "combustion"
+                      },
+                      "retrieval": {
+                        "mode": "lexical",
+                        "knowledge_version": "kv-2026-10-05.1",
+                        "index_version": null,
+                        "searched_but_empty": false
+                      },
+                      "meta": {
+                        "request_id": "req_01J9Z3K8V5Q2N7X4M6R1T0W8YB",
+                        "generated_at": "2026-10-05T09:30:00Z",
+                        "api_version": "0.1.0"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "description": "A dependency is unavailable. Codes: DATABASE_UNAVAILABLE, SEARCH_UNAVAILABLE.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              },
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-implementation-status": "not_implemented",
+        "security": [
+          {},
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/documents/{document_id}": {
+      "get": {
+        "operationId": "getDocument",
+        "summary": "Document details and provenance",
+        "description": "Metadata, source, original-file provenance (sha256), page/OCR status and links for one published document.",
+        "tags": [
+          "Research"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestIdHeader"
+          },
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "description": "ULID (MVP plan §9 / DAY2_TASKS: ULID primary keys)."
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The document.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentResponse"
+                },
+                "examples": {
+                  "ntrsReport": {
+                    "summary": "Real file metadata (sha256 of docs/research/20000034017.pdf)",
+                    "value": {
+                      "document": {
+                        "document_id": "01J9Z3M2A7D4F6H8K0N2Q4S6T8",
+                        "title": "Testing and Selection of Fire-Resistant Materials for Spacecraft Use",
+                        "document_type": "technical_report",
+                        "identifier": "NASA/TM-2000-209773",
+                        "persistent_identifier": null,
+                        "source": {
+                          "source_id": "FF-NTRS-20000034017",
+                          "title": "Testing and Selection of Fire-Resistant Materials for Spacecraft Use",
+                          "short_name": "NASA/TM-2000-209773",
+                          "repository": "NASA NTRS",
+                          "persistent_identifier": null,
+                          "license": null,
+                          "access_url": "https://ntrs.nasa.gov/citations/20000034017"
+                        },
+                        "file": {
+                          "file_id": "sha256:dc531270ffb646b2",
+                          "sha256": "dc531270ffb646b26503955afb0c1df7bcc47482bbfed4a3d6b922de9629520d",
+                          "original_filename": "20000034017.pdf",
+                          "media_type": "application/pdf",
+                          "size_bytes": 1297410,
+                          "retrieved_at": "2026-10-03T20:00:38Z",
+                          "canonical_source_url": null,
+                          "is_original": true,
+                          "parent_file_id": null
+                        },
+                        "page_count": 20,
+                        "text_layer": "full",
+                        "pages_without_text": [],
+                        "parser_version": "pymupdf-pages-0.1.0",
+                        "ingested_at": "2026-10-05T08:00:00Z",
+                        "knowledge_version": "kv-2026-10-05.1",
+                        "experiment_ids": [],
+                        "evidence_count": 1
+                      },
+                      "meta": {
+                        "request_id": "req_01J9Z3K8V5Q2N7X4M6R1T0W8YB",
+                        "generated_at": "2026-10-05T09:30:00Z",
+                        "api_version": "0.1.0"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "description": "A dependency is unavailable. Codes: DATABASE_UNAVAILABLE.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              },
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found. Codes: DOCUMENT_NOT_FOUND.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-implementation-status": "not_implemented",
+        "security": [
+          {},
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/experiments/{experiment_id}": {
+      "get": {
+        "operationId": "getExperiment",
+        "summary": "Experiment (test) details and conditions",
+        "description": "Needed because search returns experiment hits and analyses link to experiments. Conditions keep original value + unit, an SI value, and an evidence ID per condition.",
+        "tags": [
+          "Research"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestIdHeader"
+          },
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "description": "ULID (MVP plan §9 / DAY2_TASKS: ULID primary keys)."
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The experiment.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExperimentResponse"
+                },
+                "examples": {
+                  "bassB1": {
+                    "summary": "BASS-II B1 (values as cited in DAY2_TASKS)",
+                    "value": {
+                      "experiment": {
+                        "experiment_id": "01J9Z3P7C2E4G6J8M0Q2S4V6X8",
+                        "test_id": "B1",
+                        "investigation": "BASS-II",
+                        "source": {
+                          "source_id": "FF-PSI-25",
+                          "title": "Burning and Suppression of Solids-II",
+                          "short_name": "BASS-II",
+                          "repository": "NASA PSI",
+                          "persistent_identifier": "doi:10.60555/4qc4-de67",
+                          "license": "CC0-1.0",
+                          "access_url": "https://psi.nasa.gov/physci/repo/data/investigations/PSI-25"
+                        },
+                        "gravity_regime": "microgravity",
+                        "fuel_or_material": "PMMA film",
+                        "conditions": [
+                          {
+                            "variable": "sample_thickness",
+                            "value_numeric": 100,
+                            "value_text": null,
+                            "unit_original": "µm",
+                            "value_si": 0.0001,
+                            "unit_si": "m",
+                            "origin": "reported",
+                            "evidence_id": "01J9Z3R1E4G6J8M0P2S4V6Y8A0"
+                          },
+                          {
+                            "variable": "o2_fraction",
+                            "value_numeric": 22.2,
+                            "value_text": null,
+                            "unit_original": "%",
+                            "value_si": 0.222,
+                            "unit_si": "1",
+                            "origin": "reported",
+                            "evidence_id": "01J9Z3R2F5H7K9N1Q3T5W7Z9B1"
+                          }
+                        ],
+                        "document_ids": [],
+                        "table_file": {
+                          "file_id": "sha256:71e792bf6b5fb5ea",
+                          "sha256": "71e792bf6b5fb5ea620c5dd70fbbac05515992e12aefcf5dff47312caa48c042",
+                          "original_filename": "PSI-25_Experimental table_BASS-II.csv",
+                          "media_type": "text/csv",
+                          "size_bytes": 16590,
+                          "retrieved_at": "2026-10-04T09:10:38Z",
+                          "canonical_source_url": "https://psi.nasa.gov/geode-py/ws/studies/PSI-25/download?file=PSI-25_Experimental+table_BASS-II.csv&version=1",
+                          "is_original": true,
+                          "parent_file_id": null
+                        }
+                      },
+                      "meta": {
+                        "request_id": "req_01J9Z3K8V5Q2N7X4M6R1T0W8YB",
+                        "generated_at": "2026-10-05T09:30:00Z",
+                        "api_version": "0.1.0"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "description": "A dependency is unavailable. Codes: DATABASE_UNAVAILABLE.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              },
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found. Codes: EXPERIMENT_NOT_FOUND.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-implementation-status": "not_implemented",
+        "security": [
+          {},
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/evidence/{evidence_id}": {
+      "get": {
+        "operationId": "getEvidence",
+        "summary": "Evidence and provenance for one evidence record",
+        "description": "Resolves an evidence ID (from a search hit, experiment condition or analysis statement) to its source, file, locator, verbatim excerpt or value, extraction method and review status. This is the single trace step claim → evidence → document → page → original source (MVP plan §5.11).",
+        "tags": [
+          "Evidence"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestIdHeader"
+          },
+          {
+            "name": "evidence_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "description": "ULID (MVP plan §9 / DAY2_TASKS: ULID primary keys)."
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The evidence record.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvidenceResponse"
+                },
+                "examples": {
+                  "documentPassage": {
+                    "summary": "Real excerpt: NASA/TM-2000-209773, PDF page 5",
+                    "value": {
+                      "evidence": {
+                        "evidence_id": "01J9Z3N5B8C1E3G5J7M9P1R3T5",
+                        "kind": "document_passage",
+                        "origin": "source_evidence",
+                        "citation": "Friedman, Jackson & Olson, NASA/TM-2000-209773 (2000), p. 5",
+                        "source": {
+                          "source_id": "FF-NTRS-20000034017",
+                          "title": "Testing and Selection of Fire-Resistant Materials for Spacecraft Use",
+                          "short_name": "NASA/TM-2000-209773",
+                          "repository": "NASA NTRS",
+                          "persistent_identifier": null,
+                          "license": null,
+                          "access_url": "https://ntrs.nasa.gov/citations/20000034017"
+                        },
+                        "document_id": "01J9Z3M2A7D4F6H8K0N2Q4S6T8",
+                        "experiment_id": null,
+                        "analysis_id": null,
+                        "file": {
+                          "file_id": "sha256:dc531270ffb646b2",
+                          "sha256": "dc531270ffb646b26503955afb0c1df7bcc47482bbfed4a3d6b922de9629520d",
+                          "original_filename": "20000034017.pdf",
+                          "media_type": "application/pdf",
+                          "size_bytes": 1297410,
+                          "retrieved_at": "2026-10-03T20:00:38Z",
+                          "canonical_source_url": null,
+                          "is_original": true,
+                          "parent_file_id": null
+                        },
+                        "locator": {
+                          "type": "page",
+                          "page": 5,
+                          "section": "ABSTRACT",
+                          "row": null,
+                          "frame_index": null,
+                          "label": "p. 5"
+                        },
+                        "excerpt": "Research shows that flammability and fire-spread rates in low gravity are sensitive to forced convection (ventilation flows) and atmospheric-oxygen concentration.",
+                        "value": null,
+                        "measurement_or_claim_type": null,
+                        "extraction_method": "verbatim_text",
+                        "extraction_confidence": null,
+                        "review_status": "machine_extracted",
+                        "transformation_id": "pymupdf-pages-0.1.0",
+                        "created_at": "2026-10-05T08:00:00Z",
+                        "knowledge_version": "kv-2026-10-05.1"
+                      },
+                      "meta": {
+                        "request_id": "req_01J9Z3K8V5Q2N7X4M6R1T0W8YB",
+                        "generated_at": "2026-10-05T09:30:00Z",
+                        "api_version": "0.1.0"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "description": "A dependency is unavailable. Codes: DATABASE_UNAVAILABLE.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              },
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found. Codes: EVIDENCE_NOT_FOUND.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-implementation-status": "not_implemented",
+        "security": [
+          {},
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/analyses": {
+      "post": {
+        "operationId": "createAnalysis",
+        "summary": "Upload an image and start a flame analysis",
+        "description": "Validates the upload synchronously (size, type by content, decode, dimensions), stores the original immutably, and enqueues the CV job. Always asynchronous: returns 202 with the Analysis in status `queued`; poll GET /api/analyses/{analysis_id}.",
+        "tags": [
+          "Analysis"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestIdHeader"
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "Optional. Re-sending the same key within 24 h returns the original 202 response instead of creating a second analysis.",
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted and queued.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              },
+              "Location": {
+                "$ref": "#/components/headers/Location"
+              },
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisResponse"
+                },
+                "examples": {
+                  "queued": {
+                    "summary": "Just accepted",
+                    "value": {
+                      "analysis": {
+                        "analysis_id": "01J9Z3Q9D3F5H7K9N1R3T5W7Y9",
+                        "analysis_type": "flame_image",
+                        "status": "queued",
+                        "created_at": "2026-10-05T09:30:00Z",
+                        "updated_at": "2026-10-05T09:30:00Z",
+                        "started_at": null,
+                        "completed_at": null,
+                        "input": {
+                          "image_sha256": "4f1c2a0d9b8e7f6a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f2a",
+                          "original_filename": "example.png",
+                          "media_type": "image/png",
+                          "size_bytes": 354891,
+                          "width": 640,
+                          "height": 480,
+                          "experiment_id": null,
+                          "source_file_id": null,
+                          "frame_index": null,
+                          "calibration": {
+                            "state": "absent",
+                            "scale_px_per_mm": null,
+                            "scale_source": null
+                          },
+                          "notes": null
+                        },
+                        "pipeline": null,
+                        "result": null,
+                        "interpretation": {
+                          "status": "not_requested",
+                          "provider": null,
+                          "model": null,
+                          "statements": [],
+                          "rejected_statement_count": 0,
+                          "generated_at": null
+                        },
+                        "artifacts": [
+                          {
+                            "kind": "original",
+                            "url": "/api/analyses/01J9Z3Q9D3F5H7K9N1R3T5W7Y9/artifacts/original",
+                            "media_type": "image/png",
+                            "sha256": "4f1c2a0d9b8e7f6a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f2a",
+                            "width": 640,
+                            "height": 480,
+                            "size_bytes": 354891
+                          }
+                        ],
+                        "warnings": [],
+                        "failure": null,
+                        "poll_after_ms": 1000
+                      },
+                      "meta": {
+                        "request_id": "req_01J9Z3K8V5Q2N7X4M6R1T0W8YB",
+                        "generated_at": "2026-10-05T09:30:00Z",
+                        "api_version": "0.1.0"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "413": {
+            "description": "Image exceeds the upload limit. Codes: PAYLOAD_TOO_LARGE.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Not a PNG or JPEG (detected from content). Codes: UNSUPPORTED_MEDIA_TYPE.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Image cannot be decoded, is too small/large in pixels, or references an unknown experiment. Codes: IMAGE_INVALID, UNKNOWN_EXPERIMENT, VALIDATION_ERROR.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "description": "Cannot accept work right now. Codes: DATABASE_UNAVAILABLE, STORAGE_UNAVAILABLE, QUEUE_UNAVAILABLE, MODEL_UNAVAILABLE.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              },
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-implementation-status": "not_implemented",
+        "security": [
+          {},
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalysisCreateForm"
+              },
+              "encoding": {
+                "image": {
+                  "contentType": "image/png, image/jpeg"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "listAnalyses",
+        "summary": "Analysis history",
+        "description": "Paginated list of analyses, newest first by default.",
+        "tags": [
+          "Analysis"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestIdHeader"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "style": "form",
+            "explode": true,
+            "description": "Filter by one or more statuses (repeat the parameter).",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/AnalysisStatus"
+              },
+              "maxItems": 5
+            }
+          },
+          {
+            "name": "experiment_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "description": "ULID (MVP plan §9 / DAY2_TASKS: ULID primary keys)."
+            }
+          },
+          {
+            "name": "pipeline_version",
+            "in": "query",
+            "required": false,
+            "description": "Exact pipeline version (model filter).",
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "created_from",
+            "in": "query",
+            "required": false,
+            "description": "Inclusive lower bound on created_at (RFC 3339).",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "created_to",
+            "in": "query",
+            "required": false,
+            "description": "Exclusive upper bound on created_at (RFC 3339).",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "created_at_desc",
+                "created_at_asc"
+              ],
+              "default": "created_at_desc"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of analyses.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisListResponse"
+                },
+                "examples": {
+                  "history": {
+                    "summary": "ILLUSTRATIVE values for UI mocks — not a measurement of any real image.",
+                    "value": {
+                      "items": [
+                        {
+                          "analysis_id": "01J9Z3Q9D3F5H7K9N1R3T5W7Y9",
+                          "analysis_type": "flame_image",
+                          "status": "completed",
+                          "created_at": "2026-10-05T09:30:00Z",
+                          "completed_at": "2026-10-05T09:30:04Z",
+                          "original_filename": "example.png",
+                          "image_sha256": "4f1c2a0d9b8e7f6a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f2a",
+                          "experiment_id": null,
+                          "pipeline_version": "cv-0.1.0",
+                          "detection_status": "present",
+                          "flame_area_px": 18900,
+                          "calibration_state": "absent",
+                          "warning_count": 3,
+                          "overlay_url": "/api/analyses/01J9Z3Q9D3F5H7K9N1R3T5W7Y9/artifacts/overlay"
+                        }
+                      ],
+                      "pagination": {
+                        "page": 1,
+                        "page_size": 20,
+                        "total_items": 1,
+                        "total_pages": 1
+                      },
+                      "meta": {
+                        "request_id": "req_01J9Z3K8V5Q2N7X4M6R1T0W8YB",
+                        "generated_at": "2026-10-05T09:30:00Z",
+                        "api_version": "0.1.0"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "description": "A dependency is unavailable. Codes: DATABASE_UNAVAILABLE.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              },
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-implementation-status": "not_implemented",
+        "security": [
+          {},
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/analyses/{analysis_id}": {
+      "get": {
+        "operationId": "getAnalysis",
+        "summary": "Analysis status and result",
+        "description": "Polling target and detail view. While status is queued/processing the response carries `Retry-After` and `poll_after_ms`. Completed analyses are immutable; a re-run creates a new analysis.",
+        "tags": [
+          "Analysis"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/AnalysisId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The analysis in its current state.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              },
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisResponse"
+                },
+                "examples": {
+                  "completed": {
+                    "summary": "ILLUSTRATIVE values for UI mocks — not a measurement of any real image.",
+                    "value": {
+                      "analysis": {
+                        "analysis_id": "01J9Z3Q9D3F5H7K9N1R3T5W7Y9",
+                        "analysis_type": "flame_image",
+                        "status": "completed",
+                        "created_at": "2026-10-05T09:30:00Z",
+                        "updated_at": "2026-10-05T09:30:04Z",
+                        "started_at": "2026-10-05T09:30:01Z",
+                        "completed_at": "2026-10-05T09:30:04Z",
+                        "input": {
+                          "image_sha256": "4f1c2a0d9b8e7f6a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f2a",
+                          "original_filename": "example.png",
+                          "media_type": "image/png",
+                          "size_bytes": 354891,
+                          "width": 640,
+                          "height": 480,
+                          "experiment_id": null,
+                          "source_file_id": null,
+                          "frame_index": null,
+                          "calibration": {
+                            "state": "absent",
+                            "scale_px_per_mm": null,
+                            "scale_source": null
+                          },
+                          "notes": null
+                        },
+                        "pipeline": {
+                          "pipeline_version": "cv-0.1.0",
+                          "preprocessing_version": "prep-0.1.0",
+                          "detector": {
+                            "name": "otsu-threshold-contour",
+                            "version": "0.1.0",
+                            "artifact_digest": null
+                          },
+                          "segmenter": {
+                            "name": "otsu-threshold-contour",
+                            "version": "0.1.0",
+                            "artifact_digest": null
+                          },
+                          "measurement_space": "original_oriented_px"
+                        },
+                        "result": {
+                          "detection": {
+                            "status": "present",
+                            "confidence": null,
+                            "bounding_box": {
+                              "x_min": 250,
+                              "y_min": 140,
+                              "x_max": 390,
+                              "y_max": 330
+                            }
+                          },
+                          "segmentation": {
+                            "mask_type": "binary",
+                            "threshold_policy": "otsu-v1",
+                            "component_count": 1,
+                            "confidence": null,
+                            "contours": [
+                              [
+                                {
+                                  "x": 250,
+                                  "y": 235
+                                },
+                                {
+                                  "x": 320,
+                                  "y": 140
+                                },
+                                {
+                                  "x": 390,
+                                  "y": 235
+                                },
+                                {
+                                  "x": 320,
+                                  "y": 330
+                                }
+                              ]
+                            ],
+                            "simplification_tolerance_px": 2.0
+                          },
+                          "measurements": {
+                            "geometry_px": {
+                              "area": {
+                                "value": 18900,
+                                "unit": "px2",
+                                "classification": "measured",
+                                "method": "mask_pixel_count",
+                                "uncertainty": null
+                              },
+                              "width": {
+                                "value": 140,
+                                "unit": "px",
+                                "classification": "measured",
+                                "method": "mask_bbox",
+                                "uncertainty": null
+                              },
+                              "height": {
+                                "value": 190,
+                                "unit": "px",
+                                "classification": "measured",
+                                "method": "mask_bbox",
+                                "uncertainty": null
+                              },
+                              "perimeter": {
+                                "value": 512.3,
+                                "unit": "px",
+                                "classification": "measured",
+                                "method": "contour_perimeter_opencv",
+                                "uncertainty": null
+                              },
+                              "centroid": {
+                                "x": 320.1,
+                                "y": 236.4,
+                                "unit": "px",
+                                "classification": "measured",
+                                "method": "mask_moments"
+                              },
+                              "aspect_ratio": {
+                                "value": 1.357,
+                                "unit": "ratio",
+                                "classification": "measured",
+                                "method": "bbox_height_over_width",
+                                "uncertainty": null
+                              },
+                              "circularity": {
+                                "value": 0.905,
+                                "unit": "ratio",
+                                "classification": "measured",
+                                "method": "4pi_area_over_perimeter_sq",
+                                "uncertainty": null
+                              }
+                            },
+                            "geometry_physical": null,
+                            "appearance": {
+                              "color_space": "RGB",
+                              "mean_r": {
+                                "value": 231.0,
+                                "unit": "intensity_8bit",
+                                "classification": "measured",
+                                "method": "masked_mean",
+                                "uncertainty": null
+                              },
+                              "mean_g": {
+                                "value": 198.4,
+                                "unit": "intensity_8bit",
+                                "classification": "measured",
+                                "method": "masked_mean",
+                                "uncertainty": null
+                              },
+                              "mean_b": {
+                                "value": 120.7,
+                                "unit": "intensity_8bit",
+                                "classification": "measured",
+                                "method": "masked_mean",
+                                "uncertainty": null
+                              },
+                              "mean_intensity": {
+                                "value": 204.2,
+                                "unit": "intensity_8bit",
+                                "classification": "measured",
+                                "method": "masked_mean_luma_bt601",
+                                "uncertainty": null
+                              },
+                              "saturated_fraction": {
+                                "value": 0.031,
+                                "unit": "fraction",
+                                "classification": "measured",
+                                "method": "channel_eq_255",
+                                "uncertainty": null
+                              },
+                              "physical_interpretation": "none"
+                            }
+                          },
+                          "quality_flags": {
+                            "blur": null,
+                            "saturation_clipping": false,
+                            "low_light": false,
+                            "multiple_flames": false,
+                            "occlusion": null,
+                            "scale_absent": true,
+                            "calibration_absent": true
+                          },
+                          "observations": [
+                            {
+                              "statement_id": "obs-1",
+                              "text": "A single luminous region was segmented; area 18,900 px² (pixel units, no scale calibration).",
+                              "claim_class": "measured",
+                              "origin": "cv_pipeline",
+                              "evidence_ids": [],
+                              "measurement_refs": [
+                                "geometry_px/area"
+                              ]
+                            }
+                          ]
+                        },
+                        "interpretation": {
+                          "status": "not_requested",
+                          "provider": null,
+                          "model": null,
+                          "statements": [],
+                          "rejected_statement_count": 0,
+                          "generated_at": null
+                        },
+                        "artifacts": [
+                          {
+                            "kind": "original",
+                            "url": "/api/analyses/01J9Z3Q9D3F5H7K9N1R3T5W7Y9/artifacts/original",
+                            "media_type": "image/png",
+                            "sha256": "4f1c2a0d9b8e7f6a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f2a",
+                            "width": 640,
+                            "height": 480,
+                            "size_bytes": 354891
+                          },
+                          {
+                            "kind": "mask",
+                            "url": "/api/analyses/01J9Z3Q9D3F5H7K9N1R3T5W7Y9/artifacts/mask",
+                            "media_type": "image/png",
+                            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                            "width": 640,
+                            "height": 480,
+                            "size_bytes": 4096
+                          },
+                          {
+                            "kind": "overlay",
+                            "url": "/api/analyses/01J9Z3Q9D3F5H7K9N1R3T5W7Y9/artifacts/overlay",
+                            "media_type": "image/png",
+                            "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                            "width": 640,
+                            "height": 480,
+                            "size_bytes": 4096
+                          }
+                        ],
+                        "warnings": [
+                          {
+                            "code": "SCALE_CALIBRATION_ABSENT",
+                            "severity": "warning",
+                            "message": "No spatial scale supplied: sizes are in pixels, not physical units."
+                          },
+                          {
+                            "code": "TEMPERATURE_NOT_AVAILABLE",
+                            "severity": "info",
+                            "message": "Temperature is not reported: RGB/intensity cannot be converted to temperature without radiometric calibration."
+                          },
+                          {
+                            "code": "QUALITY_CHECK_NOT_IMPLEMENTED",
+                            "severity": "info",
+                            "message": "Blur and occlusion checks are not implemented in cv-0.1.0."
+                          }
+                        ],
+                        "failure": null,
+                        "poll_after_ms": null
+                      },
+                      "meta": {
+                        "request_id": "req_01J9Z3K8V5Q2N7X4M6R1T0W8YB",
+                        "generated_at": "2026-10-05T09:30:00Z",
+                        "api_version": "0.1.0"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "description": "A dependency is unavailable. Codes: DATABASE_UNAVAILABLE.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              },
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found. Codes: ANALYSIS_NOT_FOUND.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "notFound": {
+                    "summary": "Unknown analysis ID",
+                    "value": {
+                      "error": {
+                        "code": "ANALYSIS_NOT_FOUND",
+                        "message": "Analysis was not found.",
+                        "request_id": "req_01J9Z3K8V5Q2N7X4M6R1T0W8YB",
+                        "retryable": false,
+                        "field_errors": [],
+                        "details": {
+                          "resource_id": "01J9Z3Q9D3F5H7K9N1R3T5W7Y9"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-implementation-status": "not_implemented",
+        "security": [
+          {},
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/analyses/{analysis_id}/artifacts/{artifact_kind}": {
+      "get": {
+        "operationId": "getAnalysisArtifact",
+        "summary": "Download an analysis image artifact",
+        "description": "Streams the original, preprocessed, mask or overlay image through the API (object-storage layout stays internal). Usable directly as an <img src>. Content-addressed: ETag is the sha256 and responses are cacheable as immutable.",
+        "tags": [
+          "Analysis"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/AnalysisId"
+          },
+          {
+            "name": "artifact_kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ArtifactKind"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Image bytes.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
+            "content": {
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "contentMediaType": "image/png"
+                }
+              },
+              "image/jpeg": {
+                "schema": {
+                  "type": "string",
+                  "contentMediaType": "image/jpeg"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Artifact not produced yet (analysis still queued/processing). Codes: ARTIFACT_NOT_READY.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              },
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "description": "A dependency is unavailable. Codes: STORAGE_UNAVAILABLE.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              },
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found. Codes: ANALYSIS_NOT_FOUND, ARTIFACT_NOT_FOUND.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-implementation-status": "not_implemented",
+        "security": [
+          {},
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ResponseMeta": {
+        "type": "object",
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "description": "Correlation ID for this request. Echoes the caller's `X-Request-ID` when supplied, otherwise server-generated. Also returned in the `X-Request-ID` response header."
+          },
+          "generated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Server time (UTC) at which the response was produced."
+          },
+          "api_version": {
+            "type": "string",
+            "description": "Semantic version of this API contract.",
+            "examples": [
+              "0.1.0"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "request_id",
+          "generated_at",
+          "api_version"
+        ],
+        "description": "Present on every successful JSON response (MVP plan §12: request_id, server timestamp, API version)."
+      },
+      "Pagination": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "1-based page number that was returned."
+          },
+          "page_size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "description": "Items per page that was applied."
+          },
+          "total_items": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Total matching items across all pages."
+          },
+          "total_pages": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "ceil(total_items / page_size); 0 when there are no items."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "page",
+          "page_size",
+          "total_items",
+          "total_pages"
+        ]
+      },
+      "ErrorCode": {
+        "type": "string",
+        "enum": [
+          "VALIDATION_ERROR",
+          "UNAUTHORIZED",
+          "FORBIDDEN",
+          "ROUTE_NOT_FOUND",
+          "DOCUMENT_NOT_FOUND",
+          "EXPERIMENT_NOT_FOUND",
+          "EVIDENCE_NOT_FOUND",
+          "ANALYSIS_NOT_FOUND",
+          "ARTIFACT_NOT_FOUND",
+          "ARTIFACT_NOT_READY",
+          "PAYLOAD_TOO_LARGE",
+          "UNSUPPORTED_MEDIA_TYPE",
+          "IMAGE_INVALID",
+          "UNKNOWN_EXPERIMENT",
+          "RATE_LIMITED",
+          "DATABASE_UNAVAILABLE",
+          "STORAGE_UNAVAILABLE",
+          "SEARCH_UNAVAILABLE",
+          "MODEL_UNAVAILABLE",
+          "QUEUE_UNAVAILABLE",
+          "AURA_UNAVAILABLE",
+          "INTERNAL_ERROR"
+        ],
+        "description": "Stable machine-readable error code. The frontend switches on this, never on `message`."
+      },
+      "FieldError": {
+        "type": "object",
+        "properties": {
+          "field": {
+            "type": "string",
+            "description": "Request field, query parameter or form part that failed validation, e.g. `page_size` or `image`."
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable reason."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "field",
+          "message"
+        ]
+      },
+      "ErrorDetails": {
+        "type": "object",
+        "properties": {
+          "resource_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "ID that was not found or was in the wrong state."
+          },
+          "limit_bytes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Upload size limit, for PAYLOAD_TOO_LARGE."
+          },
+          "allowed_media_types": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "Accepted media types, for UNSUPPORTED_MEDIA_TYPE."
+          },
+          "retry_after_s": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Seconds to wait before retrying, for RATE_LIMITED / *_UNAVAILABLE. Mirrors the `Retry-After` header."
+          }
+        },
+        "additionalProperties": false,
+        "required": [],
+        "description": "Typed, optional context. Never contains stack traces, SQL, hostnames or secrets."
+      },
+      "ErrorBody": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/ErrorCode"
+          },
+          "message": {
+            "type": "string",
+            "description": "Safe, human-readable summary."
+          },
+          "request_id": {
+            "type": "string",
+            "description": "Same value as the `X-Request-ID` response header."
+          },
+          "retryable": {
+            "type": "boolean",
+            "description": "True when the identical request may succeed later (429, 503)."
+          },
+          "field_errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            },
+            "description": "Per-field validation failures; empty for non-validation errors."
+          },
+          "details": {
+            "$ref": "#/components/schemas/ErrorDetails"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "message",
+          "request_id",
+          "retryable",
+          "field_errors",
+          "details"
+        ]
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorBody"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "error"
+        ],
+        "description": "The single error envelope used by every endpoint for every non-2xx status (RFC 7807-style fields per MVP plan §12, wrapped under `error`)."
+      },
+      "Repository": {
+        "type": "string",
+        "enum": [
+          "NASA PSI",
+          "NASA NTRS",
+          "NASA Science",
+          "NASA Open Data",
+          "NASA GRC FCF",
+          "Other"
+        ],
+        "description": "Canonical repository family. Identical to `repository` in datasets/registry/source_registry.schema.json."
+      },
+      "SourceRef": {
+        "type": "object",
+        "properties": {
+          "source_id": {
+            "type": "string",
+            "pattern": "^[A-Z0-9][A-Z0-9_-]{2,63}$",
+            "description": "Registry source ID.",
+            "examples": [
+              "FF-PSI-25"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "description": "Canonical source title from the registry."
+          },
+          "short_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Short name, e.g. BASS-II."
+          },
+          "repository": {
+            "$ref": "#/components/schemas/Repository"
+          },
+          "persistent_identifier": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "DOI or other durable identifier, verbatim from the registry.",
+            "examples": [
+              "doi:10.60555/4qc4-de67"
+            ]
+          },
+          "license": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "License as recorded in the registry, e.g. CC0-1.0."
+          },
+          "access_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Human-facing canonical landing page of the source."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "source_id",
+          "title",
+          "short_name",
+          "repository",
+          "persistent_identifier",
+          "license",
+          "access_url"
+        ],
+        "description": "Projection of one row of datasets/registry/source_registry.csv."
+      },
+      "FileRef": {
+        "type": "object",
+        "properties": {
+          "file_id": {
+            "type": "string",
+            "pattern": "^sha256:[a-f0-9]{16}$",
+            "description": "File identifier as recorded in datasets/metadata/files.jsonl (`sha256:` + first 16 hex chars).",
+            "examples": [
+              "sha256:71e792bf6b5fb5ea"
+            ]
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "description": "Lowercase hex SHA-256 of the exact bytes."
+          },
+          "original_filename": {
+            "type": "string"
+          },
+          "media_type": {
+            "type": "string",
+            "description": "Content type recorded at ingestion."
+          },
+          "size_bytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "retrieved_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the original was mirrored (retrieval_timestamp_utc)."
+          },
+          "canonical_source_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri",
+            "description": "Where the original was fetched from (s3:// or PSI API URL)."
+          },
+          "is_original": {
+            "type": "boolean",
+            "description": "True for an immutable upstream original; false for a derived artefact."
+          },
+          "parent_file_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "file_id of the original this artefact was derived from."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "file_id",
+          "sha256",
+          "original_filename",
+          "media_type",
+          "size_bytes",
+          "retrieved_at",
+          "canonical_source_url",
+          "is_original",
+          "parent_file_id"
+        ],
+        "description": "Projection of one record of datasets/metadata/files.jsonl."
+      },
+      "LocatorType": {
+        "type": "string",
+        "enum": [
+          "page",
+          "section",
+          "table_row",
+          "frame",
+          "file"
+        ],
+        "description": "What kind of position `Locator` points at (data dictionary: location_type)."
+      },
+      "Locator": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "$ref": "#/components/schemas/LocatorType"
+          },
+          "page": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "description": "1-based physical page number in the original file."
+          },
+          "section": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Section heading path, e.g. `1. INTRODUCTION`."
+          },
+          "row": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "description": "1-based data row in a tabular original (header excluded)."
+          },
+          "frame_index": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "description": "0-based frame index in an image sequence or video."
+          },
+          "label": {
+            "type": "string",
+            "description": "Human-readable rendering of the locator, e.g. `p. 5` or `row 12`.",
+            "examples": [
+              "p. 5"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "page",
+          "section",
+          "row",
+          "frame_index",
+          "label"
+        ],
+        "description": "A resolvable position inside an original artefact (data dictionary: location_pointer)."
+      },
+      "TextSpan": {
+        "type": "object",
+        "properties": {
+          "start": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "end": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "start",
+          "end"
+        ],
+        "description": "Half-open [start, end) UTF-16 code-unit offsets into `snippet`, for highlighting matched terms."
+      },
+      "OverallStatus": {
+        "type": "string",
+        "enum": [
+          "healthy",
+          "degraded",
+          "unhealthy"
+        ],
+        "description": "healthy: every service up. degraded: a required service degraded or an optional one down/degraded. unhealthy: a required service down."
+      },
+      "ServiceStatus": {
+        "type": "string",
+        "enum": [
+          "up",
+          "degraded",
+          "down",
+          "disabled",
+          "unknown"
+        ],
+        "description": "disabled: intentionally not configured in this deployment (e.g. AURA in the MVP). unknown: the probe has not run or timed out."
+      },
+      "ServiceHealth": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/ServiceStatus"
+          },
+          "required": {
+            "type": "boolean",
+            "description": "True if this service being down makes the overall status `unhealthy`."
+          },
+          "latency_ms": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "description": "Probe round-trip time. Null when the probe did not complete."
+          },
+          "checked_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Safe version identifier (e.g. pipeline version, model name@version, Postgres major)."
+          },
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Safe one-line explanation when not `up`. Never contains hosts, DSNs or credentials."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "status",
+          "required",
+          "latency_ms",
+          "checked_at",
+          "version",
+          "message"
+        ]
+      },
+      "HealthServices": {
+        "type": "object",
+        "properties": {
+          "api": {
+            "$ref": "#/components/schemas/ServiceHealth"
+          },
+          "database": {
+            "$ref": "#/components/schemas/ServiceHealth",
+            "description": "PostgreSQL (authoritative store)."
+          },
+          "vector_index": {
+            "$ref": "#/components/schemas/ServiceHealth",
+            "description": "pgvector extension + active chunk index (ADR-002 planned: pgvector before a dedicated vector DB). Same server as `database`, reported separately because it can be absent while Postgres is up."
+          },
+          "object_storage": {
+            "$ref": "#/components/schemas/ServiceHealth",
+            "description": "S3-compatible store (MinIO locally) for uploads, masks, overlays."
+          },
+          "cache": {
+            "$ref": "#/components/schemas/ServiceHealth",
+            "description": "Redis (CAG, rate limits, job queue). Optional: failures degrade to recomputation."
+          },
+          "cv_model": {
+            "$ref": "#/components/schemas/ServiceHealth",
+            "description": "Flame CV pipeline worker (detector/segmenter loaded)."
+          },
+          "llm": {
+            "$ref": "#/components/schemas/ServiceHealth",
+            "description": "Flame's own model router (Ollama/vLLM) used for grounded answers."
+          },
+          "aura": {
+            "$ref": "#/components/schemas/ServiceHealth",
+            "description": "AURA AI gateway. `disabled` unless FLAME_AURA_ENABLED=true."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "api",
+          "database",
+          "vector_index",
+          "object_storage",
+          "cache",
+          "cv_model",
+          "llm",
+          "aura"
+        ],
+        "description": "Fixed set of service keys so the frontend can render a stable status grid."
+      },
+      "VersionInfo": {
+        "type": "object",
+        "properties": {
+          "api_version": {
+            "type": "string",
+            "description": "Contract version, same as meta.api_version."
+          },
+          "build_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Release/build identifier."
+          },
+          "git_sha": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[a-f0-9]{7,40}$",
+            "description": "Commit the running API was built from."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "api_version",
+          "build_id",
+          "git_sha"
+        ]
+      },
+      "HealthResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/OverallStatus"
+          },
+          "environment": {
+            "type": "string",
+            "enum": [
+              "development",
+              "staging",
+              "production"
+            ],
+            "description": "Deployment environment."
+          },
+          "version": {
+            "$ref": "#/components/schemas/VersionInfo"
+          },
+          "knowledge_version": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Published corpus/knowledge version. Null until the first index publication."
+          },
+          "services": {
+            "$ref": "#/components/schemas/HealthServices"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "status",
+          "environment",
+          "version",
+          "knowledge_version",
+          "services",
+          "meta"
+        ]
+      },
+      "DashboardCountsResponse": {
+        "type": "object",
+        "properties": {
+          "documents": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Published `document` records (parsed NASA/NIST documents). Not raw files: files.jsonl has 121 file records, most of which are data/media, not documents."
+          },
+          "experiments": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "`experiment` records (one per test, e.g. a BASS-II test ID) that have at least one ExperimentCondition."
+          },
+          "analyses": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Flame analyses in status `completed`."
+          },
+          "analyses_in_progress": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Flame analyses in status `queued` or `processing`."
+          },
+          "knowledge_version": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Corpus version the document count refers to."
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "documents",
+          "experiments",
+          "analyses",
+          "analyses_in_progress",
+          "knowledge_version",
+          "meta"
+        ],
+        "description": "All counts are exact `COUNT(*)` reads at `meta.generated_at`. On failure the endpoint returns 503, never zeros."
+      },
+      "SearchResultType": {
+        "type": "string",
+        "enum": [
+          "document",
+          "experiment"
+        ],
+        "description": "document: a matched passage inside a parsed document (carries a page/section locator). experiment: a matched experiment/test record."
+      },
+      "SearchDomain": {
+        "type": "string",
+        "enum": [
+          "combustion",
+          "all"
+        ],
+        "description": "combustion (default) excludes non-combustion sources such as FF-PSI-DSI (DAY2_TASKS domain filter rule). all disables that filter."
+      },
+      "RetrievalMode": {
+        "type": "string",
+        "enum": [
+          "lexical",
+          "hybrid"
+        ],
+        "description": "lexical: Postgres full-text only (available first). hybrid: lexical + pgvector dense ranks fused. Scores are only comparable within one mode."
+      },
+      "DocumentType": {
+        "type": "string",
+        "enum": [
+          "technical_report",
+          "publication",
+          "test_plan",
+          "requirements",
+          "final_report",
+          "thesis",
+          "dataset_documentation",
+          "other"
+        ],
+        "description": "Document classification assigned at ingestion."
+      },
+      "GravityRegime": {
+        "type": "string",
+        "enum": [
+          "microgravity",
+          "partial_gravity",
+          "normal_gravity",
+          "unknown"
+        ],
+        "description": "Gravity regime as reported by the source; `unknown` when the source does not state it."
+      },
+      "SearchResultExperiment": {
+        "type": "object",
+        "properties": {
+          "test_id": {
+            "type": "string",
+            "description": "Test identifier as written in the source table, e.g. `B1`."
+          },
+          "gravity_regime": {
+            "$ref": "#/components/schemas/GravityRegime"
+          },
+          "fuel_or_material": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "test_id",
+          "gravity_regime",
+          "fuel_or_material"
+        ],
+        "description": "Present only when result_type = experiment."
+      },
+      "SearchResult": {
+        "type": "object",
+        "properties": {
+          "result_id": {
+            "type": "string",
+            "description": "Stable ID of the hit (chunk ID for passages, experiment ID for experiments). Unique within one response."
+          },
+          "result_type": {
+            "$ref": "#/components/schemas/SearchResultType"
+          },
+          "rank": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "1-based position across all pages."
+          },
+          "score": {
+            "type": "number",
+            "description": "Relevance score from the retriever. Ordinal only; not a probability and not a confidence."
+          },
+          "title": {
+            "type": "string",
+            "description": "Document title or experiment display name."
+          },
+          "snippet": {
+            "type": "string",
+            "description": "Plain-text excerpt (no HTML). Verbatim from the source for document hits."
+          },
+          "highlights": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TextSpan"
+            },
+            "description": "Matched-term spans within `snippet`."
+          },
+          "source": {
+            "$ref": "#/components/schemas/SourceRef"
+          },
+          "document_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+            "description": "ULID (MVP plan §9 / DAY2_TASKS: ULID primary keys)."
+          },
+          "document_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DocumentType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "experiment_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+            "description": "ULID (MVP plan §9 / DAY2_TASKS: ULID primary keys)."
+          },
+          "experiment": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SearchResultExperiment"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "evidence_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+            "description": "Evidence record that backs this hit. Resolve with GET /api/evidence/{evidence_id}."
+          },
+          "has_evidence": {
+            "type": "boolean",
+            "description": "True iff `evidence_id` is non-null."
+          },
+          "locator": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Locator"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ingested_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the underlying record was ingested/published."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "result_id",
+          "result_type",
+          "rank",
+          "score",
+          "title",
+          "snippet",
+          "highlights",
+          "source",
+          "document_id",
+          "document_type",
+          "experiment_id",
+          "experiment",
+          "evidence_id",
+          "has_evidence",
+          "locator",
+          "ingested_at"
+        ]
+      },
+      "SearchFilters": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SearchResultType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source_id": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "experiment_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "domain": {
+            "$ref": "#/components/schemas/SearchDomain"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "source_id",
+          "experiment_id",
+          "domain"
+        ],
+        "description": "Echo of the filters the server actually applied, after defaults."
+      },
+      "RetrievalInfo": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "$ref": "#/components/schemas/RetrievalMode"
+          },
+          "knowledge_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "index_version": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Vector index version; null in lexical mode."
+          },
+          "searched_but_empty": {
+            "type": "boolean",
+            "description": "True when the corpus was searched and nothing relevant was found (render as an honest empty state, not an error)."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "mode",
+          "knowledge_version",
+          "index_version",
+          "searched_but_empty"
+        ]
+      },
+      "SearchResponse": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "The query as received (after trimming)."
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SearchResult"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Pagination"
+          },
+          "filters": {
+            "$ref": "#/components/schemas/SearchFilters"
+          },
+          "retrieval": {
+            "$ref": "#/components/schemas/RetrievalInfo"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "query",
+          "results",
+          "pagination",
+          "filters",
+          "retrieval",
+          "meta"
+        ]
+      },
+      "TextLayer": {
+        "type": "string",
+        "enum": [
+          "full",
+          "partial",
+          "none",
+          "unknown"
+        ],
+        "description": "Whether the original PDF has an extractable text layer. partial: some pages need OCR (see pages_without_text)."
+      },
+      "Document": {
+        "type": "object",
+        "properties": {
+          "document_id": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+            "description": "ULID (MVP plan §9 / DAY2_TASKS: ULID primary keys)."
+          },
+          "title": {
+            "type": "string"
+          },
+          "document_type": {
+            "$ref": "#/components/schemas/DocumentType"
+          },
+          "identifier": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Report number or upstream identifier, e.g. `NASA/TM-2000-209773` or NTRS `20000034017`."
+          },
+          "persistent_identifier": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Document-level DOI when the document has its own."
+          },
+          "source": {
+            "$ref": "#/components/schemas/SourceRef"
+          },
+          "file": {
+            "$ref": "#/components/schemas/FileRef"
+          },
+          "page_count": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "text_layer": {
+            "$ref": "#/components/schemas/TextLayer"
+          },
+          "pages_without_text": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "Pages flagged for OCR; their text is not searchable yet."
+          },
+          "parser_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ingested_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "knowledge_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "experiment_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "description": "ULID (MVP plan §9 / DAY2_TASKS: ULID primary keys)."
+            },
+            "description": "Experiments this document is linked to."
+          },
+          "evidence_count": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Evidence records whose target is this document."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "document_id",
+          "title",
+          "document_type",
+          "identifier",
+          "persistent_identifier",
+          "source",
+          "file",
+          "page_count",
+          "text_layer",
+          "pages_without_text",
+          "parser_version",
+          "ingested_at",
+          "knowledge_version",
+          "experiment_ids",
+          "evidence_count"
+        ]
+      },
+      "DocumentResponse": {
+        "type": "object",
+        "properties": {
+          "document": {
+            "$ref": "#/components/schemas/Document"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "document",
+          "meta"
+        ]
+      },
+      "ConditionOrigin": {
+        "type": "string",
+        "enum": [
+          "reported",
+          "derived"
+        ],
+        "description": "reported: value as written in the source. derived: computed by us (e.g. unit conversion); `value_si` is always derived."
+      },
+      "ExperimentCondition": {
+        "type": "object",
+        "properties": {
+          "variable": {
+            "type": "string",
+            "description": "Condition name from the data dictionary, e.g. `o2_fraction`, `flow_velocity`."
+          },
+          "value_numeric": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Original numeric value. Null when missing or non-numeric — never 0 for missing."
+          },
+          "value_text": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Original textual value when not numeric."
+          },
+          "unit_original": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "value_si": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "unit_si": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "origin": {
+            "$ref": "#/components/schemas/ConditionOrigin"
+          },
+          "evidence_id": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+            "description": "Evidence record pointing at the source table row."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "variable",
+          "value_numeric",
+          "value_text",
+          "unit_original",
+          "value_si",
+          "unit_si",
+          "origin",
+          "evidence_id"
+        ]
+      },
+      "Experiment": {
+        "type": "object",
+        "properties": {
+          "experiment_id": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+            "description": "ULID (MVP plan §9 / DAY2_TASKS: ULID primary keys)."
+          },
+          "test_id": {
+            "type": "string"
+          },
+          "investigation": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Investigation short name, e.g. BASS-II."
+          },
+          "source": {
+            "$ref": "#/components/schemas/SourceRef"
+          },
+          "gravity_regime": {
+            "$ref": "#/components/schemas/GravityRegime"
+          },
+          "fuel_or_material": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "conditions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExperimentCondition"
+            }
+          },
+          "document_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "description": "ULID (MVP plan §9 / DAY2_TASKS: ULID primary keys)."
+            }
+          },
+          "table_file": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FileRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "experiment_id",
+          "test_id",
+          "investigation",
+          "source",
+          "gravity_regime",
+          "fuel_or_material",
+          "conditions",
+          "document_ids",
+          "table_file"
+        ]
+      },
+      "ExperimentResponse": {
+        "type": "object",
+        "properties": {
+          "experiment": {
+            "$ref": "#/components/schemas/Experiment"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "experiment",
+          "meta"
+        ]
+      },
+      "EvidenceKind": {
+        "type": "string",
+        "enum": [
+          "document_passage",
+          "experiment_condition",
+          "dataset_file",
+          "image_measurement"
+        ],
+        "description": "What the evidence points at."
+      },
+      "EvidenceOrigin": {
+        "type": "string",
+        "enum": [
+          "source_evidence",
+          "calculated_measurement"
+        ],
+        "description": "source_evidence: content that exists in an upstream NASA/NIST artefact. calculated_measurement: a deterministic, reproducible computation by a versioned Flame pipeline. Model-generated interpretation and inference are NEVER evidence."
+      },
+      "ExtractionMethod": {
+        "type": "string",
+        "enum": [
+          "verbatim_text",
+          "ocr",
+          "table_parse",
+          "cv_pipeline",
+          "manual"
+        ],
+        "description": "How the evidence content was obtained."
+      },
+      "ReviewStatus": {
+        "type": "string",
+        "enum": [
+          "raw",
+          "machine_extracted",
+          "human_verified",
+          "rejected"
+        ],
+        "description": "Review state (data dictionary: review_status). The UI must visibly distinguish human_verified and must not render rejected evidence as support."
+      },
+      "EvidenceValue": {
+        "type": "object",
+        "properties": {
+          "numeric": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "text": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "unit": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "numeric",
+          "text",
+          "unit"
+        ],
+        "description": "Structured value for table/measurement evidence."
+      },
+      "Evidence": {
+        "type": "object",
+        "properties": {
+          "evidence_id": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+            "description": "ULID (MVP plan §9 / DAY2_TASKS: ULID primary keys)."
+          },
+          "kind": {
+            "$ref": "#/components/schemas/EvidenceKind"
+          },
+          "origin": {
+            "$ref": "#/components/schemas/EvidenceOrigin"
+          },
+          "citation": {
+            "type": "string",
+            "description": "Formatted human-readable citation assembled from stored fields only."
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SourceRef",
+                "description": "Null only for calculated_measurement evidence."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "document_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+            "description": "ULID (MVP plan §9 / DAY2_TASKS: ULID primary keys)."
+          },
+          "experiment_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+            "description": "ULID (MVP plan §9 / DAY2_TASKS: ULID primary keys)."
+          },
+          "analysis_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+            "description": "ULID (MVP plan §9 / DAY2_TASKS: ULID primary keys)."
+          },
+          "file": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FileRef",
+                "description": "The original (or derived) file the locator applies to."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "locator": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Locator"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "excerpt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Verbatim quote from the original at the locator. Null for purely numeric evidence."
+          },
+          "value": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EvidenceValue"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "measurement_or_claim_type": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Data dictionary field, e.g. `o2_fraction`, `flame_area_px`."
+          },
+          "extraction_method": {
+            "$ref": "#/components/schemas/ExtractionMethod"
+          },
+          "extraction_confidence": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Only when the extraction method itself produced one (e.g. OCR). Null otherwise — never synthesised."
+          },
+          "review_status": {
+            "$ref": "#/components/schemas/ReviewStatus"
+          },
+          "transformation_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Parser/pipeline version that produced this record."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "knowledge_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "evidence_id",
+          "kind",
+          "origin",
+          "citation",
+          "source",
+          "document_id",
+          "experiment_id",
+          "analysis_id",
+          "file",
+          "locator",
+          "excerpt",
+          "value",
+          "measurement_or_claim_type",
+          "extraction_method",
+          "extraction_confidence",
+          "review_status",
+          "transformation_id",
+          "created_at",
+          "knowledge_version"
+        ]
+      },
+      "EvidenceResponse": {
+        "type": "object",
+        "properties": {
+          "evidence": {
+            "$ref": "#/components/schemas/Evidence"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "evidence",
+          "meta"
+        ]
+      },
+      "AnalysisStatus": {
+        "type": "string",
+        "enum": [
+          "queued",
+          "processing",
+          "completed",
+          "failed",
+          "cancelled"
+        ],
+        "description": "Terminal states: completed, failed, cancelled. `cancelled` is set only by the server (shutdown/operator); there is no client cancel endpoint in v0.1."
+      },
+      "AnalysisType": {
+        "type": "string",
+        "enum": [
+          "flame_image"
+        ],
+        "description": "Only single-image flame analysis exists in v0.1. Video/temporal analysis is Weeks 3–6."
+      },
+      "ArtifactKind": {
+        "type": "string",
+        "enum": [
+          "original",
+          "preprocessed",
+          "mask",
+          "overlay"
+        ],
+        "description": "original: the uploaded bytes, immutable. preprocessed: oriented/colour-converted input to the model. mask: binary flame mask (PNG, original resolution). overlay: original with mask contour drawn (PNG)."
+      },
+      "Artifact": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/ArtifactKind"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri-reference",
+            "description": "API-relative URL to fetch the bytes: /api/analyses/{analysis_id}/artifacts/{kind}. Never a raw object-storage URL."
+          },
+          "media_type": {
+            "type": "string",
+            "enum": [
+              "image/png",
+              "image/jpeg"
+            ],
+            "description": "Media type served."
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "description": "Lowercase hex SHA-256 of the exact bytes."
+          },
+          "width": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "height": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "size_bytes": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "url",
+          "media_type",
+          "sha256",
+          "width",
+          "height",
+          "size_bytes"
+        ]
+      },
+      "CalibrationState": {
+        "type": "string",
+        "enum": [
+          "absent",
+          "spatial_scale_provided"
+        ],
+        "description": "absent: measurements are pixels only. spatial_scale_provided: caller supplied px-per-mm, enabling ESTIMATED physical lengths/areas. No radiometric calibration state exists in v0.1, so temperature is never produced."
+      },
+      "Calibration": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "$ref": "#/components/schemas/CalibrationState"
+          },
+          "scale_px_per_mm": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "exclusiveMinimum": 0
+          },
+          "scale_source": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "How the scale was established, as supplied by the caller."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "state",
+          "scale_px_per_mm",
+          "scale_source"
+        ]
+      },
+      "AnalysisInput": {
+        "type": "object",
+        "properties": {
+          "image_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "description": "Lowercase hex SHA-256 of the exact bytes."
+          },
+          "original_filename": {
+            "type": "string"
+          },
+          "media_type": {
+            "type": "string",
+            "enum": [
+              "image/png",
+              "image/jpeg"
+            ],
+            "description": "Media type detected from content (not from the filename or client header)."
+          },
+          "size_bytes": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "width": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "After EXIF orientation."
+          },
+          "height": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "After EXIF orientation."
+          },
+          "experiment_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+            "description": "ULID (MVP plan §9 / DAY2_TASKS: ULID primary keys)."
+          },
+          "source_file_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^sha256:[a-f0-9]{16}$",
+            "description": "files.jsonl file_id the image was taken from, when it comes from the corpus.",
+            "examples": [
+              "sha256:71e792bf6b5fb5ea"
+            ]
+          },
+          "frame_index": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "calibration": {
+            "$ref": "#/components/schemas/Calibration"
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "image_sha256",
+          "original_filename",
+          "media_type",
+          "size_bytes",
+          "width",
+          "height",
+          "experiment_id",
+          "source_file_id",
+          "frame_index",
+          "calibration",
+          "notes"
+        ]
+      },
+      "ModelInfo": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "artifact_digest": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Digest of the model weights/package; null for non-learned (classical) stages."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "version",
+          "artifact_digest"
+        ]
+      },
+      "PipelineInfo": {
+        "type": "object",
+        "properties": {
+          "pipeline_version": {
+            "type": "string",
+            "description": "Version of the whole CV pipeline, e.g. `cv-0.1.0`."
+          },
+          "preprocessing_version": {
+            "type": "string"
+          },
+          "detector": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ModelInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "segmenter": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ModelInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "measurement_space": {
+            "type": "string",
+            "enum": [
+              "original_oriented_px"
+            ],
+            "description": "All pixel coordinates and measurements are in the original image's pixel grid after EXIF orientation, regardless of any internal resize."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "pipeline_version",
+          "preprocessing_version",
+          "detector",
+          "segmenter",
+          "measurement_space"
+        ]
+      },
+      "DetectionStatus": {
+        "type": "string",
+        "enum": [
+          "present",
+          "absent",
+          "uncertain"
+        ],
+        "description": "Whether a flame was detected."
+      },
+      "BoundingBox": {
+        "type": "object",
+        "properties": {
+          "x_min": {
+            "type": "number",
+            "minimum": 0
+          },
+          "y_min": {
+            "type": "number",
+            "minimum": 0
+          },
+          "x_max": {
+            "type": "number",
+            "minimum": 0
+          },
+          "y_max": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "x_min",
+          "y_min",
+          "x_max",
+          "y_max"
+        ],
+        "description": "Axis-aligned box in measurement_space pixels (origin top-left)."
+      },
+      "Detection": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/DetectionStatus"
+          },
+          "confidence": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Detector score. Null for classical (threshold) detectors that produce no calibrated score. The single place detection confidence lives."
+          },
+          "bounding_box": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BoundingBox",
+                "description": "Null when status is absent."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "status",
+          "confidence",
+          "bounding_box"
+        ]
+      },
+      "Point": {
+        "type": "object",
+        "properties": {
+          "x": {
+            "type": "number"
+          },
+          "y": {
+            "type": "number"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "x",
+          "y"
+        ],
+        "description": "Pixel coordinate in measurement_space."
+      },
+      "Segmentation": {
+        "type": "object",
+        "properties": {
+          "mask_type": {
+            "type": "string",
+            "enum": [
+              "binary"
+            ],
+            "description": "Mask encoding."
+          },
+          "threshold_policy": {
+            "type": "string",
+            "description": "How the mask was produced, e.g. `otsu-v1` or `prob>=0.5`."
+          },
+          "component_count": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Connected flame components in the mask."
+          },
+          "confidence": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Segmenter score; null when the method produces none."
+          },
+          "contours": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/Point"
+              }
+            },
+            "description": "Outer boundary polygon(s) of each component, simplified to `simplification_tolerance_px`. For client-side overlay toggling."
+          },
+          "simplification_tolerance_px": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "mask_type",
+          "threshold_policy",
+          "component_count",
+          "confidence",
+          "contours",
+          "simplification_tolerance_px"
+        ]
+      },
+      "MeasurementClass": {
+        "type": "string",
+        "enum": [
+          "measured",
+          "estimated"
+        ],
+        "description": "measured: computed from validated pixels with a stated method and pixel units. estimated: depends on an assumption/calibration (e.g. caller-supplied scale) and carries uncertainty."
+      },
+      "MeasuredValue": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Null when not computable for this image (e.g. no flame detected)."
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "px",
+              "px2",
+              "mm",
+              "mm2",
+              "ratio",
+              "intensity_8bit",
+              "fraction"
+            ],
+            "description": "Unit of `value`."
+          },
+          "classification": {
+            "$ref": "#/components/schemas/MeasurementClass"
+          },
+          "method": {
+            "type": "string",
+            "description": "Short method identifier, e.g. `mask_pixel_count`, `contour_perimeter_opencv`."
+          },
+          "uncertainty": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "description": "Absolute uncertainty in `unit`, when the method provides one. Never invented."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "value",
+          "unit",
+          "classification",
+          "method",
+          "uncertainty"
+        ]
+      },
+      "PointMeasurement": {
+        "type": "object",
+        "properties": {
+          "x": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "y": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "px"
+            ],
+            "description": "Pixel coordinates in measurement_space."
+          },
+          "classification": {
+            "$ref": "#/components/schemas/MeasurementClass"
+          },
+          "method": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "x",
+          "y",
+          "unit",
+          "classification",
+          "method"
+        ]
+      },
+      "GeometryPx": {
+        "type": "object",
+        "properties": {
+          "area": {
+            "$ref": "#/components/schemas/MeasuredValue",
+            "description": "Flame mask area, unit px2."
+          },
+          "width": {
+            "$ref": "#/components/schemas/MeasuredValue",
+            "description": "Mask bounding-box width, unit px."
+          },
+          "height": {
+            "$ref": "#/components/schemas/MeasuredValue",
+            "description": "Mask bounding-box height, unit px."
+          },
+          "perimeter": {
+            "$ref": "#/components/schemas/MeasuredValue",
+            "description": "Outer contour length, unit px."
+          },
+          "centroid": {
+            "$ref": "#/components/schemas/PointMeasurement"
+          },
+          "aspect_ratio": {
+            "$ref": "#/components/schemas/MeasuredValue",
+            "description": "height / width, unit ratio."
+          },
+          "circularity": {
+            "$ref": "#/components/schemas/MeasuredValue",
+            "description": "4π·area / perimeter², unit ratio (1 = circle)."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "area",
+          "width",
+          "height",
+          "perimeter",
+          "centroid",
+          "aspect_ratio",
+          "circularity"
+        ],
+        "description": "Image-plane geometry in pixels. Always present for completed analyses (values null when no flame)."
+      },
+      "GeometryPhysical": {
+        "type": "object",
+        "properties": {
+          "area": {
+            "$ref": "#/components/schemas/MeasuredValue",
+            "description": "unit mm2, classification estimated."
+          },
+          "width": {
+            "$ref": "#/components/schemas/MeasuredValue",
+            "description": "unit mm, classification estimated."
+          },
+          "height": {
+            "$ref": "#/components/schemas/MeasuredValue",
+            "description": "unit mm, classification estimated."
+          },
+          "perimeter": {
+            "$ref": "#/components/schemas/MeasuredValue",
+            "description": "unit mm, classification estimated."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "area",
+          "width",
+          "height",
+          "perimeter"
+        ],
+        "description": "Projected physical size from the caller-supplied spatial scale. A 2-D projection: not a 3-D flame dimension."
+      },
+      "Appearance": {
+        "type": "object",
+        "properties": {
+          "color_space": {
+            "type": "string",
+            "enum": [
+              "RGB"
+            ],
+            "description": "Colour space of the statistics."
+          },
+          "mean_r": {
+            "$ref": "#/components/schemas/MeasuredValue",
+            "description": "Mean red channel inside the mask, unit intensity_8bit."
+          },
+          "mean_g": {
+            "$ref": "#/components/schemas/MeasuredValue"
+          },
+          "mean_b": {
+            "$ref": "#/components/schemas/MeasuredValue"
+          },
+          "mean_intensity": {
+            "$ref": "#/components/schemas/MeasuredValue",
+            "description": "Mean luma inside the mask, unit intensity_8bit."
+          },
+          "saturated_fraction": {
+            "$ref": "#/components/schemas/MeasuredValue",
+            "description": "Fraction of mask pixels at sensor maximum in any channel, unit fraction."
+          },
+          "physical_interpretation": {
+            "type": "string",
+            "enum": [
+              "none"
+            ],
+            "description": "Constant. Image-derived colour/intensity statistics are not physical state variables; in particular they are NOT temperature (MVP plan §10)."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "color_space",
+          "mean_r",
+          "mean_g",
+          "mean_b",
+          "mean_intensity",
+          "saturated_fraction",
+          "physical_interpretation"
+        ]
+      },
+      "Measurements": {
+        "type": "object",
+        "properties": {
+          "geometry_px": {
+            "$ref": "#/components/schemas/GeometryPx"
+          },
+          "geometry_physical": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GeometryPhysical",
+                "description": "Present only when calibration.state = spatial_scale_provided."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "appearance": {
+            "$ref": "#/components/schemas/Appearance"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "geometry_px",
+          "geometry_physical",
+          "appearance"
+        ]
+      },
+      "QualityFlags": {
+        "type": "object",
+        "properties": {
+          "blur": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "saturation_clipping": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "low_light": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "multiple_flames": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "occlusion": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "scale_absent": {
+            "type": "boolean"
+          },
+          "calibration_absent": {
+            "type": "boolean",
+            "description": "Radiometric calibration absent. Always true in v0.1."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "blur",
+          "saturation_clipping",
+          "low_light",
+          "multiple_flames",
+          "occlusion",
+          "scale_absent",
+          "calibration_absent"
+        ],
+        "description": "Image-quality flags (MVP plan §10). Null = the check is not implemented / was not evaluated, which is different from false."
+      },
+      "ClaimClass": {
+        "type": "string",
+        "enum": [
+          "observed",
+          "measured",
+          "estimated",
+          "inferred",
+          "hypothesized",
+          "unsupported"
+        ],
+        "description": "Scientific interpretation label (MVP plan §10). cv_pipeline statements are observed/measured/estimated only; aura_interpretation statements are inferred/hypothesized/unsupported only."
+      },
+      "StatementOrigin": {
+        "type": "string",
+        "enum": [
+          "cv_pipeline",
+          "aura_interpretation"
+        ],
+        "description": "cv_pipeline: deterministic template text generated from measurements. aura_interpretation: model-generated text, validated by Flame before storage."
+      },
+      "Statement": {
+        "type": "object",
+        "properties": {
+          "statement_id": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "claim_class": {
+            "$ref": "#/components/schemas/ClaimClass"
+          },
+          "origin": {
+            "$ref": "#/components/schemas/StatementOrigin"
+          },
+          "evidence_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "description": "ULID (MVP plan §9 / DAY2_TASKS: ULID primary keys)."
+            },
+            "description": "Flame evidence IDs supporting the statement. Every ID is verified to exist before the statement is stored; `unsupported` statements have none."
+          },
+          "measurement_refs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "JSON-pointer-style references into `result.measurements`, e.g. `geometry_px/area`."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "statement_id",
+          "text",
+          "claim_class",
+          "origin",
+          "evidence_ids",
+          "measurement_refs"
+        ]
+      },
+      "FlameAnalysisResult": {
+        "type": "object",
+        "properties": {
+          "detection": {
+            "$ref": "#/components/schemas/Detection"
+          },
+          "segmentation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Segmentation",
+                "description": "Null when detection.status = absent."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "measurements": {
+            "$ref": "#/components/schemas/Measurements"
+          },
+          "quality_flags": {
+            "$ref": "#/components/schemas/QualityFlags"
+          },
+          "observations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Statement"
+            },
+            "description": "Deterministic statements derived from the measurements."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "detection",
+          "segmentation",
+          "measurements",
+          "quality_flags",
+          "observations"
+        ]
+      },
+      "InterpretationStatus": {
+        "type": "string",
+        "enum": [
+          "not_requested",
+          "pending",
+          "completed",
+          "unavailable",
+          "failed"
+        ],
+        "description": "unavailable: AURA disabled or unreachable; the analysis itself still completes."
+      },
+      "Interpretation": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/InterpretationStatus"
+          },
+          "provider": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "aura",
+              null
+            ],
+            "description": "Which reasoning layer produced the statements."
+          },
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Model identifier reported by the provider."
+          },
+          "statements": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Statement"
+            }
+          },
+          "rejected_statement_count": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Statements dropped by Flame validation (unknown evidence IDs, disallowed claim class, temperature claims)."
+          },
+          "generated_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "status",
+          "provider",
+          "model",
+          "statements",
+          "rejected_statement_count",
+          "generated_at"
+        ],
+        "description": "Optional AI interpretation. Never alters measurements; displayed separately from them."
+      },
+      "WarningCode": {
+        "type": "string",
+        "enum": [
+          "SCALE_CALIBRATION_ABSENT",
+          "RADIOMETRIC_CALIBRATION_ABSENT",
+          "TEMPERATURE_NOT_AVAILABLE",
+          "EXIF_ORIENTATION_APPLIED",
+          "COLOR_CONVERTED_TO_RGB",
+          "LOW_DETECTION_CONFIDENCE",
+          "MULTIPLE_FLAMES",
+          "SATURATION_CLIPPING",
+          "BLUR_DETECTED",
+          "LOW_LIGHT",
+          "OCCLUSION",
+          "QUALITY_CHECK_NOT_IMPLEMENTED",
+          "INTERPRETATION_UNAVAILABLE",
+          "INTERPRETATION_STATEMENTS_REJECTED"
+        ],
+        "description": "Stable warning code."
+      },
+      "Warning": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/WarningCode"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "info",
+              "warning"
+            ],
+            "description": "info: context the user should see; warning: affects how results may be used."
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "severity",
+          "message"
+        ]
+      },
+      "AnalysisFailureCode": {
+        "type": "string",
+        "enum": [
+          "IMAGE_DECODE_FAILED",
+          "MODEL_UNAVAILABLE",
+          "PIPELINE_ERROR",
+          "TIMEOUT",
+          "CANCELLED"
+        ],
+        "description": "Why a job ended in failed/cancelled. A no-flame image is NOT a failure: it completes with detection.status = absent."
+      },
+      "AnalysisFailure": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/AnalysisFailureCode"
+          },
+          "message": {
+            "type": "string"
+          },
+          "retryable": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "message",
+          "retryable"
+        ]
+      },
+      "Analysis": {
+        "type": "object",
+        "properties": {
+          "analysis_id": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+            "description": "ULID (MVP plan §9 / DAY2_TASKS: ULID primary keys)."
+          },
+          "analysis_type": {
+            "$ref": "#/components/schemas/AnalysisType"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AnalysisStatus"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "started_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "completed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "input": {
+            "$ref": "#/components/schemas/AnalysisInput"
+          },
+          "pipeline": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PipelineInfo",
+                "description": "Null while queued."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FlameAnalysisResult",
+                "description": "Non-null iff status = completed."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "interpretation": {
+            "$ref": "#/components/schemas/Interpretation"
+          },
+          "artifacts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Artifact"
+            },
+            "description": "`original` is present from creation; the others appear when status = completed."
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Warning"
+            }
+          },
+          "failure": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AnalysisFailure",
+                "description": "Non-null iff status is failed or cancelled."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "poll_after_ms": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "description": "Suggested delay before the next GET while non-terminal; null when terminal."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "analysis_id",
+          "analysis_type",
+          "status",
+          "created_at",
+          "updated_at",
+          "started_at",
+          "completed_at",
+          "input",
+          "pipeline",
+          "result",
+          "interpretation",
+          "artifacts",
+          "warnings",
+          "failure",
+          "poll_after_ms"
+        ]
+      },
+      "AnalysisResponse": {
+        "type": "object",
+        "properties": {
+          "analysis": {
+            "$ref": "#/components/schemas/Analysis"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "analysis",
+          "meta"
+        ]
+      },
+      "AnalysisSummary": {
+        "type": "object",
+        "properties": {
+          "analysis_id": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+            "description": "ULID (MVP plan §9 / DAY2_TASKS: ULID primary keys)."
+          },
+          "analysis_type": {
+            "$ref": "#/components/schemas/AnalysisType"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AnalysisStatus"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "original_filename": {
+            "type": "string"
+          },
+          "image_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "description": "Lowercase hex SHA-256 of the exact bytes."
+          },
+          "experiment_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+            "description": "ULID (MVP plan §9 / DAY2_TASKS: ULID primary keys)."
+          },
+          "pipeline_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "detection_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DetectionStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "flame_area_px": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "geometry_px.area.value, for list display."
+          },
+          "calibration_state": {
+            "$ref": "#/components/schemas/CalibrationState"
+          },
+          "warning_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "overlay_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri-reference",
+            "description": "Overlay artifact URL when completed with a flame; use as thumbnail."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "analysis_id",
+          "analysis_type",
+          "status",
+          "created_at",
+          "completed_at",
+          "original_filename",
+          "image_sha256",
+          "experiment_id",
+          "pipeline_version",
+          "detection_status",
+          "flame_area_px",
+          "calibration_state",
+          "warning_count",
+          "overlay_url"
+        ]
+      },
+      "AnalysisListResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnalysisSummary"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Pagination"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "items",
+          "pagination",
+          "meta"
+        ]
+      },
+      "AnalysisCreateForm": {
+        "type": "object",
+        "properties": {
+          "image": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "description": "PNG or JPEG, ≤ 10 MiB, ≥ 64×64 px, ≤ 50 megapixels. Type is detected from the bytes."
+          },
+          "experiment_id": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+            "description": "Link the image to an existing experiment. Unknown ID → 422 UNKNOWN_EXPERIMENT."
+          },
+          "source_file_id": {
+            "type": "string",
+            "pattern": "^sha256:[a-f0-9]{16}$",
+            "description": "File identifier as recorded in datasets/metadata/files.jsonl (`sha256:` + first 16 hex chars).",
+            "examples": [
+              "sha256:71e792bf6b5fb5ea"
+            ]
+          },
+          "frame_index": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "scale_px_per_mm": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "description": "Optional spatial calibration. Requires scale_source."
+          },
+          "scale_source": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "description": "How the scale was obtained (e.g. ruler in frame, documented camera geometry)."
+          },
+          "request_interpretation": {
+            "type": "boolean",
+            "default": false,
+            "description": "Ask for an AURA interpretation after measurements complete. Ignored (status unavailable + warning) when AURA is disabled."
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 2000
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "image"
+        ],
+        "description": "multipart/form-data body for POST /api/analyses."
+      }
+    },
+    "parameters": {
+      "RequestIdHeader": {
+        "name": "X-Request-ID",
+        "in": "header",
+        "required": false,
+        "description": "Optional client-generated correlation ID (≤ 128 chars, [A-Za-z0-9._-]). Echoed in the response header and in meta/error.request_id.",
+        "schema": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9._-]+$"
+        }
+      },
+      "Page": {
+        "name": "page",
+        "in": "query",
+        "required": false,
+        "description": "1-based page number.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1
+        }
+      },
+      "PageSize": {
+        "name": "page_size",
+        "in": "query",
+        "required": false,
+        "description": "Items per page.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 20
+        }
+      },
+      "AnalysisId": {
+        "name": "analysis_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+          "description": "ULID (MVP plan §9 / DAY2_TASKS: ULID primary keys)."
+        }
+      }
+    },
+    "headers": {
+      "X-Request-ID": {
+        "description": "Correlation ID for this request.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "Retry-After": {
+        "description": "Seconds to wait before retrying or polling.",
+        "schema": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "Location": {
+        "description": "URL of the created resource.",
+        "schema": {
+          "type": "string",
+          "format": "uri-reference"
+        }
+      },
+      "ETag": {
+        "description": "Quoted SHA-256 of the artifact bytes.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "Cache-Control": {
+        "description": "Artifacts are content-addressed and immutable.",
+        "schema": {
+          "type": "string"
+        }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Malformed or invalid parameters. Codes: VALIDATION_ERROR.",
+        "headers": {
+          "X-Request-ID": {
+            "$ref": "#/components/headers/X-Request-ID"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Missing/invalid credentials (only once auth is enforced). Codes: UNAUTHORIZED.",
+        "headers": {
+          "X-Request-ID": {
+            "$ref": "#/components/headers/X-Request-ID"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "Authenticated but not permitted. Codes: FORBIDDEN.",
+        "headers": {
+          "X-Request-ID": {
+            "$ref": "#/components/headers/X-Request-ID"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "RateLimited": {
+        "description": "Too many requests. Codes: RATE_LIMITED.",
+        "headers": {
+          "X-Request-ID": {
+            "$ref": "#/components/headers/X-Request-ID"
+          },
+          "Retry-After": {
+            "$ref": "#/components/headers/Retry-After"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "InternalError": {
+        "description": "Unexpected server error; no internals are exposed. Codes: INTERNAL_ERROR.",
+        "headers": {
+          "X-Request-ID": {
+            "$ref": "#/components/headers/X-Request-ID"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Optional in v0.1 (development AuthContext adapter, MVP plan §12). Send it when you have one; it becomes required in a later minor version without route changes."
+      }
+    }
+  }
+}
