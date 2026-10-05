@@ -1,6 +1,6 @@
 {
   "analysisId": "an_987654_xyz",
-  "imageId": null,
+  "imageId": "ISS018E030336",
   "pipelineVersion": "cv-pytorch-v1.0.0",
   "preprocessing": {
     "orientation": "normalized",
@@ -12,29 +12,29 @@
     "status": "PRESENT",
     "confidence": null,
     "boundingBox": {
-      "ymin":  null,
+      "ymin": null,
       "xmin": null,
-      "ymax":  null,
+      "ymax": null,
       "xmax": null
     },
     "modelVersion": "det-v1.0"
   },
   "segmentation": {
     "maskType": "binary",
-    "maskUri": null,
-    "maskChecksum":null,
-    "overlayArtifactUri":null
+    "maskUri": "datasets/processed/masks/ISS018E030336_mask.png",
+    "maskChecksum": null,
+    "overlayArtifactUri": null
   },
   "measurements": {
     "geometry": {
       "pixelArea": null,
       "centroid": {
-        "x":  null,
-        "y":  null
+        "x": null,
+        "y": null
       },
-      "perimeter":  null,
-      "aspectRatio":  null,
-      "circularity":  null
+      "perimeter": null,
+      "aspectRatio": null,
+      "circularity": null
     },
     "appearance": {
       "colorSpaceStatistics": {
@@ -64,7 +64,22 @@
     "calibrationState": "ABSENT",
     "warnings": [
       "Scale calibration absent: spatial measurements are reported in pixels, not direct physical units.",
-      "Temperature cannot be directly claimed from RGB imagery without proper calibration and spectral assumptions[cite: 8]."
+      "Temperature cannot be directly claimed from RGB imagery without proper calibration and spectral assumptions"
     ]
+  },
+  "request": {
+    "requestId": "req_982341",
+    "imageId": "ISS018E030336",
+    "imagePath": "datasets/samples/cv/FF-PSI-107/SPICE_GMT045_2009_jpegs/ISS018E030336.jpg",
+    "options": {
+      "runSegmentation": true,
+      "extractGeometry": true,
+      "runAppearanceAnalysis": true,
+      "generateMaskArtifact": true
+    },
+    "metadata": {
+      "targetResolution": [512, 512],
+      "colorSpace": "RGB"
+    }
   }
 }
