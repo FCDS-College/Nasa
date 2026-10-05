@@ -2,6 +2,7 @@
 
 **Audience:** Engineer 4 (frontend) and the Lead (backend). **Status:** contract agreed, **not implemented**.
 **Machine-readable source of truth:** [`docs/openapi.json`](openapi.json) (OpenAPI 3.1.0). If this page and the JSON disagree, the JSON wins. Fix the page.
+**Every response schema, field by field:** [`docs/API_SCHEMAS.md`](API_SCHEMAS.md) (generated from `openapi.json`).
 **Background and evidence:** [`docs/AURA_INTEGRATION_STATUS.md`](AURA_INTEGRATION_STATUS.md).
 
 > **Implementation status.** `apps/api` does not exist yet. No endpoint below is served today. Every
