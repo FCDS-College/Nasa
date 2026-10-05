@@ -11,6 +11,7 @@ The full engineering blueprint is in [`docs/plan/Nasa - MVP Plan.pdf`](docs/plan
 ├── docs/
 │   ├── plan/            MVP engineering blueprint (PDF)
 │   ├── data/            Data dictionary, acquisition spec, source candidates, dataset reports
+│   ├── openapi.json     Frontend API contract (OpenAPI 3.1, not yet implemented) — see FRONTEND_API_CONTRACT.md
 │   └── research/        Reference NTRS papers (PDF)
 ├── datasets/
 │   ├── registry/        source_registry.csv + JSON schema (one row per source)
@@ -49,6 +50,10 @@ cd datasets && sha256sum -c checksums/sha256.txt
 Run `record_provenance.py` for each PSI ID you downloaded (PSI-25, PSI-69, PSI-98, PSI-107).
 
 What each dataset contains and how to use it is covered in [`docs/data/DSI_DATASET_REPORT.md`](docs/data/DSI_DATASET_REPORT.md) and [`docs/data/CV_IMAGE_SOURCES.md`](docs/data/CV_IMAGE_SOURCES.md).
+
+## API contract
+
+The dashboard's API is defined contract-first in [`docs/openapi.json`](docs/openapi.json), documented for the frontend in [`docs/FRONTEND_API_CONTRACT.md`](docs/FRONTEND_API_CONTRACT.md). No endpoint is implemented yet. The current system status and the AURA AI boundary are in [`docs/AURA_INTEGRATION_STATUS.md`](docs/AURA_INTEGRATION_STATUS.md).
 
 ## Engineering rules (from the blueprint)
 
