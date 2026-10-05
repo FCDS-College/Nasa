@@ -53,7 +53,7 @@ What each dataset contains and how to use it is covered in [`docs/data/DSI_DATAS
 
 ## API contract
 
-The dashboard's API is defined contract-first in [`docs/openapi.json`](docs/openapi.json), documented for the frontend in [`docs/FRONTEND_API_CONTRACT.md`](docs/FRONTEND_API_CONTRACT.md). No endpoint is implemented yet. The current system status and the AURA AI boundary are in [`docs/AURA_INTEGRATION_STATUS.md`](docs/AURA_INTEGRATION_STATUS.md).
+The dashboard's API is defined contract-first in [`docs/openapi.json`](docs/openapi.json), documented for the frontend in [`docs/FRONTEND_API_CONTRACT.md`](docs/FRONTEND_API_CONTRACT.md), with every response schema listed field by field in [`docs/API_SCHEMAS.md`](docs/API_SCHEMAS.md) (regenerate with `python docs/tools/render_api_schemas.py`). No endpoint is implemented yet. The current system status and the AURA AI boundary are in [`docs/AURA_INTEGRATION_STATUS.md`](docs/AURA_INTEGRATION_STATUS.md).
 
 ## Engineering rules (from the blueprint)
 
