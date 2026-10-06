@@ -5,3 +5,10 @@ datasets/manifests/nasa_psi_full_listing.txt
 __pycache__/
 # Derived artefacts (frame extractions, conversions) are rebuilt from raw; keep them out of Git
 datasets/derived/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+.env
+.ipynb_checkpoints/
