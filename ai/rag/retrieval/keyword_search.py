@@ -1,27 +1,31 @@
+import re
+
 class KeywordSearchService:
 
-    def search(self, chunks, query, top_k=5):
+    def search(
+        self,
+        chunks,
+        query,
+        top_k=5
+    ):
         """
-        Search chunks based on keyword overlap.
+        Search chunks using exact token matching.
 
-        Parameters
-        ----------
-        chunks : list[dict]
-            Available chunks.
+        Query words are matched against complete
+        words in the chunk text.
 
-        query : str
-            User search query.
-
-        top_k : int
-            Number of results to return.
-
-        Returns
-        -------
-        list[dict]
-            Ranked chunks with keyword scores.
+        Substring matches are not counted.
         """
 
-        query_words = set(query.lower().split())
+        query_words = set(
+            re.findall(
+                r"\b\w+\b",
+                query.lower()
+            )
+        )
+
+        if not query_words:
+            return []
 
         results = []
 
@@ -29,11 +33,20 @@ class KeywordSearchService:
 
             text = chunk["text"].lower()
 
-            score = sum(
-                1
-                for word in query_words
-                if word in text
+            text_words = set(
+                re.findall(
+                    r"\b\w+\b",
+                    text
+                )
             )
+
+            matching_words = (
+                query_words.intersection(
+                    text_words
+                )
+            )
+
+            score = len(matching_words)
 
             if score > 0:
                 results.append({

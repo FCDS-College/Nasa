@@ -19,3 +19,12 @@ def test_embedding():
 
     print("\nEmbedding dimension:", len(embedding))
     print("First 10 values:", embedding[:10])
+
+def test_fake_embedding_service(fake_embedding_service):
+
+    embedding = fake_embedding_service.embed_text(
+        "Microgravity affects flames."
+    )
+
+    assert embedding is not None
+    assert len(embedding) == 8
