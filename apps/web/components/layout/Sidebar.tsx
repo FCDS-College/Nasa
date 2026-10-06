@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 const navigation = [
   { label: "Research", href: "/research" },
   { label: "Search", href: "/search" },
@@ -24,13 +26,13 @@ export function Sidebar() {
       <nav className="flex-1 px-3 py-4">
         <div className="space-y-1">
           {navigation.map((item) => (
-            <a
+            <Link
               key={item.href}
               href={item.href}
               className="block rounded-lg px-3 py-2 text-sm text-zinc-400 transition hover:bg-zinc-900 hover:text-white"
             >
               {item.label}
-            </a>
+            </Link>
           ))}
         </div>
       </nav>
