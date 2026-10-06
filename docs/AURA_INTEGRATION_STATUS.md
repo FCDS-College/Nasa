@@ -31,7 +31,7 @@ The AURA codebase is mature and *could* serve as Flame's reasoning layer. The au
 2. AURA's `/api/v3/chat` has no field for caller-supplied evidence or structured output.
 3. Pushing NASA text through the chat `message` field would put untrusted documents on AURA's USER trust channel. That bypasses AURA's own ADR-006 defence.
 
-> **Update, 2026-10-05.** The AURA side of all three is now **built and tested, not merged and not proven live**. They are in AURA PR [anasibrahimgnedy-collab/AURA-AI#156](https://github.com/anasibrahimgnedy-collab/AURA-AI/pull/156), branch `anas/relaxed-hawking-10y43j`.
+> **Update, 2026-10-05.** The AURA side of all three is now **built, tested and merged, but not proven live**. It landed in AURA PR [anasibrahimgnedy-collab/AURA-AI#156](https://github.com/anasibrahimgnedy-collab/AURA-AI/pull/156), merged 2026-10-06.
 >
 > 1. Scoped **service keys** (`svc-flame`, AR-4).
 > 2. **`context`** and **`response_schema`** on `/chat` (AR-5, AR-6).
@@ -49,7 +49,7 @@ The AURA codebase is mature and *could* serve as Flame's reasoning layer. The au
 
 | Readiness | Level |
 |---|---|
-| AURA integration | **0% implemented on the Flame side.** Boundary designed. The AURA-side blockers are built in AURA PR #156 (not merged; see the update above). Nothing has run end to end. |
+| AURA integration | **0% implemented on the Flame side.** Boundary designed. The AURA-side blockers are merged (AURA #156; see the update above). Nothing has run end to end. |
 | Flame backend for the dashboard | **0 of 10 operations implemented.** Contract complete. |
 | Frontend typed client | **Can be generated now** from `docs/openapi.json` and run against a mock. Real data needs the P0 backend work in §9. |
 
