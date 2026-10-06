@@ -9,23 +9,37 @@ The full engineering blueprint is in [`docs/plan/Nasa - MVP Plan.pdf`](docs/plan
 ```
 .
 ├── docs/
-│   ├── plan/            MVP engineering blueprint (PDF)
+│   ├── plan/            MVP engineering blueprint (PDF) and daily task lists
+│   ├── api/             openapi.json (OpenAPI 3.1, not yet implemented), API_SCHEMAS, FRONTEND_API_CONTRACT, service contracts
+│   ├── ai/              RAG/CAG/MAG policies, prompts, context builder, citations, retrieval evaluation
+│   ├── architecture/    System overview (ADRs go in adr/)
+│   ├── integration/     AURA integration status and requirements
 │   ├── data/            Data dictionary, acquisition spec, source candidates, dataset reports
-│   ├── openapi.json     Frontend API contract (OpenAPI 3.1, not yet implemented) — see FRONTEND_API_CONTRACT.md
-│   └── research/        Reference NTRS papers (PDF)
+│   ├── research/        Reference NTRS papers (PDF)
+│   ├── reviews/         Daily engineering reviews
+│   ├── presentations/   Project slide decks
+│   └── tools/           Doc generators (render_api_schemas.py)
 ├── datasets/
 │   ├── registry/        source_registry.csv + JSON schema (one row per source)
 │   ├── manifests/       Bucket/API file inventories and download selections
 │   ├── checksums/       sha256.txt for every mirrored file
 │   ├── metadata/        files.jsonl: per-file provenance records
-│   └── raw/             Mirrored originals (git-ignored, immutable)
+│   ├── evaluation/      Versioned gold sets (rag_gold.jsonl)
+│   ├── samples/         Small committed CV sample frames
+│   ├── processed/       Committed CV outputs (processed frames, masks)
+│   └── raw/, derived/   Mirrored originals and extractions (git-ignored)
 ├── knowledge/
 │   └── ingestion/       Download + provenance scripts (NASA PSI)
-├── cv/                  Flame-image analysis: AnalysisResult contract, pipeline
-├── ai/                  RAG / CAG / MAG orchestration (planned)
-├── apps/                web (Next.js) and api (FastAPI) (planned)
+├── ai/
+│   └── rag/             Ingestion, embeddings, retrieval, reranking, context, citations, evaluation
+├── cv/                  Flame-image analysis: contracts/ and notebooks/
+├── apps/
+│   └── web/             Next.js dashboard (api/ FastAPI planned)
 ├── infrastructure/      Docker, Compose, CI/CD (planned)
-└── tests/               Unit, integration and evaluation tests (planned)
+└── tests/
+    ├── unit/            pytest unit tests (python -m pytest)
+    ├── integration/     Cross-system checks (AURA blueprint dry run)
+    └── eval/            Evaluation notebooks and test cases (day1_ziad, day2_ziad)
 ```
 
 Each top-level folder has a README giving its owner and rules.
@@ -53,7 +67,7 @@ What each dataset contains and how to use it is covered in [`docs/data/DSI_DATAS
 
 ## API contract
 
-The dashboard's API is defined contract-first in [`docs/openapi.json`](docs/openapi.json), documented for the frontend in [`docs/FRONTEND_API_CONTRACT.md`](docs/FRONTEND_API_CONTRACT.md), with every response schema listed field by field in [`docs/API_SCHEMAS.md`](docs/API_SCHEMAS.md) (regenerate with `python docs/tools/render_api_schemas.py`). No endpoint is implemented yet. The current system status and the AURA AI boundary are in [`docs/AURA_INTEGRATION_STATUS.md`](docs/AURA_INTEGRATION_STATUS.md). The numbered integration requirements, with acceptance evidence, are in [`docs/AURA_INTEGRATION_REQUIREMENTS.md`](docs/AURA_INTEGRATION_REQUIREMENTS.md). They build on the measured dataset picture in [`docs/data/COMBUSTION_DATASET_ANALYSIS.md`](docs/data/COMBUSTION_DATASET_ANALYSIS.md).
+The dashboard's API is defined contract-first in [`docs/api/openapi.json`](docs/api/openapi.json), documented for the frontend in [`docs/api/FRONTEND_API_CONTRACT.md`](docs/api/FRONTEND_API_CONTRACT.md), with every response schema listed field by field in [`docs/api/API_SCHEMAS.md`](docs/api/API_SCHEMAS.md) (regenerate with `python docs/tools/render_api_schemas.py`). No endpoint is implemented yet. The current system status and the AURA AI boundary are in [`docs/integration/AURA_INTEGRATION_STATUS.md`](docs/integration/AURA_INTEGRATION_STATUS.md). The numbered integration requirements, with acceptance evidence, are in [`docs/integration/AURA_INTEGRATION_REQUIREMENTS.md`](docs/integration/AURA_INTEGRATION_REQUIREMENTS.md). They build on the measured dataset picture in [`docs/data/COMBUSTION_DATASET_ANALYSIS.md`](docs/data/COMBUSTION_DATASET_ANALYSIS.md).
 
 ## Engineering rules (from the blueprint)
 

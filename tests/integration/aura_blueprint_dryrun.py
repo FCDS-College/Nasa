@@ -1,11 +1,11 @@
 """Offline dry run: what AURA's Track AP pipeline would generate from Flame's API contract.
 
 Runs AURA's own code -- AP3 OpenAPI discovery -> AP4 project twin -> AP5 capability plan ->
-AP6 blueprint compiler -- over ``docs/openapi.json`` and then checks every compiled read tool's
+AP6 blueprint compiler -- over ``docs/api/openapi.json`` and then checks every compiled read tool's
 output schema against the contract's own 200-response example, the same check AURA's tool
 registry applies to live results (ADR-025). No network, no AURA server, no state.
 
-Acceptance check for AURA requirement AR-1 in docs/AURA_INTEGRATION_REQUIREMENTS.md:
+Acceptance check for AURA requirement AR-1 in docs/integration/AURA_INTEGRATION_REQUIREMENTS.md:
 exit code 0 only when every contract example would be accepted.
 
     AURA_BACKEND="E:/AURA AI/aura_backend" python tests/integration/aura_blueprint_dryrun.py
@@ -18,7 +18,7 @@ import sys
 from pathlib import Path
 
 FLAME_ROOT = Path(__file__).resolve().parents[2]
-SPEC_PATH = FLAME_ROOT / "docs" / "openapi.json"
+SPEC_PATH = FLAME_ROOT / "docs" / "api" / "openapi.json"
 
 
 def main() -> int:

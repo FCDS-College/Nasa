@@ -5,7 +5,8 @@ Flame-image analysis with PyTorch and OpenCV. **Owner:** Engineer 3. **Status:**
 | Path | What it is |
 |---|---|
 | `contracts/analysis_result.json` | Example `AnalysisResult` payload: preprocessing, detection, segmentation, measurements, confidence and quality flags, and the scientific-interpretation label (MVP plan §10) |
-| `pipeline.py` | Pipeline entry point (placeholder): Image → Validation → Preprocessing → Detection → Segmentation → Features → Measurements → Confidence → AnalysisResult |
+| `notebooks/CVmodel.ipynb` | Prototype preprocessing and segmentation notebook. Run it from `cv/notebooks/`: it reads `../../datasets/samples/cv` and writes `../../datasets/processed/` |
+| `pipeline.py` | Pipeline entry point (planned, not yet created): Image → Validation → Preprocessing → Detection → Segmentation → Features → Measurements → Confidence → AnalysisResult |
 
 Planned sub-folders: `preprocessing/`, `inference/`, `training/`, `evaluation/`.
 

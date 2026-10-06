@@ -1,4 +1,4 @@
-"""Render docs/API_SCHEMAS.md from docs/openapi.json.
+"""Render docs/api/API_SCHEMAS.md from docs/api/openapi.json.
 
 The Markdown is a generated view: edit openapi.json, then re-run
 
@@ -12,8 +12,9 @@ import sys
 from pathlib import Path
 
 DOCS = Path(__file__).resolve().parents[1]
-SPEC = DOCS / "openapi.json"
-OUT = DOCS / "API_SCHEMAS.md"
+API = DOCS / "api"
+SPEC = API / "openapi.json"
+OUT = API / "API_SCHEMAS.md"
 REF = "#/components/schemas/"
 
 

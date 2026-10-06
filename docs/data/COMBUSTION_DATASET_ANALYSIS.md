@@ -1,7 +1,7 @@
 # Flame in Freefall: Combustion Dataset Analysis
 
 **Date:** 2026-10-05 · **Analysed:** the local mirror under `datasets/` at `28921c0` (raw files are git-ignored; their provenance is in `datasets/metadata/files.jsonl`).
-**Purpose:** a clear, measured picture of what the mirrored NASA data actually contains and supports, as the input to [`../AURA_INTEGRATION_REQUIREMENTS.md`](../AURA_INTEGRATION_REQUIREMENTS.md).
+**Purpose:** a clear, measured picture of what the mirrored NASA data actually contains and supports, as the input to [`../AURA_INTEGRATION_REQUIREMENTS.md`](../integration/AURA_INTEGRATION_REQUIREMENTS.md).
 **Method:** every number below was computed from the files themselves (CSV parsing, zip listings, BMP headers, frame-timestamp logs), not taken from READMEs or landing pages.
 **Related:** [`CV_IMAGE_SOURCES.md`](CV_IMAGE_SOURCES.md) (where flame images can come from), [`DSI_DATASET_REPORT.md`](DSI_DATASET_REPORT.md) (the non-combustion DSI reference), [`DATA_DICTIONARY.md`](DATA_DICTIONARY.md) (canonical fields).
 
@@ -17,7 +17,7 @@ Flame in Freefall is an **evidence-first scientific intelligence platform for co
  BASS-II  PSI-25 ─┐  │ datasets/   registry → files.jsonl (sha256) → raw/derived │
  FLEX     PSI-69 ─┼─►│ knowledge/  ingestion (PSI API) + provenance             │
  SAFFIRE  PSI-98 ─┤  │ ── planned ───────────────────────────────────────────── │   Next.js dashboard
- SPICE    PSI-107─┘  │ apps/api    FastAPI, docs/openapi.json (10 operations)    │──► (apps/web)
+ SPICE    PSI-107─┘  │ apps/api    FastAPI, docs/api/openapi.json (10 operations)    │──► (apps/web)
  DSI (reference)     │ Postgres+pgvector: source, file, document, evidence,      │
  NTRS PDFs (3)       │            experiment, experiment_condition, analysis    │──► AURA AI
                      │ cv/         validate → detect → segment → measure         │    (interpretation,
@@ -31,7 +31,7 @@ Flame in Freefall is an **evidence-first scientific intelligence platform for co
 | Ingestion scripts | **Implemented.** `psi_download.py`, `record_provenance.py`. |
 | Structured experiment data | **Mirrored, not parsed.** 4 experimental tables (§3). |
 | Media for CV | **Mirrored, not processed.** 17 BASS-II videos and about 10,460 combustion frames and stills, plus 1,556 SAFFIRE flow-visualisation frames (§4). |
-| API, database, CV, RAG | **Not started.** The contract (`docs/openapi.json`) exists, but no implementation does. |
+| API, database, CV, RAG | **Not started.** The contract (`docs/api/openapi.json`) exists, but no implementation does. |
 
 ---
 
@@ -133,7 +133,7 @@ Each `metadata/*.zip` holds `i_Investigation.txt` (ISA-Tab) plus a stub `s_PSI-n
 
 ## 5. Cross-dataset canonical model and normalisation rules
 
-All four tables map onto the existing `experiment` + `experiment_condition` design (`DATA_DICTIONARY.md`, `ExperimentCondition` in `docs/openapi.json`). Keep the original value **and** the SI value. Never overwrite the original.
+All four tables map onto the existing `experiment` + `experiment_condition` design (`DATA_DICTIONARY.md`, `ExperimentCondition` in `docs/api/openapi.json`). Keep the original value **and** the SI value. Never overwrite the original.
 
 | Canonical variable | FLEX | BASS-II | SPICE | SAFFIRE-I | SI unit | Rule |
 |---|---|---|---|---|---|---|
