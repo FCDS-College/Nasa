@@ -31,6 +31,16 @@ The AURA codebase is mature and *could* serve as Flame's reasoning layer. The au
 2. AURA's `/api/v3/chat` has no field for caller-supplied evidence or structured output.
 3. Pushing NASA text through the chat `message` field would put untrusted documents on AURA's USER trust channel. That bypasses AURA's own ADR-006 defence.
 
+> **Update, 2026-10-05.** The AURA side of all three is now **built, tested and merged, but not proven live**. It landed in AURA PR [anasibrahimgnedy-collab/AURA-AI#156](https://github.com/anasibrahimgnedy-collab/AURA-AI/pull/156), merged 2026-10-06.
+>
+> 1. Scoped **service keys** (`svc-flame`, AR-4).
+> 2. **`context`** and **`response_schema`** on `/chat` (AR-5, AR-6).
+> 3. Caller evidence travels on the DATA channel and taints the turn, so NASA text never needs to go in `message`.
+>
+> The same PR adds optional query parameters on generated tools (AR-2) and credentialed read-only connectors (AR-3). AR-1 was merged earlier, in AURA #154.
+>
+> Requirement states are tracked in [`AURA_INTEGRATION_REQUIREMENTS.md`](AURA_INTEGRATION_REQUIREMENTS.md) §3. The audit text below is unchanged: it describes AURA at `3a60bca`.
+
 **Deliverables produced by this audit**
 
 - **The frontend API contract** (10 operations on 9 paths): `docs/openapi.json`. It passes `openapi-spec-validator`, and `@redocly/cli lint` reports 0 errors and 0 warnings. `openapi-typescript` generates types from it, and a strict `tsc` check over a sample client passes. A Prism mock server serves its examples.
@@ -39,7 +49,7 @@ The AURA codebase is mature and *could* serve as Flame's reasoning layer. The au
 
 | Readiness | Level |
 |---|---|
-| AURA integration | **0% implemented**. Boundary designed. The outbound path is **blocked** on AURA service auth. |
+| AURA integration | **0% implemented on the Flame side.** Boundary designed. The AURA-side blockers are merged (AURA #156; see the update above). Nothing has run end to end. |
 | Flame backend for the dashboard | **0 of 10 operations implemented.** Contract complete. |
 | Frontend typed client | **Can be generated now** from `docs/openapi.json` and run against a mock. Real data needs the P0 backend work in §9. |
 
