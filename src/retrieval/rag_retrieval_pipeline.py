@@ -1,3 +1,10 @@
+from ai.rag.dto import (
+    EvidenceBundle,
+    RetrievalRequest,
+    RetrievedChunk,
+    Locator
+)
+
 from src.retrieval.metadata_filter import MetadataFilter
 from src.retrieval.hybrid_search import HybridSearchService
 from src.reranking.reranker import Reranker
@@ -28,73 +35,225 @@ class RAGRetrievalPipeline:
 
         self.citation_manager = CitationManager()
 
-    def retrieve(
+    def _apply_default_domain_filter(
         self,
         query,
-        chunks,
+        metadata_filters
+    ):
+        """
+        Apply a default domain filter for
+        combustion-related queries.
+
+        Combustion queries must only retrieve
+        chunks from the combustion domain.
+
+        Explicit metadata filters are preserved.
+        """
+
+        filters = dict(metadata_filters or {})
+
+        query_lower = query.lower()
+
+        if "combustion" in query_lower:
+            filters.setdefault(
+                "domain",
+                "combustion"
+            )
+
+        return filters
+
+    def _build_evidence_bundle(
+        self,
+        query,
+        reranked_results,
+        context_result,
+        cited_result
+    ):
+        """
+        Convert retrieval results into the
+        EvidenceBundle DTO.
+        """
+
+        evidence = []
+
+        for result in reranked_results:
+
+            chunk = result["chunk"]
+
+            metadata = chunk.get(
+                "metadata",
+                {}
+            )
+
+            locator_data = metadata.get(
+                "locator"
+            )
+
+            locator = None
+
+            if locator_data:
+                locator = Locator(
+                    **locator_data
+                )
+
+            evidence.append(
+                RetrievedChunk(
+                    chunk_id=chunk["chunk_id"],
+                    document_id=chunk["document_id"],
+                    document_version=(
+                        chunk["document_version"]
+                    ),
+                    text=chunk["text"],
+                    score=float(
+                        result.get(
+                            "rerank_score",
+                            result.get(
+                                "hybrid_score",
+                                0.0
+                            )
+                        )
+                    ),
+                    locator=locator,
+                    metadata=metadata
+                )
+            )
+
+        return EvidenceBundle(
+           query=query,
+           evidence=evidence,
+           context=cited_result["context"],
+           citations=cited_result["citations"],
+           results=reranked_results,
+           status="ok"
+        )
+
+    def retrieve(
+        self,
+        query=None,
+        chunks=None,
         metadata_filters=None,
-        top_k=5
+        top_k=5,
+        request=None
     ):
         """
         End-to-end retrieval pipeline.
 
+        Supports either:
+
+        1. The existing parameter-based API.
+
+        2. A RetrievalRequest DTO through
+           the request parameter.
+
         Flow:
-        Metadata Filtering
+
+        Retrieval Request
+        → Default Domain Filtering
+        → Metadata Filtering
         → Hybrid Search
+        → Evidence Check
         → Reranking
         → Context Building
         → Citation Generation
+        → EvidenceBundle
         """
 
-        # Step 1: Metadata filtering
+        if request is not None:
+
+            if not isinstance(
+                request,
+                RetrievalRequest
+            ):
+                raise TypeError(
+                    "request must be a RetrievalRequest."
+                )
+
+            query = request.query
+            top_k = request.top_k
+            metadata_filters = request.filters
+
+        if query is None:
+            raise ValueError(
+                "query is required."
+            )
+
+        if chunks is None:
+            raise ValueError(
+                "chunks are required."
+            )
+
+        effective_filters = (
+            self._apply_default_domain_filter(
+                query,
+                metadata_filters
+            )
+        )
+
         filtered_chunks = self.metadata_filter.filter(
             chunks,
-            metadata_filters or {}
+            effective_filters
         )
 
         if not filtered_chunks:
-            return {
-                "query": query,
-                "context": "",
-                "sources": [],
-                "citations": [],
-                "results": []
-            }
+            return EvidenceBundle(
+                query=query,
+                status="insufficient_evidence"
+            )
 
-        # Step 2: Create query embedding
-        query_embedding = self.embedding_service.embed_text(
-            query
+        query_embedding = (
+            self.embedding_service.embed_text(
+                query
+            )
         )
 
-        # Step 3: Hybrid retrieval
-        retrieval_results = self.hybrid_search.search(
-            chunks=filtered_chunks,
+        retrieval_results = (
+            self.hybrid_search.search(
+                chunks=filtered_chunks,
+                query=query,
+                query_embedding=query_embedding,
+                top_k=top_k
+            )
+        )
+
+        # Check whether any semantic evidence
+        # passes the vector-search minimum score.
+        semantic_results = (
+            self.hybrid_search.vector_search.search(
+                query_embedding,
+                top_k=top_k,
+                chunks=filtered_chunks
+            )
+        )
+
+        if not semantic_results:
+            return EvidenceBundle(
+                query=query,
+                status="insufficient_evidence"
+            )
+
+        reranked_results = (
+            self.reranker.rerank(
+                query=query,
+                results=retrieval_results,
+                top_k=top_k
+            )
+        )
+
+        context_result = (
+            self.context_builder.build(
+                reranked_results
+            )
+        )
+
+        cited_result = (
+            self.citation_manager.attach_citations(
+                context_result
+            )
+        )
+
+        return self._build_evidence_bundle(
             query=query,
-            query_embedding=query_embedding,
-            top_k=top_k
+            reranked_results=reranked_results,
+            context_result=context_result,
+            cited_result=cited_result
         )
-
-        # Step 4: Reranking
-        reranked_results = self.reranker.rerank(
-            query=query,
-            results=retrieval_results,
-            top_k=top_k
-        )
-
-        # Step 5: Build context
-        context_result = self.context_builder.build(
-            reranked_results
-        )
-
-        # Step 6: Generate citations
-        cited_result = self.citation_manager.attach_citations(
-            context_result
-        )
-
-        return {
-            "query": query,
-            "context": cited_result["context"],
-            "sources": cited_result["sources"],
-            "citations": cited_result["citations"],
-            "results": reranked_results
-        }

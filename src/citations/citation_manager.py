@@ -1,20 +1,6 @@
 class CitationManager:
 
     def create_citations(self, sources):
-        """
-        Create citations from retrieved sources.
-
-        Parameters
-        ----------
-        sources : list[dict]
-            Sources selected by the Context Builder.
-
-        Returns
-        -------
-        list[dict]
-            Citation information for each source.
-        """
-
         citations = []
 
         for source in sources:
@@ -30,15 +16,22 @@ class CitationManager:
                 )
             }
 
+            # Preserve the shared locator used by
+            # the retrieval DTO and provenance chain.
+            locator = source.get("locator")
+
+            if locator is not None:
+
+                if hasattr(locator, "model_dump"):
+                    locator = locator.model_dump()
+
+                citation["locator"] = locator
+
             citations.append(citation)
 
         return citations
 
     def attach_citations(self, context_result):
-        """
-        Attach citations to a context-building result.
-        """
-
         sources = context_result.get(
             "sources",
             []
@@ -56,4 +49,4 @@ class CitationManager:
             "sources": sources,
             "citations": citations
         }
-    
+

@@ -46,3 +46,29 @@ def test_keyword_search():
 
     assert "chunk" in results[0]
     assert "score" in results[0]
+
+def test_keyword_search_does_not_use_substring_matching():
+    from src.retrieval.keyword_search import KeywordSearchService
+
+    chunks = [
+        {
+            "chunk_id": "chunk_1",
+            "text": "The plasma properties were measured.",
+            "metadata": {}
+        },
+        {
+            "chunk_id": "chunk_2",
+            "text": "The flame temperature was measured.",
+            "metadata": {}
+        }
+    ]
+
+    service = KeywordSearchService()
+
+    results = service.search(
+        chunks=chunks,
+        query="is a",
+        top_k=5
+    )
+
+    assert results == []

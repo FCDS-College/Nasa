@@ -21,9 +21,10 @@ def test_metadata_filter():
         {
             "chunk_id": "chunk_3",
             "metadata": {
-                "environment": "microgravity",
-                "source_type": "paper"
-            }
+            "environment": "microgravity",
+            "source_type": "test",
+            "domain": "combustion"
+}
         }
     ]
 

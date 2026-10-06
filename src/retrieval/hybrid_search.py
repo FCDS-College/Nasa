@@ -48,9 +48,10 @@ class HybridSearchService:
         # -------------------------
 
         vector_results = self.vector_search.search(
-            query_embedding,
-            top_k=len(chunks)
-        )
+        query_embedding,
+        top_k=len(chunks),
+        chunks=chunks
+)
 
         # -------------------------
         # 2. Keyword Search

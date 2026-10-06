@@ -97,3 +97,41 @@ def test_reranker():
             "Rerank score:",
             result["rerank_score"]
         )
+
+def test_reranker_does_not_recompute_keyword_overlap():
+    from src.reranking.reranker import Reranker
+
+    results = [
+        {
+            "chunk": {
+                "chunk_id": "chunk_1",
+                "text": "flame temperature microgravity",
+                "metadata": {}
+            },
+            "hybrid_score": 0.5
+        },
+        {
+            "chunk": {
+                "chunk_id": "chunk_2",
+                "text": "unrelated content",
+                "metadata": {}
+            },
+            "hybrid_score": 0.5
+        }
+    ]
+
+    reranker = Reranker()
+
+    reranked = reranker.rerank(
+        query="flame temperature",
+        results=results,
+        top_k=2
+    )
+
+    # Both chunks have the same retrieval score.
+    # The reranker should not create an additional
+    # keyword-overlap advantage for chunk_1.
+    assert (
+        reranked[0]["rerank_score"]
+        == reranked[1]["rerank_score"]
+    )

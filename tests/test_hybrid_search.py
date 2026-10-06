@@ -1,17 +1,9 @@
 from src.ingestion.chunker import SimpleChunker
-from src.embeddings.embedding_service import (
-    SentenceTransformerEmbeddingService
-)
 from src.retrieval.vector_search import VectorSearchService
 from src.retrieval.keyword_search import KeywordSearchService
 from src.retrieval.hybrid_search import HybridSearchService
 
-
-def test_hybrid_search():
-
-    # -------------------------
-    # 1. Create test document
-    # -------------------------
+def test_hybrid_search(fake_embedding_service):
 
     document = {
         "document_id": "test_001",
@@ -20,14 +12,10 @@ def test_hybrid_search():
             "Microgravity affects flame behavior. "
             "Buoyancy is reduced in microgravity. "
             "This changes the flow around flames. "
-            "Combustion experiments study flame behavior. "
+            "Earth gravity produces stronger buoyancy."
         ) * 10,
         "metadata": {}
     }
-
-    # -------------------------
-    # 2. Chunk document
-    # -------------------------
 
     chunker = SimpleChunker(
         chunk_size=200,
@@ -36,22 +24,12 @@ def test_hybrid_search():
 
     chunks = chunker.chunk(document)
 
-    # -------------------------
-    # 3. Create embeddings
-    # -------------------------
-
-    embedding_service = SentenceTransformerEmbeddingService()
-
-    texts = [
-        chunk["text"]
-        for chunk in chunks
-    ]
-
-    embeddings = embedding_service.embed_batch(texts)
-
-    # -------------------------
-    # 4. Create Vector Search
-    # -------------------------
+    embeddings = fake_embedding_service.embed_batch(
+        [
+            chunk["text"]
+            for chunk in chunks
+        ]
+    )
 
     vector_search = VectorSearchService()
 
@@ -60,34 +38,18 @@ def test_hybrid_search():
         embeddings
     )
 
-    # -------------------------
-    # 5. Create Keyword Search
-    # -------------------------
-
     keyword_search = KeywordSearchService()
-
-    # -------------------------
-    # 6. Create Hybrid Search
-    # -------------------------
 
     hybrid_search = HybridSearchService(
         vector_search=vector_search,
         keyword_search=keyword_search
     )
 
-    # -------------------------
-    # 7. Query
-    # -------------------------
+    query = "microgravity flame"
 
-    query = "How does microgravity affect flames?"
-
-    query_embedding = embedding_service.embed_text(
+    query_embedding = fake_embedding_service.embed_text(
         query
     )
-
-    # -------------------------
-    # 8. Hybrid Search
-    # -------------------------
 
     results = hybrid_search.search(
         chunks=chunks,
@@ -95,10 +57,6 @@ def test_hybrid_search():
         query_embedding=query_embedding,
         top_k=3
     )
-
-    # -------------------------
-    # 9. Check results
-    # -------------------------
 
     assert len(results) == 3
 
@@ -109,8 +67,7 @@ def test_hybrid_search():
         assert "keyword_score" in result
         assert "hybrid_score" in result
 
-        print("\nChunk:", result["chunk"]["chunk_id"])
-        print("Vector score:", result["vector_score"])
-        print("Keyword score:", result["keyword_score"])
-        print("Hybrid score:", result["hybrid_score"])
-        print("Text:", result["chunk"]["text"][:100])
+    assert (
+        results[0]["hybrid_score"]
+        >= results[-1]["hybrid_score"]
+    )

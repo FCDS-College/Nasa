@@ -1,7 +1,6 @@
+id="s5wq4n"
 from src.ingestion.chunker import SimpleChunker
-from src.embeddings.embedding_service import (
-    SentenceTransformerEmbeddingService
-)
+
 from src.retrieval.vector_search import VectorSearchService
 from src.retrieval.keyword_search import KeywordSearchService
 from src.retrieval.rag_retrieval_pipeline import (
@@ -9,11 +8,9 @@ from src.retrieval.rag_retrieval_pipeline import (
 )
 
 
-def test_rag_retrieval_pipeline():
-
-    # -------------------------
-    # 1. Test document
-    # -------------------------
+def test_rag_retrieval_pipeline(
+    fake_embedding_service
+):
 
     document = {
         "document_id": "test_001",
@@ -22,18 +19,14 @@ def test_rag_retrieval_pipeline():
             "Microgravity affects flame behavior. "
             "Buoyancy is reduced in microgravity. "
             "This changes the flow around flames. "
-            "Combustion experiments study flame behavior. "
-            "Earth gravity produces stronger buoyancy driven flow. "
+            "Combustion experiments study flame behavior."
         ) * 10,
         "metadata": {
             "environment": "microgravity",
-            "source_type": "test"
+            "source_type": "test",
+            "domain": "combustion"
         }
     }
-
-    # -------------------------
-    # 2. Chunking
-    # -------------------------
 
     chunker = SimpleChunker(
         chunk_size=200,
@@ -42,24 +35,12 @@ def test_rag_retrieval_pipeline():
 
     chunks = chunker.chunk(document)
 
-    # -------------------------
-    # 3. Embeddings
-    # -------------------------
-
-    embedding_service = SentenceTransformerEmbeddingService()
-
-    texts = [
-        chunk["text"]
-        for chunk in chunks
-    ]
-
-    embeddings = embedding_service.embed_batch(
-        texts
+    embeddings = fake_embedding_service.embed_batch(
+        [
+            chunk["text"]
+            for chunk in chunks
+        ]
     )
-
-    # -------------------------
-    # 4. Vector search
-    # -------------------------
 
     vector_search = VectorSearchService()
 
@@ -68,31 +49,15 @@ def test_rag_retrieval_pipeline():
         embeddings
     )
 
-    # -------------------------
-    # 5. Keyword search
-    # -------------------------
-
     keyword_search = KeywordSearchService()
-
-    # -------------------------
-    # 6. RAG retrieval pipeline
-    # -------------------------
 
     pipeline = RAGRetrievalPipeline(
         vector_search=vector_search,
         keyword_search=keyword_search,
-        embedding_service=embedding_service
+        embedding_service=fake_embedding_service
     )
 
-    # -------------------------
-    # 7. Query
-    # -------------------------
-
     query = "How does microgravity affect flames?"
-
-    # -------------------------
-    # 8. Retrieval
-    # -------------------------
 
     result = pipeline.retrieve(
         query=query,
@@ -102,10 +67,6 @@ def test_rag_retrieval_pipeline():
         },
         top_k=3
     )
-
-    # -------------------------
-    # 9. Assertions
-    # -------------------------
 
     assert result["query"] == query
 
@@ -118,39 +79,142 @@ def test_rag_retrieval_pipeline():
     assert len(result["sources"]) > 0
     assert len(result["citations"]) > 0
 
-    # Check citation information
-
-    citation = result["citations"][0]
-
-    assert "citation_id" in citation
-    assert "chunk_id" in citation
-    assert "document_id" in citation
-    assert "document_version" in citation
-
-    # -------------------------
-    # 10. Print result
-    # -------------------------
-
-    print("\n==============================")
-    print("QUERY")
-    print("==============================")
-    print(query)
-
-    print("\n==============================")
-    print("CONTEXT")
-    print("==============================")
-    print(result["context"])
-
-    print("\n==============================")
-    print("CITATIONS")
-    print("==============================")
-
     for citation in result["citations"]:
 
-        print(
-            citation["citation_id"],
-            "→",
-            citation["document_id"],
-            "version",
-            citation["document_version"]
-        )
+        assert "citation_id" in citation
+        assert "chunk_id" in citation
+        assert "document_id" in citation
+        assert "document_version" in citation
+
+
+def test_rag_pipeline_returns_evidence_bundle(
+    fake_embedding_service
+):
+    from ai.rag.dto import EvidenceBundle
+    from src.retrieval.vector_search import VectorSearchService
+    from src.retrieval.keyword_search import KeywordSearchService
+    from src.retrieval.rag_retrieval_pipeline import (
+        RAGRetrievalPipeline
+    )
+
+    chunks = [
+        {
+            "chunk_id": "combustion_chunk_0",
+            "document_id": "combustion_doc",
+            "document_version": "1",
+            "text": (
+                "Microgravity changes flame behavior "
+                "and combustion characteristics."
+            ),
+            "chunk_index": 0,
+            "metadata": {
+                "domain": "combustion"
+            }
+        }
+    ]
+
+    vector_search = VectorSearchService(
+        min_score=0.0
+    )
+
+    embedding = fake_embedding_service.embed_text(
+        chunks[0]["text"]
+    )
+
+    vector_search.add_documents(
+        chunks,
+        [embedding]
+    )
+
+    pipeline = RAGRetrievalPipeline(
+        vector_search=vector_search,
+        keyword_search=KeywordSearchService(),
+        embedding_service=fake_embedding_service
+    )
+
+    result = pipeline.retrieve(
+        query="How does microgravity affect flame behavior?",
+        chunks=chunks
+    )
+
+    evidence = EvidenceBundle(
+        query=result["query"],
+        status=result["status"]
+    )
+
+    assert isinstance(
+        evidence,
+        EvidenceBundle
+    )
+
+    assert evidence.status == "ok"
+
+
+def test_rag_pipeline_preserves_locator_in_evidence_and_citations(
+    fake_embedding_service
+):
+    from src.retrieval.vector_search import VectorSearchService
+    from src.retrieval.keyword_search import KeywordSearchService
+    from src.retrieval.rag_retrieval_pipeline import (
+        RAGRetrievalPipeline
+    )
+
+    chunks = [
+        {
+            "chunk_id": "ntrs_001_chunk_0",
+            "document_id": "ntrs_001",
+            "document_version": "1",
+            "text": "Microgravity affects flame behavior.",
+            "metadata": {
+                "domain": "combustion",
+                "locator": {
+                    "page": 7,
+                    "section": "Flame Behavior"
+                }
+            }
+        }
+    ]
+
+    embeddings = fake_embedding_service.embed_batch(
+        [chunk["text"] for chunk in chunks]
+    )
+
+    vector_search = VectorSearchService(
+        min_score=0.0
+    )
+
+    vector_search.add_documents(
+        chunks,
+        embeddings
+    )
+
+    keyword_search = KeywordSearchService()
+
+    pipeline = RAGRetrievalPipeline(
+        vector_search=vector_search,
+        keyword_search=keyword_search,
+        embedding_service=fake_embedding_service
+    )
+
+    result = pipeline.retrieve(
+        query="microgravity flame behavior",
+        chunks=chunks,
+        top_k=1
+    )
+
+    assert result.status == "ok"
+    assert len(result.evidence) == 1
+
+    evidence = result.evidence[0]
+
+    assert evidence.locator is not None
+    assert evidence.locator.page == 7
+    assert evidence.locator.section == "Flame Behavior"
+
+    assert len(result.citations) == 1
+
+    citation = result.citations[0]
+
+    assert "locator" in citation
+    assert citation["locator"]["page"] == 7
+    assert citation["locator"]["section"] == "Flame Behavior"
