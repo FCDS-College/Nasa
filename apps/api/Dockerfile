@@ -8,6 +8,8 @@ WORKDIR /app
 COPY apps/api /app/apps/api
 COPY cv /app/cv
 COPY docs/api/openapi.json /app/docs/api/openapi.json
+COPY datasets/registry/source_registry.csv /app/datasets/registry/source_registry.csv
+COPY datasets/metadata/files.jsonl /app/datasets/metadata/files.jsonl
 WORKDIR /app/apps/api
 RUN pip install '.[cv,ingestion]'
 

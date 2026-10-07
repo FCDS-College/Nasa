@@ -23,6 +23,7 @@ from flame_api.config import get_settings
 from flame_api.contracts import error_body, response_meta
 from flame_api.database import engine, get_session
 from flame_api.analysis import router as analysis_router
+from flame_api.aura_integration import check_aura_ready
 from flame_api.models import AnalysisRecord, DocumentChunk, DocumentRecord, EvidenceRecord, ExperimentRecord, SourceRecord
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -47,6 +48,11 @@ def _contract_openapi() -> dict[str, Any]:
 
 app.openapi = _contract_openapi
 ULID_PATTERN = r"^[0-9A-HJKMNP-TV-Z]{26}$"
+
+
+@app.get("/health/live", include_in_schema=False)
+def liveness():
+    return {"status": "alive"}
 
 
 @app.middleware("http")
@@ -131,6 +137,20 @@ def _service(status: str, required: bool, checked_at: str | None, **values: Any)
 @app.get("/api/health", tags=["System"])
 def health(request: Request):
     checked_at = datetime.now(UTC).isoformat().replace("+00:00", "Z")
+    if settings.aura_enabled:
+        aura_status, aura_latency_ms = check_aura_ready(settings)
+        aura_service = _service(
+            aura_status,
+            False,
+            checked_at,
+            latency_ms=aura_latency_ms,
+            version="3",
+            message=None if aura_status == "up" else "AURA is not ready.",
+        )
+    else:
+        aura_service = _service(
+            "disabled", False, None, message="FLAME_AURA_ENABLED is false."
+        )
     services: dict[str, dict[str, Any]] = {
         "api": _service("up", True, checked_at, latency_ms=0.0, version=settings.api_version),
         "database": _service("down", True, checked_at, message="Database is unavailable."),
@@ -139,7 +159,7 @@ def health(request: Request):
         "cache": _service("unknown", False, checked_at, message="Cache status was not checked."),
         "cv_model": _service("unknown", False, None, message="CV worker is not available."),
         "llm": _service("disabled" if not settings.llm_enabled else "unknown", False, None),
-        "aura": _service("disabled" if not settings.aura_enabled else "unknown", False, None, message="FLAME_AURA_ENABLED is false." if not settings.aura_enabled else None),
+        "aura": aura_service,
     }
     try:
         start = time.perf_counter()
@@ -429,7 +449,7 @@ def get_evidence(request: Request, evidence_id: Annotated[str, ApiPath(pattern=U
     if evidence is None:
         return _not_found(request, "EVIDENCE_NOT_FOUND", "Evidence", evidence_id)
     payload = dict(evidence.payload)
-    payload.update({"evidence_id": evidence.evidence_id, "kind": evidence.kind, "origin": evidence.origin, "document_id": evidence.document_id, "experiment_id": evidence.experiment_id, "analysis_id": evidence.analysis_id, "locator": evidence.locator, "excerpt": evidence.excerpt})
+    payload.update({"evidence_id": evidence.evidence_id, "kind": evidence.kind, "origin": evidence.origin, "document_id": evidence.document_id, "experiment_id": evidence.experiment_id, "analysis_id": evidence.analysis_id, "locator": evidence.locator, "excerpt": evidence.excerpt, "created_at": _timestamp(evidence.created_at), "knowledge_version": payload.get("knowledge_version")})
     payload["source"] = _source_payload(evidence.source) if evidence.source else None
     payload["file"] = _file_payload(evidence.file) if evidence.file else None
     return {"evidence": payload, "meta": response_meta(request)}

@@ -1,6 +1,6 @@
 # apps/
 
-User-facing applications. **Status:** not started.
+User-facing applications. The FastAPI backend and API tests are implemented; the dashboard remains in progress.
 
 | Folder | Owner | What goes here |
 |---|---|---|

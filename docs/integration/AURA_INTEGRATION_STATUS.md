@@ -9,7 +9,7 @@
 
 **Method:** every claim below was checked against source files, not READMEs or plans. Paths are repository-relative. Paths under `AURA-AI:` are in the AURA repository.
 
-**Re-audit update (2026-10-07):** The detailed source audit below describes Flame at `695fca8`; it predates the backend added in commit `4c26000`. Current `main` has all 10 contract operations implemented, and its API tests pass (16 tests). Against AURA `b6994ac76918f98ebe21c63ffeebf6b5c9cebc66`, the offline AP discovery → twin → planner → compiler check produces 8 read tools, accepts all 8 contract examples, and exposes every query parameter. Flame enforces separate read and upload tokens; Link 2 is still **not proven live** because Flame is only published on loopback by the current Compose file, and no AURA connector has yet been approved and deployed against a running Flame instance.
+**Re-audit update (2026-10-07):** The detailed source audit below describes Flame at `695fca8`; it predates the current API implementation. Current `main` has all 10 contract operations implemented, and its API suite passes (29 tests). Against AURA `b6994ac76918f98ebe21c63ffeebf6b5c9cebc66`, the offline AP discovery → twin → planner → compiler check produces 8 read tools, accepts all 8 contract examples, and exposes every query parameter. Flame enforces separate read/upload tokens and has an opt-in, post-CV AURA interpreter. Flame is deployed in a separate Railway project at `https://flame-api-production-e948.up.railway.app`; the API and worker are running. Live checks pass for `/health/live` (200), `/api/openapi.json` (200), unauthenticated API access (401), and read-token mutation denial (401). API health is degraded because no vector index is published and the CV model reports unknown; database, cache, and object storage are up. AURA `/health/live` is 200 and `/health/ready` is still 503. The AURA connector has not been registered or approved, Link 1 remains disabled pending a scoped service key, and no AR-7 report exists.
 
 ---
 
@@ -51,7 +51,7 @@ The AURA codebase is mature and *could* serve as Flame's reasoning layer. The au
 
 | Readiness | Level |
 |---|---|
-| AURA integration | **Contract-compatible and CI-checked; no live connector has been approved or deployed.** Link 2 remains unproven end to end. |
+| AURA integration | **Code, contract, and Railway API/worker are deployed; not fully integrated/proven.** Link 2 still needs connector registration, credential vaulting, Super Admin approval, and the AR-7 report. Link 1 is implemented but disabled until AURA readiness and its scoped service key are available. |
 | Flame backend for the dashboard | **10 of 10 operations implemented in current `main`; API tests pass.** |
 | Frontend typed client | **Can be generated now** from `docs/api/openapi.json` and run against a mock. Real data still depends on dataset ingestion evidence in FR-2. |
 

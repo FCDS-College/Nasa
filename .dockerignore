@@ -5,6 +5,14 @@ node_modules
 **/__pycache__
 **/.pytest_cache
 datasets
+!datasets/
+datasets/*
+!datasets/registry/
+!datasets/registry/source_registry.csv
+!datasets/metadata/
+!datasets/metadata/files.jsonl
+datasets/raw/
+datasets/derived/
 tests
 docs/**
 !docs/
