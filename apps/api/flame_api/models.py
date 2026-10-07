@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy import BigInteger, Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.types import JSON
@@ -37,7 +37,7 @@ class FileRecord(Base):
     sha256: Mapped[str] = mapped_column(String(64), index=True)
     original_filename: Mapped[str] = mapped_column(Text)
     media_type: Mapped[str] = mapped_column(Text)
-    size_bytes: Mapped[int] = mapped_column(Integer)
+    size_bytes: Mapped[int] = mapped_column(BigInteger)
     retrieved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     canonical_source_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_original: Mapped[bool] = mapped_column(Boolean, default=True)
