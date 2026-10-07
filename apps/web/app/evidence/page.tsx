@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { fetchEvidence } from "@/lib/api/client";
 import { EvidenceRecord } from "@/lib/api/types";
-import { mockEvidence } from "@/lib/api/mockData";
+
 import { Badge } from "@/components/ui/Badge";
 import {
   ShieldCheck,
@@ -18,14 +18,17 @@ import {
 function EvidenceContent() {
   const searchParams = useSearchParams();
   const idFromUrl = searchParams.get("id");
-  const [evidenceId, setEvidenceId] = useState(
-    idFromUrl || "01J9Z3N5B8C1E3G5J7M9P1R3T5"
-  );
+  const [evidenceId, setEvidenceId] = useState(idFromUrl || "");
   const [evidence, setEvidence] = useState<EvidenceRecord | null>(null);
 
+  const [draft, setDraft] = useState(idFromUrl || "");
+  const [notFound, setNotFound] = useState(false);
+
   useEffect(() => {
+    if (!evidenceId) return;
     fetchEvidence(evidenceId).then((res) => {
       setEvidence(res);
+      setNotFound(res === null);
     });
   }, [evidenceId]);
 
@@ -42,32 +45,38 @@ function EvidenceContent() {
             </div>
             Evidence Inspector
           </h1>
-          <Badge variant="success">Verified Record</Badge>
+          {evidence && (
+            <Badge variant={evidence.review_status === "verified" ? "success" : "default"}>
+              {evidence.review_status === "verified" ? "Verified Record" : "Unreviewed Record"}
+            </Badge>
+          )}
         </div>
         <p className="mt-2 text-sm" style={{ color: 'var(--text-muted)' }}>
           Trace scientific claims back to exact documents, pages, raw experimental tables, and SHA-256 signatures.
         </p>
       </div>
 
-      {/* Evidence Switcher */}
-      <div className="flex flex-wrap gap-2 animate-fade-in-up" style={{ animationDelay: '100ms' }}>
-        {Object.keys(mockEvidence).map((id) => (
-          <button
-            key={id}
-            onClick={() => setEvidenceId(id)}
-            className="rounded-lg px-3 py-1.5 text-xs transition-all"
-            style={{
-              fontFamily: 'var(--font-mono)',
-              background: evidenceId === id ? 'rgba(59,130,246,0.1)' : 'var(--border-subtle)',
-              border: `1px solid ${evidenceId === id ? 'rgba(59,130,246,0.3)' : 'var(--border-subtle)'}`,
-              color: evidenceId === id ? 'var(--accent-flame)' : 'var(--text-muted)',
-              transition: 'all var(--transition-fast)',
-            }}
-          >
-            {id.slice(0, 12)}... ({mockEvidence[id].kind})
-          </button>
-        ))}
-      </div>
+      {/* Evidence lookup */}
+      <form
+        onSubmit={(e) => { e.preventDefault(); setEvidenceId(draft.trim()); }}
+        className="flex gap-2 animate-fade-in-up"
+        style={{ animationDelay: '100ms' }}
+      >
+        <input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder="Evidence ID (from a search result)"
+          className="flex-1 rounded-lg px-3 py-2 text-xs"
+          style={{ fontFamily: 'var(--font-mono)', background: 'var(--border-subtle)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }}
+        />
+        <button type="submit" className="rounded-lg px-4 py-2 text-xs font-semibold"
+                style={{ background: 'rgba(59,130,246,0.1)', color: 'var(--accent-flame)', border: '1px solid rgba(59,130,246,0.3)' }}>
+          Inspect
+        </button>
+      </form>
+      {notFound && (
+        <p className="text-sm" style={{ color: 'var(--accent-danger)' }}>Evidence record not found.</p>
+      )}
 
       {evidence && (
         <div className="space-y-6 animate-fade-in-up" style={{ animationDelay: '150ms' }}>

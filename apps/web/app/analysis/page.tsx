@@ -1,17 +1,21 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { fetchAnalysis } from "@/lib/api/client";
+import { fetchAnalysis, artifactUrl } from "@/lib/api/client";
 import { AnalysisResult } from "@/lib/api/types";
 import { Badge } from "@/components/ui/Badge";
 import { Flame, Upload, Eye, EyeOff, AlertTriangle, Crosshair, BarChart2, Cpu } from "lucide-react";
 
 export default function AnalysisPage() {
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
+  const [loaded, setLoaded] = useState(false);
   const [showMask, setShowMask] = useState(true);
 
   useEffect(() => {
-    fetchAnalysis("job_8829").then(setAnalysis);
+    fetchAnalysis().then((a) => {
+      setAnalysis(a);
+      setLoaded(true);
+    });
   }, []);
 
   return (
@@ -33,6 +37,8 @@ export default function AnalysisPage() {
         </div>
         <button
           id="upload-btn"
+          disabled
+          title="Uploads require a write token and are not enabled in the dashboard yet"
           className="flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold"
           style={{
             background: 'linear-gradient(135deg, var(--accent-flame), var(--accent-ember))',
@@ -46,7 +52,11 @@ export default function AnalysisPage() {
         </button>
       </div>
 
-      {!analysis ? (
+      {loaded && !analysis ? (
+        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+          No completed analyses are available yet.
+        </p>
+      ) : !analysis ? (
         <div className="flex items-center gap-3" style={{ color: 'var(--text-muted)' }}>
           <Cpu className="h-5 w-5 animate-spin" style={{ color: 'var(--accent-flame)' }} />
           Loading analysis studio...
@@ -81,31 +91,12 @@ export default function AnalysisPage() {
             </div>
             <div className="relative flex-1 flex items-center justify-center min-h-[400px] overflow-hidden"
                  style={{ background: 'rgba(0,0,0,0.05)' }}>
-              {/* Simulated Flame Visualization */}
-              <div className="absolute inset-0"
-                   style={{
-                     background: 'radial-gradient(ellipse at center, rgba(59,130,246,0.12) 0%, var(--bg-secondary) 70%)',
-                   }} />
-              <div className="relative w-64 h-64 flex items-center justify-center">
-                <div className="absolute w-48 h-48 rounded-full animate-pulse-glow"
-                     style={{ background: 'rgba(59,130,246,0.15)' }} />
-                <div className="absolute w-32 h-32 rounded-full"
-                     style={{ background: 'rgba(251,146,60,0.25)', filter: 'blur(20px)' }} />
-                <div className="absolute w-16 h-16 rounded-full"
-                     style={{ background: 'rgba(254,215,170,0.6)', filter: 'blur(8px)' }} />
-                
-                {showMask && (
-                  <svg className="absolute inset-0 w-full h-full overflow-visible" viewBox="0 0 100 100">
-                    <path
-                      d="M 50,10 C 70,10 85,30 85,50 C 85,70 70,90 50,90 C 30,90 15,70 15,50 C 15,30 30,10 50,10 Z"
-                      fill="rgba(16,185,129,0.12)"
-                      stroke="rgba(16,185,129,0.6)"
-                      strokeWidth="1.5"
-                      strokeDasharray="4 2"
-                    />
-                  </svg>
-                )}
-              </div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={artifactUrl(analysis.id, showMask ? "overlay" : "original")}
+                alt={showMask ? "Flame detection overlay" : "Original flame image"}
+                className="max-h-[520px] w-full object-contain"
+              />
             </div>
           </div>
 
@@ -147,9 +138,11 @@ export default function AnalysisPage() {
                         {m.value.toLocaleString()}{" "}
                         <span className="text-xs" style={{ color: 'var(--text-dim)' }}>{m.unit}</span>
                       </div>
-                      <div className="text-[10px]" style={{ color: 'var(--text-dim)' }}>
-                        {(m.confidence * 100).toFixed(0)}% conf
-                      </div>
+                      {m.confidence !== undefined && (
+                        <div className="text-[10px]" style={{ color: 'var(--text-dim)' }}>
+                          {(m.confidence * 100).toFixed(0)}% conf
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}

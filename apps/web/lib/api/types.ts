@@ -4,7 +4,7 @@ export interface SystemHealth {
   uptime: number;
   services: {
     [key: string]: {
-      status: "up" | "down" | "degraded";
+      status: "up" | "down" | "degraded" | "unknown" | "disabled";
       latency_ms?: number;
       message?: string;
       version?: string;
@@ -95,7 +95,7 @@ export interface AnalysisResult {
     name: string;
     value: number;
     unit: string;
-    confidence: number;
+    confidence?: number;
     observation_type: "observed" | "measured" | "estimated" | "inferred" | "hypothesized";
   }[];
   warnings: string[];

@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { searchResearch } from "@/lib/api/client";
 import { SearchResponse } from "@/lib/api/types";
-import { mockSearchResults } from "@/lib/api/mockData";
 import { Badge } from "@/components/ui/Badge";
 import {
   Search as SearchIcon,
@@ -17,17 +16,27 @@ import {
 import Link from "next/link";
 
 export default function SearchPage() {
-  const [query, setQuery] = useState("flame spread low gravity oxygen");
-  const [data, setData] = useState<SearchResponse>(mockSearchResults);
+  const [query, setQuery] = useState("");
+  const [data, setData] = useState<SearchResponse>({
+    request_id: "",
+    retrieval: { mode: "lexical", corpus_version: "" },
+    pagination: { page: 1, total_items: 0, total_pages: 0 },
+    results: [],
+  });
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [domainFilter, setDomainFilter] = useState<"combustion" | "all">("combustion");
 
   const handleSearch = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    if (!query.trim()) return;
     setLoading(true);
+    setError(null);
     try {
       const res = await searchResearch(query, { domain: domainFilter });
       setData(res);
+    } catch {
+      setError("Search is unavailable right now.");
     } finally {
       setLoading(false);
     }
@@ -114,6 +123,9 @@ export default function SearchPage() {
       </div>
 
       {/* Results */}
+      {error && (
+        <p className="text-sm" style={{ color: 'var(--accent-danger)' }}>{error}</p>
+      )}
       <div className="space-y-4">
         {data.results.map((result, i) => (
           <div

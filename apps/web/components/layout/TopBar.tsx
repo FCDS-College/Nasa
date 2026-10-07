@@ -9,7 +9,6 @@ import {
   PanelLeft,
   Flame,
   Plus,
-  Zap,
 } from "lucide-react";
 import { useChat } from "@/lib/context/ChatContext";
 
@@ -123,7 +122,7 @@ export function TopBar() {
             </h1>
             <span className="text-[9px] sm:text-[10px] hidden sm:inline truncate"
                   style={{ color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
-              Model: {health?.metrics.build_id || "vLLM-L40S"}
+              Build: {health?.metrics.build_id || "—"}
             </span>
           </div>
         </div>
@@ -151,18 +150,8 @@ export function TopBar() {
             </div>
           )}
           <span className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
-            {health?.status ? health.status.toUpperCase() : "OK"}
+            {health?.status ? health.status.toUpperCase() : "…"}
           </span>
-        </div>
-
-        {/* Requests Count */}
-        <div className="hidden sm:flex items-center gap-1.5 text-xs"
-             style={{ color: 'var(--text-muted)' }}>
-          <Zap className="h-3.5 w-3.5" style={{ color: 'var(--accent-flame)', opacity: 0.7 }} />
-          <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
-            {health?.metrics.active_requests || 12}
-          </span>
-          <span>Req</span>
         </div>
 
         {/* Version Badge */}
