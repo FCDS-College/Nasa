@@ -3,12 +3,22 @@ import type { ReactNode } from "react";
 interface CardProps {
   children: ReactNode;
   className?: string;
+  hover?: boolean;
+  glow?: boolean;
 }
 
-export function Card({ children, className = "" }: CardProps) {
+export function Card({ children, className = "", hover = false, glow = false }: CardProps) {
   return (
     <section
-      className={`rounded-xl border border-zinc-800 bg-zinc-950 p-5 ${className}`}
+      className={`rounded-2xl ${className}`}
+      style={{
+        background: 'var(--bg-card)',
+        backdropFilter: 'blur(24px) saturate(1.4)',
+        border: '1px solid var(--border-default)',
+        boxShadow: glow ? 'var(--shadow-glow-sm)' : 'var(--shadow-card)',
+        padding: '20px',
+        transition: 'all var(--transition-default)',
+      }}
     >
       {children}
     </section>

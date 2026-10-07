@@ -1,0 +1,6 @@
+node_modules
+.next
+.env*
+Documentation
+screenshot.js
+tsconfig.tsbuildinfo
