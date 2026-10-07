@@ -2,6 +2,7 @@ import logging
 import json
 import time
 from datetime import UTC, datetime
+from hmac import compare_digest
 import re
 from pathlib import Path
 from typing import Annotated, Any
@@ -54,7 +55,28 @@ async def request_context(request: Request, call_next):
     request_id = supplied_id if re.fullmatch(r"[A-Za-z0-9._-]{1,128}", supplied_id) else f"req_{uuid4().hex}"
     request.state.request_id = request_id
     started = time.perf_counter()
-    response = await call_next(request)
+    path = request.url.path
+    public_metadata = path == "/api/openapi.json" or path == "/api/docs" or path.startswith("/api/docs/")
+    if path.startswith("/api/") and not public_metadata and settings.api_auth_enabled:
+        expected = settings.read_api_token if request.method in {"GET", "HEAD"} else settings.write_api_token
+        authorization = request.headers.get("Authorization", "")
+        scheme, separator, supplied = authorization.partition(" ")
+        if (
+            expected is None
+            or scheme.lower() != "bearer"
+            or not separator
+            or not supplied
+            or not compare_digest(supplied.encode(), expected.get_secret_value().encode())
+        ):
+            response = JSONResponse(
+                status_code=401,
+                content=error_body(request, "AUTHENTICATION_REQUIRED", "A valid API bearer token is required."),
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        else:
+            response = await call_next(request)
+    else:
+        response = await call_next(request)
     response.headers["X-Request-ID"] = request_id
     logger.info("request_id=%s method=%s path=%s status=%s duration_ms=%.1f", request_id, request.method, request.url.path, response.status_code, (time.perf_counter() - started) * 1000)
     return response

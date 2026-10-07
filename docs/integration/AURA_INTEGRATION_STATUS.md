@@ -9,11 +9,13 @@
 
 **Method:** every claim below was checked against source files, not READMEs or plans. Paths are repository-relative. Paths under `AURA-AI:` are in the AURA repository.
 
+**Re-audit update (2026-10-07):** The detailed source audit below describes Flame at `695fca8`; it predates the backend added in commit `4c26000`. Current `main` has all 10 contract operations implemented, and its API tests pass (16 tests). Against AURA `b6994ac76918f98ebe21c63ffeebf6b5c9cebc66`, the offline AP discovery → twin → planner → compiler check produces 8 read tools, accepts all 8 contract examples, and exposes every query parameter. Flame enforces separate read and upload tokens; Link 2 is still **not proven live** because Flame is only published on loopback by the current Compose file, and no AURA connector has yet been approved and deployed against a running Flame instance.
+
 ---
 
 ## 1. Executive summary
 
-**Flame in Freefall is a data-and-design project today; there is no running backend.** What exists:
+**At the audited revision, Flame in Freefall was a data-and-design project with no running backend.** That historical source audit found:
 
 - a verified NASA source registry and file-provenance layer (121 checksummed file records);
 - two ingestion scripts;
@@ -21,9 +23,9 @@
 - a Next.js UI shell with no network code;
 - on an unmerged branch, a CV notebook that validates and resizes images.
 
-There is **no** `apps/api`, no database, no Docker/Compose, no CI, no AI/RAG code, no CV detection or segmentation, and no OpenAPI document. None of the ten frontend endpoints is implemented.
+At that revision there was **no** `apps/api`, database, Docker/Compose, CI, AI/RAG code, CV detection/segmentation, or OpenAPI document. None of the ten frontend endpoints was implemented.
 
-**AURA integration has not started, by design.** The MVP plan (`docs/plan/Nasa - MVP Plan.pdf` §2 "Non-goals" and §24) puts AURA out of scope for the MVP and the six-week build. Its future direction is **AURA → Flame API**: AURA consumes Flame's stable API and never couples to Flame internals.
+**At the audited revision, AURA integration had not started, by design.** The MVP plan (`docs/plan/Nasa - MVP Plan.pdf` §2 "Non-goals" and §24) puts AURA out of scope for the MVP and the six-week build. Its future direction is **AURA → Flame API**: AURA consumes Flame's stable API and never couples to Flame internals. The current implementation and Link 2 contract validation are summarized in the re-audit update above.
 
 The AURA codebase is mature and *could* serve as Flame's reasoning layer. The audit found two hard blockers and one integrity issue:
 
@@ -49,9 +51,9 @@ The AURA codebase is mature and *could* serve as Flame's reasoning layer. The au
 
 | Readiness | Level |
 |---|---|
-| AURA integration | **0% implemented on the Flame side.** Boundary designed. The AURA-side blockers are merged (AURA #156; see the update above). Nothing has run end to end. |
-| Flame backend for the dashboard | **0 of 10 operations implemented.** Contract complete. |
-| Frontend typed client | **Can be generated now** from `docs/api/openapi.json` and run against a mock. Real data needs the P0 backend work in §9. |
+| AURA integration | **Contract-compatible and CI-checked; no live connector has been approved or deployed.** Link 2 remains unproven end to end. |
+| Flame backend for the dashboard | **10 of 10 operations implemented in current `main`; API tests pass.** |
+| Frontend typed client | **Can be generated now** from `docs/api/openapi.json` and run against a mock. Real data still depends on dataset ingestion evidence in FR-2. |
 
 ---
 

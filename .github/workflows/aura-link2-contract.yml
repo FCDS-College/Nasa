@@ -1,0 +1,42 @@
+name: AURA Link 2 Contract
+
+on:
+  pull_request:
+    paths:
+      - "docs/api/openapi.json"
+      - "tests/integration/aura_blueprint_dryrun.py"
+      - "apps/api/**"
+      - ".github/workflows/aura-link2-contract.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "docs/api/openapi.json"
+      - "tests/integration/aura_blueprint_dryrun.py"
+      - "apps/api/**"
+
+permissions:
+  contents: read
+
+jobs:
+  flame-openapi:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out Flame
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Check out pinned AURA revision
+        uses: actions/checkout@v4
+        with:
+          repository: anasibrahimgnedy-collab/AURA-AI
+          ref: b6994ac76918f98ebe21c63ffeebf6b5c9cebc66
+          path: aura-source
+      - name: Install dry-run dependency
+        run: python -m pip install "PyYAML==6.0.3"
+      - name: Compile AURA tools from Flame contract
+        env:
+          AURA_BACKEND: ${{ github.workspace }}/aura-source/aura_backend
+        run: python tests/integration/aura_blueprint_dryrun.py

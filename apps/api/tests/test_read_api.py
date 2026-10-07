@@ -44,7 +44,20 @@ def test_openapi_endpoint_is_the_checked_in_contract(client):
     import json
 
     spec_path = Path(__file__).resolve().parents[3] / "docs" / "api" / "openapi.json"
-    assert client.get("/api/openapi.json").json() == json.loads(spec_path.read_text(encoding="utf-8"))
+    contract = json.loads(spec_path.read_text(encoding="utf-8"))
+    assert client.get("/api/openapi.json").json() == contract
+    for path_item in contract["paths"].values():
+        for method, operation in path_item.items():
+            if method in {"get", "post", "put", "patch", "delete"}:
+                assert operation["security"] == [{"bearerAuth": []}]
+                assert "401" in operation["responses"]
+
+
+def test_api_docs_and_openapi_metadata_are_public(client):
+    headers = {"Authorization": ""}
+
+    assert client.get("/api/docs", headers=headers).status_code == 200
+    assert client.get("/api/openapi.json", headers=headers).status_code == 200
 
 
 def test_search_excludes_dsi_by_default_and_returns_contract_experiment_shape(client, session_factory):

@@ -5,7 +5,7 @@
     "title": "Flame in Freefall API",
     "version": "0.1.0",
     "summary": "Frontend-facing REST contract for the Flame in Freefall scientific dashboard.",
-    "description": "Contract-first specification (MVP plan §12, DAY2_TASKS Lead deliverable). **No route in this document is implemented yet** — `apps/api` does not exist. Every operation carries `x-implementation-status`. When the FastAPI service lands it must serve an equivalent document at `/api/openapi.json`, and a contract test must diff it against this file.\n\nConventions: snake_case JSON; RFC 3339 UTC timestamps; ULID resource IDs; nullable means 'not present or not established' (never 0 for missing); every JSON success body has `meta`; every error body is `ErrorResponse`.\n\nScientific rules encoded in the schema: no temperature field exists; pixel measurements are `measured`, scale-derived physical sizes are `estimated`; AI interpretation is separate from measurements and limited to inferred/hypothesized/unsupported claim classes; evidence is only source content or deterministic calculation.",
+    "description": "Contract-first specification (MVP plan §12, DAY2_TASKS Lead deliverable). The FastAPI implementation is in `apps/api` and serves this document at `/api/openapi.json`; `x-implementation-status` records implementation state. API bearer authentication is required: use the read token for GET/HEAD and a distinct upload token for mutations. AURA Track AP compatibility is checked from this contract against a pinned AURA revision by `tests/integration/aura_blueprint_dryrun.py`.\n\nConventions: snake_case JSON; RFC 3339 UTC timestamps; ULID resource IDs; nullable means 'not present or not established' (never 0 for missing); every JSON success body has `meta`; every error body is `ErrorResponse`.\n\nScientific rules encoded in the schema: no temperature field exists; pixel measurements are `measured`, scale-derived physical sizes are `estimated`; AI interpretation is separate from measurements and limited to inferred/hypothesized/unsupported claim classes; evidence is only source content or deterministic calculation.",
     "license": {
       "name": "Proprietary (team internal)",
       "identifier": "LicenseRef-Proprietary"
@@ -40,7 +40,6 @@
     }
   ],
   "security": [
-    {},
     {
       "bearerAuth": []
     }
@@ -176,6 +175,9 @@
               }
             }
           },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
           "429": {
             "$ref": "#/components/responses/RateLimited"
           },
@@ -183,8 +185,12 @@
             "$ref": "#/components/responses/InternalError"
           }
         },
-        "x-implementation-status": "not_implemented",
-        "security": []
+        "x-implementation-status": "implemented",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
       }
     },
     "/api/dashboard/counts": {
@@ -267,9 +273,8 @@
             }
           }
         },
-        "x-implementation-status": "not_implemented",
+        "x-implementation-status": "implemented",
         "security": [
-          {},
           {
             "bearerAuth": []
           }
@@ -482,9 +487,8 @@
             }
           }
         },
-        "x-implementation-status": "not_implemented",
+        "x-implementation-status": "implemented",
         "security": [
-          {},
           {
             "bearerAuth": []
           }
@@ -626,9 +630,8 @@
             }
           }
         },
-        "x-implementation-status": "not_implemented",
+        "x-implementation-status": "implemented",
         "security": [
-          {},
           {
             "bearerAuth": []
           }
@@ -785,9 +788,8 @@
             }
           }
         },
-        "x-implementation-status": "not_implemented",
+        "x-implementation-status": "implemented",
         "security": [
-          {},
           {
             "bearerAuth": []
           }
@@ -940,9 +942,8 @@
             }
           }
         },
-        "x-implementation-status": "not_implemented",
+        "x-implementation-status": "implemented",
         "security": [
-          {},
           {
             "bearerAuth": []
           }
@@ -1136,9 +1137,8 @@
             }
           }
         },
-        "x-implementation-status": "not_implemented",
+        "x-implementation-status": "implemented",
         "security": [
-          {},
           {
             "bearerAuth": []
           }
@@ -1331,9 +1331,8 @@
             }
           }
         },
-        "x-implementation-status": "not_implemented",
+        "x-implementation-status": "implemented",
         "security": [
-          {},
           {
             "bearerAuth": []
           }
@@ -1703,9 +1702,8 @@
             }
           }
         },
-        "x-implementation-status": "not_implemented",
+        "x-implementation-status": "implemented",
         "security": [
-          {},
           {
             "bearerAuth": []
           }
@@ -1832,9 +1830,8 @@
             }
           }
         },
-        "x-implementation-status": "not_implemented",
+        "x-implementation-status": "implemented",
         "security": [
-          {},
           {
             "bearerAuth": []
           }
@@ -4669,7 +4666,7 @@
         }
       },
       "Unauthorized": {
-        "description": "Missing/invalid credentials (only once auth is enforced). Codes: UNAUTHORIZED.",
+        "description": "Missing or invalid API bearer token. Code: AUTHENTICATION_REQUIRED.",
         "headers": {
           "X-Request-ID": {
             "$ref": "#/components/headers/X-Request-ID"
@@ -4736,8 +4733,8 @@
       "bearerAuth": {
         "type": "http",
         "scheme": "bearer",
-        "bearerFormat": "JWT",
-        "description": "Optional in v0.1 (development AuthContext adapter, MVP plan §12). Send it when you have one; it becomes required in a later minor version without route changes."
+        "bearerFormat": "Opaque token",
+        "description": "Required. Use FLAME_READ_API_TOKEN for GET/HEAD requests and the distinct FLAME_WRITE_API_TOKEN for mutation requests."
       }
     }
   }

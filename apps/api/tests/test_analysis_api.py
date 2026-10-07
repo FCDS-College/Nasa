@@ -1,4 +1,5 @@
 import io
+import os
 
 from PIL import Image
 
@@ -39,7 +40,10 @@ def test_upload_returns_queued_analysis_and_is_idempotent(client, monkeypatch):
 
     mock_queue_and_storage(monkeypatch)
     payload = png_bytes()
-    headers = {"Idempotency-Key": "request-key-0001"}
+    headers = {
+        "Authorization": f"Bearer {os.environ['FLAME_WRITE_API_TOKEN']}",
+        "Idempotency-Key": "request-key-0001",
+    }
 
     first = client.post("/api/analyses", files={"image": ("flame.png", payload, "application/octet-stream")}, headers=headers)
     second = client.post("/api/analyses", files={"image": ("flame.png", payload, "application/octet-stream")}, headers=headers)
@@ -58,9 +62,10 @@ def test_upload_returns_queued_analysis_and_is_idempotent(client, monkeypatch):
 
 def test_upload_rejects_unsupported_and_undecodable_content(client, monkeypatch):
     mock_queue_and_storage(monkeypatch)
+    headers = {"Authorization": f"Bearer {os.environ['FLAME_WRITE_API_TOKEN']}"}
 
-    unsupported = client.post("/api/analyses", files={"image": ("file.bmp", bmp_bytes(), "image/bmp")})
-    invalid = client.post("/api/analyses", files={"image": ("file.png", b"not-a-png", "image/png")})
+    unsupported = client.post("/api/analyses", files={"image": ("file.bmp", bmp_bytes(), "image/bmp")}, headers=headers)
+    invalid = client.post("/api/analyses", files={"image": ("file.png", b"not-a-png", "image/png")}, headers=headers)
 
     assert unsupported.status_code == 415
     assert unsupported.json()["error"]["code"] == "UNSUPPORTED_MEDIA_TYPE"
@@ -72,7 +77,11 @@ def test_history_detail_and_original_artifact(client, monkeypatch):
     from conftest import assert_contract_component
 
     mock_queue_and_storage(monkeypatch)
-    created = client.post("/api/analyses", files={"image": ("flame.png", png_bytes(), "image/png")})
+    created = client.post(
+        "/api/analyses",
+        files={"image": ("flame.png", png_bytes(), "image/png")},
+        headers={"Authorization": f"Bearer {os.environ['FLAME_WRITE_API_TOKEN']}"},
+    )
     analysis_id = created.json()["analysis"]["analysis_id"]
     monkeypatch.setattr(
         analysis,
@@ -91,3 +100,31 @@ def test_history_detail_and_original_artifact(client, monkeypatch):
     assert original.status_code == 200
     assert original.content == b"original-bytes"
     assert original.headers["cache-control"].endswith("immutable")
+
+
+def test_read_token_cannot_upload_and_write_token_is_required(client):
+    import os
+
+    read_token_header = f"Bearer {os.environ['FLAME_READ_API_TOKEN']}"
+    write_token_header = f"Bearer {os.environ['FLAME_WRITE_API_TOKEN']}"
+    read_access = client.get("/api/search", params={"q": "combustion"}, headers={"Authorization": read_token_header})
+    missing_read_token = client.get("/api/search", params={"q": "combustion"}, headers={"Authorization": ""})
+    write_cannot_read = client.get("/api/search", params={"q": "combustion"}, headers={"Authorization": write_token_header})
+    without_token = client.post("/api/analyses", headers={"Authorization": ""})
+    read_token_upload = client.post(
+        "/api/analyses",
+        headers={"Authorization": read_token_header},
+    )
+    write_token_upload = client.post(
+        "/api/analyses",
+        headers={"Authorization": write_token_header},
+    )
+
+    assert read_access.status_code == 200
+    assert missing_read_token.status_code == 401
+    assert write_cannot_read.status_code == 401
+    assert without_token.status_code == 401
+    assert read_token_upload.status_code == 401
+    assert without_token.headers["WWW-Authenticate"] == "Bearer"
+    assert write_token_upload.status_code == 400
+    assert without_token.json()["error"]["code"] == "AUTHENTICATION_REQUIRED"

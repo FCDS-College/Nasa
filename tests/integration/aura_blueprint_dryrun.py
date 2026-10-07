@@ -48,6 +48,7 @@ def main() -> int:
     print(f"discovery: {len(report.artifacts)} artifacts, issues={len(report.issues)}")
     print(f"compiled tools: {len(compiled.blueprint.tools)}")
     rejected = 0
+    missing_examples = 0
     for tool in compiled.blueprint.tools:
         http = templates[tool.template].http
         params = [p.name for p in tool.parameters]
@@ -58,6 +59,7 @@ def main() -> int:
             example = next(iter(content["examples"].values())).get("value")
         if example is None:
             verdict = "no example in contract"
+            missing_examples += 1
         else:
             errors = output_errors(dict(tool.output_schema), example)
             verdict = "ACCEPTED" if not errors else "REJECTED: " + "; ".join(errors)
@@ -65,12 +67,14 @@ def main() -> int:
         print(f"  {tool.name:28} GET {http.path:45} params={params}  {verdict}")
 
     exposed = {p for tool in compiled.blueprint.tools for p in templates[tool.template].http.query_params}
+    unreachable = 0
     for path, item in sorted(spec["paths"].items()):
         for param in item.get("get", {}).get("parameters", []):
             param = _resolve(spec, param)
             if param.get("in") == "query" and param.get("name") not in exposed:
                 print(f"  not reachable by AURA: optional query parameter {param.get('name')!r} on GET {path}")
-    return 1 if rejected else 0
+                unreachable += 1
+    return 1 if rejected or missing_examples or unreachable else 0
 
 
 def _resolve(spec: dict, node: dict) -> dict:

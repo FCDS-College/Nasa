@@ -1,3 +1,9 @@
+import os
+
+os.environ["FLAME_API_AUTH_ENABLED"] = "true"
+os.environ["FLAME_READ_API_TOKEN"] = "test-read-token-0123456789abcdef0123456789"
+os.environ["FLAME_WRITE_API_TOKEN"] = "test-write-token-0123456789abcdef0123456789"
+
 import pytest
 from fastapi.testclient import TestClient
 from jsonschema import Draft202012Validator
@@ -47,5 +53,6 @@ def client(session_factory):
 
     app.dependency_overrides[get_session] = override_session
     with TestClient(app) as test_client:
+        test_client.headers["Authorization"] = f"Bearer {os.environ['FLAME_READ_API_TOKEN']}"
         yield test_client
     app.dependency_overrides.clear()

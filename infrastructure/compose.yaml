@@ -63,6 +63,9 @@ services:
       dockerfile: apps/api/Dockerfile
     environment:
       FLAME_ENVIRONMENT: development
+      FLAME_API_AUTH_ENABLED: ${FLAME_API_AUTH_ENABLED:-true}
+      FLAME_READ_API_TOKEN: ${FLAME_READ_API_TOKEN:?Set FLAME_READ_API_TOKEN in infrastructure/.env}
+      FLAME_WRITE_API_TOKEN: ${FLAME_WRITE_API_TOKEN:?Set FLAME_WRITE_API_TOKEN in infrastructure/.env}
       FLAME_DATABASE_URL: postgresql+psycopg://flame:${POSTGRES_PASSWORD:-flame-local-only}@postgres:5432/flame
       FLAME_REDIS_URL: redis://redis:6379/0
       FLAME_S3_ENDPOINT_URL: http://minio:9000
@@ -82,7 +85,16 @@ services:
         condition: service_completed_successfully
     command: ["sh", "-c", "alembic upgrade head && python -m flame_api.seed && python -m flame_api.ingest && uvicorn flame_api.main:app --host 0.0.0.0 --port 8000"]
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=2)"]
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import os, urllib.request;
+          request = urllib.request.Request(
+          'http://127.0.0.1:8000/api/health',
+          headers={'Authorization': 'Bearer ' + os.environ['FLAME_READ_API_TOKEN']});
+          urllib.request.urlopen(request, timeout=2)
       interval: 10s
       timeout: 3s
       retries: 10
@@ -95,6 +107,7 @@ services:
       dockerfile: apps/api/Dockerfile
     environment:
       FLAME_ENVIRONMENT: development
+      FLAME_API_AUTH_ENABLED: "false"
       FLAME_DATABASE_URL: postgresql+psycopg://flame:${POSTGRES_PASSWORD:-flame-local-only}@postgres:5432/flame
       FLAME_REDIS_URL: redis://redis:6379/0
       FLAME_S3_ENDPOINT_URL: http://minio:9000

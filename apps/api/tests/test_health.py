@@ -1,3 +1,5 @@
+import os
+
 from fastapi.testclient import TestClient
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -9,7 +11,13 @@ def test_health_contract_shape_and_request_id_echo(monkeypatch):
     monkeypatch.setattr(main.boto3, "client", lambda **_: _object_storage_unavailable())
     monkeypatch.setattr(main.Redis, "from_url", lambda *args, **kwargs: _cache_unavailable())
 
-    response = TestClient(main.app).get("/api/health", headers={"X-Request-ID": "health-test_1"})
+    response = TestClient(main.app).get(
+        "/api/health",
+        headers={
+            "Authorization": f"Bearer {os.environ['FLAME_READ_API_TOKEN']}",
+            "X-Request-ID": "health-test_1",
+        },
+    )
     body = response.json()
 
     assert response.headers["X-Request-ID"] == "health-test_1"
