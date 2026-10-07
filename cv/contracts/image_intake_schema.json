@@ -1,0 +1,247 @@
+{
+  "$defs": {
+    "DerivedInfo": {
+      "additionalProperties": false,
+      "properties": {
+        "uri": {
+          "title": "Uri",
+          "type": "string"
+        },
+        "sha256": {
+          "title": "Sha256",
+          "type": "string"
+        },
+        "preprocessVersion": {
+          "title": "Preprocessversion",
+          "type": "string"
+        },
+        "resizingRule": {
+          "title": "Resizingrule",
+          "type": "string"
+        },
+        "scale": {
+          "title": "Scale",
+          "type": "number"
+        },
+        "padX": {
+          "title": "Padx",
+          "type": "integer"
+        },
+        "padY": {
+          "title": "Pady",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "uri",
+        "sha256",
+        "preprocessVersion",
+        "resizingRule",
+        "scale",
+        "padX",
+        "padY"
+      ],
+      "title": "DerivedInfo",
+      "type": "object"
+    },
+    "SourceInfo": {
+      "additionalProperties": false,
+      "properties": {
+        "sourceId": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sourceid"
+        },
+        "experiment": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Experiment"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        },
+        "accessDate": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Accessdate"
+        }
+      },
+      "title": "SourceInfo",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "imageId": {
+      "title": "Imageid",
+      "type": "string"
+    },
+    "originalPath": {
+      "title": "Originalpath",
+      "type": "string"
+    },
+    "sha256": {
+      "title": "Sha256",
+      "type": "string"
+    },
+    "sizeBytes": {
+      "title": "Sizebytes",
+      "type": "integer"
+    },
+    "width": {
+      "title": "Width",
+      "type": "integer"
+    },
+    "height": {
+      "title": "Height",
+      "type": "integer"
+    },
+    "mimeType": {
+      "title": "Mimetype",
+      "type": "string"
+    },
+    "validationStatus": {
+      "default": "PASSED",
+      "enum": [
+        "PASSED",
+        "FAILED"
+      ],
+      "title": "Validationstatus",
+      "type": "string"
+    },
+    "derived": {
+      "$ref": "#/$defs/DerivedInfo"
+    },
+    "source": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SourceInfo"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "license": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "License"
+    },
+    "groupId": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Experiment/run id. Split by group, never by frame, to avoid leakage.",
+      "title": "Groupid"
+    },
+    "split": {
+      "default": "unassigned",
+      "enum": [
+        "dev",
+        "validation",
+        "holdout",
+        "unassigned"
+      ],
+      "title": "Split",
+      "type": "string"
+    },
+    "groundTruthMaskUri": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Groundtruthmaskuri"
+    },
+    "ingestedAt": {
+      "title": "Ingestedat",
+      "type": "string"
+    }
+  },
+  "required": [
+    "imageId",
+    "originalPath",
+    "sha256",
+    "sizeBytes",
+    "width",
+    "height",
+    "mimeType",
+    "derived",
+    "ingestedAt"
+  ],
+  "title": "ImageIntakeRecord v1.1.0",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-intakePolicy": {
+    "allowedFormats": [
+      "jpeg",
+      "png"
+    ],
+    "maxFileBytes": 10485760,
+    "maxPixels": 100000000,
+    "minDimensionPx": 64,
+    "checksum": "sha256 (streamed)",
+    "exifPolicy": "apply orientation, strip metadata in derived image",
+    "preprocess": {
+      "version": "letterbox-lanczos-v1",
+      "rule": "aspect-preserving Lanczos resize + black padding",
+      "targetSize": 512,
+      "derivedFormat": "PNG (lossless)"
+    },
+    "splitPolicy": "split by groupId (experiment/run), never by frame",
+    "quarantine": "files failing validation are not preprocessed or manifested",
+    "requiredForTraining": [
+      "license",
+      "source",
+      "groupId"
+    ]
+  }
+}

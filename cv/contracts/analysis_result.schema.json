@@ -1,0 +1,887 @@
+{
+  "$defs": {
+    "Appearance": {
+      "additionalProperties": false,
+      "properties": {
+        "note": {
+          "default": "Image-derived statistics inside the flame mask; not physical state variables.",
+          "title": "Note",
+          "type": "string"
+        },
+        "colorSpaceStatistics": {
+          "$ref": "#/$defs/ColorStats"
+        },
+        "meanSaturationInMask": {
+          "title": "Meansaturationinmask",
+          "type": "number"
+        },
+        "meanValueInMask": {
+          "title": "Meanvalueinmask",
+          "type": "number"
+        },
+        "intensityP5": {
+          "title": "Intensityp5",
+          "type": "number"
+        },
+        "intensityP50": {
+          "title": "Intensityp50",
+          "type": "number"
+        },
+        "intensityP95": {
+          "title": "Intensityp95",
+          "type": "number"
+        }
+      },
+      "required": [
+        "colorSpaceStatistics",
+        "meanSaturationInMask",
+        "meanValueInMask",
+        "intensityP5",
+        "intensityP50",
+        "intensityP95"
+      ],
+      "title": "Appearance",
+      "type": "object"
+    },
+    "BoundingBox": {
+      "additionalProperties": false,
+      "description": "Original-image pixel coordinates.",
+      "properties": {
+        "ymin": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ymin"
+        },
+        "xmin": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Xmin"
+        },
+        "ymax": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ymax"
+        },
+        "xmax": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Xmax"
+        }
+      },
+      "title": "BoundingBox",
+      "type": "object"
+    },
+    "CacheInfo": {
+      "additionalProperties": false,
+      "properties": {
+        "hit": {
+          "title": "Hit",
+          "type": "boolean"
+        },
+        "key": {
+          "title": "Key",
+          "type": "string"
+        }
+      },
+      "required": [
+        "hit",
+        "key"
+      ],
+      "title": "CacheInfo",
+      "type": "object"
+    },
+    "ColorStats": {
+      "additionalProperties": false,
+      "properties": {
+        "colorSpace": {
+          "const": "RGB",
+          "default": "RGB",
+          "title": "Colorspace",
+          "type": "string"
+        },
+        "meanR": {
+          "title": "Meanr",
+          "type": "number"
+        },
+        "meanG": {
+          "title": "Meang",
+          "type": "number"
+        },
+        "meanB": {
+          "title": "Meanb",
+          "type": "number"
+        }
+      },
+      "required": [
+        "meanR",
+        "meanG",
+        "meanB"
+      ],
+      "title": "ColorStats",
+      "type": "object"
+    },
+    "ConfidenceAndQualityFlags": {
+      "additionalProperties": false,
+      "properties": {
+        "detectorConfidence": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Detectorconfidence",
+          "type": "number"
+        },
+        "segmenterConfidence": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Segmenterconfidence",
+          "type": "number"
+        },
+        "segmenterConfidenceBasis": {
+          "const": "threshold_stability_iou",
+          "default": "threshold_stability_iou",
+          "title": "Segmenterconfidencebasis",
+          "type": "string"
+        },
+        "qualityFlags": {
+          "$ref": "#/$defs/QualityFlags"
+        },
+        "qualityMetrics": {
+          "$ref": "#/$defs/QualityMetrics"
+        }
+      },
+      "required": [
+        "detectorConfidence",
+        "segmenterConfidence",
+        "qualityFlags",
+        "qualityMetrics"
+      ],
+      "title": "ConfidenceAndQualityFlags",
+      "type": "object"
+    },
+    "Detection": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": [
+            "PRESENT",
+            "ABSENT",
+            "UNCERTAIN"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "confidence": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "confidenceBasis": {
+          "const": "heuristic_uncalibrated",
+          "default": "heuristic_uncalibrated",
+          "title": "Confidencebasis",
+          "type": "string"
+        },
+        "boundingBox": {
+          "$ref": "#/$defs/BoundingBox"
+        },
+        "modelName": {
+          "title": "Modelname",
+          "type": "string"
+        },
+        "modelVersion": {
+          "title": "Modelversion",
+          "type": "string"
+        },
+        "modelDigest": {
+          "title": "Modeldigest",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "confidence",
+        "boundingBox",
+        "modelName",
+        "modelVersion",
+        "modelDigest"
+      ],
+      "title": "Detection",
+      "type": "object"
+    },
+    "Geometry": {
+      "additionalProperties": false,
+      "properties": {
+        "coordinateSpace": {
+          "const": "original_image_pixels",
+          "default": "original_image_pixels",
+          "title": "Coordinatespace",
+          "type": "string"
+        },
+        "pixelArea": {
+          "title": "Pixelarea",
+          "type": "number"
+        },
+        "centroid": {
+          "$ref": "#/$defs/Point"
+        },
+        "perimeter": {
+          "title": "Perimeter",
+          "type": "number"
+        },
+        "aspectRatio": {
+          "title": "Aspectratio",
+          "type": "number"
+        },
+        "elongation": {
+          "title": "Elongation",
+          "type": "number"
+        },
+        "circularity": {
+          "title": "Circularity",
+          "type": "number"
+        },
+        "symmetryLR": {
+          "title": "Symmetrylr",
+          "type": "number"
+        },
+        "symmetryUD": {
+          "title": "Symmetryud",
+          "type": "number"
+        }
+      },
+      "required": [
+        "pixelArea",
+        "centroid",
+        "perimeter",
+        "aspectRatio",
+        "elongation",
+        "circularity",
+        "symmetryLR",
+        "symmetryUD"
+      ],
+      "title": "Geometry",
+      "type": "object"
+    },
+    "Measurements": {
+      "additionalProperties": false,
+      "properties": {
+        "geometry": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Geometry"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "appearance": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Appearance"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "physicalEstimates": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PhysicalEstimates"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "Measurements",
+      "type": "object"
+    },
+    "PhysicalEstimates": {
+      "additionalProperties": false,
+      "properties": {
+        "classification": {
+          "default": "ESTIMATED",
+          "enum": [
+            "OBSERVED",
+            "MEASURED",
+            "ESTIMATED",
+            "INFERRED",
+            "HYPOTHESIZED"
+          ],
+          "title": "Classification",
+          "type": "string"
+        },
+        "mmPerPixel": {
+          "title": "Mmperpixel",
+          "type": "number"
+        },
+        "areaMm2": {
+          "title": "Areamm2",
+          "type": "number"
+        },
+        "perimeterMm": {
+          "title": "Perimetermm",
+          "type": "number"
+        },
+        "equivalentDiameterMm": {
+          "title": "Equivalentdiametermm",
+          "type": "number"
+        },
+        "assumptions": {
+          "title": "Assumptions",
+          "type": "string"
+        }
+      },
+      "required": [
+        "mmPerPixel",
+        "areaMm2",
+        "perimeterMm",
+        "equivalentDiameterMm",
+        "assumptions"
+      ],
+      "title": "PhysicalEstimates",
+      "type": "object"
+    },
+    "Point": {
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "title": "Y",
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ],
+      "title": "Point",
+      "type": "object"
+    },
+    "PreprocessingInfo": {
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "title": "Version",
+          "type": "string"
+        },
+        "targetSize": {
+          "title": "Targetsize",
+          "type": "integer"
+        },
+        "orientation": {
+          "title": "Orientation",
+          "type": "string"
+        },
+        "colorSpace": {
+          "title": "Colorspace",
+          "type": "string"
+        },
+        "resizingRule": {
+          "title": "Resizingrule",
+          "type": "string"
+        },
+        "scale": {
+          "title": "Scale",
+          "type": "number"
+        },
+        "padX": {
+          "title": "Padx",
+          "type": "integer"
+        },
+        "padY": {
+          "title": "Pady",
+          "type": "integer"
+        },
+        "originalWidth": {
+          "title": "Originalwidth",
+          "type": "integer"
+        },
+        "originalHeight": {
+          "title": "Originalheight",
+          "type": "integer"
+        },
+        "contentWidth": {
+          "title": "Contentwidth",
+          "type": "integer"
+        },
+        "contentHeight": {
+          "title": "Contentheight",
+          "type": "integer"
+        },
+        "denoising": {
+          "title": "Denoising",
+          "type": "string"
+        },
+        "derivedUri": {
+          "title": "Deriveduri",
+          "type": "string"
+        },
+        "derivedChecksum": {
+          "title": "Derivedchecksum",
+          "type": "string"
+        }
+      },
+      "required": [
+        "version",
+        "targetSize",
+        "orientation",
+        "colorSpace",
+        "resizingRule",
+        "scale",
+        "padX",
+        "padY",
+        "originalWidth",
+        "originalHeight",
+        "contentWidth",
+        "contentHeight",
+        "denoising",
+        "derivedUri",
+        "derivedChecksum"
+      ],
+      "title": "PreprocessingInfo",
+      "type": "object"
+    },
+    "Provenance": {
+      "additionalProperties": false,
+      "properties": {
+        "inputUri": {
+          "title": "Inputuri",
+          "type": "string"
+        },
+        "inputChecksum": {
+          "title": "Inputchecksum",
+          "type": "string"
+        },
+        "pipelineVersion": {
+          "title": "Pipelineversion",
+          "type": "string"
+        },
+        "preprocessVersion": {
+          "title": "Preprocessversion",
+          "type": "string"
+        },
+        "segmenterName": {
+          "title": "Segmentername",
+          "type": "string"
+        },
+        "segmenterVersion": {
+          "title": "Segmenterversion",
+          "type": "string"
+        },
+        "configDigest": {
+          "title": "Configdigest",
+          "type": "string"
+        },
+        "config": {
+          "additionalProperties": true,
+          "title": "Config",
+          "type": "object"
+        },
+        "libraries": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Libraries",
+          "type": "object"
+        },
+        "createdAt": {
+          "title": "Createdat",
+          "type": "string"
+        }
+      },
+      "required": [
+        "inputUri",
+        "inputChecksum",
+        "pipelineVersion",
+        "preprocessVersion",
+        "segmenterName",
+        "segmenterVersion",
+        "configDigest",
+        "config",
+        "libraries",
+        "createdAt"
+      ],
+      "title": "Provenance",
+      "type": "object"
+    },
+    "QualityFlags": {
+      "additionalProperties": false,
+      "properties": {
+        "blur": {
+          "title": "Blur",
+          "type": "boolean"
+        },
+        "saturationClipping": {
+          "title": "Saturationclipping",
+          "type": "boolean"
+        },
+        "lowLight": {
+          "title": "Lowlight",
+          "type": "boolean"
+        },
+        "multipleFlames": {
+          "title": "Multipleflames",
+          "type": "boolean"
+        },
+        "occlusion": {
+          "title": "Occlusion",
+          "type": "boolean"
+        },
+        "scaleAbsent": {
+          "title": "Scaleabsent",
+          "type": "boolean"
+        },
+        "calibrationAbsent": {
+          "title": "Calibrationabsent",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "blur",
+        "saturationClipping",
+        "lowLight",
+        "multipleFlames",
+        "occlusion",
+        "scaleAbsent",
+        "calibrationAbsent"
+      ],
+      "title": "QualityFlags",
+      "type": "object"
+    },
+    "QualityMetrics": {
+      "additionalProperties": false,
+      "properties": {
+        "boundaryGradient": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Boundarygradient"
+        },
+        "flameContrast": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Flamecontrast"
+        },
+        "clippedFraction": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Clippedfraction"
+        },
+        "brightnessP995": {
+          "title": "Brightnessp995",
+          "type": "number"
+        },
+        "significantComponents": {
+          "title": "Significantcomponents",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "brightnessP995",
+        "significantComponents"
+      ],
+      "title": "QualityMetrics",
+      "type": "object"
+    },
+    "ScientificInterpretation": {
+      "additionalProperties": false,
+      "properties": {
+        "classification": {
+          "enum": [
+            "OBSERVED",
+            "MEASURED",
+            "ESTIMATED",
+            "INFERRED",
+            "HYPOTHESIZED"
+          ],
+          "title": "Classification",
+          "type": "string"
+        },
+        "calibrationState": {
+          "enum": [
+            "ABSENT",
+            "SCALE_ONLY"
+          ],
+          "title": "Calibrationstate",
+          "type": "string"
+        },
+        "fieldLabels": {
+          "additionalProperties": {
+            "enum": [
+              "OBSERVED",
+              "MEASURED",
+              "ESTIMATED",
+              "INFERRED",
+              "HYPOTHESIZED"
+            ],
+            "type": "string"
+          },
+          "title": "Fieldlabels",
+          "type": "object"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Warnings",
+          "type": "array"
+        }
+      },
+      "required": [
+        "classification",
+        "calibrationState",
+        "fieldLabels",
+        "warnings"
+      ],
+      "title": "ScientificInterpretation",
+      "type": "object"
+    },
+    "Segmentation": {
+      "additionalProperties": false,
+      "properties": {
+        "maskType": {
+          "const": "binary",
+          "default": "binary",
+          "title": "Masktype",
+          "type": "string"
+        },
+        "maskStatus": {
+          "enum": [
+            "SUCCESS",
+            "EMPTY_MASK",
+            "NOT_REQUESTED",
+            "NOT_WRITTEN"
+          ],
+          "title": "Maskstatus",
+          "type": "string"
+        },
+        "maskCoordinateSpace": {
+          "default": "processed_letterbox",
+          "title": "Maskcoordinatespace",
+          "type": "string"
+        },
+        "maskUri": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Maskuri"
+        },
+        "maskChecksum": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Maskchecksum"
+        },
+        "overlayArtifactUri": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Overlayartifacturi"
+        },
+        "overlayChecksum": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Overlaychecksum"
+        },
+        "thresholdOtsu": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Thresholdotsu"
+        },
+        "thresholdApplied": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Thresholdapplied"
+        }
+      },
+      "required": [
+        "maskStatus"
+      ],
+      "title": "Segmentation",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "default": "1.1.0",
+      "title": "Schemaversion",
+      "type": "string"
+    },
+    "status": {
+      "const": "SUCCESS",
+      "default": "SUCCESS",
+      "title": "Status",
+      "type": "string"
+    },
+    "analysisId": {
+      "title": "Analysisid",
+      "type": "string"
+    },
+    "imageId": {
+      "title": "Imageid",
+      "type": "string"
+    },
+    "pipelineVersion": {
+      "title": "Pipelineversion",
+      "type": "string"
+    },
+    "preprocessing": {
+      "$ref": "#/$defs/PreprocessingInfo"
+    },
+    "detection": {
+      "$ref": "#/$defs/Detection"
+    },
+    "segmentation": {
+      "$ref": "#/$defs/Segmentation"
+    },
+    "measurements": {
+      "$ref": "#/$defs/Measurements"
+    },
+    "confidenceAndQualityFlags": {
+      "$ref": "#/$defs/ConfidenceAndQualityFlags"
+    },
+    "scientificInterpretation": {
+      "$ref": "#/$defs/ScientificInterpretation"
+    },
+    "provenance": {
+      "$ref": "#/$defs/Provenance"
+    },
+    "request": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Request"
+    },
+    "cache": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CacheInfo"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "analysisId",
+    "imageId",
+    "pipelineVersion",
+    "preprocessing",
+    "detection",
+    "segmentation",
+    "measurements",
+    "confidenceAndQualityFlags",
+    "scientificInterpretation",
+    "provenance"
+  ],
+  "title": "AnalysisResult v1.1.0",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}
