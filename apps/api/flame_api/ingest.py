@@ -27,7 +27,7 @@ from flame_api.seed import seed
 PARSER_VERSION = "pymupdf-pages-0.1.0"
 TABLE_PARSER_VERSION = "psi-tables-0.1.0"
 ROOT = Path(__file__).resolve().parents[3]
-MISSING = {"", "-", "–", "—", "n/a", "na", "none", "null"}
+MISSING = {"", "-", "â€“", "â€”", "n/a", "na", "none", "null"}
 
 
 def _utc_now() -> datetime:
@@ -55,7 +55,7 @@ def parse_cell(raw: str | None) -> tuple[float | None, str | None]:
 def convert_to_si(header: str, variable: str, value: float | None) -> tuple[float | None, str | None]:
     if value is None:
         return None, None
-    normalized = header.lower().replace("µ", "u").replace("₂", "2")
+    normalized = header.lower().replace("Âµ", "u").replace("â‚‚", "2")
     if "mmhg" in normalized:
         return value * 133.322387415, "Pa"
     if "cm/s" in normalized:
@@ -119,7 +119,7 @@ def _create_document(session: Session, file_record: FileRecord) -> dict[str, int
     blank_pages = []
     extracted: list[tuple[int, str]] = []
     for index, page in enumerate(document, start=1):
-        text = page.get_text("text").strip()
+        text = page.get_text("text").replace("\x00", "").strip()
         if len(text) < 12:
             blank_pages.append(index)
         else:
@@ -229,7 +229,7 @@ def _unit(header: str) -> str | None:
         return match.group(1).strip()
     if ";" in header:
         return header.rsplit(";", 1)[1].strip()
-    normalized = header.lower().replace("₂", "2")
+    normalized = header.lower().replace("â‚‚", "2")
     if "mole fraction" in normalized:
         return "mole fraction"
     if "%" in normalized:
@@ -284,6 +284,13 @@ def _create_table_experiments(session: Session, file_record: FileRecord) -> dict
             fuel = row.get(fuel_header) or None
             condition_ids = []
             searchable_values = [test_id, source.short_name or "", fuel or ""]
+            # Evidence and conditions reference the experiment, so it must exist before they are inserted.
+            session.merge(ExperimentRecord(
+                experiment_id=experiment_id, source_id=source.source_id, test_id=test_id,
+                investigation=source.short_name, gravity_regime="microgravity", fuel_or_material=fuel,
+                table_file_id=file_record.file_id, searchable_text="",
+            ))
+            session.flush()
             for header in headers:
                 raw_value = row.get(header, "")
                 if raw_value:
@@ -332,6 +339,7 @@ def _create_table_experiments(session: Session, file_record: FileRecord) -> dict
                     evidence_id=evidence_id,
                 ))
                 evidence_count += 1
+            session.flush()
             experiment = ExperimentRecord(
                 experiment_id=experiment_id,
                 source_id=source.source_id,
