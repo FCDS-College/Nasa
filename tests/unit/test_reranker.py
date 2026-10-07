@@ -99,7 +99,7 @@ def test_reranker():
         )
 
 def test_reranker_does_not_recompute_keyword_overlap():
-    from src.reranking.reranker import Reranker
+    from ai.rag.reranking.reranker import Reranker
 
     results = [
         {

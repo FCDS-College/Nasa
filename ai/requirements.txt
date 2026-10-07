@@ -1,0 +1,6 @@
+numpy
+scikit-learn
+pydantic>=2
+pypdf
+sentence-transformers
+pytest

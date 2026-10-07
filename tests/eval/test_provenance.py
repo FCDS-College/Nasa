@@ -1,15 +1,23 @@
+﻿import json
 import os
-import json
+from pathlib import Path
+
 import pytest
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+GOLD_PATH = str(REPO_ROOT / "datasets" / "evaluation" / "rag_gold_arabic_v0.jsonl")
+SCHEMA_PATH = str(REPO_ROOT / "datasets" / "evaluation" / "gold_schema.json")
+
+import os
 
 def test_gold_dataset_exists():
     """التحقق من وجود ملف الـ Gold Dataset في المسار الصحيح"""
-    path = "datasets/evaluation/rag_gold.jsonl"
+    path = GOLD_PATH
     assert os.path.exists(path), f"❌ خطأ: ملف الـ Gold Dataset غير موجود في المسار {path}"
 
 def test_gold_dataset_format_and_diversity():
     """التحقق من صحة صيغة البيانات وتنوعها وخلوها من التكرار الوهمي"""
-    path = "datasets/evaluation/rag_gold.jsonl"
+    path = GOLD_PATH
     case_ids = set()
     
     with open(path, 'r', encoding='utf-8') as f:
@@ -35,15 +43,12 @@ def test_threshold_consistency():
     REQUIRED_THRESHOLD = 4.0  # توحيد العتبة الحرجة لضمان توافق الفحص
     assert REQUIRED_THRESHOLD <= 4.5, "❌ خطأ مطابقة العتبات (Threshold Mismatch) بين المقيمين."
 
-    import os
-import json
-import hashlib
 
 def test_gold_dataset_exists():
-    assert os.path.exists("datasets/evaluation/rag_gold.jsonl"), "❌ ملف الـ Gold Dataset غير موجود."
+    assert os.path.exists(GOLD_PATH), "❌ ملف الـ Gold Dataset غير موجود."
 
 def test_gold_dataset_count_and_structure():
-    path = "datasets/evaluation/rag_gold.jsonl"
+    path = GOLD_PATH
     cases = []
     with open(path, 'r', encoding='utf-8') as f:
         for line in f:
@@ -66,4 +71,4 @@ def test_gold_dataset_count_and_structure():
     assert no_answer_count >= 3, "⚠️ يجب وجود 3 حالات على الأقل بنظام لا يوجد إجابة (No Answer)."
 
 def test_schema_file_exists():
-    assert os.path.exists("datasets/evaluation/gold_schema.json"), "❌ ملف الـ JSON Schema غير موجود."
+    assert os.path.exists(SCHEMA_PATH), "❌ ملف الـ JSON Schema غير موجود."

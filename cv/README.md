@@ -1,13 +1,13 @@
-# cv/
+﻿# cv/
 
-Flame-image analysis with PyTorch and OpenCV. **Owner:** Engineer 3. **Status:** contract defined, pipeline not implemented.
+Flame-image analysis with OpenCV (PyTorch layer planned). **Owner:** Engineer 3. **Status:** baseline pipeline implemented (Otsu/contour segmenter, heuristic confidence); segmentation accuracy not yet evaluated (no ground-truth masks).
 
 | Path | What it is |
 |---|---|
-| `contracts/analysis_result.json` | Example `AnalysisResult` payload: preprocessing, detection, segmentation, measurements, confidence and quality flags, and the scientific-interpretation label (MVP plan §10) |
-| `notebooks/CVmodel.ipynb` | Prototype preprocessing and segmentation notebook. Run it from `cv/notebooks/`: it reads `../../datasets/samples/cv` and writes `../../datasets/processed/` |
-| `pipeline.py` | Pipeline entry point (planned, not yet created): Image → Validation → Preprocessing → Detection → Segmentation → Features → Measurements → Confidence → AnalysisResult |
+| `flame_cv.py` | The pipeline: validate, letterbox preprocess, segment, features, confidence/quality flags, `AnalysisResult` (+ mask/overlay artifacts), intake manifest, analysis cache, evaluation runner and `flame_analysis_api_adapter` (imported by `apps/api` as `cv.flame_cv`) |
+| `contracts/` | JSON Schemas (`analysis_result.schema.json`, `image_intake_schema.json`), an example payload, per-image results and `evaluation_report.json` |
+| `notebooks/CVmodel_export.py` | Notebook export of the pipeline prototype; reference only, `flame_cv.py` is the source of truth |
 
-Planned sub-folders: `preprocessing/`, `inference/`, `training/`, `evaluation/`.
+Tests: `tests/cv/` (run `python -m pytest tests/cv` from the repo root). Training and evaluation data sources are in `docs/data/CV_IMAGE_SOURCES.md`. Split by **test**, not by frame, and never report temperature from RGB without calibration.
 
-Training and evaluation data sources are described in `docs/data/CV_IMAGE_SOURCES.md`. Split by **test**, not by frame, and never report temperature from RGB without calibration.
+Planned: split `flame_cv.py` into `preprocessing/`, `inference/`, `training/`, `evaluation/` (MVP plan §14).

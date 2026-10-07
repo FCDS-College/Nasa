@@ -2,7 +2,7 @@ from pathlib import Path
 
 from pypdf import PdfReader
 
-from src.ingestion.document import create_document
+from ai.rag.ingestion.document import create_document
 
 
 class PDFDocumentLoader:

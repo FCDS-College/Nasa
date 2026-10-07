@@ -32,15 +32,16 @@ The full engineering blueprint is in [`docs/plan/Nasa - MVP Plan.pdf`](docs/plan
 │   └── ingestion/       Download + provenance scripts (NASA PSI)
 ├── ai/
 │   └── rag/             Ingestion, embeddings, retrieval, reranking, context, citations, evaluation
-├── cv/                  Flame-image analysis: contracts/ and notebooks/
+├── cv/                  Flame-image analysis: flame_cv.py pipeline, contracts/, notebooks/
 ├── apps/
 │   ├── api/             FastAPI service, Alembic migrations and API tests
 │   └── web/             Next.js dashboard
 ├── infrastructure/      Docker Compose and Railway service configuration
 └── tests/
-    ├── unit/            pytest unit tests (python -m pytest)
+    ├── unit/            pytest unit tests for ai/rag (python -m pytest tests/unit)
+    ├── cv/              pytest tests for the CV pipeline (python -m pytest tests/cv)
     ├── integration/     Cross-system checks (AURA blueprint dry run)
-    └── eval/            Evaluation notebooks and test cases (day1_ziad, day2_ziad)
+    └── eval/            Evaluation framework: scripts, notebooks, test cases, scorecards (archive/ = earlier days)
 ```
 
 Each top-level folder has a README giving its owner and rules.

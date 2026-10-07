@@ -48,7 +48,7 @@ def test_keyword_search():
     assert "score" in results[0]
 
 def test_keyword_search_does_not_use_substring_matching():
-    from src.retrieval.keyword_search import KeywordSearchService
+    from ai.rag.retrieval.keyword_search import KeywordSearchService
 
     chunks = [
         {

@@ -38,9 +38,7 @@ def test_document_to_chunks():
 
 def test_pdf_loader_creates_page_level_documents():
 
-    pdf_path = Path(
-        "data/raw/20000034017.pdf"
-    )
+    pdf_path = Path(__file__).resolve().parents[2] / "docs" / "research" / "20000034017.pdf"
 
     assert pdf_path.exists()
 

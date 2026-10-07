@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from flame_cv  import (AnalysisCache, AnalysisResult, CVConfig, DecodeError, FileMissingError, ImageTooSmallError,
+from cv.flame_cv import (AnalysisCache, AnalysisResult, CVConfig, DecodeError, FileMissingError, ImageTooSmallError,
                       IntakeManifest, UnsupportedMediaError, analyze_image, analyze_image_safe, dedupe_legacy_manifest,
                       export_schemas, flame_analysis_api_adapter, ingest_image, make_synthetic_flame,
                       run_cv_evaluation, segmentation_metrics, split_for_group, validate_image)
