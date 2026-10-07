@@ -34,8 +34,9 @@ The full engineering blueprint is in [`docs/plan/Nasa - MVP Plan.pdf`](docs/plan
 │   └── rag/             Ingestion, embeddings, retrieval, reranking, context, citations, evaluation
 ├── cv/                  Flame-image analysis: contracts/ and notebooks/
 ├── apps/
-│   └── web/             Next.js dashboard (api/ FastAPI planned)
-├── infrastructure/      Docker, Compose, CI/CD (planned)
+│   ├── api/             FastAPI service, Alembic migrations and API tests
+│   └── web/             Next.js dashboard
+├── infrastructure/      Docker Compose and Railway service configuration
 └── tests/
     ├── unit/            pytest unit tests (python -m pytest)
     ├── integration/     Cross-system checks (AURA blueprint dry run)

@@ -1,5 +1,6 @@
 import hashlib
 import json
+import logging
 import sys
 import tempfile
 from datetime import UTC, datetime
@@ -10,10 +11,13 @@ from PIL import Image, ImageOps
 
 from flame_api.config import get_settings
 from flame_api.database import SessionLocal
-from flame_api.models import AnalysisRecord
+from flame_api.aura_integration import AuraIntegrationError, interpret_analysis
+from flame_api.ids import stable_ulid
+from flame_api.models import AnalysisRecord, EvidenceRecord, ExperimentCondition, FileRecord
 from flame_api.storage import get_bytes, put_file
 
 settings = get_settings()
+logger = logging.getLogger("flame_worker")
 REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
@@ -86,6 +90,7 @@ def process_analysis(analysis_id: str) -> None:
         now = _now()
         session = SessionLocal()
         record = session.get(AnalysisRecord, analysis_id)
+        aura_request = None
         if record:
             completed = {
                 **record.payload,
@@ -98,14 +103,38 @@ def process_analysis(analysis_id: str) -> None:
                 "artifacts": [{key: value for key, value in item.items() if key != "object_key"} for item in artifacts.values()],
                 "poll_after_ms": None,
             }
+            measurement_evidence = _image_measurement_evidence(
+                session, record, result, input_data, now
+            )
+            result["result"]["observations"] = [
+                {
+                    **observation,
+                    "evidence_ids": list(
+                        dict.fromkeys(
+                            [*observation.get("evidence_ids", []), measurement_evidence.evidence_id]
+                        )
+                    ),
+                }
+                for observation in result["result"]["observations"]
+            ]
+            completed["result"] = result["result"]
             record.status = "completed"
             record.updated_at = now
             record.completed_at = now
             record.pipeline_version = result["pipeline"]["pipeline_version"]
             record.payload = completed
             record.artifacts = artifacts
+            session.add(measurement_evidence)
+            if settings.aura_enabled and completed["interpretation"]["status"] == "pending":
+                aura_request = _aura_request_context(session, record, measurement_evidence)
             session.commit()
         session.close()
+        if aura_request is not None:
+            _run_aura_interpretation(
+                analysis_id,
+                aura_request["context"],
+                aura_request["evidence_ids"],
+            )
     except Exception as exc:
         session = SessionLocal()
         record = session.get(AnalysisRecord, analysis_id)
@@ -126,6 +155,219 @@ def process_analysis(analysis_id: str) -> None:
             session.commit()
         session.close()
         raise
+
+
+def _image_measurement_evidence(session, record, result, input_data, now):
+    source_file = (
+        session.get(FileRecord, input_data["source_file_id"])
+        if input_data.get("source_file_id")
+        else None
+    )
+    evidence_id = stable_ulid(
+        f"image-measurement:{record.analysis_id}:{result['pipeline']['pipeline_version']}"
+    )
+    citation = f"Flame CV analysis {record.analysis_id}, image SHA-256 {record.image_sha256}"
+    frame_index = input_data.get("frame_index")
+    return EvidenceRecord(
+        evidence_id=evidence_id,
+        source_id=source_file.source_id if source_file else None,
+        file_id=source_file.file_id if source_file else None,
+        document_id=None,
+        experiment_id=record.experiment_id,
+        analysis_id=record.analysis_id,
+        kind="image_measurement",
+        origin="calculated_measurement",
+        excerpt=None,
+        locator={
+            "type": "frame" if frame_index is not None else "file",
+            "page": None,
+            "section": None,
+            "row": None,
+            "frame_index": frame_index,
+            "label": f"image analysis {record.analysis_id}",
+        },
+        payload={
+            "citation": citation,
+            "value": None,
+            "measurement_or_claim_type": "flame_image_measurements",
+            "extraction_method": "cv_pipeline",
+            "extraction_confidence": None,
+            "review_status": "machine_extracted",
+            "transformation_id": result["pipeline"]["pipeline_version"],
+            "knowledge_version": None,
+        },
+        created_at=now,
+    )
+
+
+def _aura_request_context(session, record, measurement_evidence):
+    result = record.payload.get("result") or {}
+    context = [
+        {
+            "id": measurement_evidence.evidence_id,
+            "source": "flame/image_measurement",
+            "text": json.dumps(
+                {
+                    "analysis_id": record.analysis_id,
+                    "evidence_id": measurement_evidence.evidence_id,
+                    "image_sha256": record.image_sha256,
+                    "pipeline_version": (record.payload.get("pipeline") or {}).get(
+                        "pipeline_version"
+                    ),
+                    "detection": (result.get("detection") or {}).get("status"),
+                    "measurements": _measurement_summary(result.get("measurements") or {}),
+                    "quality_flags": result.get("quality_flags") or {},
+                },
+                separators=(",", ":"),
+                allow_nan=False,
+            ),
+        }
+    ]
+    evidence_ids = {measurement_evidence.evidence_id}
+    if record.experiment_id is None:
+        return {"context": context, "evidence_ids": evidence_ids}
+
+    conditions = (
+        session.query(ExperimentCondition)
+        .filter(ExperimentCondition.experiment_id == record.experiment_id)
+        .limit(15)
+        .all()
+    )
+    condition_ids = {condition.evidence_id for condition in conditions}
+    evidence = (
+        session.query(EvidenceRecord)
+        .filter(EvidenceRecord.evidence_id.in_(condition_ids))
+        .all()
+        if condition_ids
+        else []
+    )
+    evidence_by_id = {item.evidence_id: item for item in evidence}
+    for condition in conditions:
+        source_evidence = evidence_by_id.get(condition.evidence_id)
+        if source_evidence is None:
+            continue
+        context.append(
+            {
+                "id": source_evidence.evidence_id,
+                "source": "flame/source_evidence",
+                "text": source_evidence.excerpt
+                or f"{condition.variable}: "
+                + str(
+                    condition.value_numeric
+                    if condition.value_numeric is not None
+                    else condition.value_text
+                ),
+            }
+        )
+        context[-1]["text"] = context[-1]["text"][:2000]
+        evidence_ids.add(source_evidence.evidence_id)
+    return {"context": context, "evidence_ids": evidence_ids}
+
+
+def _measurement_summary(measurements):
+    summary = {}
+    for group_name, group in measurements.items():
+        if not isinstance(group, dict):
+            continue
+        values = {}
+        for name, measurement in group.items():
+            if not isinstance(measurement, dict):
+                if name in {"color_space", "physical_interpretation"} and isinstance(
+                    measurement, str
+                ):
+                    values[name] = measurement
+                continue
+            if "value" in measurement:
+                values[name] = {
+                    key: measurement.get(key)
+                    for key in ("value", "unit", "classification")
+                }
+            elif "x" in measurement and "y" in measurement:
+                values[name] = {
+                    key: measurement.get(key)
+                    for key in ("x", "y", "unit", "classification")
+                }
+        summary[group_name] = values
+    return summary
+
+
+def _store_interpretation(analysis_id, interpretation, *, warning):
+    session = SessionLocal()
+    record = session.get(AnalysisRecord, analysis_id)
+    if record is None or record.status != "completed":
+        session.close()
+        return
+    payload = dict(record.payload)
+    payload["interpretation"] = interpretation
+    if warning and not any(
+        item.get("code") == "INTERPRETATION_UNAVAILABLE"
+        for item in payload.get("warnings", [])
+    ):
+        payload.setdefault("warnings", []).append(
+            {
+                "code": "INTERPRETATION_UNAVAILABLE",
+                "severity": "info",
+                "message": "AURA interpretation was unavailable or included rejected statements.",
+            }
+        )
+    record.payload = payload
+    record.updated_at = _now()
+    try:
+        session.commit()
+    finally:
+        session.close()
+
+
+def _run_aura_interpretation(analysis_id, context, evidence_ids):
+    try:
+        interpreted = interpret_analysis(
+            settings,
+            analysis_id=analysis_id,
+            context=context,
+            allowed_evidence_ids=evidence_ids,
+        )
+    except AuraIntegrationError as exc:
+        logger.warning(
+            "analysis_id=%s aura_interpretation_unavailable status=%s",
+            analysis_id,
+            exc.status_code,
+        )
+        _store_interpretation(
+            analysis_id,
+            {
+                "status": "unavailable",
+                "provider": "aura",
+                "model": None,
+                "statements": [],
+                "rejected_statement_count": 0,
+                "generated_at": None,
+            },
+            warning=True,
+        )
+        return
+
+    _store_interpretation(
+        analysis_id,
+        {
+            "status": "completed",
+            "provider": "aura",
+            "model": interpreted["model"],
+            "statements": [
+                {
+                    "statement_id": stable_ulid(
+                        f"aura-statement:{analysis_id}:{index}:{statement['text']}"
+                    ),
+                    **statement,
+                    "origin": "aura_interpretation",
+                    "measurement_refs": [],
+                }
+                for index, statement in enumerate(interpreted["statements"])
+            ],
+            "rejected_statement_count": interpreted["rejected_statement_count"],
+            "generated_at": interpreted["generated_at"],
+        },
+        warning=interpreted["rejected_statement_count"] > 0,
+    )
 
 
 def _measured(value, unit, method, classification="measured"):

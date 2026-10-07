@@ -22,3 +22,17 @@ def test_auth_can_be_disabled_for_non_http_worker():
     settings = Settings(api_auth_enabled=False)
 
     assert settings.api_auth_enabled is False
+
+
+def test_railway_postgres_url_uses_installed_psycopg_driver():
+    settings = Settings(
+        api_auth_enabled=False,
+        database_url="postgresql://user:pass@db.internal:5432/flame",
+    )
+
+    assert settings.database_url == "postgresql+psycopg://user:pass@db.internal:5432/flame"
+
+
+def test_aura_base_url_requires_https():
+    with pytest.raises(ValidationError):
+        Settings(api_auth_enabled=False, aura_base_url="http://aura.example")
