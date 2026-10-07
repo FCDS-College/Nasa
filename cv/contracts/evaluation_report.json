@@ -1,0 +1,124 @@
+{
+  "schemaVersion": "1.1.0",
+  "generatedAt": "2026-10-07T11:34:02Z",
+  "pipelineVersion": "cv-opencv-v1.1.0",
+  "segmenterVersion": "1.1.0",
+  "configDigest": "5140c618f88cd05b",
+  "dataset": {
+    "imageDir": "C:/FCDS/Nasa/datasets/samples/cv/FF-PSI-107/SPICE_GMT045_2009_jpegs",
+    "nImagesFound": 10,
+    "nAnalyzed": 10,
+    "nWithGroundTruth": 0,
+    "nErrors": 0
+  },
+  "detection": {
+    "counts": {
+      "PRESENT": 10,
+      "ABSENT": 0,
+      "UNCERTAIN": 0
+    },
+    "note": "Heuristic detector: counts are not accuracy."
+  },
+  "qualityFlagRates": {
+    "saturationClipping": 1.0,
+    "lowLight": 0.1
+  },
+  "segmentation": {
+    "status": "NOT_EVALUATED",
+    "reason": "No ground-truth masks were provided."
+  },
+  "acceptance": {
+    "metric": "meanIoU",
+    "threshold": null,
+    "verdict": "NOT_EVALUATED"
+  },
+  "perImage": [
+    {
+      "imageId": "ISS018E030336",
+      "detection": "PRESENT",
+      "detectorConfidence": 0.985,
+      "flags": [
+        "saturationClipping"
+      ]
+    },
+    {
+      "imageId": "ISS018E030340",
+      "detection": "PRESENT",
+      "detectorConfidence": 0.986,
+      "flags": [
+        "saturationClipping",
+        "lowLight"
+      ]
+    },
+    {
+      "imageId": "ISS018E030344",
+      "detection": "PRESENT",
+      "detectorConfidence": 0.989,
+      "flags": [
+        "saturationClipping"
+      ]
+    },
+    {
+      "imageId": "ISS018E030351",
+      "detection": "PRESENT",
+      "detectorConfidence": 0.988,
+      "flags": [
+        "saturationClipping"
+      ]
+    },
+    {
+      "imageId": "ISS018E030355",
+      "detection": "PRESENT",
+      "detectorConfidence": 0.987,
+      "flags": [
+        "saturationClipping"
+      ]
+    },
+    {
+      "imageId": "ISS018E030359",
+      "detection": "PRESENT",
+      "detectorConfidence": 0.986,
+      "flags": [
+        "saturationClipping"
+      ]
+    },
+    {
+      "imageId": "ISS018E030363",
+      "detection": "PRESENT",
+      "detectorConfidence": 0.987,
+      "flags": [
+        "saturationClipping"
+      ]
+    },
+    {
+      "imageId": "ISS018E030368",
+      "detection": "PRESENT",
+      "detectorConfidence": 0.986,
+      "flags": [
+        "saturationClipping"
+      ]
+    },
+    {
+      "imageId": "ISS018E030372",
+      "detection": "PRESENT",
+      "detectorConfidence": 0.983,
+      "flags": [
+        "saturationClipping"
+      ]
+    },
+    {
+      "imageId": "ISS018E030376",
+      "detection": "PRESENT",
+      "detectorConfidence": 0.986,
+      "flags": [
+        "saturationClipping"
+      ]
+    }
+  ],
+  "errors": [],
+  "limitations": [
+    "No measurement-error evaluation: no calibrated reference values are available.",
+    "Frames from the same experiment are highly correlated; split by group, not by frame.",
+    "Detector confidence is a heuristic score, not a calibrated probability."
+  ]
+}

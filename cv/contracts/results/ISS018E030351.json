@@ -1,0 +1,175 @@
+{
+  "schemaVersion": "1.1.0",
+  "status": "SUCCESS",
+  "analysisId": "an_37ab028bee688468",
+  "imageId": "ISS018E030351",
+  "pipelineVersion": "cv-opencv-v1.1.0",
+  "preprocessing": {
+    "version": "letterbox-lanczos-v1",
+    "targetSize": 512,
+    "orientation": "exif_transposed",
+    "colorSpace": "RGB",
+    "resizingRule": "letterbox-lanczos-512x512",
+    "scale": 0.170213,
+    "padX": 0,
+    "padY": 86,
+    "originalWidth": 3008,
+    "originalHeight": 2000,
+    "contentWidth": 512,
+    "contentHeight": 340,
+    "denoising": "none on derived image; segmentation uses a 3x3 Gaussian on a copy",
+    "derivedUri": "C:/FCDS/Nasa/datasets/processed/cv/ISS018E030351_processed.png",
+    "derivedChecksum": "sha256:b4952f953f779aeaafb501fc78af0405b9879e60c62378367f04b735ebdd4bcf"
+  },
+  "detection": {
+    "status": "PRESENT",
+    "confidence": 0.988,
+    "confidenceBasis": "heuristic_uncalibrated",
+    "boundingBox": {
+      "ymin": 916.5,
+      "xmin": 1991.62,
+      "ymax": 1034.0,
+      "xmax": 2408.75
+    },
+    "modelName": "otsu-contour-baseline",
+    "modelVersion": "1.1.0",
+    "modelDigest": "5140c618f88cd05b"
+  },
+  "segmentation": {
+    "maskType": "binary",
+    "maskStatus": "SUCCESS",
+    "maskCoordinateSpace": "processed_letterbox",
+    "maskUri": "C:/FCDS/Nasa/datasets/processed/masks/ISS018E030351_mask.png",
+    "maskChecksum": "sha256:efa36746e0ad76c7e56fafb5d7c69989f594880a42c40d4c69dd4fe1d88df98f",
+    "overlayArtifactUri": "C:/FCDS/Nasa/datasets/processed/masks/ISS018E030351_overlay.png",
+    "overlayChecksum": "sha256:a61596b62f2e749f035ef00f5e83a717e2364faa45edbd50514133a36dd0c046",
+    "thresholdOtsu": 112.0,
+    "thresholdApplied": 112.0
+  },
+  "measurements": {
+    "geometry": {
+      "coordinateSpace": "original_image_pixels",
+      "pixelArea": 40797.47,
+      "centroid": {
+        "x": 2215.02,
+        "y": 972.86
+      },
+      "perimeter": 974.9,
+      "aspectRatio": 3.55,
+      "elongation": 3.684,
+      "circularity": 0.539,
+      "symmetryLR": 0.751,
+      "symmetryUD": 0.95
+    },
+    "appearance": {
+      "note": "Image-derived statistics inside the flame mask; not physical state variables.",
+      "colorSpaceStatistics": {
+        "colorSpace": "RGB",
+        "meanR": 245.85,
+        "meanG": 227.51,
+        "meanB": 191.63
+      },
+      "meanSaturationInMask": 0.238,
+      "meanValueInMask": 0.964,
+      "intensityP5": 135.0,
+      "intensityP50": 252.0,
+      "intensityP95": 255.0
+    },
+    "physicalEstimates": null
+  },
+  "confidenceAndQualityFlags": {
+    "detectorConfidence": 0.988,
+    "segmenterConfidence": 0.939,
+    "segmenterConfidenceBasis": "threshold_stability_iou",
+    "qualityFlags": {
+      "blur": false,
+      "saturationClipping": true,
+      "lowLight": false,
+      "multipleFlames": false,
+      "occlusion": false,
+      "scaleAbsent": true,
+      "calibrationAbsent": true
+    },
+    "qualityMetrics": {
+      "boundaryGradient": 77.34,
+      "flameContrast": 228.24,
+      "clippedFraction": 0.7902,
+      "brightnessP995": 214.61,
+      "significantComponents": 1
+    }
+  },
+  "scientificInterpretation": {
+    "classification": "MEASURED",
+    "calibrationState": "ABSENT",
+    "fieldLabels": {
+      "detection": "INFERRED",
+      "geometry": "MEASURED",
+      "appearance": "MEASURED"
+    },
+    "warnings": [
+      "Scale calibration absent: spatial measurements are in original-image pixels, not physical units.",
+      "Temperature cannot be claimed from RGB imagery without camera response, spectral and exposure calibration; appearance values are image-derived statistics only.",
+      "Detection is a brightness-based heuristic: a bright region is not necessarily a flame (reflections, hardware, hot surfaces). Review the overlay.",
+      "Quality flag: Flame region has clipped/overexposed pixels."
+    ]
+  },
+  "provenance": {
+    "inputUri": "C:/FCDS/Nasa/datasets/samples/cv/FF-PSI-107/SPICE_GMT045_2009_jpegs/ISS018E030351.jpg",
+    "inputChecksum": "sha256:5450d62b5077995db72a2f196a674fb08e81ace1ec16ba052d2a5278e9d58add",
+    "pipelineVersion": "cv-opencv-v1.1.0",
+    "preprocessVersion": "letterbox-lanczos-v1",
+    "segmenterName": "otsu-contour-baseline",
+    "segmenterVersion": "1.1.0",
+    "configDigest": "5140c618f88cd05b",
+    "config": {
+      "target_size": 512,
+      "max_file_bytes": 10485760,
+      "max_pixels": 100000000,
+      "min_dim": 64,
+      "allowed_formats": [
+        "jpeg",
+        "png"
+      ],
+      "blur_kernel": 3,
+      "min_threshold": 50,
+      "min_area_px": 30,
+      "multi_flame_ratio": 0.2,
+      "stability_delta": 0.1,
+      "min_contrast": 25.0,
+      "present_score": 0.6,
+      "blur_gradient_min": 10.0,
+      "clip_level": 250,
+      "clip_fraction": 0.05,
+      "lowlight_peak": 100,
+      "edge_margin_px": 1
+    },
+    "libraries": {
+      "opencv": "5.0.0",
+      "numpy": "2.5.1",
+      "pillow": "12.3.0"
+    },
+    "createdAt": "2026-10-07T11:33:58Z"
+  },
+  "request": {
+    "requestId": "cli_ISS018E030351",
+    "imageId": "ISS018E030351",
+    "imagePath": "C:\\FCDS\\Nasa\\datasets\\samples\\cv\\FF-PSI-107\\SPICE_GMT045_2009_jpegs\\ISS018E030351.jpg",
+    "options": {
+      "runSegmentation": true,
+      "extractGeometry": true,
+      "runAppearanceAnalysis": true,
+      "generateMaskArtifact": true
+    },
+    "metadata": {
+      "targetResolution": [
+        512,
+        512
+      ],
+      "colorSpace": "RGB"
+    }
+  },
+  "cache": {
+    "hit": false,
+    "key": "37ab028bee6884689f87cdd331ef01ee5fad5ff9913f5c0650c883758c907b9f"
+  }
+}
