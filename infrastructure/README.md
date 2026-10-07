@@ -1,5 +1,5 @@
-# infrastructure/
+# Infrastructure
 
-Docker and Compose files, cloud IaC, CI/CD and observability primitives. **Owner:** Lead. **Status:** not started.
+`compose.yaml` provides the private local backend stack: FastAPI, PostgreSQL/pgvector, Redis, MinIO, and the RQ analysis worker. API and dependency ports bind to loopback only. `*.env` files remain untracked; begin with `.env.example` and replace its local-only values before sharing the host.
 
-Planned sub-folders (MVP plan §14): `docker/`, `compose/`, `cloud/`. Secrets never go into Git (MVP plan §19).
+Start from the repository root with `docker compose -f infrastructure/compose.yaml up --build`. Raw datasets are mounted read-only and are not copied into the application image.

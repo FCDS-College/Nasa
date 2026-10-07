@@ -1,0 +1,413 @@
+import logging
+import json
+import time
+from datetime import UTC, datetime
+import re
+from pathlib import Path
+from typing import Annotated, Any
+from uuid import uuid4
+
+import boto3
+from botocore.config import Config
+from fastapi import Depends, FastAPI, Path as ApiPath, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from redis import Redis
+from sqlalchemy import or_, select, text
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session, joinedload
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+from flame_api.config import get_settings
+from flame_api.contracts import error_body, response_meta
+from flame_api.database import engine, get_session
+from flame_api.analysis import router as analysis_router
+from flame_api.models import AnalysisRecord, DocumentChunk, DocumentRecord, EvidenceRecord, ExperimentRecord, SourceRecord
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+logger = logging.getLogger("flame_api")
+settings = get_settings()
+
+app = FastAPI(
+    title="Flame in Freefall API",
+    version=settings.api_version,
+    openapi_url="/api/openapi.json",
+    docs_url="/api/docs",
+    redoc_url=None,
+)
+app.include_router(analysis_router)
+
+_CONTRACT_PATH = Path(__file__).resolve().parents[3] / "docs" / "api" / "openapi.json"
+
+
+def _contract_openapi() -> dict[str, Any]:
+    return json.loads(_CONTRACT_PATH.read_text(encoding="utf-8"))
+
+
+app.openapi = _contract_openapi
+ULID_PATTERN = r"^[0-9A-HJKMNP-TV-Z]{26}$"
+
+
+@app.middleware("http")
+async def request_context(request: Request, call_next):
+    supplied_id = request.headers.get("X-Request-ID", "")
+    request_id = supplied_id if re.fullmatch(r"[A-Za-z0-9._-]{1,128}", supplied_id) else f"req_{uuid4().hex}"
+    request.state.request_id = request_id
+    started = time.perf_counter()
+    response = await call_next(request)
+    response.headers["X-Request-ID"] = request_id
+    logger.info("request_id=%s method=%s path=%s status=%s duration_ms=%.1f", request_id, request.method, request.url.path, response.status_code, (time.perf_counter() - started) * 1000)
+    return response
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error_handler(request: Request, exc: RequestValidationError):
+    fields = [
+        {"field": ".".join(str(part) for part in error["loc"] if part != "query"), "message": error["msg"]}
+        for error in exc.errors()
+    ]
+    return JSONResponse(
+        status_code=400,
+        content=error_body(request, "VALIDATION_ERROR", "Request validation failed.", field_errors=fields),
+    )
+
+
+@app.exception_handler(SQLAlchemyError)
+async def database_error_handler(request: Request, exc: SQLAlchemyError):
+    logger.warning("request_id=%s database_error=%s", request.state.request_id, type(exc).__name__)
+    return JSONResponse(
+        status_code=503,
+        content=error_body(request, "DATABASE_UNAVAILABLE", "Database is unavailable.", retryable=True),
+        headers={"Retry-After": "1"},
+    )
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_error_handler(request: Request, exc: StarletteHTTPException):
+    if exc.status_code == 404:
+        return JSONResponse(status_code=404, content=error_body(request, "ROUTE_NOT_FOUND", "Route was not found."))
+    return JSONResponse(status_code=exc.status_code, content=error_body(request, "INTERNAL_ERROR", "Request could not be completed."))
+
+
+@app.exception_handler(Exception)
+async def internal_error_handler(request: Request, exc: Exception):
+    logger.exception("request_id=%s unhandled_error=%s", request.state.request_id, type(exc).__name__)
+    return JSONResponse(status_code=500, content=error_body(request, "INTERNAL_ERROR", "An unexpected error occurred."))
+
+
+def _service(status: str, required: bool, checked_at: str | None, **values: Any) -> dict[str, Any]:
+    return {
+        "status": status,
+        "required": required,
+        "latency_ms": values.get("latency_ms"),
+        "checked_at": checked_at,
+        "version": values.get("version"),
+        "message": values.get("message"),
+    }
+
+
+@app.get("/api/health", tags=["System"])
+def health(request: Request):
+    checked_at = datetime.now(UTC).isoformat().replace("+00:00", "Z")
+    services: dict[str, dict[str, Any]] = {
+        "api": _service("up", True, checked_at, latency_ms=0.0, version=settings.api_version),
+        "database": _service("down", True, checked_at, message="Database is unavailable."),
+        "vector_index": _service("down", False, checked_at, message="No vector index has been published."),
+        "object_storage": _service("down", True, checked_at, message="Object storage is unavailable."),
+        "cache": _service("unknown", False, checked_at, message="Cache status was not checked."),
+        "cv_model": _service("unknown", False, None, message="CV worker is not available."),
+        "llm": _service("disabled" if not settings.llm_enabled else "unknown", False, None),
+        "aura": _service("disabled" if not settings.aura_enabled else "unknown", False, None, message="FLAME_AURA_ENABLED is false." if not settings.aura_enabled else None),
+    }
+    try:
+        start = time.perf_counter()
+        with engine.connect() as connection:
+            version = connection.execute(text("select version()")).scalar_one()
+        services["database"] = _service("up", True, checked_at, latency_ms=round((time.perf_counter() - start) * 1000, 1), version=version.split(",")[0])
+        try:
+            with engine.connect() as connection:
+                connection.execute(text("select 1 from pg_extension where extname = 'vector'")).first()
+            services["vector_index"] = _service("down", False, checked_at, message="No vector index has been published.")
+        except SQLAlchemyError:
+            services["vector_index"] = _service("unknown", False, checked_at, message="Vector extension status could not be checked.")
+    except SQLAlchemyError:
+        logger.warning("request_id=%s database_health=down", request.state.request_id)
+    try:
+        start = time.perf_counter()
+        client = boto3.client(
+            "s3",
+            endpoint_url=settings.s3_endpoint_url,
+            region_name=settings.s3_region,
+            aws_access_key_id=settings.s3_access_key,
+            aws_secret_access_key=settings.s3_secret_key.get_secret_value(),
+            config=Config(connect_timeout=0.5, read_timeout=0.5, retries={"total_max_attempts": 1}),
+        )
+        client.head_bucket(Bucket=settings.s3_bucket)
+        services["object_storage"] = _service("up", True, checked_at, latency_ms=round((time.perf_counter() - start) * 1000, 1))
+    except Exception:
+        logger.warning("request_id=%s object_storage_health=down", request.state.request_id)
+    try:
+        start = time.perf_counter()
+        Redis.from_url(
+            settings.redis_url,
+            socket_connect_timeout=0.25,
+            socket_timeout=0.25,
+            retry_on_timeout=False,
+        ).ping()
+        services["cache"] = _service("up", False, checked_at, latency_ms=round((time.perf_counter() - start) * 1000, 1))
+    except Exception:
+        services["cache"] = _service("down", False, checked_at, message="Cache is unavailable.")
+
+    required_down = any(service["required"] and service["status"] == "down" for service in services.values())
+    degraded = any(service["status"] in {"down", "degraded", "unknown"} and not service["required"] for service in services.values())
+    status = "unhealthy" if required_down else "degraded" if degraded else "healthy"
+    body = {
+        "status": status,
+        "environment": settings.environment,
+        "version": {"api_version": settings.api_version, "build_id": settings.build_id, "git_sha": settings.git_sha},
+        "knowledge_version": None,
+        "services": services,
+        "meta": response_meta(request),
+    }
+    return JSONResponse(status_code=503 if required_down else 200, content=body)
+
+
+@app.get("/api/", include_in_schema=False)
+def api_root():
+    return {"service": "Flame in Freefall API", "version": settings.api_version}
+
+
+def _not_found(request: Request, code: str, label: str, resource_id: str):
+    return JSONResponse(
+        status_code=404,
+        content=error_body(request, code, f"{label} was not found.", details={"resource_id": resource_id}),
+    )
+
+
+def _pagination(page: int, page_size: int, total: int) -> dict[str, int]:
+    return {
+        "page": page,
+        "page_size": page_size,
+        "total_items": total,
+        "total_pages": (total + page_size - 1) // page_size if total else 0,
+    }
+
+
+def _timestamp(value: datetime) -> str:
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=UTC)
+    return value.astimezone(UTC).isoformat().replace("+00:00", "Z")
+
+
+def _source_payload(source) -> dict[str, Any]:
+    return {
+        "source_id": source.source_id,
+        "title": source.title,
+        "short_name": source.short_name,
+        "repository": source.repository,
+        "persistent_identifier": source.persistent_identifier,
+        "license": source.license,
+        "access_url": source.access_url,
+    }
+
+
+def _file_payload(file_record) -> dict[str, Any]:
+    return {
+        "file_id": file_record.file_id,
+        "sha256": file_record.sha256,
+        "original_filename": file_record.original_filename,
+        "media_type": file_record.media_type,
+        "size_bytes": file_record.size_bytes,
+        "retrieved_at": file_record.retrieved_at.isoformat().replace("+00:00", "Z"),
+        "canonical_source_url": file_record.canonical_source_url,
+        "is_original": file_record.is_original,
+        "parent_file_id": file_record.parent_file_id,
+    }
+
+
+@app.get("/api/dashboard/counts", tags=["Dashboard"])
+def dashboard_counts(request: Request, session: Session = Depends(get_session)):
+    try:
+        documents = session.query(DocumentRecord).count()
+        experiments = session.query(ExperimentRecord).filter(ExperimentRecord.conditions.any()).count()
+        completed = session.query(AnalysisRecord).filter(AnalysisRecord.status == "completed").count()
+        in_progress = session.query(AnalysisRecord).filter(AnalysisRecord.status.in_(["queued", "processing"])).count()
+    except SQLAlchemyError:
+        return JSONResponse(status_code=503, content=error_body(request, "DATABASE_UNAVAILABLE", "Database is unavailable.", retryable=True))
+    return {
+        "documents": documents,
+        "experiments": experiments,
+        "analyses": completed,
+        "analyses_in_progress": in_progress,
+        "knowledge_version": None,
+        "meta": response_meta(request),
+    }
+
+
+@app.get("/api/search", tags=["Research"])
+def search(
+    request: Request,
+    q: str,
+    type: str | None = None,
+    source_id: list[str] | None = None,
+    experiment_id: str | None = None,
+    domain: str = "combustion",
+    page: int = 1,
+    page_size: int = 20,
+    session: Session = Depends(get_session),
+):
+    query = q.strip()
+    if not query or len(query) > 500 or page < 1 or not 1 <= page_size <= 50:
+        return JSONResponse(status_code=400, content=error_body(request, "VALIDATION_ERROR", "Search parameters are invalid."))
+    if len(source_id or []) > 20 or domain not in {"combustion", "all"} or type not in {None, "document", "experiment"}:
+        return JSONResponse(status_code=400, content=error_body(request, "VALIDATION_ERROR", "Search filters are invalid."))
+    results: list[dict[str, Any]] = []
+    total_items = 0
+    try:
+        source_filter = source_id or None
+        offset = (page - 1) * page_size
+        if type in {None, "document"}:
+            doc_query = session.query(DocumentChunk).options(joinedload(DocumentChunk.document).joinedload(DocumentRecord.source))
+            if session.bind.dialect.name == "postgresql":
+                doc_query = doc_query.filter(
+                    text("to_tsvector('english', document_chunk.text) @@ plainto_tsquery('english', :search_query)")
+                ).params(search_query=query)
+            else:
+                doc_query = doc_query.filter(DocumentChunk.text.ilike(f"%{query}%"))
+            if domain == "combustion":
+                doc_query = doc_query.filter(DocumentChunk.source_id.in_(select(SourceRecord.source_id).where(SourceRecord.domain == "combustion")))
+            if source_filter:
+                doc_query = doc_query.filter(DocumentChunk.source_id.in_(source_filter))
+            if experiment_id:
+                doc_query = doc_query.filter(text("document_chunk.evidence_id in (select evidence_id from evidence where experiment_id = :experiment_id)")).params(experiment_id=experiment_id)
+            total_items += doc_query.count()
+            for chunk in doc_query.all():
+                document = chunk.document
+                snippet = chunk.text[:400]
+                results.append({
+                    "result_id": chunk.chunk_id,
+                    "result_type": "document",
+                    "rank": len(results) + 1 + offset,
+                    "score": float(sum(term.lower() in snippet.lower() for term in query.split())),
+                    "title": document.title,
+                    "snippet": snippet,
+                    "highlights": [],
+                    "source": _source_payload(document.source),
+                    "document_id": document.document_id,
+                    "document_type": document.document_type,
+                    "experiment_id": None,
+                    "experiment": None,
+                    "evidence_id": chunk.evidence_id,
+                    "has_evidence": True,
+                    "locator": {"type": "page", "page": chunk.page, "section": chunk.section, "row": None, "frame_index": None, "label": f"p. {chunk.page}" if chunk.page else "file"},
+                    "ingested_at": _timestamp(document.ingested_at),
+                })
+        if type in {None, "experiment"}:
+            exp_query = session.query(ExperimentRecord).options(joinedload(ExperimentRecord.conditions), joinedload(ExperimentRecord.source))
+            if session.bind.dialect.name == "postgresql":
+                exp_query = exp_query.filter(
+                    text("to_tsvector('english', experiment.searchable_text) @@ plainto_tsquery('english', :search_query)")
+                ).params(search_query=query)
+            else:
+                needle = f"%{query}%"
+                exp_query = exp_query.filter(ExperimentRecord.searchable_text.ilike(needle))
+            if domain == "combustion":
+                exp_query = exp_query.filter(ExperimentRecord.source_id.in_(select(SourceRecord.source_id).where(SourceRecord.domain == "combustion")))
+            if source_filter:
+                exp_query = exp_query.filter(ExperimentRecord.source_id.in_(source_filter))
+            if experiment_id:
+                exp_query = exp_query.filter(ExperimentRecord.experiment_id == experiment_id)
+            total_items += exp_query.count()
+            for experiment in exp_query.all():
+                snippet = experiment.fuel_or_material or experiment.test_id
+                results.append({
+                    "result_id": experiment.experiment_id,
+                    "result_type": "experiment",
+                    "rank": len(results) + 1 + offset,
+                    "score": float(sum(term.lower() in experiment.searchable_text.lower() for term in query.split())),
+                    "title": f"{experiment.investigation or 'Experiment'} {experiment.test_id}",
+                    "snippet": snippet,
+                    "highlights": [],
+                    "source": _source_payload(experiment.source),
+                    "document_id": None,
+                    "document_type": None,
+                    "experiment_id": experiment.experiment_id,
+                    "experiment": {"test_id": experiment.test_id, "gravity_regime": experiment.gravity_regime, "fuel_or_material": experiment.fuel_or_material},
+                    "evidence_id": experiment.conditions[0].evidence_id if experiment.conditions else None,
+                    "has_evidence": bool(experiment.conditions),
+                    "locator": None,
+                    "ingested_at": _timestamp(datetime.now(UTC)),
+                })
+    except SQLAlchemyError:
+        return JSONResponse(status_code=503, content=error_body(request, "SEARCH_UNAVAILABLE", "Search is unavailable.", retryable=True))
+    results.sort(key=lambda item: (-item["score"], item["result_type"], item["result_id"]))
+    results = results[offset:offset + page_size]
+    for position, item in enumerate(results, start=offset + 1):
+        item["rank"] = position
+    return {
+        "query": query,
+        "results": results,
+        "pagination": _pagination(page, page_size, total_items),
+        "filters": {"type": type, "source_id": source_id or [], "experiment_id": experiment_id, "domain": domain},
+        "retrieval": {"mode": "lexical", "knowledge_version": None, "index_version": None, "searched_but_empty": not results},
+        "meta": response_meta(request),
+    }
+
+
+@app.get("/api/documents/{document_id}", tags=["Research"])
+def get_document(request: Request, document_id: Annotated[str, ApiPath(pattern=ULID_PATTERN)], session: Session = Depends(get_session)):
+    document = session.query(DocumentRecord).options(joinedload(DocumentRecord.source), joinedload(DocumentRecord.file), joinedload(DocumentRecord.chunks)).filter_by(document_id=document_id).one_or_none()
+    if document is None:
+        return _not_found(request, "DOCUMENT_NOT_FOUND", "Document", document_id)
+    payload = {
+        "document_id": document.document_id,
+        "title": document.title,
+        "document_type": document.document_type,
+        "identifier": document.identifier,
+        "persistent_identifier": document.persistent_identifier,
+        "source": _source_payload(document.source),
+        "file": _file_payload(document.file),
+        "page_count": document.page_count,
+        "text_layer": document.text_layer,
+        "pages_without_text": document.pages_without_text,
+        "parser_version": document.parser_version,
+        "ingested_at": document.ingested_at.isoformat().replace("+00:00", "Z"),
+        "knowledge_version": document.knowledge_version,
+        "experiment_ids": [],
+        "evidence_count": session.query(EvidenceRecord).filter_by(document_id=document_id).count(),
+    }
+    return {"document": payload, "meta": response_meta(request)}
+
+
+@app.get("/api/experiments/{experiment_id}", tags=["Research"])
+def get_experiment(request: Request, experiment_id: Annotated[str, ApiPath(pattern=ULID_PATTERN)], session: Session = Depends(get_session)):
+    experiment = session.query(ExperimentRecord).options(joinedload(ExperimentRecord.conditions), joinedload(ExperimentRecord.source)).filter_by(experiment_id=experiment_id).one_or_none()
+    if experiment is None:
+        return _not_found(request, "EXPERIMENT_NOT_FOUND", "Experiment", experiment_id)
+    payload = {
+        "experiment_id": experiment.experiment_id,
+        "test_id": experiment.test_id,
+        "investigation": experiment.investigation,
+        "source": _source_payload(experiment.source),
+        "gravity_regime": experiment.gravity_regime,
+        "fuel_or_material": experiment.fuel_or_material,
+        "conditions": [
+            {"variable": c.variable, "value_numeric": c.value_numeric, "value_text": c.value_text, "unit_original": c.unit_original, "value_si": c.value_si, "unit_si": c.unit_si, "origin": c.origin, "evidence_id": c.evidence_id}
+            for c in experiment.conditions
+        ],
+        "document_ids": [],
+        "table_file": _file_payload(experiment.table_file) if experiment.table_file_id else None,
+    }
+    return {"experiment": payload, "meta": response_meta(request)}
+
+
+@app.get("/api/evidence/{evidence_id}", tags=["Evidence"])
+def get_evidence(request: Request, evidence_id: Annotated[str, ApiPath(pattern=ULID_PATTERN)], session: Session = Depends(get_session)):
+    evidence = session.query(EvidenceRecord).options(joinedload(EvidenceRecord.source), joinedload(EvidenceRecord.file)).filter_by(evidence_id=evidence_id).one_or_none()
+    if evidence is None:
+        return _not_found(request, "EVIDENCE_NOT_FOUND", "Evidence", evidence_id)
+    payload = dict(evidence.payload)
+    payload.update({"evidence_id": evidence.evidence_id, "kind": evidence.kind, "origin": evidence.origin, "document_id": evidence.document_id, "experiment_id": evidence.experiment_id, "analysis_id": evidence.analysis_id, "locator": evidence.locator, "excerpt": evidence.excerpt})
+    payload["source"] = _source_payload(evidence.source) if evidence.source else None
+    payload["file"] = _file_payload(evidence.file) if evidence.file else None
+    return {"evidence": payload, "meta": response_meta(request)}

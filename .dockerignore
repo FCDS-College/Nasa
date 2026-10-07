@@ -1,0 +1,14 @@
+.git
+.venv
+venv
+node_modules
+**/__pycache__
+**/.pytest_cache
+datasets
+tests
+docs/**
+!docs/
+!docs/api/
+!docs/api/openapi.json
+apps/web
+*.pyc
