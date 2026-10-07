@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "RagGoldCase",
+  "type": "object",
+  "properties": {
+    "case_id": { "type": "string" },
+    "split": { "type": "string" },
+    "query": { "type": "string" },
+    "expected_evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "locator": { "type": "string" },
+          "text": { "type": "string" }
+        },
+        "required": ["locator", "text"]
+      }
+    },
+    "answerable": { "type": "boolean" },
+    "rubric_version": { "type": "string" }
+  },
+  "required": ["case_id", "split", "query", "expected_evidence", "answerable", "rubric_version"]
+}
