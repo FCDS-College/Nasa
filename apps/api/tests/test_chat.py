@@ -213,3 +213,13 @@ def test_the_interpreter_honours_the_require_local_setting(monkeypatch):
             chat_settings(aura_require_local=value), analysis_id="01J9Z3Q9D3F5H7K9N1R3T5W7Y9", context=[], allowed_evidence_ids=set()
         )
         assert sent["require_local"] is value
+
+
+def test_passage_respects_aura_context_limits():
+    from flame_api.main import _passage
+
+    item = {"result_type": "document", "evidence_id": "E" * 200, "title": "T", "snippet": "x" * 5000, "locator": {}}
+    passage = _passage(item)
+    assert len(passage["text"]) <= 2000 and len(passage["id"]) <= 128
+    item["snippet"] = ""
+    assert _passage(item)["text"]
