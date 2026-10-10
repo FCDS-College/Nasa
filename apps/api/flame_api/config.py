@@ -1,5 +1,6 @@
 from functools import lru_cache
 from hmac import compare_digest
+from typing import Literal
 from urllib.parse import urlsplit
 
 from pydantic import Field, SecretStr, field_validator, model_validator
@@ -17,6 +18,13 @@ class Settings(BaseSettings):
         if value.startswith("postgresql://"):
             return "postgresql+psycopg://" + value.removeprefix("postgresql://")
         return value
+
+    @field_validator("cv_hf_space_url", "cv_hf_token", mode="before")
+    @classmethod
+    def normalize_empty_cv_settings(
+        cls, value: str | SecretStr | None
+    ) -> str | SecretStr | None:
+        return None if value == "" else value
 
     environment: str = "development"
     api_version: str = "0.1.0"
@@ -44,6 +52,10 @@ class Settings(BaseSettings):
     aura_require_local: bool = True
     chat_rate_limit_per_minute: int = Field(default=30, ge=1, le=600)
     llm_enabled: bool = False
+    cv_provider: Literal["local", "hf_space"] = "local"
+    cv_hf_space_url: str | None = None
+    cv_hf_token: SecretStr | None = None
+    cv_timeout_s: float = Field(default=300.0, gt=0, le=600)
 
     @model_validator(mode="after")
     def require_distinct_api_tokens(self):
@@ -70,6 +82,20 @@ class Settings(BaseSettings):
             raise ValueError("FLAME_AURA_BASE_URL must be an HTTPS origin without embedded credentials.")
         if self.aura_enabled and self.aura_service_token is None:
             raise ValueError("FLAME_AURA_SERVICE_TOKEN is required when AURA interpretation is enabled.")
+        if self.cv_hf_space_url is not None:
+            cv_url = urlsplit(self.cv_hf_space_url)
+            if (
+                cv_url.scheme != "https"
+                or not cv_url.netloc
+                or cv_url.path not in {"", "/"}
+                or cv_url.username is not None
+                or cv_url.password is not None
+                or cv_url.query
+                or cv_url.fragment
+            ):
+                raise ValueError("FLAME_CV_HF_SPACE_URL must be an HTTPS origin without embedded credentials.")
+        if self.cv_provider == "hf_space" and self.cv_hf_space_url is None:
+            raise ValueError("FLAME_CV_HF_SPACE_URL is required when FLAME_CV_PROVIDER=hf_space.")
         return self
 
 

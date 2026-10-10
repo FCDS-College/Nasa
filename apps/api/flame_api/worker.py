@@ -43,7 +43,6 @@ def process_analysis(analysis_id: str) -> None:
 
     try:
         import cv2
-        from cv.flame_cv import CVConfig, analyze_image
 
         input_data = payload["input"]
         original = artifacts["original"]
@@ -55,12 +54,34 @@ def process_analysis(analysis_id: str) -> None:
             image_path.write_bytes(image_bytes)
             calibration = input_data["calibration"]
             mm_per_pixel = 1 / calibration["scale_px_per_mm"] if calibration["scale_px_per_mm"] else None
-            legacy = analyze_image(
-                {"imagePath": str(image_path), "imageId": analysis_id, "metadata": {"mmPerPixel": mm_per_pixel}},
-                work / "processed",
-                work / "masks",
-                cfg=CVConfig(max_pixels=settings.max_image_pixels),
-            )
+            if settings.cv_provider == "hf_space":
+                from flame_api.hf_cv import analyze_image_on_hf
+
+                legacy, remote_artifacts = analyze_image_on_hf(
+                    settings,
+                    image_bytes,
+                    media_type=input_data["media_type"],
+                    mm_per_pixel=mm_per_pixel,
+                )
+                legacy["provenance"]["inputUri"] = str(image_path)
+                for name, content in remote_artifacts.items():
+                    path = work / f"{name}.png"
+                    path.write_bytes(content)
+                    if name == "preprocessed":
+                        legacy["preprocessing"]["derivedUri"] = str(path)
+                    elif name == "mask":
+                        legacy["segmentation"]["maskUri"] = str(path)
+                    elif name == "overlay":
+                        legacy["segmentation"]["overlayArtifactUri"] = str(path)
+            else:
+                from cv.flame_cv import CVConfig, analyze_image
+
+                legacy = analyze_image(
+                    {"imagePath": str(image_path), "imageId": analysis_id, "metadata": {"mmPerPixel": mm_per_pixel}},
+                    work / "processed",
+                    work / "masks",
+                    cfg=CVConfig(max_pixels=settings.max_image_pixels),
+                )
             result = _adapt_result(legacy, input_data, work)
             produced = []
             preprocessing_path = Path(legacy["preprocessing"]["derivedUri"])
@@ -140,7 +161,9 @@ def process_analysis(analysis_id: str) -> None:
         record = session.get(AnalysisRecord, analysis_id)
         if record:
             now = _now()
-            failure_code = "MODEL_UNAVAILABLE" if isinstance(exc, ImportError) else "IMAGE_DECODE_FAILED" if isinstance(exc, (OSError, ValueError)) else "PIPELINE_ERROR"
+            from flame_api.hf_cv import HfCvError
+
+            failure_code = "MODEL_UNAVAILABLE" if isinstance(exc, (ImportError, HfCvError)) else "IMAGE_DECODE_FAILED" if isinstance(exc, (OSError, ValueError)) else "PIPELINE_ERROR"
             record.status = "failed"
             record.updated_at = now
             record.completed_at = now

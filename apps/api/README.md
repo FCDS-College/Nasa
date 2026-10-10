@@ -25,6 +25,18 @@ Search starts with PostgreSQL lexical full-text retrieval. PDF matches carry pag
 
 The CV worker calls the existing `cv/flame_cv.py` pipeline. It enforces the contract's 10 MiB, 64-pixel minimum and 50-megapixel maximum, reports pixel measurements as measured and scale-derived dimensions as estimated, and never produces temperature. Interpretation is disabled unless separately configured.
 
+### Optional Hugging Face CV inference
+
+The local CV pipeline remains the default. To run its image analysis on Hugging Face, deploy the files in `cv/hf_space/` as a private Docker Space, copy `cv/flame_cv.py` into that Space at `cv/flame_cv.py`, and set these variables on both the API and worker:
+
+```text
+FLAME_CV_PROVIDER=hf_space
+FLAME_CV_HF_SPACE_URL=https://<your-space-subdomain>.hf.space
+FLAME_CV_HF_TOKEN=<read-scoped-Hugging-Face-token>
+```
+
+`FLAME_CV_HF_TOKEN` is optional for a public Space, but private Spaces are recommended to protect uploaded images. The worker sends only the image and pixel calibration needed for CV; the Space returns the existing analysis and artifacts, which the worker validates and stores as usual. `FLAME_CV_TIMEOUT_S` defaults to 300 seconds for Space cold starts. Setting `FLAME_CV_PROVIDER=local` (or omitting it) keeps inference on the worker. This CV Space is independent of LLM hosting and does not replace or change the AURA/LLM configuration.
+
 ## Tests
 
 From `apps/api`, run `python -m pip install -e ".[dev,cv,ingestion]"` then `python -m pytest`. The tests use SQLite and mocked queue/storage dependencies; run the Compose stack separately to verify PostgreSQL, MinIO, Redis and the worker together.

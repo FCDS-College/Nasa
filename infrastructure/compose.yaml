@@ -70,6 +70,10 @@ services:
       FLAME_AURA_BASE_URL: ${FLAME_AURA_BASE_URL:-https://aura-ai-production-03a4.up.railway.app}
       FLAME_AURA_SERVICE_TOKEN: ${FLAME_AURA_SERVICE_TOKEN:-}
       FLAME_AURA_REQUIRE_LOCAL: ${FLAME_AURA_REQUIRE_LOCAL:-true}
+      FLAME_CV_PROVIDER: ${FLAME_CV_PROVIDER:-local}
+      FLAME_CV_HF_SPACE_URL: ${FLAME_CV_HF_SPACE_URL:-}
+      FLAME_CV_HF_TOKEN: ${FLAME_CV_HF_TOKEN:-}
+      FLAME_CV_TIMEOUT_S: ${FLAME_CV_TIMEOUT_S:-300}
       FLAME_DATABASE_URL: postgresql+psycopg://flame:${POSTGRES_PASSWORD:-flame-local-only}@postgres:5432/flame
       FLAME_REDIS_URL: redis://redis:6379/0
       FLAME_S3_ENDPOINT_URL: http://minio:9000
@@ -116,6 +120,10 @@ services:
       FLAME_AURA_BASE_URL: ${FLAME_AURA_BASE_URL:-https://aura-ai-production-03a4.up.railway.app}
       FLAME_AURA_SERVICE_TOKEN: ${FLAME_AURA_SERVICE_TOKEN:-}
       FLAME_AURA_REQUIRE_LOCAL: ${FLAME_AURA_REQUIRE_LOCAL:-true}
+      FLAME_CV_PROVIDER: ${FLAME_CV_PROVIDER:-local}
+      FLAME_CV_HF_SPACE_URL: ${FLAME_CV_HF_SPACE_URL:-}
+      FLAME_CV_HF_TOKEN: ${FLAME_CV_HF_TOKEN:-}
+      FLAME_CV_TIMEOUT_S: ${FLAME_CV_TIMEOUT_S:-300}
       FLAME_DATABASE_URL: postgresql+psycopg://flame:${POSTGRES_PASSWORD:-flame-local-only}@postgres:5432/flame
       FLAME_REDIS_URL: redis://redis:6379/0
       FLAME_S3_ENDPOINT_URL: http://minio:9000
