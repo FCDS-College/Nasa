@@ -5,7 +5,7 @@
 | **Phase** | Phase 2: Advanced Scientific Intelligence Platform |
 | **Issued** | 2026-10-10 by the Lead (Anas) |
 | **Your branch** | `Ziad` (branch fresh from `main` for each task) |
-| **Basis** | [Phase 2 Plan](https://github.com/FCDS-College/Nasa/blob/main/docs/plan/PHASE2_PLAN.md): §2 carry-over items **M11** (benchmark and harness) and **M10** (CV evaluation design), and **Workstream C** (C1–C6); MVP Plan §18 |
+| **Basis** | [Phase 2 Plan](https://github.com/FCDS-College/Nasa/blob/main/docs/plan/PHASE2_PLAN.md): §2 carry-over items **M11** (benchmark and harness) and **M10** (CV evaluation design), and **Workstream C** (C1–C6); **Sub-phase 2H** offline acceptance tests and local-vs-cloud benchmark (Phase 2 Plan §7A); MVP Plan §18 |
 | **Reviewers** | Lead (Anas) for every document. Eman (E1) for RAG/LLM benchmarks. Princess (E3) for CV evaluation. Anas (E2) for data and knowledge quality rubrics. |
 
 ---
@@ -131,3 +131,46 @@ The baseline vs final comparison for every workstream (A video, C rankings, D Gr
 - [ ] Each ranking function has documented rules and a validation method.
 - [ ] The release gate defines which failures block a release.
 - [ ] Threats to validity are stated in every report.
+
+---
+
+## 8. Sub-phase 2H: Hybrid AI Execution (added 2026-10-10)
+
+The Phase 2 Plan now includes **Sub-phase 2H (§7A)**: Flame must keep working when the internet or cloud AI services are unavailable, by switching to local models. The Lead owns the handoff package. **You own the test automation behind H-5 (offline acceptance tests) and the generated results behind H-7 (local-vs-cloud benchmark report).**
+
+### 8.1 Additional required documents
+
+| ID | Document | Path | Covers | Due (Phase 2 week) |
+|---|---|---|---|---|
+| E5-11 | Offline test automation method | `docs/evaluation/offline-testing.md` | 2H §7A.8, H-5 | Week 2 (plan), Week 8 (evidence) |
+| E5-12 | Local-vs-cloud benchmark methodology | `docs/evaluation/local-vs-cloud-benchmark.md` | 2H Task 4, H-7, C2 | Week 4 (first run), Week 8 |
+
+**E5-11 must contain:**
+- How a disconnection is simulated: an egress block, a network namespace or container network off, and the **physical unplug run** required once.
+- How Offline-Only mode is proved to make **no external requests** (packet capture or egress-deny logs).
+- A mapping from each of the 13 scenarios in Phase 2 Plan §7A.8 to its automated test file and expected result.
+- The format of execution evidence: date, commit, mode, logs or captures, pass/fail. The Lead's H-5 links to this evidence.
+
+**E5-12 must contain:**
+- The same benchmark and the same evidence for every local and cloud model, run through the M1 router.
+- Metrics per capability (LLM, embeddings, reranker, CV): quality, latency p50/p95, throughput, RAM/VRAM, cold start, and **quantization quality loss**.
+- The task-specific acceptance thresholds a local model must meet to be the offline default.
+- Run metadata (commit, benchmark checksum, hardware, model version and checksum). The H-7 report is generated from these runs.
+
+### 8.2 Updates to your existing documents
+
+| Document | Add |
+|---|---|
+| E5-2 Benchmark datasheet | Items that test offline disclosure (questions needing post-sync information, unavailable external search) |
+| E5-8 LLM comparison | Local models as candidates, alongside the cloud models |
+| E5-9 Release gate | The Sub-phase 2H gate (Phase 2 Plan §11, "Hybrid AI execution") as a blocking gate |
+
+### 8.3 Sign-offs you give
+
+You sign off the Lead's **H-3** (local model registry, benchmark numbers), **H-5** (offline acceptance tests) and **H-7** (benchmark report).
+
+### 8.4 Acceptance (added to §7)
+
+- [ ] E5-11 and E5-12 exist.
+- [ ] All 13 offline scenarios have automated tests and recorded evidence, including one physical disconnection run.
+- [ ] Every H-7 number traces back to a run record.
