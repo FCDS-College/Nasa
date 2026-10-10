@@ -38,6 +38,11 @@ class Settings(BaseSettings):
     aura_base_url: str = "https://aura-ai-production-03a4.up.railway.app"
     aura_service_token: SecretStr | None = None
     aura_timeout_s: float = Field(default=120.0, gt=0, le=120)
+    # True refuses any AURA provider that is not on AURA's own host. A deployment whose only model
+    # is a self-hosted GPU Space (a remote provider to AURA) must set this to false, or every
+    # AURA call fails with 503 all_providers_failed.
+    aura_require_local: bool = True
+    chat_rate_limit_per_minute: int = Field(default=30, ge=1, le=600)
     llm_enabled: bool = False
 
     @model_validator(mode="after")
