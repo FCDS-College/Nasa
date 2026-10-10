@@ -5,7 +5,7 @@
 | **Phase** | Phase 2: Advanced Scientific Intelligence Platform |
 | **Issued** | 2026-10-10 by the Lead (Anas) |
 | **Your branch** | `Belal` (branch fresh from `main` for each task) |
-| **Basis** | [Phase 2 Plan](https://github.com/FCDS-College/Nasa/blob/main/docs/plan/PHASE2_PLAN.md): §2 carry-over item **M7**, **Workstream B** (Admin Dashboard), the §10 Admin modules, plus the graph exploration and video workspace UIs; MVP Plan §5.11, §13, §23 |
+| **Basis** | [Phase 2 Plan](https://github.com/FCDS-College/Nasa/blob/main/docs/plan/PHASE2_PLAN.md): §2 carry-over item **M7**, **Workstream B** (Admin Dashboard), the §10 Admin modules, plus the graph exploration and video workspace UIs; **Sub-phase 2H, Task 8** (Phase 2 Plan §7A); MVP Plan §5.11, §13, §23 |
 | **Reviewers** | Lead (Anas) for every document. Eman (E1) for citation and evidence presentation. Princess (E3) for overlay and measurement views. Ziad (E5) for evaluation and ranking views. |
 
 ---
@@ -121,3 +121,56 @@ The click path for the final demo, with the expected screen state at each step, 
 - [ ] The scientific UI rules in E4-3 are applied on every screen that shows results.
 - [ ] `implementation-summary.md` is replaced.
 - [ ] Known limitations are stated in every document.
+
+---
+
+## 8. Sub-phase 2H: Hybrid AI Execution (added 2026-10-10)
+
+The Phase 2 Plan now includes **Sub-phase 2H (§7A)**: Flame must keep working when the internet, cloud models or external AI services are unavailable. It has three execution modes: **Cloud-Preferred Hybrid**, **Local-First** and **Offline-Only**. The Lead owns the backend; **you own Task 8: the offline-aware frontend** (P1). Write the spec in Week 4; the as-built version is due in Week 7.
+
+### 8.1 Additional required document
+
+| ID | Document | Path | Covers | Due (Phase 2 week) |
+|---|---|---|---|---|
+| E4-10 | Offline-aware UX specification | `docs/frontend/offline-ux.md` | 2H Task 8 | Week 4 (spec), Week 7 (as built) |
+
+**E4-10 must contain:**
+- **Indicators**, each with its data source from the Lead's API contracts (H-4) and where it appears:
+  - current mode;
+  - internet connectivity;
+  - cloud provider availability and local model availability;
+  - the active model and execution provider;
+  - local processing progress, and queued and failed jobs;
+  - synchronization status;
+  - limitations that affect the current result.
+- **A screen × mode availability matrix:** for each screen, what still works in each of the three modes.
+- **Exact UI text for degraded states:**
+  - external search unavailable vs local retrieval failed;
+  - task exceeds local resources;
+  - capability missing or corrupt;
+  - answer may be out of date since the last sync.
+- A per-response **local vs remote** badge, showing provider, model and fallback used.
+- **UX rules:**
+  - never block the whole UI because a cloud provider is down;
+  - never imply live external data while offline;
+  - long jobs survive closing the browser tab.
+- **Self-hosted fonts:** `apps/web/app/layout.tsx` currently loads Google Fonts at runtime. Document the fix, plus any other runtime request from the frontend to an external domain (there should be none in Offline-Only mode).
+
+### 8.2 Updates to your existing documents
+
+| Document | Add |
+|---|---|
+| E4-2 Screen inventory | A **"Works offline?"** column per screen |
+| E4-4 Admin Dashboard | Execution-mode control in "Models and LLMs" (role, confirmation, audit record); connectivity and provider status in "Overview"; sync status in "System Operations" |
+| E4-3 Scientific UI guidelines | How local vs remote generation and sync age are displayed |
+| E4-6 Testing guide | UI tests for the offline states, run against a backend in Offline-Only mode |
+
+### 8.3 Sign-offs you give
+
+You review the Lead's **H-4** (provider API contracts and execution metadata) for every field the UI needs.
+
+### 8.4 Acceptance (added to §7)
+
+- [ ] E4-10 exists.
+- [ ] With the backend in Offline-Only mode, users can see the mode and which operations still work.
+- [ ] The browser makes no requests to external domains.
