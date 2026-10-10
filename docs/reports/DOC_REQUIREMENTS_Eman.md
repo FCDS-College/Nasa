@@ -5,7 +5,7 @@
 | **Phase** | Phase 2: Advanced Scientific Intelligence Platform |
 | **Issued** | 2026-10-10 by the Lead (Anas) |
 | **Your branch** | `Eman` (branch fresh from `main` for each task) |
-| **Basis** | [Phase 2 Plan](https://github.com/FCDS-College/Nasa/blob/main/docs/plan/PHASE2_PLAN.md): §2 carry-over items **M2, M3, M4, M5, M13** and **Workstream D**; MVP Plan §5.1, §6, §19 |
+| **Basis** | [Phase 2 Plan](https://github.com/FCDS-College/Nasa/blob/main/docs/plan/PHASE2_PLAN.md): §2 carry-over items **M2, M3, M4, M5, M13** and **Workstream D**; **Sub-phase 2H, Task 5** (Phase 2 Plan §7A); MVP Plan §5.1, §6, §19 |
 | **Reviewers** | Lead (Anas) for every document. Ziad (E5) for anything with metrics. Anas (E2) for anything touching evidence, graph or knowledge versions. |
 
 ---
@@ -132,3 +132,45 @@ You own how Flame answers questions: retrieval, prompts, caching, memory, Graph 
 - [ ] Each document matches the code at the commit it cites.
 - [ ] Known limitations are stated.
 - [ ] Ziad has signed off on the metrics documents (E1-10) and Anas (E2) on the knowledge-version contract (E1-4).
+
+---
+
+## 8. Sub-phase 2H: Hybrid AI Execution (added 2026-10-10)
+
+The Phase 2 Plan now includes **Sub-phase 2H (§7A)**: Flame must keep working when the internet, cloud models or external AI services (including AURA) are unavailable. The Lead owns the provider contracts, the router and the local runtime. **You own Task 5: local RAG and offline scientific knowledge access** (P0 for lexical and vector retrieval; P1 for the graph part, after D4 in Week 5).
+
+### 8.1 Additional required document
+
+| ID | Document | Path | Covers | Due (Phase 2 week) |
+|---|---|---|---|---|
+| E1-11 | Offline RAG behaviour | `docs/ai/offline-rag.md` | 2H Task 5 | Week 4 (vector and lexical), Week 5 (graph) |
+
+**E1-11 must contain:**
+- The offline RAG flow: local query processing → hybrid retrieval (vector + graph) → evidence filtering and reranking → local LLM synthesis → citation and provenance validation → a response with evidence and limitations. Name the function for each stage.
+- **Local-LLM adaptations:** context budget for smaller context windows, prompt variants per local model, and structured-output validation and retry rules.
+- **Disclosure rules:**
+  - Show the `knowledge_version` and last-sync time when an answer may be out of date.
+  - Never claim the latest NASA or NIST information unless it is stored locally.
+  - Distinguish "external search unavailable" from "local retrieval found nothing".
+- The no-fabricated-citations rule, how it is enforced offline, and how evidence is kept separate from interpretation.
+- What is cached for offline reuse (research results, retrieval IDs) and how cache entries record the provider and mode.
+- **Local vs cloud results:** on the same benchmark through Ziad's harness, which feeds H-7. Name the run IDs.
+
+### 8.2 Updates to your existing documents
+
+| Document | Add |
+|---|---|
+| E1-1 Retrieval pipeline | The local reranker; behaviour when the reranker or vector index is unavailable offline |
+| E1-2 Prompt registry | For each prompt version, the provider and model it was validated on (local vs cloud) |
+| E1-3 Grounded generation | The offline disclaimers and the degraded-mode response wording |
+| E1-4 CAG | Cache entries record provider, model and execution mode; which entries can be served offline |
+| E1-6 Multimodal interpretation | The local LLM only interprets measured CV results and never overrides them |
+
+### 8.3 Sign-offs you give
+
+You review the Lead's **H-2** (hybrid architecture) and **H-4** (provider API contracts) for everything RAG depends on.
+
+### 8.4 Acceptance (added to §7)
+
+- [ ] E1-11 exists, and a disconnected test run answers a question about a locally indexed document with verifiable evidence references (Phase 2 Plan §7A.8).
+- [ ] The §8.2 updates are made in E1-1 through E1-6.
