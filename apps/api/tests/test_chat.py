@@ -223,3 +223,11 @@ def test_passage_respects_aura_context_limits():
     assert len(passage["text"]) <= 2000 and len(passage["id"]) <= 128
     item["snippet"] = ""
     assert _passage(item)["text"]
+
+
+def test_passage_source_uses_aura_allowed_characters():
+    import re
+    from flame_api.main import _passage
+
+    item = {"result_type": "document", "evidence_id": "E1", "title": "Report (v2): heptane, 50% O2", "snippet": "x", "locator": {"label": "p.3 [fig]"}}
+    assert re.fullmatch(r"[A-Za-z0-9_\-.:/ ]{0,128}", _passage(item)["source"])

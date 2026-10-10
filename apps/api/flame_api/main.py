@@ -447,7 +447,7 @@ def _passage(item: dict[str, Any]) -> dict[str, str]:
         text = item["snippet"]
     label = (item.get("locator") or {}).get("label")
     source = item["title"] + (f" ({label})" if label else "")
-    return {"id": item["evidence_id"][:128], "text": (text or "").strip()[:2000] or source[:128] or "(no text)", "source": source[:128]}
+    return {"id": item["evidence_id"][:128], "text": (text or "").strip()[:2000] or source[:128] or "(no text)", "source": re.sub(r"[^A-Za-z0-9_\-.:/ ]+", " ", source).strip()[:128]}
 
 
 def _retrieve_passages(request: Request, session: Session, question: str):

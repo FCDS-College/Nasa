@@ -1,4 +1,5 @@
 import json
+import logging
 import re
 import time
 from datetime import UTC, datetime
@@ -8,6 +9,20 @@ from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
 from flame_api.config import Settings
+
+logger = logging.getLogger("flame_api")
+
+
+def _log_validation_failure(exc: HTTPError) -> None:
+    """Log which request fields AURA rejected (type, location, message only; never the payload)."""
+    try:
+        raw = exc.read(8192)
+        detail = json.loads(raw).get("detail")
+        rows = [(str(r.get("type")), "/".join(map(str, r.get("loc", []))), str(r.get("msg"))) for r in detail]
+    except (ValueError, AttributeError, TypeError):
+        logger.warning("aura_request_rejected body=%r", raw[:300] if "raw" in locals() else None)
+        return
+    logger.warning("aura_request_rejected fields=%s", rows[:5])
 
 AURA_RESPONSE_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -87,6 +102,8 @@ def _post_chat(settings: Settings, request_body: dict[str, Any], *, idempotency_
                 )
             response_body = response.read(64 * 1024 + 1)
     except HTTPError as exc:
+        if exc.code == 422:
+            _log_validation_failure(exc)
         raise AuraIntegrationError(
             "AURA returned an unsuccessful response.", status_code=exc.code
         ) from exc
