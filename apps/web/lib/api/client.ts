@@ -10,7 +10,7 @@ import {
   AnalysisSummary,
   ExperimentRecord,
 } from "./types";
-import { mockChatResponse, mockKnowledge } from "./mockData";
+import { mockKnowledge } from "./mockData";
 
 // Every call goes through the same-origin /api proxy (app/api/[...path]), which
 // holds the Flame API read token server-side.
@@ -65,10 +65,21 @@ export async function fetchDashboardData(): Promise<DashboardData> {
   };
 }
 
-// AURA chat is not exposed by the Flame API yet; this stays a labelled demo.
+// Flame retrieves its own evidence and has AURA's model write the answer from it.
 export async function submitChat(req: ChatRequest): Promise<ChatResponse> {
-  void req;
-  return new Promise((resolve) => setTimeout(() => resolve(mockChatResponse), 800));
+  const res = await fetch(`${API_BASE}/api/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query: req.query, conversation_id: req.conversation_id }),
+    cache: "no-store",
+  });
+  const body: Json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const error = new Error(body?.error?.message ?? `Chat failed (${res.status})`);
+    error.name = body?.error?.code ?? "CHAT_FAILED";
+    throw error;
+  }
+  return body as ChatResponse;
 }
 
 export async function searchResearch(query: string, filters?: Record<string, unknown>): Promise<SearchResponse> {

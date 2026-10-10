@@ -66,34 +66,7 @@ def check_aura_ready(settings: Settings, *, timeout_s: float = 2.0) -> tuple[str
     return status, round((time.perf_counter() - started) * 1000, 1)
 
 
-def interpret_analysis(
-    settings: Settings,
-    *,
-    analysis_id: str,
-    context: list[dict[str, str]],
-    allowed_evidence_ids: set[str],
-) -> dict[str, Any]:
-    if settings.aura_service_token is None:
-        raise AuraIntegrationError("AURA service credentials are not configured.")
-
-    request_body = {
-        "message": (
-            "Carefully interpret the supplied Flame image measurements. Return only cautious "
-            "scientific statements supported by the provided context. Do not infer temperature, "
-            "causality, or investigation-wide outcomes. Cite only supplied Flame evidence IDs; "
-            "use hypothesized or unsupported when evidence is insufficient."
-        ),
-        "agent": "orchestrator",
-        "plan": False,
-        "use_knowledge": False,
-        "use_memory": False,
-        "use_tools": False,
-        "require_local": True,
-        "max_output_tokens": 400,
-        "temperature": 0.0,
-        "context": context[:16],
-        "response_schema": AURA_RESPONSE_SCHEMA,
-    }
+def _post_chat(settings: Settings, request_body: dict[str, Any], *, idempotency_key: str) -> dict[str, Any]:
     body = json.dumps(request_body, separators=(",", ":"), allow_nan=False).encode("utf-8")
     request = Request(
         f"{_base_url(settings)}/api/v3/chat",
@@ -102,8 +75,8 @@ def interpret_analysis(
         headers={
             "Authorization": f"Bearer {settings.aura_service_token.get_secret_value()}",
             "Content-Type": "application/json",
-            "Idempotency-Key": analysis_id,
-            "X-Correlation-Id": analysis_id,
+            "Idempotency-Key": idempotency_key,
+            "X-Correlation-Id": idempotency_key,
         },
     )
     try:
@@ -128,6 +101,38 @@ def interpret_analysis(
         raise AuraIntegrationError("AURA returned invalid JSON.") from exc
     if not isinstance(decoded, dict) or not isinstance(decoded.get("data"), dict):
         raise AuraIntegrationError("AURA response did not contain structured data.")
+    return decoded
+
+
+def interpret_analysis(
+    settings: Settings,
+    *,
+    analysis_id: str,
+    context: list[dict[str, str]],
+    allowed_evidence_ids: set[str],
+) -> dict[str, Any]:
+    if settings.aura_service_token is None:
+        raise AuraIntegrationError("AURA service credentials are not configured.")
+
+    request_body = {
+        "message": (
+            "Carefully interpret the supplied Flame image measurements. Return only cautious "
+            "scientific statements supported by the provided context. Do not infer temperature, "
+            "causality, or investigation-wide outcomes. Cite only supplied Flame evidence IDs; "
+            "use hypothesized or unsupported when evidence is insufficient."
+        ),
+        "agent": "orchestrator",
+        "plan": False,
+        "use_knowledge": False,
+        "use_memory": False,
+        "use_tools": False,
+        "require_local": settings.aura_require_local,
+        "max_output_tokens": 400,
+        "temperature": 0.0,
+        "context": context[:16],
+        "response_schema": AURA_RESPONSE_SCHEMA,
+    }
+    decoded = _post_chat(settings, request_body, idempotency_key=analysis_id)
 
     raw_statements = decoded["data"].get("statements")
     if not isinstance(raw_statements, list) or len(raw_statements) > 8:
@@ -172,4 +177,76 @@ def interpret_analysis(
         "rejected_statement_count": rejected,
         "model": decoded.get("model") if isinstance(decoded.get("model"), str) else None,
         "generated_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+    }
+
+
+AURA_CHAT_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "required": ["answer", "evidence_ids"],
+    "additionalProperties": False,
+    "properties": {
+        "answer": {"type": "string"},
+        "evidence_ids": {"type": "array", "maxItems": 8, "items": {"type": "string"}},
+    },
+}
+_CONTROL_CHARS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+
+
+def answer_question(
+    settings: Settings,
+    *,
+    request_id: str,
+    question: str,
+    passages: list[dict[str, str]],
+) -> dict[str, Any]:
+    """Ask AURA to answer from Flame passages only, and keep only citations Flame supplied.
+
+    The passages travel in ``context`` (AURA's DATA channel), never in ``message``, so document
+    text cannot act as instructions. Tools stay off: Flame did the retrieval itself.
+    """
+    if settings.aura_service_token is None:
+        raise AuraIntegrationError("AURA service credentials are not configured.")
+
+    request_body = {
+        "message": (
+            "Answer the question below about NASA combustion research using ONLY the supplied Flame "
+            "evidence. If the evidence does not answer it, say so plainly instead of guessing. "
+            "Put the evidence_id of every passage you relied on in evidence_ids, copied exactly.\n\n"
+            f"Question: {question}"
+        ),
+        "agent": "orchestrator",
+        "plan": False,
+        "use_knowledge": False,
+        "use_memory": False,
+        "use_tools": False,
+        "require_local": settings.aura_require_local,
+        "max_output_tokens": 500,
+        "temperature": 0.0,
+        "context": passages[:16],
+        "response_schema": AURA_CHAT_SCHEMA,
+    }
+    decoded = _post_chat(settings, request_body, idempotency_key=request_id)
+
+    data = decoded["data"]
+    answer = data.get("answer")
+    cited = data.get("evidence_ids")
+    if (
+        not isinstance(answer, str)
+        or not answer.strip()
+        or len(answer) > 4000
+        or _CONTROL_CHARS.search(answer)
+        or not isinstance(cited, list)
+        or any(not isinstance(value, str) for value in cited)
+    ):
+        raise AuraIntegrationError("AURA returned an invalid answer.")
+
+    allowed = {entry["id"] for entry in passages}
+    valid = [value for value in dict.fromkeys(cited) if value in allowed]
+    return {
+        "answer": answer.strip(),
+        "evidence_ids": valid,
+        "dropped_citations": len(set(cited)) - len(valid),
+        "provider": decoded.get("provider") if isinstance(decoded.get("provider"), str) else "aura",
+        "model": decoded.get("model") if isinstance(decoded.get("model"), str) else "unknown",
+        "cached": bool(decoded.get("cached")),
     }

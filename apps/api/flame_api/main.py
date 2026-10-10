@@ -4,8 +4,10 @@ import time
 from datetime import UTC, datetime
 from hmac import compare_digest
 import re
+from collections import deque
 from pathlib import Path
 from typing import Annotated, Any
+from threading import Lock
 from uuid import uuid4
 
 import boto3
@@ -13,6 +15,7 @@ from botocore.config import Config
 from fastapi import Depends, FastAPI, Path as ApiPath, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
 from redis import Redis
 from sqlalchemy import or_, select, text
 from sqlalchemy.exc import SQLAlchemyError
@@ -23,7 +26,7 @@ from flame_api.config import get_settings
 from flame_api.contracts import error_body, response_meta
 from flame_api.database import engine, get_session
 from flame_api.analysis import router as analysis_router
-from flame_api.aura_integration import check_aura_ready
+from flame_api.aura_integration import AuraIntegrationError, answer_question, check_aura_ready
 from flame_api.models import AnalysisRecord, DocumentChunk, DocumentRecord, EvidenceRecord, ExperimentRecord, SourceRecord
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -64,7 +67,10 @@ async def request_context(request: Request, call_next):
     path = request.url.path
     public_metadata = path == "/api/openapi.json" or path == "/api/docs" or path.startswith("/api/docs/")
     if path.startswith("/api/") and not public_metadata and settings.api_auth_enabled:
-        expected = settings.read_api_token if request.method in {"GET", "HEAD"} else settings.write_api_token
+        # Chat only reads the corpus (and asks AURA), so the read token is enough for it; the web
+        # service never needs the write token.
+        reads = request.method in {"GET", "HEAD"} or (request.method == "POST" and path == "/api/chat")
+        expected = settings.read_api_token if reads else settings.write_api_token
         authorization = request.headers.get("Authorization", "")
         scheme, separator, supplied = authorization.partition(" ")
         if (
@@ -395,6 +401,158 @@ def search(
         "meta": response_meta(request),
     }
 
+
+class ChatBody(BaseModel):
+    query: str = Field(min_length=1, max_length=500)
+    conversation_id: str | None = Field(default=None, max_length=128)
+
+
+_CHAT_STOPWORDS = frozenset(
+    "a an and are as at be been by can could did do does for from has have how in into is it its of on or "
+    "that the their there these this to was were what when where which who why will with would about "
+    "between during after before than then them they you your tell explain describe give show find".split()
+)
+_chat_calls: deque[float] = deque()
+_chat_lock = Lock()
+
+
+def _chat_rate_limited() -> bool:
+    now = time.monotonic()
+    with _chat_lock:
+        while _chat_calls and now - _chat_calls[0] > 60:
+            _chat_calls.popleft()
+        if len(_chat_calls) >= settings.chat_rate_limit_per_minute:
+            return True
+        _chat_calls.append(now)
+        return False
+
+
+def _question_terms(question: str) -> list[str]:
+    seen: dict[str, None] = {}
+    for word in re.findall(r"[a-z0-9][a-z0-9.\-]{2,}", question.lower()):
+        word = word.strip(".-")
+        if len(word) >= 3 and word not in _CHAT_STOPWORDS:
+            seen.setdefault(word)
+    return sorted(seen, key=len, reverse=True)[:5]
+
+
+def _passage(item: dict[str, Any]) -> dict[str, str]:
+    if item["result_type"] == "experiment":
+        experiment = item.get("experiment") or {}
+        text = (
+            f"Experiment {item['title']}: fuel or material {experiment.get('fuel_or_material') or 'unknown'}; "
+            f"gravity regime {experiment.get('gravity_regime') or 'unknown'}."
+        )
+    else:
+        text = item["snippet"]
+    label = (item.get("locator") or {}).get("label")
+    source = item["title"] + (f" ({label})" if label else "")
+    return {"id": item["evidence_id"], "text": text, "source": source[:128]}
+
+
+def _retrieve_passages(request: Request, session: Session, question: str):
+    """Rank Flame hits for a natural-language question.
+
+    Search ANDs its terms, so a whole sentence rarely matches. Search the sentence and each
+    distinctive word, then prefer passages that several searches agree on.
+    """
+    found: dict[str, dict[str, Any]] = {}
+    knowledge_version: str | None = None
+    for position, term in enumerate([question, *_question_terms(question)]):
+        result = search(request, q=term, page_size=5, session=session)
+        if isinstance(result, JSONResponse):
+            if result.status_code >= 500:
+                return result
+            continue
+        knowledge_version = knowledge_version or result["retrieval"]["knowledge_version"]
+        for item in result["results"]:
+            evidence_id = item.get("evidence_id")
+            if not evidence_id:
+                continue
+            entry = found.setdefault(evidence_id, {"hits": 0, "order": position * 10 + item["rank"], "item": item})
+            entry["hits"] += 1
+    ranked = sorted(found.values(), key=lambda entry: (-entry["hits"], entry["order"]))[:6]
+    return [entry["item"] for entry in ranked], knowledge_version
+
+
+@app.post("/api/chat", include_in_schema=False)
+def chat(request: Request, body: ChatBody, session: Session = Depends(get_session)):
+    """Dashboard chat: Flame retrieves its own evidence, AURA's model writes the answer from it.
+
+    Not part of the checked-in contract on purpose: AURA derives its tools from that contract and
+    must not be able to call back into its own caller.
+    """
+    question = body.query.strip()
+    if not question:
+        return JSONResponse(status_code=400, content=error_body(request, "VALIDATION_ERROR", "Question is empty."))
+    if not settings.aura_enabled or settings.aura_service_token is None:
+        return JSONResponse(
+            status_code=503, content=error_body(request, "CHAT_UNAVAILABLE", "AURA chat is not enabled.")
+        )
+    if _chat_rate_limited():
+        return JSONResponse(
+            status_code=429,
+            content=error_body(request, "RATE_LIMITED", "Too many chat requests. Try again shortly.", retryable=True),
+            headers={"Retry-After": "10"},
+        )
+    retrieved = _retrieve_passages(request, session, question)
+    if isinstance(retrieved, JSONResponse):
+        return retrieved
+    items, knowledge_version = retrieved
+    base = {
+        "request_id": request.state.request_id,
+        "memory_used": False,
+        "knowledge_version": knowledge_version or "unversioned",
+    }
+    if not items:
+        return {
+            **base,
+            "answer": (
+                "The Flame corpus has no passages matching this question, so there is nothing to ground an "
+                "answer on. Try a specific term such as a fuel, an instrument or a test name."
+            ),
+            "sources": [],
+            "cache_hit": False,
+            "model": {"provider": "flame", "name": "retrieval-only", "version": "n/a"},
+            "warnings": ["no_matching_evidence"],
+        }
+    try:
+        result = answer_question(
+            settings, request_id=request.state.request_id, question=question, passages=[_passage(i) for i in items]
+        )
+    except AuraIntegrationError as exc:
+        logger.warning("request_id=%s chat_aura_error=%s status=%s", request.state.request_id, exc, exc.status_code)
+        return JSONResponse(
+            status_code=502,
+            content=error_body(request, "AURA_UNAVAILABLE", "The AURA model could not answer right now.", retryable=True),
+        )
+    by_id = {item["evidence_id"]: item for item in items}
+    sources = [
+        {
+            "evidence_id": evidence_id,
+            "document_id": by_id[evidence_id].get("document_id") or by_id[evidence_id].get("experiment_id") or "",
+            "title": by_id[evidence_id]["title"],
+            "location": (by_id[evidence_id].get("locator") or {}).get("label") or by_id[evidence_id]["result_type"],
+        }
+        for evidence_id in result["evidence_ids"]
+    ]
+    warnings = []
+    if result["dropped_citations"]:
+        warnings.append("citations_not_in_retrieved_evidence_removed")
+    if not sources:
+        warnings.append("answer_cites_no_evidence")
+    logger.info(
+        "request_id=%s chat passages=%d cited=%d dropped=%d",
+        request.state.request_id, len(items), len(sources), result["dropped_citations"],
+    )
+    return {
+        **base,
+        "answer": result["answer"],
+        "sources": sources,
+        "cache_hit": result["cached"],
+        "model": {"provider": result["provider"], "name": result["model"], "version": "unknown"},
+        "warnings": warnings,
+    }
 
 @app.get("/api/documents/{document_id}", tags=["Research"])
 def get_document(request: Request, document_id: Annotated[str, ApiPath(pattern=ULID_PATTERN)], session: Session = Depends(get_session)):
