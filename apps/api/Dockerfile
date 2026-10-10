@@ -11,7 +11,7 @@ COPY docs/api/openapi.json /app/docs/api/openapi.json
 COPY datasets/registry/source_registry.csv /app/datasets/registry/source_registry.csv
 COPY datasets/metadata/files.jsonl /app/datasets/metadata/files.jsonl
 WORKDIR /app/apps/api
-RUN pip install '.[cv,ingestion]'
+RUN pip install '.[cv,ingestion,vector]'
 
 EXPOSE 8000
 CMD ["uvicorn", "flame_api.main:app", "--host", "0.0.0.0", "--port", "8000"]

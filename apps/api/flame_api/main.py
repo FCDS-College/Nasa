@@ -17,6 +17,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from redis import Redis
+from rq import Queue, Worker
 from sqlalchemy import or_, select, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload
@@ -28,6 +29,7 @@ from flame_api.database import engine, get_session
 from flame_api.analysis import router as analysis_router
 from flame_api.aura_integration import AuraIntegrationError, answer_question, check_aura_ready
 from flame_api.models import AnalysisRecord, DocumentChunk, DocumentRecord, EvidenceRecord, ExperimentRecord, SourceRecord
+from flame_api.vector_index import VectorUnavailableError, index_status, search_chunks
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 logger = logging.getLogger("flame_api")
@@ -140,9 +142,29 @@ def _service(status: str, required: bool, checked_at: str | None, **values: Any)
     }
 
 
+def _cv_worker_service(redis_client: Redis, checked_at: str) -> dict[str, Any]:
+    """RQ registers each live worker in Redis (key TTL = heartbeat), so no custom heartbeat is needed."""
+    start = time.perf_counter()
+    try:
+        queue = Queue("flame-analysis", connection=redis_client)
+        workers = Worker.all(queue=queue)
+        backlog = queue.count
+    except Exception:
+        return _service("unknown", False, checked_at, message="CV worker status could not be checked.")
+    latency = round((time.perf_counter() - start) * 1000, 1)
+    if not workers:
+        return _service("down", False, checked_at, latency_ms=latency, message=f"No CV worker is consuming the analysis queue ({backlog} waiting).")
+    try:
+        from cv.flame_cv import PIPELINE_VERSION as version
+    except ImportError:
+        version = None
+    return _service("up", False, checked_at, latency_ms=latency, version=version, message=None)
+
+
 @app.get("/api/health", tags=["System"])
 def health(request: Request):
     checked_at = datetime.now(UTC).isoformat().replace("+00:00", "Z")
+    knowledge_version: str | None = None
     if settings.aura_enabled:
         aura_status, aura_latency_ms = check_aura_ready(settings)
         aura_service = _service(
@@ -173,11 +195,18 @@ def health(request: Request):
             version = connection.execute(text("select version()")).scalar_one()
         services["database"] = _service("up", True, checked_at, latency_ms=round((time.perf_counter() - start) * 1000, 1), version=version.split(",")[0])
         try:
-            with engine.connect() as connection:
-                connection.execute(text("select 1 from pg_extension where extname = 'vector'")).first()
-            services["vector_index"] = _service("down", False, checked_at, message="No vector index has been published.")
+            with Session(engine) as index_session:
+                index = index_status(index_session)
+            knowledge_version = index.get("version") if index["state"] in {"up", "stale"} else None
+            services["vector_index"] = _service(
+                {"up": "up", "stale": "degraded", "missing": "down"}.get(index["state"], "unknown"),
+                False,
+                checked_at,
+                version=index.get("model"),
+                message=index["message"],
+            )
         except SQLAlchemyError:
-            services["vector_index"] = _service("unknown", False, checked_at, message="Vector extension status could not be checked.")
+            services["vector_index"] = _service("unknown", False, checked_at, message="Vector index status could not be checked.")
     except SQLAlchemyError:
         logger.warning("request_id=%s database_health=down", request.state.request_id)
     try:
@@ -196,13 +225,15 @@ def health(request: Request):
         logger.warning("request_id=%s object_storage_health=down", request.state.request_id)
     try:
         start = time.perf_counter()
-        Redis.from_url(
+        redis_client = Redis.from_url(
             settings.redis_url,
             socket_connect_timeout=0.25,
             socket_timeout=0.25,
             retry_on_timeout=False,
-        ).ping()
+        )
+        redis_client.ping()
         services["cache"] = _service("up", False, checked_at, latency_ms=round((time.perf_counter() - start) * 1000, 1))
+        services["cv_model"] = _cv_worker_service(redis_client, checked_at)
     except Exception:
         services["cache"] = _service("down", False, checked_at, message="Cache is unavailable.")
 
@@ -213,7 +244,7 @@ def health(request: Request):
         "status": status,
         "environment": settings.environment,
         "version": {"api_version": settings.api_version, "build_id": settings.build_id, "git_sha": settings.git_sha},
-        "knowledge_version": None,
+        "knowledge_version": knowledge_version,
         "services": services,
         "meta": response_meta(request),
     }
@@ -311,6 +342,7 @@ def search(
         return JSONResponse(status_code=400, content=error_body(request, "VALIDATION_ERROR", "Search filters are invalid."))
     results: list[dict[str, Any]] = []
     total_items = 0
+    index_version: str | None = None
     try:
         source_filter = source_id or None
         offset = (page - 1) * page_size
@@ -329,14 +361,33 @@ def search(
             if experiment_id:
                 doc_query = doc_query.filter(text("document_chunk.evidence_id in (select evidence_id from evidence where experiment_id = :experiment_id)")).params(experiment_id=experiment_id)
             total_items += doc_query.count()
-            for chunk in doc_query.all():
+            lexical_chunks = doc_query.all()
+            semantic_scores: dict[str, float] = {}
+            if page == 1 and domain in {"combustion", "all"} and not experiment_id:
+                try:
+                    status = index_status(session)
+                    if status["state"] == "up":
+                        semantic_scores = dict(search_chunks(session, query, limit=10))
+                        index_version = status["version"]
+                except (VectorUnavailableError, SQLAlchemyError):
+                    logger.warning("request_id=%s vector_search=unavailable", request.state.request_id)
+            seen_chunks = {chunk.chunk_id for chunk in lexical_chunks}
+            extra_ids = [cid for cid in semantic_scores if cid not in seen_chunks]
+            if extra_ids:
+                extra = session.query(DocumentChunk).options(joinedload(DocumentChunk.document).joinedload(DocumentRecord.source)).filter(DocumentChunk.chunk_id.in_(extra_ids))
+                if source_filter:
+                    extra = extra.filter(DocumentChunk.source_id.in_(source_filter))
+                extra_chunks = extra.all()
+                total_items += len(extra_chunks)
+                lexical_chunks = [*lexical_chunks, *extra_chunks]
+            for chunk in lexical_chunks:
                 document = chunk.document
                 snippet = chunk.text[:400]
                 results.append({
                     "result_id": chunk.chunk_id,
                     "result_type": "document",
                     "rank": len(results) + 1 + offset,
-                    "score": float(sum(term.lower() in snippet.lower() for term in query.split())),
+                    "score": float(sum(term.lower() in snippet.lower() for term in query.split())) + semantic_scores.get(chunk.chunk_id, 0.0),
                     "title": document.title,
                     "snippet": snippet,
                     "highlights": [],
@@ -397,7 +448,7 @@ def search(
         "results": results,
         "pagination": _pagination(page, page_size, total_items),
         "filters": {"type": type, "source_id": source_id or [], "experiment_id": experiment_id, "domain": domain},
-        "retrieval": {"mode": "lexical", "knowledge_version": None, "index_version": None, "searched_but_empty": not results},
+        "retrieval": {"mode": "hybrid" if index_version else "lexical", "knowledge_version": index_version, "index_version": index_version, "searched_but_empty": not results},
         "meta": response_meta(request),
     }
 

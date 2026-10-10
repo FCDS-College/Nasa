@@ -32,6 +32,9 @@ cv = [
   "opencv-python-headless>=4.10,<5",
   "pillow>=10,<13",
 ]
+vector = [
+  "fastembed>=0.4,<1",
+]
 ingestion = [
   "pymupdf>=1.24,<2",
   "xlrd>=2,<3",

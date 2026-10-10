@@ -69,3 +69,43 @@ def _object_storage_unavailable():
 
 def _cache_unavailable():
     raise RuntimeError("offline")
+
+_AUTH = {"Authorization": f"Bearer {os.environ['FLAME_READ_API_TOKEN']}"}
+
+
+class _FakeWorkerRedis:
+    def ping(self):
+        return True
+
+
+def _stub_services(monkeypatch):
+    monkeypatch.setattr(main.engine, "connect", lambda: _database_unavailable())
+    monkeypatch.setattr(main.boto3, "client", lambda **_: _object_storage_unavailable())
+
+
+@pytest.mark.parametrize("workers,expected", [([object()], "up"), ([], "down")])
+def test_health_reports_cv_worker_from_rq_registry(monkeypatch, workers, expected):
+    _stub_services(monkeypatch)
+    monkeypatch.setattr(main.Redis, "from_url", lambda *a, **k: _FakeWorkerRedis())
+    monkeypatch.setattr(main.Worker, "all", staticmethod(lambda queue=None: workers))
+    monkeypatch.setattr(main.Queue, "count", property(lambda self: 0))
+
+    body = TestClient(main.app).get("/api/health", headers=_AUTH).json()
+
+    assert body["services"]["cv_model"]["status"] == expected
+    if expected == "up":
+        assert body["services"]["cv_model"]["version"]
+    else:
+        assert "No CV worker" in body["services"]["cv_model"]["message"]
+
+
+def test_health_cv_worker_unknown_when_registry_unreadable(monkeypatch):
+    _stub_services(monkeypatch)
+    monkeypatch.setattr(main.Redis, "from_url", lambda *a, **k: _FakeWorkerRedis())
+
+    def boom(queue=None):
+        raise RuntimeError("registry offline")
+
+    monkeypatch.setattr(main.Worker, "all", staticmethod(boom))
+    body = TestClient(main.app).get("/api/health", headers=_AUTH).json()
+    assert body["services"]["cv_model"]["status"] == "unknown"
