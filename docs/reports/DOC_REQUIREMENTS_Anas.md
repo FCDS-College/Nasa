@@ -5,7 +5,7 @@
 | **Phase** | Phase 2: Advanced Scientific Intelligence Platform |
 | **Issued** | 2026-10-10 by the Lead (Anas) |
 | **Your branch** | `main` (task branches from `main` for larger changes) |
-| **Basis** | [Phase 2 Plan](../plan/PHASE2_PLAN.md): §2 carry-over items **M8** (missing §9 tables), **M9** (ingestion completeness) and **M4** (knowledge-version publication event); **B2/B3** (admin data operations), **C4** (source quality, with Ziad) and **D2/D3/D6** (graph entity registry and consistency); MVP Plan §7, §8, §9 |
+| **Basis** | [Phase 2 Plan](../plan/PHASE2_PLAN.md): §2 carry-over items **M8** (missing §9 tables), **M9** (ingestion completeness) and **M4** (knowledge-version publication event); **B2/B3** (admin data operations), **C4** (source quality, with Ziad) and **D2/D3/D6** (graph entity registry and consistency); **Sub-phase 2H, Task 7** data and synchronization rules (Phase 2 Plan §7A); MVP Plan §7, §8, §9 |
 | **Reviewers** | Lead review covers the API-facing schemas. Eman (E1) reviews everything consumed by retrieval, caching or the graph. Ziad (E5) reviews quality scoring. Belal (E4) reviews admin data operations. |
 
 > The Lead and Engineer 2 roles are held by the same person. To keep the review real, each E2 document needs **at least one peer sign-off** (Eman or Ziad) in addition to the Lead's self-review.
@@ -123,3 +123,44 @@ Follow the `DSI_DATASET_REPORT.md` pattern for every new source: what the source
 - [ ] Lineage can be followed from any evidence ID to the original source URL and checksum.
 - [ ] The knowledge-version publication contract is signed off by Eman.
 - [ ] Known limitations are stated in every document.
+
+---
+
+## 8. Sub-phase 2H: Hybrid AI Execution (added 2026-10-10)
+
+The Phase 2 Plan now includes **Sub-phase 2H (§7A)**: Flame must keep working when the internet is unavailable. As Lead you own the backend side of Task 7. **As Engineer 2 you own its data side:** local availability of the corpus, backups, resumable ingestion, and the synchronization policy.
+
+### 8.1 Additional required document
+
+| ID | Document | Path | Covers | Due (Phase 2 week) |
+|---|---|---|---|---|
+| E2-10 | Offline data availability and synchronization policy | `docs/data/OFFLINE_DATA_AND_SYNC.md` | 2H Task 7 | Week 3 (availability), Week 7 (sync) |
+
+**E2-10 must contain:**
+- **Offline inventory:** which sources, documents, datasets and derived artifacts are available locally, with their sizes and locations. Include the git-ignored local mirrors, and how to re-acquire them when connectivity returns.
+- Data sources that are **unavailable offline** (`psi.nasa.gov` API, NTRS), and what answers must disclose about them.
+- **Sync age:** how `knowledge_version` and the last-sync time are recorded and exposed, so answers can say when they may be out of date.
+- **Resumable ingestion and indexing:** checkpoints, restart behaviour, and why no duplicates are created (links E2-2).
+- **Local backup and restore** of PostgreSQL, MinIO and the vector index: commands, schedule, and a dated restore drill (shared with the Lead's L-8 runbook and H-6).
+- **Synchronization policy on reconnection:**
+  - what may sync (metadata, permitted changes) and what never syncs automatically (local videos, documents, prompts, research data);
+  - conflict-resolution rules;
+  - the sync outcome record.
+
+### 8.2 Updates to your existing documents
+
+| Document | Add |
+|---|---|
+| E2-2 Ingestion pipeline | Offline behaviour of each stage; resumable checkpoints |
+| E2-4 Provenance | Lineage of data acquired or changed while offline, and after sync |
+| E2-5 Knowledge versioning | Sync events and how they interact with publication and cache invalidation |
+
+### 8.3 Sign-offs you give
+
+You sign off the data rows of the Lead's **H-1** (dependency audit) and the storage sections of **H-6** (offline deployment guide).
+
+### 8.4 Acceptance (added to §7)
+
+- [ ] E2-10 exists.
+- [ ] Core research data stays accessible after a disconnection and an application restart.
+- [ ] A dated restore drill is recorded.
