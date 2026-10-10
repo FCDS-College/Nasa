@@ -5,7 +5,7 @@
 | **Phase** | Phase 2: Advanced Scientific Intelligence Platform |
 | **Issued** | 2026-10-10 by the Lead (Anas) |
 | **Your branch** | `Princess` (branch fresh from `main` for each task) |
-| **Basis** | [Phase 2 Plan](https://github.com/FCDS-College/Nasa/blob/main/docs/plan/PHASE2_PLAN.md): §2 carry-over items **M10** (CV evaluation) and **M4** (analysis cache reuse), **Workstream A** (video), and **C1** (model registration); MVP Plan §5.7, §10, §18 |
+| **Basis** | [Phase 2 Plan](https://github.com/FCDS-College/Nasa/blob/main/docs/plan/PHASE2_PLAN.md): §2 carry-over items **M10** (CV evaluation) and **M4** (analysis cache reuse), **Workstream A** (video), and **C1** (model registration); **Sub-phase 2H, Task 6** (Phase 2 Plan §7A); MVP Plan §5.7, §10, §18 |
 | **Reviewers** | Lead (Anas) for every document. Ziad (E5) for annotation and evaluation documents. Belal (E4) for overlay and artifact formats used by the UI. |
 
 ---
@@ -124,3 +124,44 @@ All C1 registration fields: model ID, version, task, architecture, training-data
 - [ ] The video contract example validates in a test.
 - [ ] Ziad has approved the annotation protocol and evaluation report.
 - [ ] Known limitations and failure modes are stated in every document.
+
+---
+
+## 8. Sub-phase 2H: Hybrid AI Execution (added 2026-10-10)
+
+The Phase 2 Plan now includes **Sub-phase 2H (§7A)**: Flame must keep working when the internet or external AI services are unavailable. The Lead owns the job infrastructure, routing and persistence. **You own the CV side of Task 6: offline video and CV analysis** (P1, Week 6). The Hugging Face Space CV provider (`FLAME_CV_PROVIDER=hf_space`) counts as *external*. In Offline-Only mode, only the local pipeline may run.
+
+### 8.1 Additional required document
+
+| ID | Document | Path | Covers | Due (Phase 2 week) |
+|---|---|---|---|---|
+| E3-10 | Offline CV and video operation | `docs/cv/offline-operation.md` | 2H Task 6 | Week 6 |
+
+**E3-10 must contain:**
+- Every CV and video dependency, with how it is installed and verified offline: model weights (source, version, **checksum**, size), OpenCV and PyTorch builds, and video codecs.
+- How the local provider is forced in Offline-Only mode, and what the user sees when a CV capability is missing or corrupt.
+- **Resumable video jobs:** checkpointing per frame or segment, what happens after an application restart mid-job, and the recoverable states.
+- Resource limits (RAM/VRAM per job, maximum resolution and duration offline), and the controlled error when limits are exceeded.
+- The rule that a local LLM only interprets documented measurements and never replaces or overrides the CV computation. RGB is never calibrated temperature.
+- Optional local audio extraction and transcription, if it is in scope.
+- **Local CV results vs any external provider**, on the same test set, feeding the Lead's benchmark report H-7.
+
+### 8.2 Updates to your existing documents
+
+| Document | Add |
+|---|---|
+| E3-1 Pipeline specification | Provider selection (local vs HF Space) and Offline-Only behaviour |
+| E3-5 Model cards | Offline install and verify steps, checksum, CPU-only viability |
+| E3-6 Video ingestion | Local storage paths, and resumable ingestion with job state |
+| E3-9 Performance | CPU-only and offline numbers next to the L40S numbers |
+
+### 8.3 Contributions to the Lead's handoff package
+
+- **H-1 (dependency audit):** sign off the CV rows.
+- **H-3 (local model registry):** supply the entries for every CV model, and sign off the CV section.
+
+### 8.4 Acceptance (added to §7)
+
+- [ ] E3-10 exists.
+- [ ] A locally stored video is processed with the network disconnected, after the documented install.
+- [ ] A restart mid-job ends in a resumed or clearly recoverable state (Phase 2 Plan §7A.8).
