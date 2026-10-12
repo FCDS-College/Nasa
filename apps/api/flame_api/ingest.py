@@ -1,14 +1,14 @@
 import csv
 import hashlib
 import json
-import math
 import re
+from html.parser import HTMLParser
 from datetime import UTC, datetime
 from pathlib import Path
 
 import fitz
 from sqlalchemy import select
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 
 from flame_api.database import SessionLocal
 from flame_api.ids import stable_ulid
@@ -24,8 +24,16 @@ from flame_api.models import (
 )
 from flame_api.seed import seed
 
-PARSER_VERSION = "pymupdf-pages-0.1.0"
+# 0.2.0: OCR fallback for pages without a text layer; quarantine; NTRS titles. Chunk and evidence IDs
+# are unchanged from 0.1.0 (they depend on file hash and page only), so re-ingestion is idempotent.
+PARSER_VERSION = "pymupdf-pages-0.2.0"
+HTML_PARSER_VERSION = "html-sections-0.1.0"
+JSON_PARSER_VERSION = "json-paths-0.1.0"
 TABLE_PARSER_VERSION = "psi-tables-0.1.0"
+OCR_MIN_CONFIDENCE = 60.0        # mean word confidence (0-100) below which an OCR page is flagged
+OCR_DPI = 300
+MIN_PAGE_CHARS = 12
+NOT_INGESTED_SOURCES = frozenset({"FF-PSI-DSI"})   # DSI is non-combustion; its frames are image assets
 ROOT = Path(__file__).resolve().parents[3]
 MISSING = {"", "-", "â€“", "â€”", "n/a", "na", "none", "null"}
 
@@ -105,6 +113,77 @@ def _file_payload(file_record: FileRecord) -> dict:
     }
 
 
+class QuarantineError(Exception):
+    """A file that must not be parsed or indexed until an administrator reviews it."""
+
+    def __init__(self, reason: str):
+        super().__init__(reason)
+        self.reason = reason
+
+
+def _ocr_page(page) -> tuple[str, float, str] | None:
+    """(text, mean confidence 0-100, engine version) for one PDF page, or None when OCR is unavailable.
+
+    Uses Tesseract through pytesseract when both are installed. Rendering happens in-process;
+    nothing leaves the machine.
+    """
+    try:
+        import pytesseract
+        from PIL import Image
+    except ImportError:
+        return None
+    try:
+        version = f"tesseract-{pytesseract.get_tesseract_version()}"
+        pixmap = page.get_pixmap(dpi=OCR_DPI)
+        image = Image.frombytes("RGB", (pixmap.width, pixmap.height), pixmap.samples)
+        data = pytesseract.image_to_data(image, output_type=pytesseract.Output.DICT)
+    except Exception:  # tesseract binary missing or failed on this page
+        return None
+    words = [(w, float(c)) for w, c in zip(data.get("text", []), data.get("conf", [])) if str(w).strip() and float(c) >= 0]
+    if not words:
+        return "", 0.0, version
+    text = " ".join(w for w, _ in words)
+    return text, round(sum(c for _, c in words) / len(words), 1), version
+
+
+def _store_passage(session, *, source, file_record, document_id, label, locator, text, method, confidence, parser, now, flags=None):
+    """One evidence row plus its chunk. IDs depend only on the file hash and the locator."""
+    content_hash = file_record.sha256
+    key = locator.get("page") if locator["type"] == "page" else f"s{locator['section']}"
+    evidence_id = stable_ulid(f"evidence:{content_hash}:page:{key}" if locator["type"] == "page" else f"evidence:{content_hash}:section:{key}")
+    chunk_id = f"{content_hash[:16]}:v1:{key}"
+    path_name = Path(file_record.local_path or file_record.original_filename).name
+    evidence_payload = {
+        "citation": f"{source.short_name or source.title}, {path_name}, {label}",
+        "source": _source_payload(source),
+        "value": None,
+        "measurement_or_claim_type": None,
+        "extraction_method": method,
+        "extraction_confidence": confidence,
+        "review_status": "machine_extracted",
+        "transformation_id": parser,
+        "knowledge_version": None,
+        **(flags or {}),
+    }
+    session.merge(EvidenceRecord(
+        evidence_id=evidence_id, source_id=source.source_id, file_id=file_record.file_id, document_id=document_id,
+        experiment_id=None, analysis_id=None, kind="document_passage", origin="source_evidence", excerpt=text,
+        locator=locator, payload=evidence_payload, created_at=now,
+    ))
+    session.merge(DocumentChunk(
+        chunk_id=chunk_id, document_id=document_id, source_id=source.source_id, file_id=file_record.file_id,
+        evidence_id=evidence_id, page=locator.get("page"), section=locator.get("label") if locator["type"] == "section" else None,
+        text=text, ingested_at=now,
+    ))
+
+
+def _document_identity(source: SourceRecord, path: Path) -> tuple[str, str, str | None]:
+    """(title, document_type, identifier). NTRS sources are single reports named by their registry row."""
+    if source.repository == "NASA NTRS":
+        return source.title, "technical_report", source.short_name
+    return path.stem.replace("_", " "), _document_type(path), None
+
+
 def _create_document(session: Session, file_record: FileRecord) -> dict[str, int]:
     path = Path(file_record.local_path or "")
     if not path.is_file() or path.suffix.lower() != ".pdf":
@@ -112,79 +191,170 @@ def _create_document(session: Session, file_record: FileRecord) -> dict[str, int
     source = session.get(SourceRecord, file_record.source_id)
     if not source:
         return {"pages": 0, "chunks": 0, "skipped": 1}
-    content_hash = file_record.sha256
     document_id = stable_ulid(f"document:{file_record.file_id}")
-    document = fitz.open(path)
+    try:
+        document = fitz.open(path)
+    except Exception as exc:
+        raise QuarantineError("unreadable_pdf") from exc
+    if document.needs_pass:
+        raise QuarantineError("encrypted_pdf")
     page_count = len(document)
-    blank_pages = []
-    extracted: list[tuple[int, str]] = []
+    if page_count == 0:
+        raise QuarantineError("empty_pdf")
+    now = _utc_now()
+    blank_pages: list[int] = []
+    passages: list[tuple[int, str, str, float | None, bool]] = []   # page, text, method, confidence, low_confidence
+    ocr_pages: dict[str, float] = {}
+    ocr_engine: str | None = None
+    ocr_status = "not_needed"
     for index, page in enumerate(document, start=1):
         text = page.get_text("text").replace("\x00", "").strip()
-        if len(text) < 12:
-            blank_pages.append(index)
-        else:
-            extracted.append((index, text))
-    now = _utc_now()
-    document_record = DocumentRecord(
+        if len(text) >= MIN_PAGE_CHARS:
+            passages.append((index, text, "verbatim_text", None, False))
+            continue
+        blank_pages.append(index)
+        ocr = _ocr_page(page)
+        if ocr is None:
+            ocr_status = "unavailable"
+            continue
+        ocr_text, confidence, ocr_engine = ocr
+        ocr_status = "applied" if ocr_status != "unavailable" else ocr_status
+        ocr_pages[str(index)] = confidence
+        if len(ocr_text) >= MIN_PAGE_CHARS:
+            passages.append((index, ocr_text, "ocr", round(confidence / 100, 3), confidence < OCR_MIN_CONFIDENCE))
+    title, document_type, identifier = _document_identity(source, path)
+    session.merge(DocumentRecord(
         document_id=document_id,
         source_id=source.source_id,
         file_id=file_record.file_id,
-        title=path.stem.replace("_", " "),
-        document_type=_document_type(path),
-        identifier=None,
-        persistent_identifier=None,
+        title=title,
+        document_type=document_type,
+        identifier=identifier,
+        persistent_identifier=source.persistent_identifier,
         page_count=page_count,
-        text_layer="none" if not extracted else "full" if not blank_pages else "partial",
+        # text_layer describes the PDF itself; OCR text is recorded separately with its confidence.
+        text_layer="none" if len(blank_pages) == page_count else "full" if not blank_pages else "partial",
         pages_without_text=blank_pages,
         parser_version=PARSER_VERSION,
         ingested_at=now,
-        payload={},
-    )
-    session.merge(document_record)
-    chunk_count = 0
-    for page_number, page_text in extracted:
-        chunk_id = f"{file_record.sha256[:16]}:v1:{page_number}"
-        evidence_id = stable_ulid(f"evidence:{content_hash}:page:{page_number}")
+        payload={"ocr": {
+            "status": ocr_status if blank_pages else "not_needed",
+            "engine": ocr_engine,
+            "dpi": OCR_DPI if ocr_pages else None,
+            "page_confidence": ocr_pages,
+            "low_confidence_pages": sorted(int(p) for p, c in ocr_pages.items() if c < OCR_MIN_CONFIDENCE),
+            "min_confidence": OCR_MIN_CONFIDENCE,
+        }},
+    ))
+    for page_number, page_text, method, confidence, low in passages:
         locator = {"type": "page", "page": page_number, "section": None, "row": None, "frame_index": None, "label": f"p. {page_number}"}
-        citation = f"{source.short_name or source.title}, {path.name}, p. {page_number}"
-        evidence_payload = {
-            "citation": citation,
-            "source": _source_payload(source),
-            "value": None,
-            "measurement_or_claim_type": None,
-            "extraction_method": "verbatim_text",
-            "extraction_confidence": None,
-            "review_status": "machine_extracted",
-            "transformation_id": PARSER_VERSION,
-            "knowledge_version": None,
-        }
-        session.merge(EvidenceRecord(
-            evidence_id=evidence_id,
-            source_id=source.source_id,
-            file_id=file_record.file_id,
-            document_id=document_id,
-            experiment_id=None,
-            analysis_id=None,
-            kind="document_passage",
-            origin="source_evidence",
-            excerpt=page_text,
-            locator=locator,
-            payload=evidence_payload,
-            created_at=now,
-        ))
-        session.merge(DocumentChunk(
-            chunk_id=chunk_id,
-            document_id=document_id,
-            source_id=source.source_id,
-            file_id=file_record.file_id,
-            evidence_id=evidence_id,
-            page=page_number,
-            section=None,
-            text=page_text,
-            ingested_at=now,
-        ))
-        chunk_count += 1
-    return {"pages": page_count, "chunks": chunk_count, "skipped": 0}
+        _store_passage(session, source=source, file_record=file_record, document_id=document_id, label=f"p. {page_number}",
+                       locator=locator, text=page_text, method=method, confidence=confidence, parser=PARSER_VERSION, now=now,
+                       flags={"low_confidence": True} if low else None)
+    return {"pages": page_count, "chunks": len(passages), "skipped": 0, "ocr_pages": len(ocr_pages),
+            "ocr_low_confidence": sum(1 for _, _, m, _, low in passages if m == "ocr" and low)}
+
+
+class _TextExtractor(HTMLParser):
+    """Visible text, split into sections at h1-h3 headings. Script, style and template content is dropped."""
+
+    _SKIP = {"script", "style", "noscript", "template", "head"}
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.sections: list[list[str]] = [["", ""]]   # [heading, text]
+        self._skip = 0
+        self._heading: list[str] | None = None
+
+    def handle_starttag(self, tag, attrs):
+        if tag in self._SKIP:
+            self._skip += 1
+        elif tag in {"h1", "h2", "h3"} and not self._skip:
+            self._heading = []
+
+    def handle_endtag(self, tag):
+        if tag in self._SKIP and self._skip:
+            self._skip -= 1
+        elif tag in {"h1", "h2", "h3"} and self._heading is not None:
+            self.sections.append([" ".join(self._heading).strip(), ""])
+            self._heading = None
+
+    def handle_data(self, data):
+        if self._skip:
+            return
+        if self._heading is not None:
+            self._heading.append(data.strip())
+        elif data.strip():
+            self.sections[-1][1] += " " + " ".join(data.split())
+
+
+def parse_html(raw: bytes) -> list[tuple[str, str]]:
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise QuarantineError("html_not_utf8") from exc
+    extractor = _TextExtractor()
+    extractor.feed(text)
+    extractor.close()
+    return [(heading or "Untitled section", body.strip()) for heading, body in extractor.sections if len(body.strip()) >= MIN_PAGE_CHARS]
+
+
+def _flatten(value, prefix: str = ""):
+    if isinstance(value, dict):
+        for key in sorted(value):
+            yield from _flatten(value[key], f"{prefix}.{key}" if prefix else str(key))
+    elif isinstance(value, list):
+        for index, item in enumerate(value):
+            yield from _flatten(item, f"{prefix}[{index}]")
+    else:
+        yield prefix or "$", value
+
+
+def parse_json(raw: bytes) -> list[tuple[str, str]]:
+    """One section per top-level key (or per item of a top-level array), as `path: value` lines."""
+    try:
+        data = json.loads(raw)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise QuarantineError("invalid_json") from exc
+    if isinstance(data, dict):
+        groups = [(str(key), data[key]) for key in sorted(data)]
+    elif isinstance(data, list):
+        groups = [(f"[{index}]", item) for index, item in enumerate(data)]
+    else:
+        groups = [("$", data)]
+    sections = []
+    for label, value in groups:
+        lines = [f"{path}: {item}" for path, item in _flatten(value, label)]
+        body = "\n".join(lines)[:20000]
+        if len(body) >= MIN_PAGE_CHARS:
+            sections.append((label, body))
+    return sections
+
+
+def _create_text_document(session: Session, file_record: FileRecord, *, kind: str) -> dict[str, int]:
+    """HTML and JSON adapters: sections become chunks with `section` locators."""
+    path = Path(file_record.local_path or "")
+    source = session.get(SourceRecord, file_record.source_id)
+    if not path.is_file() or not source:
+        return {"pages": 0, "chunks": 0, "skipped": 1}
+    raw = path.read_bytes()
+    sections, parser = (parse_html(raw), HTML_PARSER_VERSION) if kind == "html" else (parse_json(raw), JSON_PARSER_VERSION)
+    if not sections:
+        raise QuarantineError(f"no_text_in_{kind}")
+    now = _utc_now()
+    document_id = stable_ulid(f"document:{file_record.file_id}")
+    title, document_type, identifier = _document_identity(source, path)
+    session.merge(DocumentRecord(
+        document_id=document_id, source_id=source.source_id, file_id=file_record.file_id, title=title,
+        document_type=document_type if kind == "html" else "dataset_documentation", identifier=identifier,
+        persistent_identifier=source.persistent_identifier, page_count=None, text_layer="full", pages_without_text=[],
+        parser_version=parser, ingested_at=now, payload={"sections": len(sections)},
+    ))
+    for number, (heading, body) in enumerate(sections, start=1):
+        locator = {"type": "section", "page": None, "section": number, "row": None, "frame_index": None, "label": heading[:120]}
+        _store_passage(session, source=source, file_record=file_record, document_id=document_id, label=f"§ {heading[:80]}",
+                       locator=locator, text=body, method="verbatim_text", confidence=None, parser=parser, now=now)
+    return {"pages": 0, "chunks": len(sections), "skipped": 0}
 
 
 def _document_type(path: Path) -> str:
@@ -356,48 +526,128 @@ def _create_table_experiments(session: Session, file_record: FileRecord) -> dict
     return {"rows": valid_rows, "experiments": experiments, "evidence": evidence_count, "duplicates": duplicates, "skipped": 0}
 
 
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def quarantine(session: Session, file_record: FileRecord, reason: str) -> None:
+    file_record.status = "quarantined"
+    file_record.quarantine_reason = reason
+    session.add(file_record)
+
+
+def _record_run(session: Session, file_record: FileRecord, transformation_id: str, counts: dict) -> None:
+    now = _utc_now()
+    session.merge(IngestionRun(
+        run_id=stable_ulid(f"ingestion:{file_record.file_id}:{transformation_id}:{file_record.sha256}"),
+        source_id=file_record.source_id,
+        file_id=file_record.file_id,
+        transformation_id=transformation_id,
+        input_sha256=file_record.sha256,
+        started_at=now,
+        finished_at=now,
+        counts=counts,
+    ))
+
+
+def ingest_file(session: Session, file_record: FileRecord) -> tuple[str, dict]:
+    """Parse one file. Returns (outcome, counts); outcome is ingested | skipped | quarantined.
+
+    A quarantined file is never parsed again until an administrator resets its status
+    (docs/data/ADMIN_DATA_OPERATIONS.md). A missing local copy is skipped, not quarantined:
+    git-ignored mirrors are legitimately absent on some machines.
+    """
+    if file_record.status == "quarantined":
+        return "skipped", {"reason": "quarantined"}
+    if not file_record.local_path or not Path(file_record.local_path).is_file():
+        return "skipped", {"reason": "not_on_disk"}
+    path = Path(file_record.local_path)
+    suffix = path.suffix.lower()
+    is_table = suffix == ".csv" and "experimental table" in str(path).lower()
+    if suffix not in {".pdf", ".html", ".htm", ".json"} and not is_table:
+        return "skipped", {"reason": "no_parser"}
+    if _sha256(path) != file_record.sha256:
+        quarantine(session, file_record, "checksum_mismatch")
+        _record_run(session, file_record, "quarantine", {"reason": "checksum_mismatch"})
+        return "quarantined", {"reason": "checksum_mismatch"}
+    try:
+        with session.begin_nested():
+            if suffix == ".pdf":
+                counts, transformation = _create_document(session, file_record), PARSER_VERSION
+            elif suffix in {".html", ".htm"}:
+                counts, transformation = _create_text_document(session, file_record, kind="html"), HTML_PARSER_VERSION
+            elif suffix == ".json":
+                counts, transformation = _create_text_document(session, file_record, kind="json"), JSON_PARSER_VERSION
+            else:
+                counts, transformation = _create_table_experiments(session, file_record), TABLE_PARSER_VERSION
+    except QuarantineError as exc:
+        quarantine(session, file_record, exc.reason)
+        _record_run(session, file_record, "quarantine", {"reason": exc.reason})
+        return "quarantined", {"reason": exc.reason}
+    _record_run(session, file_record, transformation, counts)
+    return "ingested", counts
+
+
 def ingest() -> dict[str, int]:
     seed()
     session = SessionLocal()
-    totals = {"pdf_documents": 0, "pdf_pages": 0, "pdf_chunks": 0, "experiments": 0, "table_evidence": 0, "spice_duplicates": 0, "skipped": 0}
+    totals = {"pdf_documents": 0, "pdf_pages": 0, "pdf_chunks": 0, "ocr_pages": 0, "ocr_low_confidence": 0,
+              "text_documents": 0, "text_chunks": 0, "experiments": 0, "table_evidence": 0, "spice_duplicates": 0,
+              "skipped": 0, "quarantined": 0}
     try:
-        files = session.query(FileRecord).filter(FileRecord.source_id.in_(["FF-PSI-25", "FF-PSI-69", "FF-PSI-98", "FF-PSI-107"])).all()
+        files = (
+            session.query(FileRecord)
+            .filter(FileRecord.source_id.notin_(NOT_INGESTED_SOURCES))
+            .order_by(FileRecord.source_id, FileRecord.file_id)
+            .all()
+        )
         for file_record in files:
-            if not file_record.local_path:
-                totals["skipped"] += 1
+            outcome, counts = ingest_file(session, file_record)
+            if outcome != "ingested":
+                totals[outcome] += 1
                 continue
-            path = Path(file_record.local_path)
-            if not path.is_file():
-                totals["skipped"] += 1
-                continue
-            if path.suffix.lower() == ".pdf":
-                counts = _create_document(session, file_record)
+            suffix = Path(file_record.local_path).suffix.lower()
+            if suffix == ".pdf":
                 totals["pdf_documents"] += int(counts["chunks"] > 0)
                 totals["pdf_pages"] += counts["pages"]
                 totals["pdf_chunks"] += counts["chunks"]
-            elif path.suffix.lower() == ".csv" and "experimental table" in str(path).lower():
-                counts = _create_table_experiments(session, file_record)
+                totals["ocr_pages"] += counts.get("ocr_pages", 0)
+                totals["ocr_low_confidence"] += counts.get("ocr_low_confidence", 0)
+            elif suffix in {".html", ".htm", ".json"}:
+                totals["text_documents"] += 1
+                totals["text_chunks"] += counts["chunks"]
+            else:
                 totals["experiments"] += counts["experiments"]
                 totals["table_evidence"] += counts["evidence"]
                 totals["spice_duplicates"] += counts["duplicates"]
-                now = _utc_now()
-                session.merge(IngestionRun(
-                    run_id=stable_ulid(f"ingestion:{file_record.file_id}:{TABLE_PARSER_VERSION}:{file_record.sha256}"),
-                    source_id=file_record.source_id,
-                    file_id=file_record.file_id,
-                    transformation_id=TABLE_PARSER_VERSION,
-                    input_sha256=file_record.sha256,
-                    started_at=now,
-                    finished_at=now,
-                    counts=counts,
-                ))
         session.commit()
+        _publish_corpus_version(session, totals)
         return totals
     except Exception:
         session.rollback()
         raise
     finally:
         session.close()
+
+
+def _publish_corpus_version(session: Session, totals: dict[str, int]) -> None:
+    """Announce a new corpus version when the set of ingested files changed (E2-5)."""
+    from flame_api.config import get_settings
+    from flame_api.knowledge_version import publish
+
+    rows = session.execute(
+        select(IngestionRun.file_id, IngestionRun.input_sha256, IngestionRun.transformation_id)
+        .where(IngestionRun.transformation_id != "quarantine")
+        .order_by(IngestionRun.file_id, IngestionRun.transformation_id)
+    ).all()
+    if not rows:
+        return
+    digest = hashlib.sha256("\n".join(f"{f}:{h}:{t}" for f, h, t in rows).encode()).hexdigest()[:12]
+    publish(session, f"corpus-{digest}", trigger="ingestion", counts=totals, redis_url=get_settings().redis_url)
 
 
 if __name__ == "__main__":

@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from sqlalchemy import create_engine, func
 from sqlalchemy.orm import Session
 import fitz
@@ -23,6 +25,8 @@ def test_mirrored_psi_tables_are_ingested_with_provenance_and_stable_ids():
         table_files = session.query(FileRecord).filter(
             FileRecord.original_filename.like("%Experimental table%")
         ).all()
+        if not any(Path(f.local_path or "").is_file() for f in table_files):
+            pytest.skip("PSI table mirror (git-ignored datasets/raw/) is not present on this machine")
         counts = {}
         for file_record in table_files:
             source_id = file_record.source_id
@@ -48,7 +52,8 @@ def test_mirrored_psi_tables_are_ingested_with_provenance_and_stable_ids():
     engine.dispose()
 
 
-def test_pdf_ingestion_records_page_evidence_and_non_text_pages(tmp_path):
+def test_pdf_ingestion_records_page_evidence_and_non_text_pages(tmp_path, monkeypatch):
+    monkeypatch.setattr("flame_api.ingest._ocr_page", lambda page: None)   # no OCR engine: deterministic
     pdf_path = tmp_path / "NASA PSI Report.pdf"
     pdf = fitz.open()
     page = pdf.new_page()
@@ -92,7 +97,8 @@ def test_pdf_ingestion_records_page_evidence_and_non_text_pages(tmp_path):
         chunk = session.query(DocumentChunk).one()
         evidence = session.query(EvidenceRecord).filter_by(evidence_id=chunk.evidence_id).one()
 
-        assert counts == {"pages": 2, "chunks": 1, "skipped": 0}
+        assert counts == {"pages": 2, "chunks": 1, "skipped": 0, "ocr_pages": 0, "ocr_low_confidence": 0}
+        assert document.payload["ocr"]["status"] == "unavailable"
         assert document.text_layer == "partial"
         assert document.pages_without_text == [2]
         assert chunk.page == 1

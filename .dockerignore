@@ -9,8 +9,13 @@ datasets
 datasets/*
 !datasets/registry/
 !datasets/registry/source_registry.csv
+!datasets/registry/source_registry.schema.json
 !datasets/metadata/
 !datasets/metadata/files.jsonl
+!datasets/samples/
+!datasets/samples/cv/
+!datasets/samples/cv/manifest.jsonl
+datasets/samples/cv/*/
 datasets/raw/
 datasets/derived/
 tests
@@ -18,5 +23,7 @@ docs/**
 !docs/
 !docs/api/
 !docs/api/openapi.json
+!docs/research/
+!docs/research/*.pdf
 apps/web
 *.pyc

@@ -16,12 +16,13 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from ai.providers.contracts.embeddings import EmbeddingRequest
+from ai.providers.contracts.errors import ProviderError
+from ai.providers.local.fastembed_embeddings import DIMENSIONS, MAX_CHUNK_CHARS, MODEL_NAME, QUERY_PREFIX  # noqa: F401
+from ai.routing import NoCompatibleProvider
+
 logger = logging.getLogger("flame_api")
 
-MODEL_NAME = "BAAI/bge-small-en-v1.5"
-DIMENSIONS = 384
-QUERY_PREFIX = "Represent this sentence for searching relevant passages: "
-MAX_CHUNK_CHARS = 2000
 MIN_SIMILARITY = 0.55
 
 
@@ -29,19 +30,19 @@ class VectorUnavailableError(Exception):
     pass
 
 
-@lru_cache(maxsize=1)
-def _embedder():
-    try:
-        from fastembed import TextEmbedding
-    except ImportError as exc:
-        raise VectorUnavailableError("fastembed is not installed.") from exc
-    return TextEmbedding(model_name=MODEL_NAME)
-
-
 def embed_texts(texts: list[str], *, query: bool = False) -> list[list[float]]:
-    model = _embedder()
-    prepared = [(QUERY_PREFIX + t if query else t)[:MAX_CHUNK_CHARS] for t in texts]
-    return [[float(x) for x in vector] for vector in model.embed(prepared)]
+    """Embed through the router (2H Task 2): a local model in every mode, never a silent download offline."""
+    from flame_api import ai_runtime
+
+    task = "embed.query" if query else "embed.documents"
+    try:
+        routed = ai_runtime.get_router().route(task, lambda provider: provider.embed(EmbeddingRequest(texts=tuple(texts), query=query)))
+    except (NoCompatibleProvider, ProviderError) as exc:
+        raise VectorUnavailableError("No embedding model is available.") from exc
+    if routed.value.model != MODEL_NAME:
+        # The index was built with MODEL_NAME; vectors from another model are not comparable.
+        raise VectorUnavailableError("The available embedding model does not match the index.")
+    return [list(vector) for vector in routed.value.vectors]
 
 
 @lru_cache(maxsize=256)
@@ -80,6 +81,13 @@ def index_status(session: Session) -> dict[str, Any]:
 
 def search_chunks(session: Session, query: str, *, limit: int = 20, min_similarity: float = MIN_SIMILARITY) -> list[tuple[str, float]]:
     """(chunk_id, cosine similarity) for the nearest chunks, best first. Raises VectorUnavailableError."""
+    from ai.routing.tracing import span
+
+    with span("retrieval.vector", **{"flame.limit": limit}):
+        return _search_chunks(session, query, limit=limit, min_similarity=min_similarity)
+
+
+def _search_chunks(session: Session, query: str, *, limit: int, min_similarity: float) -> list[tuple[str, float]]:
     if session.bind.dialect.name != "postgresql":
         raise VectorUnavailableError("Vector search requires PostgreSQL.")
     try:
@@ -137,6 +145,11 @@ def build_index(session: Session, *, batch_size: int = 64) -> dict[str, Any]:
         {"model": MODEL_NAME, "dim": DIMENSIONS, "rows": total, "version": version, "built_at": built_at},
     )
     session.commit()
+    from flame_api.config import get_settings
+    from flame_api.knowledge_version import publish
+
+    publish(session, version, trigger="vector_index_build", counts={"chunk_embeddings": total, "embedded": len(pending)},
+            redis_url=get_settings().redis_url)
     return {"embedded": len(pending), "total": total, "knowledge_version": version}
 
 
