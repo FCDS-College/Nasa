@@ -6,7 +6,7 @@ def test_dashboard_counts_are_database_counts(client):
     assert response.json()["experiments"] == 0
     assert response.json()["analyses"] == 0
     assert response.json()["meta"]["request_id"] == response.headers["X-Request-ID"]
-    from conftest import assert_contract_component
+    from api_contract import assert_contract_component
     assert_contract_component(response.json(), "DashboardCountsResponse")
 
 
@@ -23,7 +23,7 @@ def test_empty_search_is_a_successful_lexical_search(client):
         "index_version": None,
         "searched_but_empty": True,
     }
-    from conftest import assert_contract_component
+    from api_contract import assert_contract_component
     assert_contract_component(body, "SearchResponse")
 
 
@@ -61,7 +61,6 @@ def test_api_docs_and_openapi_metadata_are_public(client):
 
 
 def test_search_excludes_dsi_by_default_and_returns_contract_experiment_shape(client, session_factory):
-    from datetime import UTC, datetime
 
     from flame_api.models import ExperimentRecord, SourceRecord
 
