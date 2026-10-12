@@ -5,6 +5,7 @@ Flame-image analysis with OpenCV (PyTorch layer planned). **Owner:** Engineer 3.
 | Path | What it is |
 |---|---|
 | `flame_cv.py` | The pipeline: validate, letterbox preprocess, segment, features, confidence/quality flags, `AnalysisResult` (+ mask/overlay artifacts), intake manifest, analysis cache, evaluation runner and `flame_analysis_api_adapter` (imported by `apps/api` as `cv.flame_cv`) |
+| `docs/cv/pipeline.md` | **[E3-1]** Detailed specification of the auto-adaptive CV pipeline, validation limits, configuration digests, and cache reuse mechanics. |
 | `contracts/` | JSON Schemas (`analysis_result.schema.json`, `image_intake_schema.json`), an example payload, per-image results and `evaluation_report.json` |
 | `notebooks/CVmodel_export.py` | Notebook export of the pipeline prototype; reference only, `flame_cv.py` is the source of truth |
 
