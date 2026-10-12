@@ -16,6 +16,7 @@ back to an uncited answer.
 from __future__ import annotations
 
 import logging
+import time
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -155,6 +156,7 @@ class FlameRAGService:
                 return FlameResponse(**{**base, "answer": hit, "status": hit.status, "cache_hit": True})
 
         # retrieval (explicit failure, never an uncited fallback)
+        started = time.perf_counter()
         try:
             bundle = self.pipeline.retrieve(
                 request=RetrievalRequest(query=rq.rewritten, top_k=top_k, filters=filters or {}),
@@ -171,6 +173,7 @@ class FlameRAGService:
         usable, conflicts = flag_conflicts(candidates, [c.model_dump() for c in bundle.evidence])
 
         t_answer = self.composer.compose(question, bundle, memory=usable)
+        compute_ms = (time.perf_counter() - started) * 1000
 
         if key is not None and is_cacheable(t_answer):
             manifest = DependencyManifest(
@@ -182,7 +185,7 @@ class FlameRAGService:
                 embedding_model=self.embedding_model,
                 reranker_version=self._reranker_version(),
             )
-            self.cache.set(key, t_answer, ttl_for(t_answer), manifest.model_dump())
+            self.cache.set(key, t_answer, ttl_for(t_answer), manifest.model_dump(), compute_ms=compute_ms)
 
         return FlameResponse(
             **base,

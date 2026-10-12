@@ -95,3 +95,12 @@ def test_empty_question_raises(world, fake_embedding_service):
     svc, chunks = make_service(world, fake_embedding_service)
     with pytest.raises(ValueError):
         svc.answer("   ", chunks)
+
+
+def test_cache_metrics_record_time_saved_on_hits(world, fake_embedding_service):
+    svc, chunks = make_service(world, fake_embedding_service)
+    svc.answer(Q, chunks)
+    svc.answer(Q, chunks)
+    m = svc.cache.metrics()
+    assert m["hits"] == 1 and m["misses"] == 1
+    assert m["saved_ms_p50"] > 0
