@@ -58,7 +58,7 @@ def test_hf_cv_uploads_image_and_calibration(monkeypatch):
         sent["timeout"] = timeout
         return FakeResponse(json.dumps(valid_reply()).encode())
 
-    monkeypatch.setattr("flame_api.hf_cv.urlopen", fake_urlopen)
+    monkeypatch.setattr("ai.providers.cloud.hf_space_cv.urlopen", fake_urlopen)
 
     analysis, artifacts = analyze_image_on_hf(
         hf_settings(),
@@ -81,7 +81,7 @@ def test_hf_cv_rejects_invalid_artifact_and_unsupported_media(monkeypatch):
     malformed = valid_reply()
     malformed["artifacts"]["preprocessed"] = "not base64!"
     monkeypatch.setattr(
-        "flame_api.hf_cv.urlopen",
+        "ai.providers.cloud.hf_space_cv.urlopen",
         lambda *_args, **_kwargs: FakeResponse(json.dumps(malformed).encode()),
     )
 
@@ -119,13 +119,15 @@ def test_hf_space_endpoint_returns_analysis_and_artifacts(tmp_path, monkeypatch)
 
     assert response.status_code == 200
     body = response.json()
-    assert body["analysis"]["pipelineVersion"] == "cv-opencv-v1.1.0"
+    from cv.flame_cv import PIPELINE_VERSION
+
+    assert body["analysis"]["pipelineVersion"] == PIPELINE_VERSION
     assert body["analysis"]["provenance"]["inputUri"] == "uploaded-image"
     assert body["analysis"]["preprocessing"]["derivedUri"] is None
     assert base64.b64decode(body["artifacts"]["preprocessed"]).startswith(b"\x89PNG")
 
     monkeypatch.setattr(
-        "flame_api.hf_cv.urlopen",
+        "ai.providers.cloud.hf_space_cv.urlopen",
         lambda *_args, **_kwargs: FakeResponse(response.content),
     )
     legacy, artifacts = analyze_image_on_hf(
@@ -148,7 +150,7 @@ def test_hf_space_endpoint_returns_analysis_and_artifacts(tmp_path, monkeypatch)
             legacy["segmentation"]["overlayArtifactUri"] = str(artifact_path)
 
     from flame_api.worker import _adapt_result
-    from conftest import assert_contract_component
+    from api_contract import assert_contract_component
 
     adapted = _adapt_result(
         legacy,

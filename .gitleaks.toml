@@ -1,0 +1,12 @@
+# Secret scanning config (M12, L-10). Extends gitleaks' default rules.
+# The only allowlisted values are CV cache keys: a 64-hex SHA-256 digest stored as "key"/"_key" in
+# CV result contracts and the CV cache manifest. They are content hashes, not credentials.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "CV cache keys are SHA-256 digests of image content and pipeline versions"
+paths = ['''^cv/contracts/.*\.json$''', '''^datasets/cache_manifest\.jsonl$''']
+regexTarget = "line"
+condition = "AND"
+regexes = ['''"_?key":\s*"[0-9a-f]{64}"''']

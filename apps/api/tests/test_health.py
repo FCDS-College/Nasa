@@ -41,7 +41,10 @@ def test_health_reports_aura_readiness_when_enabled(monkeypatch, aura_status):
     monkeypatch.setattr(main.engine, "connect", lambda: _database_unavailable())
     monkeypatch.setattr(main.boto3, "client", lambda **_: _object_storage_unavailable())
     monkeypatch.setattr(main.Redis, "from_url", lambda *args, **kwargs: _cache_unavailable())
-    monkeypatch.setattr(main, "check_aura_ready", lambda *_: (aura_status, 12.0))
+    from ai.providers.cloud.aura import AuraProvider
+    from ai.providers.contracts.base import HealthStatus
+
+    monkeypatch.setattr(AuraProvider, "health", lambda self, timeout_s: HealthStatus(aura_status, 12.0))
     monkeypatch.setattr(
         main,
         "settings",
@@ -57,6 +60,33 @@ def test_health_reports_aura_readiness_when_enabled(monkeypatch, aura_status):
     assert response.status_code == 503
     assert response.json()["services"]["aura"]["status"] == aura_status
     assert response.json()["services"]["aura"]["latency_ms"] == 12.0
+    providers = {p["name"]: p for p in response.json()["ai"]["providers"]}
+    assert providers["aura"]["locality"] == "external" and providers["aura"]["health"]["state"] == aura_status
+
+
+def test_offline_only_reports_aura_as_blocked_and_never_probes_it(monkeypatch):
+    from pydantic import SecretStr
+
+    from ai.providers.cloud.aura import AuraProvider
+    from flame_api.config import Settings
+
+    def forbidden(self, timeout_s):
+        raise AssertionError("an external provider must not be probed in offline_only mode")
+
+    monkeypatch.setattr(main.engine, "connect", lambda: _database_unavailable())
+    monkeypatch.setattr(main.boto3, "client", lambda **_: _object_storage_unavailable())
+    monkeypatch.setattr(main.Redis, "from_url", lambda *args, **kwargs: _cache_unavailable())
+    monkeypatch.setattr(AuraProvider, "health", forbidden)
+    monkeypatch.setattr(main, "settings", Settings(
+        api_auth_enabled=False, aura_enabled=True, aura_service_token=SecretStr("fake-service-token"),
+        ai_execution_mode="offline_only",
+    ))
+
+    body = TestClient(main.app).get("/api/health").json()
+
+    assert body["ai"]["mode"] == "offline_only"
+    assert body["services"]["aura"]["status"] == "disabled"
+    assert "offline_only" in body["services"]["aura"]["message"]
 
 
 def _database_unavailable():

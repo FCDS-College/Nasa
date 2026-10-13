@@ -14,3 +14,4 @@ venv/
 .ipynb_checkpoints/
 data/raw/
 data/processed/
+*.egg-info/

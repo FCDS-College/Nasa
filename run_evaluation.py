@@ -20,7 +20,6 @@ from tests.eval.rag_connector import RAGConnector
 from tests.eval.metrics import (
     compute_recall_at_k,
     compute_mrr,
-    compute_ndcg_at_k,
     compute_citation_metrics
 )
 

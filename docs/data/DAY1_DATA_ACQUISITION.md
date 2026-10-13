@@ -1,5 +1,7 @@
 # Flame in Freefall — Day 1 Dataset Acquisition Specification
 
+> **Status (2026-10-12): MVP working note, superseded** for the registry by [SOURCE_REGISTRY.md](SOURCE_REGISTRY.md), for ingestion by [INGESTION_PIPELINE.md](INGESTION_PIPELINE.md) and for lineage by [PROVENANCE.md](PROVENANCE.md). Kept for its acquisition history.
+
 ## 1. Canonical data source
 
 Use NASA Physical Sciences Informatics (PSI) as the canonical source registry backbone.

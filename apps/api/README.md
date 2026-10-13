@@ -1,5 +1,7 @@
 # Flame in Freefall API
 
+> Operational procedures (deploy, migrations, backup/restore, secret rotation, incidents) now live in the [runbook](../../docs/operations/RUNBOOK.md). Offline deployment: [H-6](../../docs/hybrid-ai/PHASE_2_OFFLINE_DEPLOYMENT_GUIDE.md). This file keeps the overview.
+
 The API is a local-first MVP implementing the v0.1 contract in `docs/api/openapi.json`. It persists resources in PostgreSQL, uses Redis/RQ for asynchronous image analysis, and stores originals/derived artifacts in MinIO locally or Railway's S3-compatible bucket in production. Compose enables bearer authentication by default: `FLAME_READ_API_TOKEN` is accepted only for `GET`/`HEAD`, while `FLAME_WRITE_API_TOKEN` is required for mutations such as analysis uploads. They must be distinct, at least 32 characters, and must not be committed or sent in URLs. Compose binds the host API port to loopback. The current separate-project Railway deployment uses public HTTPS with mandatory bearer auth; the write token is never shared with AURA.
 
 ## Start locally
@@ -15,7 +17,7 @@ Optional Link 1 interpretations are disabled by default. To enable them, set `FL
 
 ### Dashboard chat
 
-`POST /api/chat` (body `{query, conversation_id?}`, read token) powers the dashboard chat. Flame searches its own corpus, sends the question plus the top passages to AURA's `/api/v3/chat` as DATA-channel `context` with tools off, and keeps only citations that were in the retrieved set. No matching evidence means no AURA call. It needs `FLAME_AURA_ENABLED=true` and is limited to `FLAME_CHAT_RATE_LIMIT_PER_MINUTE` (default 30) requests per minute per API process. It is deliberately not in `docs/api/openapi.json`: AURA derives its tools from that contract and must not be able to call its own caller.
+`POST /api/chat` (body `{query, conversation_id?}`, read token) powers the dashboard chat. Flame searches its own corpus, sends the question plus the top passages to the routed model as DATA-channel context (AURA's `context`, or a fenced system message for local models) with tools off, and keeps only citations that were in the retrieved set. No matching evidence means no model call. It answers through the model router (local Ollama/vLLM/llama.cpp or AURA; `docs/hybrid-ai/PHASE_2_HYBRID_AI_ARCHITECTURE.md`) and is limited to `FLAME_CHAT_RATE_LIMIT_PER_MINUTE` (default 30) requests per minute per API process. Since contract 0.2.0 it is in `docs/api/openapi.json`, marked `x-aura-exclude: true` so AURA never compiles it into a tool (ADR-004).
 
 The API container runs Alembic, seeds the source registry and file checksums, and ingests available local PSI PDF/table files on startup. Originals remain under `datasets/raw/`; Compose mounts `datasets/` read-only. Missing raw files are skipped and counted, not downloaded implicitly. Re-run ingestion after new files are acquired with `docker compose -f infrastructure/compose.yaml exec api python -m flame_api.ingest`.
 
@@ -39,4 +41,4 @@ FLAME_CV_HF_TOKEN=<read-scoped-Hugging-Face-token>
 
 ## Tests
 
-From `apps/api`, run `python -m pip install -e ".[dev,cv,ingestion]"` then `python -m pytest`. The tests use SQLite and mocked queue/storage dependencies; run the Compose stack separately to verify PostgreSQL, MinIO, Redis and the worker together.
+From the repo root, run `python -m pytest` (both suites), or from `apps/api` run `python -m pytest` (API tests only). The tests use SQLite and mocked queue/storage dependencies; run the Compose stack separately to verify PostgreSQL, MinIO, Redis and the worker together.

@@ -1,5 +1,7 @@
 # Infrastructure
 
+> Operational procedures (deploy, migrations, backup/restore, secret rotation, incidents) now live in the [runbook](../docs/operations/RUNBOOK.md). Offline deployment: [H-6](../docs/hybrid-ai/PHASE_2_OFFLINE_DEPLOYMENT_GUIDE.md). This file keeps the overview.
+
 `compose.yaml` provides the private local backend stack: FastAPI, PostgreSQL/pgvector, Redis, MinIO, and the RQ analysis worker. API and dependency ports bind to loopback only. `*.env` files remain untracked; begin with `.env.example` and replace its local-only values before sharing the host.
 
 Start from the repository root with `docker compose -f infrastructure/compose.yaml up --build`. Raw datasets are mounted read-only and are not copied into the application image.

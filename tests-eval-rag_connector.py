@@ -1,8 +1,7 @@
-import os
 import json
 import urllib.request
 import urllib.error
-from typing import Dict, Any, List
+from typing import Dict, Any
 from tests.eval.mock_rag import MockRAGSystem
 
 class RAGConnector:

@@ -8,10 +8,10 @@ from fastapi import APIRouter, Depends, File, Form, Header, Path as ApiPath, Req
 from fastapi.responses import JSONResponse, Response
 from redis import Redis
 from rq import Queue
-from sqlalchemy import and_
 from sqlalchemy.orm import Session
 from PIL import Image, ImageOps, UnidentifiedImageError
 
+from flame_api import ai_runtime
 from flame_api.config import get_settings
 from flame_api.contracts import error_body, response_meta
 from flame_api.database import get_session
@@ -123,9 +123,10 @@ async def create_analysis(
         "size_bytes": len(content),
     }
     warnings = []
-    interpretation_status = "pending" if request_interpretation and settings.aura_enabled else "unavailable" if request_interpretation else "not_requested"
-    if request_interpretation and not settings.aura_enabled:
-        warnings.append({"code": "INTERPRETATION_UNAVAILABLE", "severity": "info", "message": "Optional interpretation is not enabled."})
+    interpreter_ready = request_interpretation and ai_runtime.get_router(settings).available("analysis.interpret")
+    interpretation_status = "pending" if interpreter_ready else "unavailable" if request_interpretation else "not_requested"
+    if request_interpretation and not interpreter_ready:
+        warnings.append({"code": "INTERPRETATION_UNAVAILABLE", "severity": "info", "message": "No interpretation model is configured or permitted in the current mode."})
     payload = {
         "analysis_id": analysis_id,
         "analysis_type": "flame_image",
@@ -137,7 +138,7 @@ async def create_analysis(
         "input": input_payload,
         "pipeline": None,
         "result": None,
-        "interpretation": {"status": interpretation_status, "provider": "aura" if interpretation_status == "pending" else None, "model": None, "statements": [], "rejected_statement_count": 0, "generated_at": None},
+        "interpretation": {"status": interpretation_status, "provider": None, "model": None, "statements": [], "rejected_statement_count": 0, "generated_at": None},
         "artifacts": [original_artifact],
         "warnings": warnings,
         "failure": None,

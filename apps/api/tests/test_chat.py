@@ -5,6 +5,7 @@ from urllib.error import URLError
 import pytest
 from pydantic import SecretStr
 
+from ai.providers import http as provider_http
 from flame_api import aura_integration, main
 from flame_api.config import Settings
 from flame_api.models import DocumentChunk, DocumentRecord, FileRecord, SourceRecord
@@ -76,7 +77,7 @@ def test_answer_is_written_by_aura_from_flame_evidence_only(client, corpus, monk
         return FakeResponse(aura_reply("A cool flame was simulated for n-heptane.", [EVIDENCE_ID, "01J9Z3Q9D3F5H7K9N1R3T5W7Y9"]))
 
     monkeypatch.setattr(main, "settings", chat_settings())
-    monkeypatch.setattr(aura_integration, "urlopen", fake_urlopen)
+    monkeypatch.setattr(provider_http, "urlopen", fake_urlopen)
 
     response = client.post("/api/chat", json={"query": "How does n-heptane behave in microgravity?"})
     body = response.json()
@@ -85,7 +86,9 @@ def test_answer_is_written_by_aura_from_flame_evidence_only(client, corpus, monk
     assert body["answer"] == "A cool flame was simulated for n-heptane."
     assert [s["evidence_id"] for s in body["sources"]] == [EVIDENCE_ID]
     assert body["sources"][0]["document_id"] == DOCUMENT_ID
-    assert body["model"] == {"provider": "hfspace", "name": "Qwen/Qwen2.5-7B-Instruct-AWQ", "version": "unknown"}
+    assert body["model"] == {"provider": "aura/hfspace", "name": "Qwen/Qwen2.5-7B-Instruct-AWQ", "version": "unknown"}
+    assert body["execution"]["provider"] == "aura" and body["execution"]["locality"] == "external"
+    assert body["execution"]["fallback_used"] is False
     assert body["warnings"] == ["citations_not_in_retrieved_evidence_removed"]
     assert body["request_id"] == response.headers["X-Request-ID"]
 
@@ -101,7 +104,7 @@ def test_answer_is_written_by_aura_from_flame_evidence_only(client, corpus, monk
 
 def test_a_natural_language_question_is_matched_by_its_distinctive_words(client, corpus, monkeypatch):
     monkeypatch.setattr(main, "settings", chat_settings())
-    monkeypatch.setattr(aura_integration, "urlopen", lambda request, timeout: FakeResponse(aura_reply("ok", [EVIDENCE_ID])))
+    monkeypatch.setattr(provider_http, "urlopen", lambda request, timeout: FakeResponse(aura_reply("ok", [EVIDENCE_ID])))
 
     response = client.post("/api/chat", json={"query": "How does microgravity alter a cool flame?"})
 
@@ -114,7 +117,7 @@ def test_no_matching_evidence_never_calls_aura(client, corpus, monkeypatch):
         raise AssertionError("AURA must not be asked when there is nothing to ground an answer on")
 
     monkeypatch.setattr(main, "settings", chat_settings())
-    monkeypatch.setattr(aura_integration, "urlopen", forbidden)
+    monkeypatch.setattr(provider_http, "urlopen", forbidden)
 
     response = client.post("/api/chat", json={"query": "zeppelin"})
     body = response.json()
@@ -126,36 +129,43 @@ def test_no_matching_evidence_never_calls_aura(client, corpus, monkeypatch):
 
 def test_an_answer_that_cites_nothing_is_flagged(client, corpus, monkeypatch):
     monkeypatch.setattr(main, "settings", chat_settings())
-    monkeypatch.setattr(aura_integration, "urlopen", lambda request, timeout: FakeResponse(aura_reply("Not enough evidence.", [])))
+    monkeypatch.setattr(provider_http, "urlopen", lambda request, timeout: FakeResponse(aura_reply("Not enough evidence.", [])))
 
     body = client.post("/api/chat", json={"query": "n-heptane"}).json()
 
     assert body["sources"] == [] and body["warnings"] == ["answer_cites_no_evidence"]
 
 
-def test_aura_failure_is_a_retryable_502_without_internals(client, corpus, monkeypatch):
+def test_model_failure_degrades_to_evidence_only_without_internals(client, corpus, monkeypatch):
     def down(request, timeout):
         raise URLError("connection refused: https://internal.example")
 
     monkeypatch.setattr(main, "settings", chat_settings())
-    monkeypatch.setattr(aura_integration, "urlopen", down)
+    monkeypatch.setattr(provider_http, "urlopen", down)
 
     response = client.post("/api/chat", json={"query": "n-heptane"})
+    body = response.json()
 
-    assert response.status_code == 502
-    assert response.json()["error"]["code"] == "AURA_UNAVAILABLE"
-    assert response.json()["error"]["retryable"] is True
+    assert response.status_code == 200
+    assert body["warnings"] == ["generation_unavailable"]
+    assert [s["evidence_id"] for s in body["sources"]] == [EVIDENCE_ID], "the evidence found is still returned"
+    assert "Nothing below was generated" in body["answer"]
+    assert body["model"]["provider"] == "flame"
+    assert body["execution"]["reasons"] == [{"provider": "aura", "reason": "unavailable"}]
     assert "internal.example" not in response.text
 
 
-def test_malformed_aura_output_is_rejected(client, corpus, monkeypatch):
+def test_malformed_model_output_is_never_shown(client, corpus, monkeypatch):
     monkeypatch.setattr(main, "settings", chat_settings())
-    monkeypatch.setattr(aura_integration, "urlopen", lambda request, timeout: FakeResponse(aura_reply("x" * 5000, [EVIDENCE_ID])))
+    monkeypatch.setattr(provider_http, "urlopen", lambda request, timeout: FakeResponse(aura_reply("x" * 5000, [EVIDENCE_ID])))
 
-    assert client.post("/api/chat", json={"query": "n-heptane"}).status_code == 502
+    body = client.post("/api/chat", json={"query": "n-heptane"}).json()
+
+    assert body["warnings"] == ["generation_unavailable"]
+    assert "x" * 100 not in body["answer"]
 
 
-def test_chat_is_unavailable_when_aura_is_disabled(client, corpus):
+def test_chat_is_unavailable_when_no_language_model_is_configured(client, corpus):
     response = client.post("/api/chat", json={"query": "n-heptane"})
 
     assert response.status_code == 503
@@ -164,7 +174,7 @@ def test_chat_is_unavailable_when_aura_is_disabled(client, corpus):
 
 def test_chat_needs_the_read_token_and_not_the_write_token(client, corpus, monkeypatch):
     monkeypatch.setattr(main, "settings", chat_settings())
-    monkeypatch.setattr(aura_integration, "urlopen", lambda request, timeout: FakeResponse(aura_reply("ok", [EVIDENCE_ID])))
+    monkeypatch.setattr(provider_http, "urlopen", lambda request, timeout: FakeResponse(aura_reply("ok", [EVIDENCE_ID])))
 
     assert client.post("/api/chat", json={"query": "n-heptane"}, headers={"Authorization": ""}).status_code == 401
     assert client.post("/api/chat", json={"query": "n-heptane"}, headers={"Authorization": f"Bearer {WRITE_TOKEN}"}).status_code == 401
@@ -179,7 +189,7 @@ def test_other_post_routes_still_need_the_write_token(client):
 
 def test_requests_are_rate_limited(client, corpus, monkeypatch):
     monkeypatch.setattr(main, "settings", chat_settings(chat_rate_limit_per_minute=1))
-    monkeypatch.setattr(aura_integration, "urlopen", lambda request, timeout: FakeResponse(aura_reply("ok", [EVIDENCE_ID])))
+    monkeypatch.setattr(provider_http, "urlopen", lambda request, timeout: FakeResponse(aura_reply("ok", [EVIDENCE_ID])))
 
     assert client.post("/api/chat", json={"query": "n-heptane"}).status_code == 200
     limited = client.post("/api/chat", json={"query": "n-heptane"})
@@ -196,8 +206,9 @@ def test_invalid_bodies_are_contract_validation_errors(client):
         assert response.json()["error"]["code"] == "VALIDATION_ERROR"
 
 
-def test_chat_is_not_part_of_the_aura_facing_contract(client):
-    assert "/api/chat" not in client.get("/api/openapi.json").json()["paths"]
+def test_chat_is_in_the_contract_but_excluded_from_aura_discovery(client):
+    chat = client.get("/api/openapi.json").json()["paths"]["/api/chat"]["post"]
+    assert chat["x-aura-exclude"] is True
 
 
 def test_the_interpreter_honours_the_require_local_setting(monkeypatch):
@@ -207,7 +218,7 @@ def test_the_interpreter_honours_the_require_local_setting(monkeypatch):
         sent.update(json.loads(request.data))
         return FakeResponse({"data": {"statements": []}})
 
-    monkeypatch.setattr(aura_integration, "urlopen", fake_urlopen)
+    monkeypatch.setattr(provider_http, "urlopen", fake_urlopen)
     for value in (True, False):
         aura_integration.interpret_analysis(
             chat_settings(aura_require_local=value), analysis_id="01J9Z3Q9D3F5H7K9N1R3T5W7Y9", context=[], allowed_evidence_ids=set()

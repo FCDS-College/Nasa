@@ -44,7 +44,6 @@ def test_next_embedding_trains_and_reports_baseline():
     res = train_next_embedding(emb, epochs=60, device=torch.device("cpu"))
     assert res["val_mse"] >= 0 and "beats_baseline" in res
 from cv.video_training import fuel_family, video_test_id, pool
-import numpy as np
 
 
 def test_fuel_family_and_test_id():

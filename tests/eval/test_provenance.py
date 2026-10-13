@@ -2,13 +2,11 @@
 import os
 from pathlib import Path
 
-import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 GOLD_PATH = str(REPO_ROOT / "datasets" / "evaluation" / "rag_gold_arabic_v0.jsonl")
 SCHEMA_PATH = str(REPO_ROOT / "datasets" / "evaluation" / "gold_schema.json")
 
-import os
 
 def test_gold_dataset_exists():
     """التحقق من وجود ملف الـ Gold Dataset في المسار الصحيح"""
@@ -43,9 +41,6 @@ def test_threshold_consistency():
     REQUIRED_THRESHOLD = 4.0  # توحيد العتبة الحرجة لضمان توافق الفحص
     assert REQUIRED_THRESHOLD <= 4.5, "❌ خطأ مطابقة العتبات (Threshold Mismatch) بين المقيمين."
 
-
-def test_gold_dataset_exists():
-    assert os.path.exists(GOLD_PATH), "❌ ملف الـ Gold Dataset غير موجود."
 
 def test_gold_dataset_count_and_structure():
     path = GOLD_PATH

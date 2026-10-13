@@ -66,15 +66,32 @@ def main() -> int:
             rejected += bool(errors)
         print(f"  {tool.name:28} GET {http.path:45} params={params}  {verdict}")
 
+    # ADR-004: operations Flame marks x-aura-exclude (chat, AI status, admin writes) must never be tools.
+    excluded = {(m.upper(), p) for p, item in spec["paths"].items() for m, op in item.items()
+                if isinstance(op, dict) and op.get("x-aura-exclude") is True}
+    leaked = 0
+    for tool in compiled.blueprint.tools:
+        http = templates[tool.template].http
+        if ("GET", http.path) in excluded or any(path == http.path for _, path in excluded):
+            print(f"  LEAKED: excluded operation compiled into tool {tool.name} ({http.path})")
+            leaked += 1
+    excluded_issues = sum(1 for issue in report.issues if issue.code == "operation_excluded")
+    print(f"excluded by x-aura-exclude: {len(excluded)} operations, {excluded_issues} reported by discovery")
+    if excluded_issues != len(excluded):
+        print("  AURA revision does not honor x-aura-exclude (needs AURA PR #166 or later)")
+        leaked += 1
+
     exposed = {p for tool in compiled.blueprint.tools for p in templates[tool.template].http.query_params}
     unreachable = 0
     for path, item in sorted(spec["paths"].items()):
+        if ("GET", path) in excluded:
+            continue
         for param in item.get("get", {}).get("parameters", []):
             param = _resolve(spec, param)
             if param.get("in") == "query" and param.get("name") not in exposed:
                 print(f"  not reachable by AURA: optional query parameter {param.get('name')!r} on GET {path}")
                 unreachable += 1
-    return 1 if rejected or missing_examples or unreachable else 0
+    return 1 if rejected or missing_examples or unreachable or leaked else 0
 
 
 def _resolve(spec: dict, node: dict) -> dict:

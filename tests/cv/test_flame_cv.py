@@ -10,7 +10,8 @@ from PIL import Image
 
 from cv.flame_cv import (AnalysisCache, AnalysisResult, CVConfig, DecodeError, FileMissingError, ImageTooSmallError,
                       IntakeManifest, UnsupportedMediaError, analyze_image, analyze_image_safe, dedupe_legacy_manifest,
-                      export_schemas, flame_analysis_api_adapter, ingest_image, make_synthetic_flame,
+                      compute_auto_blur_kernel, compute_auto_target_size, export_schemas,
+                      flame_analysis_api_adapter, ingest_image, make_synthetic_flame,
                       run_cv_evaluation, segmentation_metrics, split_for_group, validate_image)
 
 
@@ -41,6 +42,22 @@ def test_letterbox_keeps_geometry(tmp_path, dirs):
     assert abs(g["centroid"]["x"] - 1500) < 4 and abs(g["centroid"]["y"] - 1000) < 4
     bb = r["detection"]["boundingBox"]
     assert abs(bb["xmin"] - 1200) < 12 and abs(bb["ymax"] - 1300) < 12
+
+
+def test_auto_adaptive_preprocessing_defaults():
+    assert compute_auto_target_size(400, 300) == 400
+    assert compute_auto_target_size(3008, 2000) == 512
+    assert compute_auto_blur_kernel(400, 300) == 3
+    assert compute_auto_blur_kernel(1000, 1000) == 11
+
+
+def test_small_image_uses_adaptive_target_and_blur(tmp_path, dirs):
+    image = tmp_path / "small.png"
+    make_synthetic_flame(image, size=(400, 300), blobs=[(200, 150, 50, 50)])
+    result = analyze_image(req(image), *dirs)
+    preprocessing = result["preprocessing"]
+    assert preprocessing["targetSize"] == 400
+    assert "3x3 Gaussian" in preprocessing["denoising"]
 
 
 # ---- #2 detection is computed, not hard-coded --------------------------------------------
@@ -114,7 +131,7 @@ def test_deterministic_and_reproducible(tmp_path, dirs):
     for r in (a, b):
         r["provenance"].pop("createdAt")
     assert a == b and a["analysisId"].startswith("an_")
-    assert a["pipelineVersion"] == "cv-opencv-v1.1.0" and "pytorch" not in a["pipelineVersion"]
+    assert a["pipelineVersion"] == "cv-opencv-v1.2.0-auto" and "pytorch" not in a["pipelineVersion"]
     assert a["provenance"]["configDigest"] and a["provenance"]["libraries"]["opencv"]
 
 
@@ -130,8 +147,10 @@ def test_cache_hit_miss_and_invalidation(tmp_path, dirs):
     r3 = analyze_image(req(p), *dirs, cache=cache, cfg=replace(CVConfig(), min_threshold=80))
     assert r3["cache"]["hit"] is False and r3["cache"]["key"] != r1["cache"]["key"]
     # explicit invalidation of entries made with other versions
-    removed = cache.invalidate_stale({"pipelineVersion": "cv-opencv-v1.1.0", "preprocessVersion": "letterbox-lanczos-v1",
-                                      "segmenterVersion": "1.1.0", "configDigest": CVConfig().digest()})
+    current_config = replace(CVConfig(), target_size=compute_auto_target_size(3008, 2000))
+    removed = cache.invalidate_stale({"pipelineVersion": "cv-opencv-v1.2.0-auto",
+                                      "preprocessVersion": "letterbox-lanczos-auto-v1",
+                                      "segmenterVersion": "1.2.0", "configDigest": current_config.digest()})
     assert removed == 1
 
 
@@ -249,14 +268,16 @@ def test_naive_resize_would_have_distorted(tmp_path):
                                       key=cv2.contourArea))
     assert w / h < 0.75  # a perfect circle becomes a tall ellipse
 
-def test_artifact_paths_are_repo_relative(tmp_path, dirs):
+def test_artifact_paths_are_normalized_and_resolvable(tmp_path, dirs):
     p = circle(tmp_path)
     r = analyze_image(req(p), *dirs)
     
     mask_uri = r["segmentation"].get("maskUri")
     if mask_uri:
-        assert not Path(mask_uri).is_absolute(), f"Absolute path detected in maskUri: {mask_uri}"
+        assert "\\" not in mask_uri
+        assert Path(mask_uri).exists()
         
     derived_uri = r["preprocessing"].get("derivedUri")
     if derived_uri:
-        assert not Path(derived_uri).is_absolute(), f"Absolute path detected in derivedUri: {derived_uri}"
+        assert "\\" not in derived_uri
+        assert Path(derived_uri).exists()

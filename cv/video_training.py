@@ -13,7 +13,7 @@ import argparse
 import json
 import re
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 import cv2
 import numpy as np

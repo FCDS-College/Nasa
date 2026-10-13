@@ -11,7 +11,11 @@ from PIL import Image, ImageOps
 
 from flame_api.config import get_settings
 from flame_api.database import SessionLocal
-from flame_api.aura_integration import AuraIntegrationError, interpret_analysis
+from ai.providers.contracts.errors import ProviderError
+from ai.providers.contracts.vision import ImageAnalysisRequest
+from ai.routing import NoCompatibleProvider
+from flame_api import ai_runtime
+from flame_api.generation import interpret_analysis
 from flame_api.ids import stable_ulid
 from flame_api.models import AnalysisRecord, EvidenceRecord, ExperimentCondition, FileRecord
 from flame_api.storage import get_bytes, put_file
@@ -42,7 +46,7 @@ def process_analysis(analysis_id: str) -> None:
     session.close()
 
     try:
-        import cv2
+        import cv2  # noqa: F401  (fail fast with MODEL_UNAVAILABLE when OpenCV is missing)
 
         input_data = payload["input"]
         original = artifacts["original"]
@@ -54,34 +58,15 @@ def process_analysis(analysis_id: str) -> None:
             image_path.write_bytes(image_bytes)
             calibration = input_data["calibration"]
             mm_per_pixel = 1 / calibration["scale_px_per_mm"] if calibration["scale_px_per_mm"] else None
-            if settings.cv_provider == "hf_space":
-                from flame_api.hf_cv import analyze_image_on_hf
-
-                legacy, remote_artifacts = analyze_image_on_hf(
-                    settings,
-                    image_bytes,
-                    media_type=input_data["media_type"],
-                    mm_per_pixel=mm_per_pixel,
-                )
-                legacy["provenance"]["inputUri"] = str(image_path)
-                for name, content in remote_artifacts.items():
-                    path = work / f"{name}.png"
-                    path.write_bytes(content)
-                    if name == "preprocessed":
-                        legacy["preprocessing"]["derivedUri"] = str(path)
-                    elif name == "mask":
-                        legacy["segmentation"]["maskUri"] = str(path)
-                    elif name == "overlay":
-                        legacy["segmentation"]["overlayArtifactUri"] = str(path)
-            else:
-                from cv.flame_cv import CVConfig, analyze_image
-
-                legacy = analyze_image(
-                    {"imagePath": str(image_path), "imageId": analysis_id, "metadata": {"mmPerPixel": mm_per_pixel}},
-                    work / "processed",
-                    work / "masks",
-                    cfg=CVConfig(max_pixels=settings.max_image_pixels),
-                )
+            # Vision goes through the router: FLAME_CV_PROVIDER picks the preferred provider, the other
+            # is the fallback, offline_only never contacts the HF Space, and no text model is eligible.
+            request = ImageAnalysisRequest(
+                image_path=image_path, image_id=analysis_id, media_type=input_data["media_type"], work_dir=work,
+                mm_per_pixel=mm_per_pixel, max_pixels=settings.max_image_pixels,
+            )
+            routed_cv = ai_runtime.get_router(settings).route("vision.analyze", lambda provider: provider.analyze_image(request))
+            legacy = routed_cv.value.analysis
+            cv_execution = routed_cv.metadata.to_dict()
             result = _adapt_result(legacy, input_data, work)
             produced = []
             preprocessing_path = Path(legacy["preprocessing"]["derivedUri"])
@@ -118,7 +103,7 @@ def process_analysis(analysis_id: str) -> None:
                 "status": "completed",
                 "updated_at": now.isoformat().replace("+00:00", "Z"),
                 "completed_at": now.isoformat().replace("+00:00", "Z"),
-                "pipeline": result["pipeline"],
+                "pipeline": {**result["pipeline"], "execution": cv_execution},
                 "result": result["result"],
                 "warnings": result["warnings"],
                 "artifacts": [{key: value for key, value in item.items() if key != "object_key"} for item in artifacts.values()],
@@ -146,7 +131,7 @@ def process_analysis(analysis_id: str) -> None:
             record.payload = completed
             record.artifacts = artifacts
             session.add(measurement_evidence)
-            if settings.aura_enabled and completed["interpretation"]["status"] == "pending":
+            if completed["interpretation"]["status"] == "pending":
                 aura_request = _aura_request_context(session, record, measurement_evidence)
             session.commit()
         session.close()
@@ -161,9 +146,7 @@ def process_analysis(analysis_id: str) -> None:
         record = session.get(AnalysisRecord, analysis_id)
         if record:
             now = _now()
-            from flame_api.hf_cv import HfCvError
-
-            failure_code = "MODEL_UNAVAILABLE" if isinstance(exc, (ImportError, HfCvError)) else "IMAGE_DECODE_FAILED" if isinstance(exc, (OSError, ValueError)) else "PIPELINE_ERROR"
+            failure_code = "MODEL_UNAVAILABLE" if isinstance(exc, (ImportError, ProviderError, NoCompatibleProvider)) else "IMAGE_DECODE_FAILED" if isinstance(exc, (OSError, ValueError)) else "PIPELINE_ERROR"
             record.status = "failed"
             record.updated_at = now
             record.completed_at = now
@@ -342,16 +325,17 @@ def _store_interpretation(analysis_id, interpretation, *, warning):
 
 
 def _run_aura_interpretation(analysis_id, context, evidence_ids):
+    """Optional interpretation through the router (AURA, or a local model when AURA is absent or blocked)."""
     try:
         interpreted = interpret_analysis(
-            settings,
+            ai_runtime.get_router(settings),
             analysis_id=analysis_id,
             context=context,
             allowed_evidence_ids=evidence_ids,
         )
-    except AuraIntegrationError as exc:
+    except (NoCompatibleProvider, ProviderError) as exc:
         logger.warning(
-            "analysis_id=%s aura_interpretation_unavailable status=%s",
+            "analysis_id=%s interpretation_unavailable status=%s",
             analysis_id,
             exc.status_code,
         )
@@ -359,7 +343,7 @@ def _run_aura_interpretation(analysis_id, context, evidence_ids):
             analysis_id,
             {
                 "status": "unavailable",
-                "provider": "aura",
+                "provider": None,
                 "model": None,
                 "statements": [],
                 "rejected_statement_count": 0,
@@ -369,11 +353,13 @@ def _run_aura_interpretation(analysis_id, context, evidence_ids):
         )
         return
 
+    provider = interpreted["provider"]
+    origin = "aura_interpretation" if provider == "aura" else "model_interpretation"
     _store_interpretation(
         analysis_id,
         {
             "status": "completed",
-            "provider": "aura",
+            "provider": provider,
             "model": interpreted["model"],
             "statements": [
                 {
@@ -381,13 +367,14 @@ def _run_aura_interpretation(analysis_id, context, evidence_ids):
                         f"aura-statement:{analysis_id}:{index}:{statement['text']}"
                     ),
                     **statement,
-                    "origin": "aura_interpretation",
+                    "origin": origin,
                     "measurement_refs": [],
                 }
                 for index, statement in enumerate(interpreted["statements"])
             ],
             "rejected_statement_count": interpreted["rejected_statement_count"],
             "generated_at": interpreted["generated_at"],
+            "execution": interpreted["execution"],
         },
         warning=interpreted["rejected_statement_count"] > 0,
     )
@@ -402,7 +389,7 @@ def _adapt_result(legacy, input_data, work):
 
     detection = legacy["detection"]
     geometry = legacy["measurements"].get("geometry") or {}
-    appearance = legacy["measurements"].get("appearance") or {}
+    appearance = legacy["measurements"].get("appearance") or {}  # noqa: F841
     box = detection.get("boundingBox") or {}
     detected = detection["status"].lower()
     bbox = None if detected == "absent" else {"x_min": box.get("xmin"), "y_min": box.get("ymin"), "x_max": box.get("xmax"), "y_max": box.get("ymax")}

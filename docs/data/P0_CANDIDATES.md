@@ -1,5 +1,7 @@
 # Flame in Freefall — Day 1 P0 Data Candidates
 
+> **Status (2026-10-12): MVP working note, superseded** by the registry ([SOURCE_REGISTRY.md](SOURCE_REGISTRY.md) §5) for current priorities.
+
 **Date of verification:** 2026-10-03
 
 ## Day-1 decision

@@ -1,5 +1,3 @@
-import os
-import json
 import pytest
 from pathlib import Path
 from tests.eval.master_pipeline import (
