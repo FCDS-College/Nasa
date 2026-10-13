@@ -1,56 +1,228 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "VideoAnalysisResult v1.2.0",
+  "title": "VideoAnalysisResult v1.3.0",
   "type": "object",
   "properties": {
-    "schemaVersion": { "type": "string", "default": "1.2.0" },
-    "status": { "type": "string", "enum": ["SUCCESS", "ERROR"] },
-    "analysisId": { "type": "string" },
-    "videoId": { "type": "string" },
-    "pipelineVersion": { "type": "string" },
+    "schemaVersion": {
+      "type": "string",
+      "default": "1.2.0"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "SUCCESS",
+        "ERROR"
+      ]
+    },
+    "analysisId": {
+      "type": "string"
+    },
+    "videoId": {
+      "type": "string"
+    },
+    "pipelineVersion": {
+      "type": "string"
+    },
     "videoMetadata": {
       "type": "object",
       "properties": {
-        "fps": { "type": "number" },
-        "frameCount": { "type": "integer" },
-        "durationSeconds": { "type": "number" },
+        "fps": {
+          "type": "number"
+        },
+        "frameCount": {
+          "type": "integer"
+        },
+        "durationSeconds": {
+          "type": "number"
+        },
         "resolution": {
           "type": "array",
-          "items": { "type": "integer" },
+          "items": {
+            "type": "integer"
+          },
           "minItems": 2,
           "maxItems": 2
         }
       },
-      "required": ["fps", "frameCount", "durationSeconds", "resolution"]
+      "required": [
+        "fps",
+        "frameCount",
+        "durationSeconds",
+        "resolution"
+      ]
     },
     "frameMeasurements": {
       "type": "array",
       "items": {
         "type": "object",
         "properties": {
-          "frameIndex": { "type": "integer" },
-          "timestamp": { "type": "number" },
-          "detectionStatus": { "type": "string", "enum": ["PRESENT", "ABSENT", "UNCERTAIN"] },
-          "pixelArea": { "type": ["number", "null"] }
+          "frameIndex": {
+            "type": "integer"
+          },
+          "timestamp": {
+            "type": "number"
+          },
+          "detectionStatus": {
+            "type": "string",
+            "enum": [
+              "PRESENT",
+              "ABSENT",
+              "UNCERTAIN"
+            ]
+          },
+          "pixelArea": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "frameId": {
+            "type": "string"
+          },
+          "sourceFrameIndex": {
+            "type": "integer"
+          },
+          "sourceTimestamp": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "detectionConfidence": {
+            "type": "number"
+          },
+          "centroid": {
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "number"
+              },
+              "y": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "x",
+              "y"
+            ]
+          },
+          "boundingBox": {
+            "type": "object",
+            "properties": {
+              "xmin": {
+                "type": "number"
+              },
+              "ymin": {
+                "type": "number"
+              },
+              "xmax": {
+                "type": "number"
+              },
+              "ymax": {
+                "type": "number"
+              }
+            }
+          },
+          "qualityFlags": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "boolean"
+            }
+          },
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code"
+            ]
+          }
         },
-        "required": ["frameIndex", "timestamp", "detectionStatus"]
+        "required": [
+          "frameIndex",
+          "timestamp",
+          "detectionStatus"
+        ]
       }
     },
     "temporalSummary": {
       "type": "object",
       "properties": {
-        "persistenceRate": { "type": "number" },
-        "flickerFrequencyHz": { "type": ["number", "string"] }
+        "persistenceRate": {
+          "type": "number"
+        },
+        "flickerFrequencyHz": {
+          "type": [
+            "number",
+            "string"
+          ]
+        },
+        "flickerStatus": {
+          "type": "string",
+          "enum": [
+            "ESTIMATED",
+            "NOT_ESTIMABLE"
+          ]
+        },
+        "flickerNote": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "persistenceWindow": {
+          "type": "object"
+        },
+        "areaChangeRate": {
+          "type": "object"
+        },
+        "trackingStability": {
+          "type": "object"
+        },
+        "trackSessions": {
+          "type": "integer"
+        },
+        "aggregationConfig": {
+          "type": "object"
+        }
       },
-      "required": ["persistenceRate", "flickerFrequencyHz"]
+      "required": [
+        "persistenceRate",
+        "flickerFrequencyHz"
+      ]
     },
     "artifacts": {
       "type": "object",
       "properties": {
-        "summaryUri": { "type": "string" },
-        "checksum": { "type": "string" }
+        "summaryUri": {
+          "type": "string"
+        },
+        "checksum": {
+          "type": "string"
+        }
       }
+    },
+    "lineage": {
+      "type": "object"
+    },
+    "provenance": {
+      "type": "object"
     }
   },
-  "required": ["schemaVersion", "status", "analysisId", "videoId", "pipelineVersion", "videoMetadata", "frameMeasurements", "temporalSummary"]
+  "required": [
+    "schemaVersion",
+    "status",
+    "analysisId",
+    "videoId",
+    "pipelineVersion",
+    "videoMetadata",
+    "frameMeasurements",
+    "temporalSummary"
+  ]
 }
