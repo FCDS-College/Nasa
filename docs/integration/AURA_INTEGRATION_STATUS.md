@@ -1,5 +1,33 @@
 # Flame in Freefall × AURA AI: Integration Status Report
 
+| Owner | Status | Version | Last updated | Plan items | Code paths |
+|---|---|---|---|---|---|
+| Lead (Anas) | Current (§0); §1 onward is the 2026-10-05 audit, kept as history | 2.0.0 | 2026-10-12 | M1, §12, L-12 | `ai/providers/cloud/aura.py`, `apps/api/flame_api/generation.py`, `tests/integration/aura_blueprint_dryrun.py` |
+
+## 0. Phase 2 status (2026-10-12): AURA is an optional provider
+
+**Decision:** [ADR-004](../architecture/adr/ADR-004-aura-boundary.md). AURA is one optional, external provider behind Flame's model router (M1 / Sub-phase 2H). It is never a core dependency.
+
+| Topic | Now (branch `ccr-c6a5a263-498la9`, PR #14) |
+|---|---|
+| Link 1, chat | `/api/chat` routes through `ai/routing`. AURA answers only when it is configured, permitted by the mode and healthy. Otherwise a local model answers (Ollama / vLLM / llama.cpp). With no model at all, chat returns the evidence with warning `generation_unavailable`. |
+| Link 1, interpretation | Same router task (`analysis.interpret`). AURA statements keep origin `aura_interpretation`; other models use `model_interpretation`. |
+| Request shape | Unchanged: tools, knowledge and memory off; evidence in `context` (DATA channel); `response_schema`; `Idempotency-Key` = Flame request/analysis ID. Flame validates every reply again. |
+| Offline | In `offline_only`, AURA is never called or probed; `/api/health` reports `aura: disabled` with the message "AURA is blocked in offline_only mode." |
+| Link 2, contract | `openapi.json` 0.2.0 now includes `POST /api/chat`, `GET /api/ai/providers` and `PUT /api/admin/ai/mode`, each marked `x-aura-exclude: true`. AURA discovery skips them (AURA PR [#166](https://github.com/anasibrahimgnedy-collab/AURA-AI/pull/166)). New read tools: `api_list_documents`, `api_list_experiments`. |
+| Link 2, dry run | Against AURA PR #166's head (`009c9ce4`): 10 tools, all examples accepted, 3 operations excluded, exit 0. Against the old pin `b6994ac` it fails on purpose, because chat-related operations would leak. The workflow pin must move to #166's merge commit. |
+| AR-7 (live Link 2) | **Run on 2026-10-07** (AURA `docs/reports/flame-link2-live.md`): blueprint v2 with 8 `bp2_api_*` tools answered with real Flame evidence IDs. Caveats recorded there: the coverage gate was waived (0.35 instead of 0.8), the Super Admin self-approved, and the answers were pasted by hand. It must be re-run for the 0.2.0 contract (10 tools). |
+
+**Superseded MVP statements.** The following statements in §1–§12 below and in `AURA_INTEGRATION_REQUIREMENTS.md` are no longer true. They are kept unedited as history.
+- "Chat requires AURA" and "returns 503 `CHAT_UNAVAILABLE` when AURA is disabled". Chat now works without AURA, and `CHAT_UNAVAILABLE` now means no model of any kind is configured or permitted.
+- "502 `AURA_UNAVAILABLE`" for chat. This is replaced by the degraded 200; the code is deprecated in the contract.
+- "`/api/chat` is deliberately not in `openapi.json`". It is in the contract, with `x-aura-exclude`.
+- "8 read tools" / "10 contract operations". The contract now has 15 operations and AURA compiles 10 read tools.
+- "AR-7 not run". It was run on 2026-10-07, with the caveats above.
+
+---
+
+
 **Date:** 2026-10-05 · **Audited revisions:**
 
 - Flame in Freefall (`FCDS-College/Nasa`): `origin/main` = `695fca8`, plus the unmerged branches `Belal` (`8e5e213`), `Princess` (`7af8c2a`), `Ziad` and `Eman`.

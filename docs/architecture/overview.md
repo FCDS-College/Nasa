@@ -1,4 +1,85 @@
-# RAG Architecture
+# Architecture overview (Phase 2)
+
+| Owner | Status | Version | Last updated | Plan items | Code paths |
+|---|---|---|---|---|---|
+| Lead (Anas) | In review (sign-off: Eman E1, Princess E3) | 2.0.0 | 2026-10-12 | §3, L-2 | `apps/`, `ai/`, `cv/`, `infrastructure/` |
+
+Part A describes the system **as built** on branch `ccr-c6a5a263-498la9` (PR #14). Part B is the MVP RAG design that was this whole file before Phase 2, kept as it was. Decisions are in [`adr/`](adr/README.md).
+
+## Part A: System as built
+
+### A.1 Services vs modules
+
+| Runs as a separate process / service | Is a module inside one |
+|---|---|
+| `api` (FastAPI, uvicorn), from `apps/api/Dockerfile` | `flame_api.main` (routes), `analysis` (upload routes), `generation` (prompts + validation), `ai_runtime` (provider wiring), `knowledge_version`, `registry`, `ingest`, `seed`, `vector_index`, `telemetry` |
+| `worker` (RQ, the same image) | `flame_api.worker` → router `vision.analyze` and `analysis.interpret` |
+| `postgres` (pgvector), `redis`, `minio` | — |
+| `ollama` (optional profile `local-llm`), vLLM on the L40S (optional, separate host) | `ai.providers.*` adapters, `ai.routing` |
+| `web` (Next.js) | `apps/web` |
+| AURA (separate system, Railway) | `ai/providers/cloud/aura.py` |
+| HF Space CV (optional, external) | `ai/providers/cloud/hf_space_cv.py` |
+| — | `ai.rag` (Eman's pipeline; not yet wired into the API, ADR-006) |
+
+### A.2 Request lifecycles
+
+**Chat** (`POST /api/chat`, read token):
+
+```text
+web → api middleware (auth, request_id, span http.request)
+    → _retrieve_passages: search() lexical (+ pgvector via router embed.query) for the question and up to 5 key terms
+    → [no passages] → 200 "no_matching_evidence" (no model call)
+    → generation.answer_question → router.route("chat.answer"):
+          mode filter → circuit/health → provider.generate_structured(passages on DATA channel) → Flame validation
+    → keep only cited IDs that were retrieved → 200 {answer, sources, model, execution, knowledge_version}
+    → [no provider succeeded] → 200 evidence-only + "generation_unavailable"
+```
+
+**Search** (`GET /api/search`): PostgreSQL full-text over chunks and experiments; on page 1 without an experiment filter, pgvector nearest neighbours are appended (M2 will fuse them; ADR-006).
+
+**Image analysis**:
+
+```text
+POST /api/analyses (write token, Idempotency-Key)
+  → validate image (size, pixels, decode)
+  → store original in MinIO
+  → row `queued`
+  → RQ job flame-analysis
+worker → router.route("vision.analyze") (flame_cv | hf_space)
+       → measurements + measurement evidence → `completed`
+       → if interpretation was requested and a model is available: router.route("analysis.interpret")
+       → statements validated → stored
+client polls GET /api/analyses/{id}
+```
+
+**Admin operation** (`PUT /api/admin/ai/mode`, write token): write `audit_event` → switch this process → other processes pick it up from the newest audit row within 10 s.
+
+**Ingestion** (CLI at start-up): seed registry/files/image assets/models → per file: checksum → parser adapter (PDF + OCR fallback / HTML / JSON / PSI table) or quarantine → `ingestion_run` → publish `corpus-<hash>` knowledge version.
+
+### A.3 Where each version identifier is set
+
+| Identifier | Set by | Stored / exposed |
+|---|---|---|
+| API / contract version | `FLAME_API_VERSION`; `openapi.json` `info.version` (0.2.0) | `meta.api_version`, `/api/health.version` |
+| Corpus / knowledge version | `knowledge_version.publish` (ingest: `corpus-<hash>`; index build: `bge-small-en-v1.5-<rows>-<date>`) | `knowledge_publication`, `vector_index_manifest`, chat `knowledge_version`, dashboard |
+| Parser versions | `ingest.py` (`pymupdf-pages-0.2.0`, `html-sections-0.1.0`, `json-paths-0.1.0`, `psi-tables-0.1.0`) | `document.parser_version`, `ingestion_run.transformation_id`, evidence `transformation_id` |
+| OCR engine version | `ingest._ocr_page` (`tesseract-<v>`) | `document.payload.ocr.engine` |
+| Model versions | `ai/routing/model_manifest.json`; provider responses | `model` table, `execution.model/version` |
+| CV pipeline version | `cv/flame_cv.py` `PIPELINE_VERSION` (`cv-opencv-v1.1.0`) | `analysis_result.pipeline_version` |
+| Prompt version | not versioned yet (M3, Eman's prompt registry) | — |
+| Benchmark version | Ziad's harness (M11) | — |
+| Migration | Alembic (`0004_phase2_tables`) | `alembic_version` |
+
+### A.4 Known limitations
+Two retrieval stacks remain until M2. Prompts are not versioned until M3. Video and Graph RAG are planned and appear only as contracts and tables.
+
+### A.5 Changelog
+- 2.0.0 (2026-10-12): Part A added (L-2); the former content is kept as Part B.
+
+---
+
+# Part B: RAG design (MVP, unchanged)
+
 
 ## 1. Purpose
 
