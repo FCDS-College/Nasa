@@ -31,3 +31,9 @@
 ### Documents changed this week
 `docs/ai/retrieval-pipeline.md`, `prompts.md`, `grounded-generation.md`, `cag-policy.md`, `mag-policy.md`, `offline-rag.md`, `ai/README.md`.
 
+
+### Update 2026-10-14
+- Done: E1-6 `multimodal-interpretation.md`; corrected `context-builder.md`, `citation-provenance.md`, `document-context-schema.md` against the code at `5888580`; docstrings added to 57 public functions/classes in `ai/rag/**` (AST-checked: only docstrings changed). Commit `7b009ff`.
+- Tests: `python -m pytest -q tests/unit` -> **83 passed** (Eman's machine, 2026-10-14).
+- Found, not changed: `HybridSearchService` can return zero-score chunks when fewer than `top_k` chunks are relevant; library chunk ids differ from API chunk ids (mapping Planned).
+- Next: E1-7 (Week 4), E1-8 and E1-9 (Week 6), E1-10 with Ziad (Week 4 baseline, Week 8 final).
