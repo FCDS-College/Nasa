@@ -1,22 +1,22 @@
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Princess | Draft | 1.1.0 | 2026-10-12 | C1 | `cv/flame_cv.py` |
+| Princess | Draft | 1.2.0 | 2026-10-13 | C1 | `cv/flame_cv.py` |
 
-# Model Card: Otsu Contour Baseline Segmenter (`otsu-contour-baseline`)
+# Model Card: Auto-Adaptive Otsu Contour Segmenter (`otsu-contour-adaptive`)
 
 ## 1. Model Overview
-- **Model ID:** `otsu-contour-baseline`
-- **Version:** `1.1.0`
+- **Model ID:** `otsu-contour-adaptive`
+- **Version:** `1.2.0`
 - **Task:** Heuristic-based flame detection, binary mask segmentation, and geometric feature extraction.
-- **Architecture:** OpenCV-based Gaussian blurring, adaptive Otsu thresholding, morphological filtering, and contour extraction (`_find_main`).
+- **Architecture:** OpenCV-based dimension-scaled Gaussian blurring, Otsu thresholding with configurable offset, morphological filtering, and adaptive minimum-area contour extraction (`_find_main`).
 
 ## 2. Provenance & Training Data
 - **Training Data Provenance:** Rule-based/heuristic baseline model; requires no traditional machine learning training or weights. Relies on algorithmic computer vision rules.
-- **Config Digest:** `5140c618f88cd05b`[cite: 7]
+- **Configuration:** Runtime parameters and `configDigest` are recorded in each result's provenance.
 
 ## 3. Evaluation & Performance
 - **Evaluation Dataset:** 10 space experiment frames from `FF-PSI-107` (`ISS018E030336` - `ISS018E030376`)[cite: 7].
-- **Metrics:** 100% detection trigger rate under brightness heuristic; segmentation accuracy currently `NOT_EVALUATED` pending ground-truth mask integration[cite: 7].
+- **Metrics:** Segmentation accuracy remains `NOT_EVALUATED` pending ground-truth mask integration. See the evaluation report for baseline caveats.
 
 ## 4. Hardware Requirements
 - **Hardware:** Runs efficiently on standard CPU architectures; compatible with GPU acceleration environments via OpenCV/NumPy optimizations.
@@ -33,4 +33,4 @@
 - 2D projected spatial measurements without depth correction or scale calibration (`scaleAbsent`).
 
 ## Changelog
-- **v1.1.0 (2026-10-12):** Initial model card creation aligned with C1 registration requirements.
+- **v1.2.0 (2026-10-13):** Updated for the restored auto-adaptive pipeline and versioned configuration provenance.
