@@ -1102,3 +1102,33 @@ def make_synthetic_flame(path: Any, size: Tuple[int, int] = (3008, 2000),
     Image.fromarray(np.clip(img, 0, 255).astype(np.uint8)).save(path, quality=95)
     if gt_path:
         Image.fromarray(gt).save(gt_path)
+
+
+def main(argv: Optional[List[str]] = None) -> int:
+    import argparse
+    import sys
+
+    parser = argparse.ArgumentParser(prog="python -m cv.flame_cv", description="Run the Otsu flame analysis on an image.")
+    parser.add_argument("image", nargs="?", help="Path to the image; a synthetic flame is generated if omitted.")
+    parser.add_argument("--out-dir", default="cv/output", help="Directory for the result JSON and masks.")
+    args = parser.parse_args(argv)
+
+    out_dir = Path(args.out_dir)
+    masks_dir = out_dir / "masks"
+    masks_dir.mkdir(parents=True, exist_ok=True)
+
+    image = args.image
+    if not image:
+        image = str(out_dir / "synthetic_flame.png")
+        make_synthetic_flame(image)
+        print(f"[*] No image given; generated synthetic flame at {image}", file=sys.stderr)
+
+    result = analyze_image_safe({"imagePath": str(image)}, out_dir, masks_dir)
+    text = json.dumps(result, indent=2, ensure_ascii=False)
+    atomic_write_text(out_dir / "analysis_result.json", text)
+    print(text)
+    return 1 if "error" in result else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

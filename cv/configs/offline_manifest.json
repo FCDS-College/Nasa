@@ -1,0 +1,21 @@
+{
+  "manifestVersion": "1.0.0",
+  "description": "Offline assets and model weights manifest for NASA CV pipeline",
+  "requiredAssets": [
+    {
+      "name": "Otsu Baseline Module",
+      "path": "cv/flame_cv.py",
+      "minSizeBytes": 1000
+    },
+    {
+      "name": "CNN Pipeline Module",
+      "path": "cv/cnn_pipeline.py",
+      "minSizeBytes": 1000
+    },
+    {
+      "name": "PINN Pipeline Module",
+      "path": "cv/pinn_pipeline.py",
+      "minSizeBytes": 1000
+    }
+  ]
+}
