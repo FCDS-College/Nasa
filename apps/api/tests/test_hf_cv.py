@@ -119,7 +119,9 @@ def test_hf_space_endpoint_returns_analysis_and_artifacts(tmp_path, monkeypatch)
 
     assert response.status_code == 200
     body = response.json()
-    assert body["analysis"]["pipelineVersion"] == "cv-opencv-v1.1.0"
+    from cv.flame_cv import PIPELINE_VERSION
+
+    assert body["analysis"]["pipelineVersion"] == PIPELINE_VERSION
     assert body["analysis"]["provenance"]["inputUri"] == "uploaded-image"
     assert body["analysis"]["preprocessing"]["derivedUri"] is None
     assert base64.b64decode(body["artifacts"]["preprocessed"]).startswith(b"\x89PNG")

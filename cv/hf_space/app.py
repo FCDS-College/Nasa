@@ -5,7 +5,7 @@ from pathlib import Path
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 
-from cv.flame_cv import CVConfig, CVError, analyze_image
+from cv.flame_cv import PIPELINE_VERSION, CVConfig, CVError, analyze_image
 
 app = FastAPI(title="Flame CV inference", docs_url=None, redoc_url=None)
 MAX_IMAGE_BYTES = 10 * 1024 * 1024
@@ -14,7 +14,7 @@ MAX_IMAGE_PIXELS = 50_000_000
 
 @app.get("/health")
 def health():
-    return {"status": "up", "pipeline": "cv-opencv-v1.1.0"}
+    return {"status": "up", "pipeline": PIPELINE_VERSION}
 
 
 @app.post("/api/analyze")

@@ -65,7 +65,7 @@ client polls GET /api/analyses/{id}
 | Parser versions | `ingest.py` (`pymupdf-pages-0.2.0`, `html-sections-0.1.0`, `json-paths-0.1.0`, `psi-tables-0.1.0`) | `document.parser_version`, `ingestion_run.transformation_id`, evidence `transformation_id` |
 | OCR engine version | `ingest._ocr_page` (`tesseract-<v>`) | `document.payload.ocr.engine` |
 | Model versions | `ai/routing/model_manifest.json`; provider responses | `model` table, `execution.model/version` |
-| CV pipeline version | `cv/flame_cv.py` `PIPELINE_VERSION` (`cv-opencv-v1.1.0`) | `analysis_result.pipeline_version` |
+| CV pipeline version | `cv/flame_cv.py` `PIPELINE_VERSION` (`cv-opencv-v1.2.0-auto`) | `analysis_result.pipeline_version` |
 | Prompt version | not versioned yet (M3, Eman's prompt registry) | — |
 | Benchmark version | Ziad's harness (M11) | — |
 | Migration | Alembic (`0004_phase2_tables`) | `alembic_version` |

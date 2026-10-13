@@ -96,7 +96,7 @@ railway config apply
 ## 8. Reproducing the demo from a tagged release (MVP §22)
 
 ```bash
-git checkout v0.1.0-mvp     # see docs/releases/v0.1.0-mvp.md; tag pending approval
+git checkout v0.1.0-mvp
 docker compose -f infrastructure/compose.yaml up --build
 ```
 

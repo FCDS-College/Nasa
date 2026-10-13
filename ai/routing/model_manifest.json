@@ -88,12 +88,12 @@
       "notes": "Optional (P1). Not registered unless FLAME_RERANKER_ENABLED=true. Retrieval wiring is Eman's M2."
     },
     {
-      "model_id": "flame_cv:cv-opencv-v1.1.0",
+      "model_id": "flame_cv:cv-opencv-v1.2.0-auto",
       "capability": "vision",
       "provider": "flame_cv",
       "runtime": "opencv",
       "name": "flame_cv",
-      "version": "cv-opencv-v1.1.0",
+      "version": "cv-opencv-v1.2.0-auto",
       "quantization": null,
       "license": "project code",
       "source_url": "cv/flame_cv.py",
@@ -106,7 +106,7 @@
       "ram_mb": 500,
       "vram_mb": null,
       "cpu_only": true,
-      "notes": "Heuristic Otsu-contour pipeline, no weights. M10 evaluation pending (segmentation NOT_EVALUATED)."
+      "notes": "Heuristic Otsu-contour pipeline with auto-adaptive preprocessing (v1.2.0, Princess, ported from branch Princess @ 1b32326), no weights. v1.1.0 is kept in cv/oldversion/. M10 evaluation: docs/CV/evaluation-report.md (draft)."
     },
     {
       "model_id": "hf_space:flame_cv",
@@ -114,7 +114,7 @@
       "provider": "hf_space",
       "runtime": "hf_space",
       "name": "flame_cv@hf_space",
-      "version": "cv-opencv-v1.1.0",
+      "version": "cv-opencv-v1.2.0-auto (only once the Space is redeployed from this commit)",
       "quantization": null,
       "license": "project code",
       "source_url": "cv/hf_space/",

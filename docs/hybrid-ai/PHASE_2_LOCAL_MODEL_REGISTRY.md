@@ -17,7 +17,7 @@
 | <a id="gpu-llm"></a>`vllm:Qwen/Qwen2.5-7B-Instruct-AWQ` | structured / chat | vLLM (L40S) | HF repo revision: Pending | AWQ 4-bit | Apache-2.0 | Pending | Pending | ~8 GB VRAM + KV (e) | no | candidate |
 | <a id="embeddings"></a>`fastembed:BAAI/bge-small-en-v1.5` | embeddings | fastembed 0.9.0 | `Qdrant/bge-small-en-v1.5-onnx-Q@aa8f8b060edb00e03bfdd08813a2949946c8ba55` | ONNX quantized | MIT | `51f1bd0addd6e859e42c2c8021a5e5461385bb676a649f4b269aa445449f2431` (m) | 66,465,124 B model; 67,181,750 B cache (m) | ~300 MB (e) | yes | approved |
 | <a id="reranker"></a>`sentence-transformers:cross-encoder/ms-marco-MiniLM-L-6-v2` | reranking | sentence-transformers | Pending | — | Apache-2.0 | Pending | Pending | ~400 MB (e) | yes | candidate |
-| <a id="computer-vision"></a>`flame_cv:cv-opencv-v1.1.0` | vision | OpenCV | `cv-opencv-v1.1.0` | — | project code | n/a (code; git commit is the version) | — | ~0.5 GB / 50 MP (e) | yes | approved |
+| <a id="computer-vision"></a>`flame_cv:cv-opencv-v1.2.0-auto` | vision | OpenCV | `cv-opencv-v1.2.0-auto` (v1.1.0 kept in `cv/oldversion/`) | — | project code | n/a (code; git commit is the version) | — | ~0.5 GB / 50 MP (e) | yes | approved |
 | `hf_space:flame_cv` | vision (external) | HF Space | same pipeline | — | project code | n/a | — | — | yes | approved |
 | `aura:orchestrator` | structured (external) | AURA | whatever AURA routes to (reported per response) | — | self-hosted | n/a | — | — | — | approved |
 
