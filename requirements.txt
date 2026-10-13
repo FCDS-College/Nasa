@@ -1,0 +1,15 @@
+# Core Numerical & Scientific Computing
+numpy>=1.26.0
+scipy>=1.11.0
+
+# Image & Video Ingestion / Processing
+opencv-python-headless>=4.8.0
+
+# Deep Learning Frameworks (CNN & PINN)
+tensorflow>=2.16.0
+torch>=2.2.0
+torchvision>=0.17.0
+
+# Schema Validation & Testing
+jsonschema>=4.20.0
+pytest>=8.0.0
