@@ -12,13 +12,13 @@ from uuid import uuid4
 
 import boto3
 from botocore.config import Config
-from fastapi import Depends, FastAPI, Path as ApiPath, Request
+from fastapi import Depends, FastAPI, Path as ApiPath, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from redis import Redis
 from rq import Queue, Worker
-from sqlalchemy import or_, select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -27,8 +27,11 @@ from flame_api.config import get_settings
 from flame_api.contracts import error_body, response_meta
 from flame_api.database import engine, get_session
 from flame_api.analysis import router as analysis_router
-from flame_api.aura_integration import AuraIntegrationError, answer_question, check_aura_ready
-from flame_api.models import AnalysisRecord, DocumentChunk, DocumentRecord, EvidenceRecord, ExperimentRecord, SourceRecord
+from ai.routing import ExecutionMode, NoCompatibleProvider
+from flame_api import ai_runtime, telemetry
+from flame_api.generation import answer_question
+from flame_api.knowledge_version import current_knowledge_version
+from flame_api.models import AnalysisRecord, DocumentChunk, DocumentRecord, EvidenceRecord, ExperimentCondition, ExperimentRecord, SourceRecord
 from flame_api.vector_index import VectorUnavailableError, index_status, search_chunks
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -43,6 +46,7 @@ app = FastAPI(
     redoc_url=None,
 )
 app.include_router(analysis_router)
+telemetry.setup(settings.otel_service_name, enabled=settings.otel_enabled)
 
 _CONTRACT_PATH = Path(__file__).resolve().parents[3] / "docs" / "api" / "openapi.json"
 
@@ -66,6 +70,16 @@ async def request_context(request: Request, call_next):
     request_id = supplied_id if re.fullmatch(r"[A-Za-z0-9._-]{1,128}", supplied_id) else f"req_{uuid4().hex}"
     request.state.request_id = request_id
     started = time.perf_counter()
+    with telemetry.span("http.request", **{"http.method": request.method, "http.route": request.url.path,
+                                          "flame.request_id": request_id}) as current:
+        response = await _authorized(request, call_next)
+        telemetry.set_attributes(current, **{"http.status_code": response.status_code})
+    response.headers["X-Request-ID"] = request_id
+    logger.info("request_id=%s method=%s path=%s status=%s duration_ms=%.1f", request_id, request.method, request.url.path, response.status_code, (time.perf_counter() - started) * 1000)
+    return response
+
+
+async def _authorized(request: Request, call_next):
     path = request.url.path
     public_metadata = path == "/api/openapi.json" or path == "/api/docs" or path.startswith("/api/docs/")
     if path.startswith("/api/") and not public_metadata and settings.api_auth_enabled:
@@ -91,8 +105,6 @@ async def request_context(request: Request, call_next):
             response = await call_next(request)
     else:
         response = await call_next(request)
-    response.headers["X-Request-ID"] = request_id
-    logger.info("request_id=%s method=%s path=%s status=%s duration_ms=%.1f", request_id, request.method, request.url.path, response.status_code, (time.perf_counter() - started) * 1000)
     return response
 
 
@@ -161,24 +173,45 @@ def _cv_worker_service(redis_client: Redis, checked_at: str) -> dict[str, Any]:
     return _service("up", False, checked_at, latency_ms=latency, version=version, message=None)
 
 
+def _ai_status() -> dict[str, Any]:
+    """Refresh provider probes (bounded, parallel, cached) and return the router's view."""
+    router = ai_runtime.get_router(settings)
+    router.refresh_health(force=False)
+    return router.status()
+
+
+def _model_services(ai_status: dict[str, Any], checked_at: str) -> tuple[dict[str, Any], dict[str, Any]]:
+    """The fixed `llm` and `aura` health entries, derived from the router (2H Task 8 indicators)."""
+    mode = ai_status["mode"]
+    text_models = [p for p in ai_status["providers"] if "structured" in p["capabilities"] and p["name"] != "aura"]
+    usable = [p for p in text_models if p["permitted"] and p["health"]["state"] in {"up", "degraded"}]
+    if not text_models:
+        llm = _service("disabled", False, None, message="No local language model is configured (FLAME_OLLAMA_BASE_URL / FLAME_VLLM_BASE_URL).")
+    elif usable:
+        best = usable[0]
+        llm = _service("up", False, checked_at, latency_ms=best["health"]["latency_ms"], version=f"{best['name']}:{best['model']}")
+    else:
+        llm = _service("down", False, checked_at, message="No local language model is ready.")
+    aura = next((p for p in ai_status["providers"] if p["name"] == "aura"), None)
+    if aura is None:
+        aura_service = _service("disabled", False, None, message="FLAME_AURA_ENABLED is false.")
+    elif not aura["permitted"]:
+        aura_service = _service("disabled", False, None, message=f"AURA is blocked in {mode} mode.")
+    else:
+        state = aura["health"]["state"]
+        aura_service = _service(
+            state if state in {"up", "down", "degraded"} else "unknown", False, checked_at,
+            latency_ms=aura["health"]["latency_ms"], version="3", message=None if state == "up" else "AURA is not ready.",
+        )
+    return llm, aura_service
+
+
 @app.get("/api/health", tags=["System"])
 def health(request: Request):
     checked_at = datetime.now(UTC).isoformat().replace("+00:00", "Z")
     knowledge_version: str | None = None
-    if settings.aura_enabled:
-        aura_status, aura_latency_ms = check_aura_ready(settings)
-        aura_service = _service(
-            aura_status,
-            False,
-            checked_at,
-            latency_ms=aura_latency_ms,
-            version="3",
-            message=None if aura_status == "up" else "AURA is not ready.",
-        )
-    else:
-        aura_service = _service(
-            "disabled", False, None, message="FLAME_AURA_ENABLED is false."
-        )
+    ai_status = _ai_status()
+    llm_service, aura_service = _model_services(ai_status, checked_at)
     services: dict[str, dict[str, Any]] = {
         "api": _service("up", True, checked_at, latency_ms=0.0, version=settings.api_version),
         "database": _service("down", True, checked_at, message="Database is unavailable."),
@@ -186,7 +219,7 @@ def health(request: Request):
         "object_storage": _service("down", True, checked_at, message="Object storage is unavailable."),
         "cache": _service("unknown", False, checked_at, message="Cache status was not checked."),
         "cv_model": _service("unknown", False, None, message="CV worker is not available."),
-        "llm": _service("disabled" if not settings.llm_enabled else "unknown", False, None),
+        "llm": llm_service,
         "aura": aura_service,
     }
     try:
@@ -246,6 +279,7 @@ def health(request: Request):
         "version": {"api_version": settings.api_version, "build_id": settings.build_id, "git_sha": settings.git_sha},
         "knowledge_version": knowledge_version,
         "services": services,
+        "ai": {"mode": ai_status["mode"], "providers": ai_status["providers"]},
         "meta": response_meta(request),
     }
     return JSONResponse(status_code=503 if required_down else 200, content=body)
@@ -311,6 +345,7 @@ def dashboard_counts(request: Request, session: Session = Depends(get_session)):
         experiments = session.query(ExperimentRecord).filter(ExperimentRecord.conditions.any()).count()
         completed = session.query(AnalysisRecord).filter(AnalysisRecord.status == "completed").count()
         in_progress = session.query(AnalysisRecord).filter(AnalysisRecord.status.in_(["queued", "processing"])).count()
+        knowledge_version = current_knowledge_version(session)
     except SQLAlchemyError:
         return JSONResponse(status_code=503, content=error_body(request, "DATABASE_UNAVAILABLE", "Database is unavailable.", retryable=True))
     return {
@@ -318,7 +353,7 @@ def dashboard_counts(request: Request, session: Session = Depends(get_session)):
         "experiments": experiments,
         "analyses": completed,
         "analyses_in_progress": in_progress,
-        "knowledge_version": None,
+        "knowledge_version": knowledge_version,
         "meta": response_meta(request),
     }
 
@@ -526,19 +561,25 @@ def _retrieve_passages(request: Request, session: Session, question: str):
     return [entry["item"] for entry in ranked], knowledge_version
 
 
-@app.post("/api/chat", include_in_schema=False)
+@app.post("/api/chat", tags=["Research"])
 def chat(request: Request, body: ChatBody, session: Session = Depends(get_session)):
-    """Dashboard chat: Flame retrieves its own evidence, AURA's model writes the answer from it.
+    """Dashboard chat: Flame retrieves its own evidence; the model router picks who writes the answer.
 
-    Not part of the checked-in contract on purpose: AURA derives its tools from that contract and
-    must not be able to call back into its own caller.
+    In the contract with `x-aura-exclude: true`: AURA derives its tools from that contract and must
+    not be able to call back into its own caller.
     """
     question = body.query.strip()
     if not question:
         return JSONResponse(status_code=400, content=error_body(request, "VALIDATION_ERROR", "Question is empty."))
-    if not settings.aura_enabled or settings.aura_service_token is None:
+    router = ai_runtime.get_router(settings)
+    if not router.available("chat.answer"):
         return JSONResponse(
-            status_code=503, content=error_body(request, "CHAT_UNAVAILABLE", "AURA chat is not enabled.")
+            status_code=503,
+            content=error_body(
+                request, "CHAT_UNAVAILABLE",
+                f"No language model is configured or permitted in {router.mode.value} mode.",
+                details={"mode": router.mode.value},
+            ),
         )
     if _chat_rate_limited():
         return JSONResponse(
@@ -546,10 +587,14 @@ def chat(request: Request, body: ChatBody, session: Session = Depends(get_sessio
             content=error_body(request, "RATE_LIMITED", "Too many chat requests. Try again shortly.", retryable=True),
             headers={"Retry-After": "10"},
         )
-    retrieved = _retrieve_passages(request, session, question)
+    with telemetry.span("chat.retrieve", **{"flame.request_id": request.state.request_id}) as current:
+        retrieved = _retrieve_passages(request, session, question)
+        if not isinstance(retrieved, JSONResponse):
+            telemetry.set_attributes(current, **{"flame.passages": len(retrieved[0])})
     if isinstance(retrieved, JSONResponse):
         return retrieved
     items, knowledge_version = retrieved
+    knowledge_version = knowledge_version or current_knowledge_version(session)
     base = {
         "request_id": request.state.request_id,
         "memory_used": False,
@@ -565,45 +610,167 @@ def chat(request: Request, body: ChatBody, session: Session = Depends(get_sessio
             "sources": [],
             "cache_hit": False,
             "model": {"provider": "flame", "name": "retrieval-only", "version": "n/a"},
+            "execution": None,
             "warnings": ["no_matching_evidence"],
         }
-    try:
-        result = answer_question(
-            settings, request_id=request.state.request_id, question=question, passages=[_passage(i) for i in items]
-        )
-    except AuraIntegrationError as exc:
-        logger.warning("request_id=%s chat_aura_error=%s status=%s", request.state.request_id, exc, exc.status_code)
-        return JSONResponse(
-            status_code=502,
-            content=error_body(request, "AURA_UNAVAILABLE", "The AURA model could not answer right now.", retryable=True),
-        )
-    by_id = {item["evidence_id"]: item for item in items}
-    sources = [
-        {
-            "evidence_id": evidence_id,
-            "document_id": by_id[evidence_id].get("document_id") or by_id[evidence_id].get("experiment_id") or "",
-            "title": by_id[evidence_id]["title"],
-            "location": (by_id[evidence_id].get("locator") or {}).get("label") or by_id[evidence_id]["result_type"],
+
+    def source_entry(item: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "evidence_id": item["evidence_id"],
+            "document_id": item.get("document_id") or item.get("experiment_id") or "",
+            "title": item["title"],
+            "location": (item.get("locator") or {}).get("label") or item["result_type"],
         }
-        for evidence_id in result["evidence_ids"]
-    ]
+
+    try:
+        with telemetry.span("chat.generate", **{"flame.request_id": request.state.request_id, "flame.knowledge_version": knowledge_version}):
+            result = answer_question(
+                router, request_id=request.state.request_id, question=question, passages=[_passage(i) for i in items]
+            )
+    except NoCompatibleProvider as exc:
+        # Degraded mode (2H): say plainly that no model could write an answer, but still hand back the
+        # evidence that was found, so the user keeps everything that still works.
+        logger.warning("request_id=%s chat_generation_unavailable %s", request.state.request_id, exc.to_dict())
+        return {
+            **base,
+            "answer": (
+                "No language model could write an answer right now, so here is the evidence Flame found for "
+                "this question without a summary. Nothing below was generated."
+            ),
+            "sources": [source_entry(item) for item in items],
+            "cache_hit": False,
+            "model": {"provider": "flame", "name": "retrieval-only", "version": "n/a"},
+            "execution": {"mode": exc.mode.value, "reasons": exc.reasons},
+            "warnings": ["generation_unavailable"],
+        }
+    by_id = {item["evidence_id"]: item for item in items}
+    sources = [source_entry(by_id[evidence_id]) for evidence_id in result["evidence_ids"]]
     warnings = []
     if result["dropped_citations"]:
         warnings.append("citations_not_in_retrieved_evidence_removed")
     if not sources:
         warnings.append("answer_cites_no_evidence")
+    execution = result["execution"]
+    if execution["fallback_used"]:
+        warnings.append("model_fallback_used")
     logger.info(
-        "request_id=%s chat passages=%d cited=%d dropped=%d",
+        "request_id=%s chat passages=%d cited=%d dropped=%d provider=%s locality=%s",
         request.state.request_id, len(items), len(sources), result["dropped_citations"],
+        execution["provider"], execution["locality"],
     )
     return {
         **base,
         "answer": result["answer"],
         "sources": sources,
         "cache_hit": result["cached"],
-        "model": {"provider": result["provider"], "name": result["model"], "version": "unknown"},
+        "model": {"provider": result["provider"], "name": result["model"], "version": execution.get("version") or "unknown"},
+        "execution": execution,
         "warnings": warnings,
     }
+
+
+@app.get("/api/ai/providers", tags=["System"])
+def ai_providers(request: Request):
+    """Execution mode, every registered provider, its health and circuit state (2H Task 8)."""
+    status = _ai_status()
+    return {**status, "meta": response_meta(request)}
+
+
+class ModeBody(BaseModel):
+    mode: ExecutionMode
+
+
+@app.put("/api/admin/ai/mode", tags=["Admin"])
+def set_ai_mode(request: Request, body: ModeBody, session: Session = Depends(get_session)):
+    """Switch cloud_preferred / local_first / offline_only. Write token; every change is audited."""
+    change = ai_runtime.set_mode(
+        session, body.mode, router=ai_runtime.get_router(settings), actor="write-token", request_id=request.state.request_id
+    )
+    return {**change, "meta": response_meta(request)}
+
+
+_LIST_MAX_PAGE_SIZE = 100
+
+
+@app.get("/api/documents", tags=["Research"])
+def list_documents(
+    request: Request,
+    source_id: Annotated[list[str] | None, Query(max_length=20)] = None,
+    document_type: str | None = None,
+    q: Annotated[str | None, Query(max_length=200)] = None,
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=_LIST_MAX_PAGE_SIZE)] = 20,
+    session: Session = Depends(get_session),
+):
+    query = session.query(DocumentRecord).options(joinedload(DocumentRecord.source))
+    if source_id:
+        query = query.filter(DocumentRecord.source_id.in_(source_id))
+    if document_type:
+        query = query.filter(DocumentRecord.document_type == document_type)
+    if q and q.strip():
+        query = query.filter(DocumentRecord.title.ilike(f"%{q.strip()}%"))
+    total = query.count()
+    rows = query.order_by(func.lower(DocumentRecord.title), DocumentRecord.document_id).offset((page - 1) * page_size).limit(page_size).all()
+    items = [
+        {
+            "document_id": d.document_id,
+            "title": d.title,
+            "document_type": d.document_type,
+            "source": _source_payload(d.source),
+            "page_count": d.page_count,
+            "text_layer": d.text_layer,
+            "parser_version": d.parser_version,
+            "ingested_at": _timestamp(d.ingested_at),
+            "knowledge_version": d.knowledge_version,
+        }
+        for d in rows
+    ]
+    return {"items": items, "pagination": _pagination(page, page_size, total), "meta": response_meta(request)}
+
+
+@app.get("/api/experiments", tags=["Research"])
+def list_experiments(
+    request: Request,
+    source_id: Annotated[list[str] | None, Query(max_length=20)] = None,
+    gravity_regime: str | None = None,
+    fuel_or_material: Annotated[str | None, Query(max_length=200)] = None,
+    investigation: Annotated[str | None, Query(max_length=200)] = None,
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=_LIST_MAX_PAGE_SIZE)] = 20,
+    session: Session = Depends(get_session),
+):
+    query = session.query(ExperimentRecord).options(joinedload(ExperimentRecord.source))
+    if source_id:
+        query = query.filter(ExperimentRecord.source_id.in_(source_id))
+    if gravity_regime:
+        query = query.filter(ExperimentRecord.gravity_regime == gravity_regime)
+    if fuel_or_material and fuel_or_material.strip():
+        query = query.filter(ExperimentRecord.fuel_or_material.ilike(f"%{fuel_or_material.strip()}%"))
+    if investigation and investigation.strip():
+        query = query.filter(ExperimentRecord.investigation.ilike(f"%{investigation.strip()}%"))
+    total = query.count()
+    rows = (
+        query.order_by(ExperimentRecord.source_id, ExperimentRecord.test_id, ExperimentRecord.experiment_id)
+        .offset((page - 1) * page_size).limit(page_size).all()
+    )
+    counts = dict(
+        session.query(ExperimentCondition.experiment_id, func.count(ExperimentCondition.condition_id))
+        .filter(ExperimentCondition.experiment_id.in_([e.experiment_id for e in rows]))
+        .group_by(ExperimentCondition.experiment_id).all()
+    ) if rows else {}
+    items = [
+        {
+            "experiment_id": e.experiment_id,
+            "test_id": e.test_id,
+            "investigation": e.investigation,
+            "source": _source_payload(e.source),
+            "gravity_regime": e.gravity_regime,
+            "fuel_or_material": e.fuel_or_material,
+            "condition_count": counts.get(e.experiment_id, 0),
+        }
+        for e in rows
+    ]
+    return {"items": items, "pagination": _pagination(page, page_size, total), "meta": response_meta(request)}
 
 @app.get("/api/documents/{document_id}", tags=["Research"])
 def get_document(request: Request, document_id: Annotated[str, ApiPath(pattern=ULID_PATTERN)], session: Session = Depends(get_session)):

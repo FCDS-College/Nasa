@@ -18,3 +18,4 @@ data/processed/
 # CV generated outputs and offline wheels
 cv/output/
 cv/weights/
+*.egg-info/

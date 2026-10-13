@@ -43,6 +43,9 @@ class FileRecord(Base):
     is_original: Mapped[bool] = mapped_column(Boolean, default=True)
     parent_file_id: Mapped[str | None] = mapped_column(ForeignKey("file_record.file_id"), nullable=True)
     local_path: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # active | quarantined (M9). A quarantined file is kept for review but never parsed or indexed.
+    status: Mapped[str] = mapped_column(String(16), default="active", server_default="active", index=True)
+    quarantine_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class DocumentRecord(Base):
@@ -168,3 +171,174 @@ class IngestionRun(Base):
     finished_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     counts: Mapped[dict[str, Any]] = mapped_column(JsonType, default=dict)
     __table_args__ = (UniqueConstraint("file_id", "transformation_id", "input_sha256", name="uq_ingestion_file_transform"),)
+
+
+# --- Phase 2 M8 tables (migration 0004_phase2_tables). Schemas: docs/data/DATA_DICTIONARY.md. ---
+
+
+class KnowledgeEntity(Base):
+    """A node of the scientific knowledge graph (D2). IDs are stable_ulid(entity_type + canonical_name)."""
+
+    __tablename__ = "knowledge_entity"
+
+    entity_id: Mapped[str] = mapped_column(String(26), primary_key=True)
+    entity_type: Mapped[str] = mapped_column(String(48), index=True)
+    canonical_name: Mapped[str] = mapped_column(Text)
+    aliases: Mapped[list[str]] = mapped_column(JsonType, default=list)
+    properties: Mapped[dict[str, Any]] = mapped_column(JsonType, default=dict)
+    source_id: Mapped[str | None] = mapped_column(ForeignKey("source.source_id"), nullable=True, index=True)
+    evidence_ids: Mapped[list[str]] = mapped_column(JsonType, default=list)
+    review_status: Mapped[str] = mapped_column(String(16), default="unreviewed")
+    merged_into: Mapped[str | None] = mapped_column(ForeignKey("knowledge_entity.entity_id"), nullable=True)
+    knowledge_version: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    __table_args__ = (UniqueConstraint("entity_type", "canonical_name", name="uq_knowledge_entity_type_name"),)
+
+
+class KnowledgeRelation(Base):
+    """A directed, evidence-backed edge between two entities (D2, D6)."""
+
+    __tablename__ = "knowledge_relation"
+
+    relation_id: Mapped[str] = mapped_column(String(26), primary_key=True)
+    subject_id: Mapped[str] = mapped_column(ForeignKey("knowledge_entity.entity_id", ondelete="CASCADE"), index=True)
+    predicate: Mapped[str] = mapped_column(String(64), index=True)
+    object_id: Mapped[str] = mapped_column(ForeignKey("knowledge_entity.entity_id", ondelete="CASCADE"), index=True)
+    evidence_id: Mapped[str | None] = mapped_column(String(26), nullable=True, index=True)
+    extraction_method: Mapped[str] = mapped_column(String(48))
+    extractor_version: Mapped[str | None] = mapped_column(Text, nullable=True)
+    confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+    review_status: Mapped[str] = mapped_column(String(16), default="unreviewed")
+    properties: Mapped[dict[str, Any]] = mapped_column(JsonType, default=dict)
+    knowledge_version: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    __table_args__ = (
+        UniqueConstraint("subject_id", "predicate", "object_id", "evidence_id", name="uq_knowledge_relation_edge"),
+    )
+
+
+class MemoryRecord(Base):
+    """Session/project memory (M5 MAG). Every row carries scope, origin, confidence and expiry."""
+
+    __tablename__ = "memory"
+
+    memory_id: Mapped[str] = mapped_column(String(26), primary_key=True)
+    scope: Mapped[str] = mapped_column(String(16), index=True)
+    actor: Mapped[str] = mapped_column(String(128))
+    conversation_id: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    content: Mapped[str] = mapped_column(Text)
+    origin: Mapped[str] = mapped_column(String(32))
+    confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+    provenance: Mapped[dict[str, Any]] = mapped_column(JsonType, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    superseded_by: Mapped[str | None] = mapped_column(ForeignKey("memory.memory_id"), nullable=True)
+
+
+class CacheEntry(Base):
+    """Durable index of CAG entries (M4). The value lives in Redis; this row is its dependency manifest."""
+
+    __tablename__ = "cache_entry"
+
+    cache_key: Mapped[str] = mapped_column(String(128), primary_key=True)
+    kind: Mapped[str] = mapped_column(String(32), index=True)
+    knowledge_version: Mapped[str | None] = mapped_column(Text, nullable=True, index=True)
+    dependencies: Mapped[dict[str, Any]] = mapped_column(JsonType, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    invalidated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    hit_count: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class ModelRecord(Base):
+    """Model registry (C1, 2H Task 4). Seeded from ai/routing/model_manifest.json."""
+
+    __tablename__ = "model"
+
+    model_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    capability: Mapped[str] = mapped_column(String(32), index=True)
+    provider: Mapped[str] = mapped_column(String(48))
+    runtime: Mapped[str] = mapped_column(String(48))
+    name: Mapped[str] = mapped_column(Text)
+    version: Mapped[str | None] = mapped_column(Text, nullable=True)
+    quantization: Mapped[str | None] = mapped_column(Text, nullable=True)
+    license: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    size_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    locality: Mapped[str] = mapped_column(String(16))
+    context_window: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    status: Mapped[str] = mapped_column(String(16), default="candidate")
+    model_card: Mapped[str | None] = mapped_column(Text, nullable=True)
+    payload: Mapped[dict[str, Any]] = mapped_column(JsonType, default=dict)
+    registered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class DatasetRecord(Base):
+    """A versioned dataset built from sources (evaluation sets, CV sets, derived corpora)."""
+
+    __tablename__ = "dataset"
+
+    dataset_id: Mapped[str] = mapped_column(String(26), primary_key=True)
+    name: Mapped[str] = mapped_column(Text)
+    version: Mapped[str] = mapped_column(String(32))
+    kind: Mapped[str] = mapped_column(String(32))
+    source_id: Mapped[str | None] = mapped_column(ForeignKey("source.source_id"), nullable=True, index=True)
+    split: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    item_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    license: Mapped[str | None] = mapped_column(Text, nullable=True)
+    path: Mapped[str | None] = mapped_column(Text, nullable=True)
+    payload: Mapped[dict[str, Any]] = mapped_column(JsonType, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    __table_args__ = (UniqueConstraint("name", "version", name="uq_dataset_name_version"),)
+
+
+class ImageAsset(Base):
+    """An image or video frame known to Flame, with lineage to the file it came from."""
+
+    __tablename__ = "image_asset"
+
+    image_id: Mapped[str] = mapped_column(String(26), primary_key=True)
+    file_id: Mapped[str | None] = mapped_column(ForeignKey("file_record.file_id"), nullable=True, index=True)
+    parent_file_id: Mapped[str | None] = mapped_column(ForeignKey("file_record.file_id"), nullable=True, index=True)
+    source_id: Mapped[str | None] = mapped_column(ForeignKey("source.source_id"), nullable=True, index=True)
+    analysis_id: Mapped[str | None] = mapped_column(String(26), nullable=True, index=True)
+    sha256: Mapped[str] = mapped_column(String(64), index=True)
+    media_type: Mapped[str] = mapped_column(Text)
+    width: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    height: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    frame_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    derivation: Mapped[str | None] = mapped_column(Text, nullable=True)
+    payload: Mapped[dict[str, Any]] = mapped_column(JsonType, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class AuditEvent(Base):
+    """Append-only audit log for admin and configuration changes (B6, 2H mode changes)."""
+
+    __tablename__ = "audit_event"
+
+    event_id: Mapped[str] = mapped_column(String(26), primary_key=True)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    actor: Mapped[str] = mapped_column(String(128))
+    action: Mapped[str] = mapped_column(String(64), index=True)
+    target_type: Mapped[str] = mapped_column(String(48))
+    target_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    before: Mapped[dict[str, Any] | None] = mapped_column(JsonType, nullable=True)
+    after: Mapped[dict[str, Any] | None] = mapped_column(JsonType, nullable=True)
+    request_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+
+class KnowledgePublication(Base):
+    """One row per published knowledge_version (M4). The row, not the Redis message, is authoritative."""
+
+    __tablename__ = "knowledge_publication"
+
+    publication_id: Mapped[str] = mapped_column(String(26), primary_key=True)
+    knowledge_version: Mapped[str] = mapped_column(Text, unique=True)
+    previous_version: Mapped[str | None] = mapped_column(Text, nullable=True)
+    trigger: Mapped[str] = mapped_column(String(32))
+    published_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    payload: Mapped[dict[str, Any]] = mapped_column(JsonType, default=dict)

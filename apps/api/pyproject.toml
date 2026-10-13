@@ -23,7 +23,8 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
   "httpx>=0.27,<1",
-  "jsonschema>=4.23,<5",
+  "jsonschema[format-nongpl]>=4.23,<5",
+  "ruff>=0.6,<1",
   "pytest>=8,<9",
   "pytest-cov>=5,<7",
 ]
@@ -39,6 +40,16 @@ ingestion = [
   "pymupdf>=1.24,<2",
   "xlrd>=2,<3",
 ]
+# OCR fallback for scanned PDF pages (M9). Also needs the `tesseract` binary on the host.
+ocr = [
+  "pytesseract>=0.3.10,<1",
+]
+# OpenTelemetry spans (M12, L-9). No-op unless installed and FLAME_OTEL_ENABLED=true.
+observability = [
+  "opentelemetry-api>=1.27,<2",
+  "opentelemetry-sdk>=1.27,<2",
+  "opentelemetry-exporter-otlp-proto-http>=1.27,<2",
+]
 
 [tool.setuptools.packages.find]
 where = ["."]
@@ -46,4 +57,6 @@ include = ["flame_api*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# The repo root holds the `ai` (provider contracts, router) and `cv` packages flame_api imports.
+pythonpath = ["../..", ".", "tests"]
 addopts = "-q"

@@ -36,7 +36,7 @@ def mock_queue_and_storage(monkeypatch):
 
 
 def test_upload_returns_queued_analysis_and_is_idempotent(client, monkeypatch):
-    from conftest import assert_contract_component
+    from api_contract import assert_contract_component
 
     mock_queue_and_storage(monkeypatch)
     payload = png_bytes()
@@ -74,7 +74,7 @@ def test_upload_rejects_unsupported_and_undecodable_content(client, monkeypatch)
 
 
 def test_history_detail_and_original_artifact(client, monkeypatch):
-    from conftest import assert_contract_component
+    from api_contract import assert_contract_component
 
     mock_queue_and_storage(monkeypatch)
     created = client.post(

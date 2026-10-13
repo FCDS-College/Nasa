@@ -1,5 +1,5 @@
 import numpy as np
-from typing import List, Dict, Any, Tuple
+from typing import Tuple
 
 def compute_mask_iou(pred_mask: np.ndarray, gt_mask: np.ndarray) -> float:
     """

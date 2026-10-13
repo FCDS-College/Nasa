@@ -1,5 +1,7 @@
 # Day 2 Task Lists + Day 1 Review
 
+> **Status (2026-10-12): MVP task list, superseded** by the [Phase 2 plan](PHASE2_PLAN.md). Its open items are carried over there as M1–M13.
+
 **Date:** 2026-10-04 · **Basis:** MVP plan §15 (team responsibilities) and §16 (two-week plan), checked against `origin/main` at `2e0f9e8`, the remote branches, and the local `Eng5/` folder.
 **Day 2 theme (MVP plan §16):** *Database/vector foundation, source registry, first NASA sources.*
 

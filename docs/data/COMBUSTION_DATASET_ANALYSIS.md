@@ -1,5 +1,7 @@
 # Flame in Freefall: Combustion Dataset Analysis
 
+> **Status (2026-10-12): MVP working note, current as an analysis** of the PSI combustion datasets. Source status is now tracked in [SOURCE_REGISTRY.md](SOURCE_REGISTRY.md); quality scoring in [DATA_QUALITY_SCORING.md](DATA_QUALITY_SCORING.md).
+
 **Date:** 2026-10-05 · **Analysed:** the local mirror under `datasets/` at `28921c0` (raw files are git-ignored; their provenance is in `datasets/metadata/files.jsonl`).
 **Purpose:** a clear, measured picture of what the mirrored NASA data actually contains and supports, as the input to [`../AURA_INTEGRATION_REQUIREMENTS.md`](../integration/AURA_INTEGRATION_REQUIREMENTS.md).
 **Method:** every number below was computed from the files themselves (CSV parsing, zip listings, BMP headers, frame-timestamp logs), not taken from READMEs or landing pages.

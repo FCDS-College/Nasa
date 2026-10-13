@@ -1,6 +1,4 @@
-import os
 import json
-import pytest
 from pathlib import Path
 import jsonschema
 

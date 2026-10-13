@@ -1,5 +1,18 @@
 name: flame-in-freefall
 
+# Sub-phase 2H model routing (docs/hybrid-ai/PHASE_2_HYBRID_AI_ARCHITECTURE.md). Shared by api and worker.
+x-ai-env: &ai-env
+  FLAME_AI_EXECUTION_MODE: ${FLAME_AI_EXECUTION_MODE:-local_first}
+  FLAME_OLLAMA_BASE_URL: ${FLAME_OLLAMA_BASE_URL:-}
+  FLAME_OLLAMA_MODEL: ${FLAME_OLLAMA_MODEL:-qwen2.5:3b-instruct-q4_K_M}
+  FLAME_VLLM_BASE_URL: ${FLAME_VLLM_BASE_URL:-}
+  FLAME_VLLM_MODEL: ${FLAME_VLLM_MODEL:-Qwen/Qwen2.5-7B-Instruct-AWQ}
+  FLAME_LLAMACPP_BASE_URL: ${FLAME_LLAMACPP_BASE_URL:-}
+  FLAME_LLM_TIMEOUT_S: ${FLAME_LLM_TIMEOUT_S:-180}
+  FLAME_EMBEDDING_CACHE_DIR: /app/models/fastembed
+  FLAME_EMBEDDING_OFFLINE: ${FLAME_EMBEDDING_OFFLINE:-false}
+  FLAME_OTEL_ENABLED: ${FLAME_OTEL_ENABLED:-false}
+
 services:
   postgres:
     image: pgvector/pgvector:pg16
@@ -80,10 +93,12 @@ services:
       FLAME_S3_ACCESS_KEY: ${MINIO_ROOT_USER:-flame-local}
       FLAME_S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-flame-local-only-change-me}
       FLAME_S3_BUCKET: flame-artifacts
+      <<: *ai-env
     ports:
       - "127.0.0.1:${API_PORT:-8000}:8000"
     volumes:
       - ../datasets:/app/datasets:ro
+      - model-cache:/app/models
     depends_on:
       postgres:
         condition: service_healthy
@@ -130,15 +145,47 @@ services:
       FLAME_S3_ACCESS_KEY: ${MINIO_ROOT_USER:-flame-local}
       FLAME_S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-flame-local-only-change-me}
       FLAME_S3_BUCKET: flame-artifacts
+      <<: *ai-env
     volumes:
       - ../datasets:/app/datasets:ro
+      - model-cache:/app/models
     depends_on:
       api:
         condition: service_healthy
     command: ["rq", "worker", "--url", "redis://redis:6379/0", "flame-analysis"]
     restart: unless-stopped
 
+  # Local LLM runtime (2H Task 4). Opt in with `COMPOSE_PROFILES=local-llm` and
+  # FLAME_OLLAMA_BASE_URL=http://ollama:11434. No published port: only containers on this
+  # project's network can reach it (2H Task 9). Pull the model once, while connected:
+  #   docker compose --profile local-llm run --rm ollama-pull
+  ollama:
+    image: ollama/ollama:0.5.7
+    profiles: ["local-llm"]
+    environment:
+      OLLAMA_KEEP_ALIVE: 30m
+    volumes:
+      - ollama-models:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  ollama-pull:
+    image: ollama/ollama:0.5.7
+    profiles: ["local-llm-setup"]
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint: ["ollama", "pull", "${FLAME_OLLAMA_MODEL:-qwen2.5:3b-instruct-q4_K_M}"]
+    depends_on:
+      ollama:
+        condition: service_healthy
+
 volumes:
   postgres-data:
   redis-data:
   minio-data:
+  model-cache:
+  ollama-models:

@@ -40,7 +40,6 @@ def extract_embeddings(frames: List[np.ndarray], device: Optional[torch.device] 
                        batch_size: int = 32, weights: bool = True, arch: str = "resnet18") -> torch.Tensor:
     """RGB uint8 frames (H,W,3) -> (N, D) ResNet embeddings, AMP on CUDA."""
     import torchvision
-    from torchvision.models import ResNet18_Weights
     import cv2
     device = device or get_device()
     net = getattr(torchvision.models, arch)(weights="DEFAULT" if weights else None)
