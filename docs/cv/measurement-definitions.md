@@ -113,9 +113,23 @@ All spatial measurements are reported in **original-image pixels** (adjusted via
 
 ---
 
+## Temporal metrics (video)
+
+Computed by `cv/temporal_analysis.py`; algorithms, defaults and validity conditions are in [temporal-analysis.md](temporal-analysis.md). Synthetic worked examples (these are the cases asserted in `tests/cv/test_video_pipeline.py`):
+
+| Metric | JSON field | Unit | Valid range | Example |
+|---|---|---|---|---|
+| Persistence rate | `temporalSummary.persistenceRate` | fraction | [0, 1] | 10 `PRESENT` of 11 frames -> 0.909 |
+| Area change rate | `temporalSummary.areaChangeRate.meanAbs` | pixels^2 / s | >= 0 | area grows 30 px^2 per frame at 30 fps -> 900 |
+| Tracking stability | `temporalSummary.trackingStability.value` | pixels^2 | >= 0 or null | motionless centroid -> 0 |
+| Flicker frequency | `temporalSummary.flickerFrequencyHz` | Hz | [0.5, 10] or `"not estimable"` | 3 Hz sinusoidal area at 30 fps for 4 s -> ~3.0 Hz; the same signal for 1 s -> `"not estimable"` |
+
+Calibration: none of these require `mmPerPixel` (they are in pixel units). Temporal metrics inherit the per-frame `blur` and `saturationClipping` flags, which exclude frames from the flicker run.
+
 ## Known limitations and failure modes
 - Spatial metrics assume a 2D projection plane; perspective distortion is not corrected without depth data.
 - RGB intensity and appearance metrics are strictly image-dependent and **cannot** be translated to temperature without full radiometric calibration.
 
 ## Changelog
+- **Unreleased (2026-10-14):** Added temporal metric definitions and synthetic examples.
 - **v1.2.0 (2026-10-12):** Initial creation of measurement dictionary aligned with auto-adaptive pipeline v1.2.0.

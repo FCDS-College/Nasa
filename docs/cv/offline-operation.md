@@ -6,7 +6,7 @@
 
 ## 1. Scope
 
-Only the Otsu/contour baseline (`cv/flame_cv.py`) is a supported capability. The CNN (`cv/cnn_pipeline.py`) and PINN (`cv/pinn_pipeline.py`) modules are **unvalidated prototypes**: they are optional in the manifest and are not registered models. Video ingestion, temporal analysis, resumable processing and audio transcription are **not implemented** and not in scope here.
+Only the Otsu/contour baseline (`cv/flame_cv.py`) and the video pipeline built on it are supported capabilities. The CNN (`cv/cnn_pipeline.py`) and PINN (`cv/pinn_pipeline.py`) modules are **unvalidated prototypes**: they are optional in the manifest and are not registered models. Video ingestion, temporal analysis, resumable processing and audio transcription are **not implemented** and not in scope here.
 
 The baseline uses no network, no external CV provider and no downloaded weights. RGB values do not establish calibrated temperature; a local language model may interpret documented measurements but must not replace or override CV computation.
 
@@ -44,13 +44,24 @@ python -m cv.flame_cv
 
 Image-analysis failures are returned as controlled `ErrorResponse` payloads (`analyze_image_safe`); the `python -m cv.flame_cv` CLI exits 1 for them.
 
-## Known limitations and failure modes
+## 5. Resumable video processing
 
+`python -m cv.video_analysis <video> --out-dir cv/output/video [--sample-every N] [--max-frames M]` analyzes a local video with no network access.
+
+- Each analyzed frame is appended to `<out-dir>/<videoId>/frames.jsonl` and flushed, and `job.json` holds the job state: `RUNNING` while in progress and `COMPLETE` when `summary.json` has been written. A killed process leaves the job `RUNNING`.
+- Re-running the same command resumes: completed frames are read from the checkpoint and only the remaining frames are analyzed. A truncated last line is discarded and that frame is recomputed. A finished job is reassembled from the checkpoint without re-analysis.
+- The checkpoint is keyed by a job digest (video checksum, pipeline versions, video and CV configuration). If any of these change, the stale checkpoint is discarded; `--no-resume` forces a fresh run.
+- Error behavior: unsupported, oversize, over-long or corrupt videos return a controlled `ErrorResponse` (exit code 1 from the CLI); a failed frame is recorded as `UNCERTAIN` with its error code and does not abort the video.
+- Scope: this is recovery within the CV job. Restart handling by the API worker and job queue is owned by the Lead and is not exercised here. `tests/cv/test_video_pipeline.py` simulates an interruption and verifies the resume.
+
+## Known limitations and failure modes
 - Checksums cover Python wheels only; there are no model weights to checksum for the baseline.
 - OpenCV/TensorFlow builds, codecs and CPU-only viability for the prototypes are not benchmarked.
-- Restart recovery and offline video processing are untested because video processing does not exist.
+- Restart recovery is tested only as an in-process simulated interruption, not as an application restart under the Lead's job infrastructure. Video decoding depends on the codecs in the local OpenCV build, which are not inventoried here.
+- No CPU-only video throughput has been measured.
 - The verifier checks file presence, size and checksums, not that imports succeed.
 
 ## Changelog
 
+- **0.2.0 (2026-10-14):** Added the resumable video processing procedure.
 - **0.1.0 (2026-10-14):** Initial offline procedure and verifier behavior.
