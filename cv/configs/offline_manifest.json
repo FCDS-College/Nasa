@@ -1,21 +1,27 @@
 {
-  "manifestVersion": "1.0.0",
-  "description": "Offline assets and model weights manifest for NASA CV pipeline",
+  "manifestVersion": "1.1.0",
+  "description": "Offline assets manifest for the NASA CV pipeline. Only the Otsu baseline is a supported capability; the CNN and PINN modules are unvalidated prototypes.",
   "requiredAssets": [
     {
       "name": "Otsu Baseline Module",
       "path": "cv/flame_cv.py",
       "minSizeBytes": 1000
-    },
+    }
+  ],
+  "optionalAssets": [
     {
-      "name": "CNN Pipeline Module",
+      "name": "CNN Pipeline Module (unvalidated prototype)",
       "path": "cv/cnn_pipeline.py",
       "minSizeBytes": 1000
     },
     {
-      "name": "PINN Pipeline Module",
+      "name": "PINN Pipeline Module (unvalidated prototype)",
       "path": "cv/pinn_pipeline.py",
       "minSizeBytes": 1000
     }
-  ]
+  ],
+  "offlinePackages": {
+    "directory": "cv/weights/offline_packages",
+    "checksumFile": "cv/configs/offline_packages.sha256"
+  }
 }
