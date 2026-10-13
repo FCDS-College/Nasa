@@ -4,12 +4,14 @@ scipy>=1.11.0
 
 # Image & Video Ingestion / Processing
 opencv-python-headless>=4.8.0
+pillow>=10.0.0
 
-# Deep Learning Frameworks (CNN & PINN)
+# Deep Learning Frameworks (CNN & PINN prototypes only; unvalidated)
+# Offline wheels were built with Python 3.14, which only has TensorFlow release candidates.
+# Prefer Python 3.12 with a stable TensorFlow 2.x for reproducible offline installs.
 tensorflow>=2.16.0
-torch>=2.2.0
-torchvision>=0.17.0
 
 # Schema Validation & Testing
 jsonschema>=4.20.0
+pydantic>=2.0.0
 pytest>=8.0.0
