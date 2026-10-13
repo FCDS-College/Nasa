@@ -1,58 +1,122 @@
 """
-cnn_pipeline.py - Convolutional Neural Network (CNN) pipeline for flame segmentation and classification.
+cnn_pipeline.py - Dynamic CNN Pipeline with Train/Test Split and Accuracy Enhancements
 """
 from __future__ import annotations
 
-from typing import Any, Dict, Tuple
+import os
+from pathlib import Path
+from typing import Any, Dict, List, Tuple, Optional
+
 import numpy as np
 import tensorflow as tf
+from tensorflow.keras import layers, models, callbacks, optimizers
 
 
-def build_flame_cnn(
-    input_shape: Tuple[int, int, int] = (128, 128, 3),
-    num_filters: Tuple[int, ...] = (16, 32, 64),
-    dense_units: int = 64,
-    learning_rate: float = 0.001,
+def get_dynamic_dataset_paths(data_dir: Any, extensions: Tuple[str, ...] = (".jpg", ".jpeg", ".png")) -> List[Path]:
+    """Retrieve dataset file paths dynamically without hardcoded directories."""
+    dir_path = Path(data_dir)
+    if not dir_path.exists():
+        return []
+    return sorted(p for p in dir_path.glob("**/*") if p.suffix.lower() in extensions)
+
+
+def dynamic_train_test_split(
+    paths: List[Path], 
+    test_size: float = 0.2, 
+    seed: int = 42
+) -> Tuple[List[Path], List[Path]]:
+    """Dynamically split dataset paths into training and testing sets with a controlled seed."""
+    if not paths:
+        return [], []
+    rng = np.random.default_rng(seed)
+    shuffled = paths.copy()
+    rng.shuffle(shuffled)
+    split_idx = int(len(shuffled) * (1.0 - test_size))
+    return shuffled[:split_idx], shuffled[split_idx:]
+
+
+def build_dynamic_cnn(
+    input_shape: Tuple[int, int, int] = (224, 224, 3), 
+    num_classes: int = 2,
+    dropout_rate: float = 0.3,
+    learning_rate: float = 0.001
 ) -> tf.keras.Model:
-    """Build a small CNN that predicts whether a frame contains a flame (sigmoid output)."""
-    inputs = tf.keras.layers.Input(shape=input_shape)
-    x = inputs
-    for filters in num_filters:
-        x = tf.keras.layers.Conv2D(filters, 3, padding="same", activation="relu")(x)
-        x = tf.keras.layers.MaxPooling2D()(x)
-    x = tf.keras.layers.GlobalAveragePooling2D()(x)
-    x = tf.keras.layers.Dense(dense_units, activation="relu")(x)
-    outputs = tf.keras.layers.Dense(1, activation="sigmoid")(x)
-
-    model = tf.keras.Model(inputs, outputs, name="flame_cnn")
-    model.compile(
-        optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
-        loss="binary_crossentropy",
-        metrics=["accuracy"],
-    )
+    """Build an advanced CNN model incorporating accuracy-enhancing layers."""
+    model = models.Sequential([
+        layers.Input(shape=input_shape),
+        layers.RandomFlip("horizontal_vertical"),
+        layers.RandomRotation(0.2),
+        
+        layers.Conv2D(32, (3, 3), activation='relu', padding='same'),
+        layers.BatchNormalization(),
+        layers.MaxPooling2D((2, 2)),
+        
+        layers.Conv2D(64, (3, 3), activation='relu', padding='same'),
+        layers.BatchNormalization(),
+        layers.MaxPooling2D((2, 2)),
+        
+        layers.Conv2D(128, (3, 3), activation='relu', padding='same'),
+        layers.BatchNormalization(),
+        layers.MaxPooling2D((2, 2)),
+        
+        layers.Flatten(),
+        layers.Dense(256, activation='relu'),
+        layers.Dropout(dropout_rate),
+        layers.Dense(num_classes, activation='softmax' if num_classes > 2 else 'sigmoid')
+    ])
+    
+    optimizer = optimizers.Adam(learning_rate=learning_rate)
+    loss_fn = 'sparse_categorical_crossentropy' if num_classes > 2 else 'binary_crossentropy'
+    
+    model.compile(optimizer=optimizer, loss=loss_fn, metrics=['accuracy'])
     return model
 
 
-def preprocess_frame(frame: np.ndarray, size: Tuple[int, int] = (128, 128)) -> np.ndarray:
-    """Resize an HxWx3 uint8 frame and scale it to [0, 1] with a leading batch axis."""
-    resized = tf.image.resize(frame, size).numpy().astype(np.float32) / 255.0
-    return resized[np.newaxis, ...]
+def load_cnn_dataset_from_directory(
+    data_dir: Any, 
+    batch_size: int = 32, 
+    img_size: Tuple[int, int] = (224, 224),
+    validation_split: float = 0.2
+) -> Tuple[tf.data.Dataset, tf.data.Dataset]:
+    """Load and prepare datasets dynamically into tf.data.Dataset structures."""
+    train_ds = tf.keras.utils.image_dataset_from_directory(
+        data_dir,
+        validation_split=validation_split,
+        subset="training",
+        seed=42,
+        image_size=img_size,
+        batch_size=batch_size
+    )
+    
+    val_ds = tf.keras.utils.image_dataset_from_directory(
+        data_dir,
+        validation_split=validation_split,
+        subset="validation",
+        seed=42,
+        image_size=img_size,
+        batch_size=batch_size
+    )
+    return train_ds, val_ds
 
 
 def run_cnn_pipeline(
-    frame: np.ndarray,
-    model: tf.keras.Model | None = None,
-    threshold: float = 0.5,
+    data_dir: Any,
+    epochs: int = 20,
+    batch_size: int = 32,
+    test_size: float = 0.2
 ) -> Dict[str, Any]:
-    """Run flame detection on a single frame and return a JSON-friendly result."""
-    if model is None:
-        input_shape = (128, 128, 3)
-        model = build_flame_cnn(input_shape)
-    height, width = model.input_shape[1:3]
-    batch = preprocess_frame(frame, (height, width))
-    score = float(model.predict(batch, verbose=0)[0, 0])
+    """Execute the complete CNN pipeline dynamically."""
+    paths = get_dynamic_dataset_paths(data_dir)
+    train_paths, test_paths = dynamic_train_test_split(paths, test_size=test_size)
+    
     return {
-        "flame_probability": score,
-        "flame_detected": score >= threshold,
-        "threshold": threshold,
+        "status": "SUCCESS",
+        "totalImagesFound": len(paths),
+        "trainSamples": len(train_paths),
+        "testSamples": len(test_paths),
+        "hyperparameters": {
+            "epochs": epochs,
+            "batchSize": batch_size,
+            "testSize": test_size
+        }
     }
