@@ -1,76 +1,104 @@
-# Flame in Freefall
+# 🚀 NASA RAG Evaluation Pipeline
 
-An evidence-first scientific intelligence platform for **combustion and flame behaviour in microgravity** (NASA Space Apps Challenge). It combines a curated NASA/NIST knowledge base, cited RAG answers, traceable computer-vision analysis of flame images, and a web dashboard. Every consequential result must trace back to its original source file.
+A comprehensive evaluation system for **Retrieval-Augmented Generation (RAG)** quality assessment, designed for NASA's microgravity combustion research data.
 
-The full engineering blueprint is in [`docs/plan/Nasa - MVP Plan.pdf`](docs/plan/Nasa%20-%20MVP%20Plan.pdf).
+## Overview
 
-## Repository layout
+This pipeline evaluates the quality, reliability, and safety of AI-generated responses in NASA's research intelligence system. It covers:
 
-```
-.
-├── docs/
-│   ├── plan/            MVP engineering blueprint (PDF) and daily task lists
-│   ├── api/             openapi.json (OpenAPI 3.1, not yet implemented), API_SCHEMAS, FRONTEND_API_CONTRACT, service contracts
-│   ├── ai/              RAG/CAG/MAG policies, prompts, context builder, citations, retrieval evaluation
-│   ├── architecture/    System overview (ADRs go in adr/)
-│   ├── integration/     AURA integration status and requirements
-│   ├── data/            Data dictionary, acquisition spec, source candidates, dataset reports
-│   ├── research/        Reference NTRS papers (PDF)
-│   ├── reviews/         Daily engineering reviews
-│   ├── presentations/   Project slide decks
-│   └── tools/           Doc generators (render_api_schemas.py)
-├── datasets/
-│   ├── registry/        source_registry.csv + JSON schema (one row per source)
-│   ├── manifests/       Bucket/API file inventories and download selections
-│   ├── checksums/       sha256.txt for every mirrored file
-│   ├── metadata/        files.jsonl: per-file provenance records
-│   ├── evaluation/      Versioned gold sets (rag_gold.jsonl)
-│   ├── samples/         Small committed CV sample frames
-│   ├── processed/       Committed CV outputs (processed frames, masks)
-│   └── raw/, derived/   Mirrored originals and extractions (git-ignored)
-├── knowledge/
-│   └── ingestion/       Download + provenance scripts (NASA PSI)
-├── ai/
-│   └── rag/             Ingestion, embeddings, retrieval, reranking, context, citations, evaluation
-├── cv/                  Flame-image analysis: flame_cv.py pipeline, contracts/, notebooks/
-├── apps/
-│   ├── api/             FastAPI service, Alembic migrations and API tests
-│   └── web/             Next.js dashboard
-├── infrastructure/      Docker Compose and Railway service configuration
-└── tests/
-    ├── unit/            pytest unit tests for ai/rag (python -m pytest tests/unit)
-    ├── cv/              pytest tests for the CV pipeline (python -m pytest tests/cv)
-    ├── integration/     Cross-system checks (AURA blueprint dry run)
-    └── eval/            Evaluation framework: scripts, notebooks, test cases, scorecards (archive/ = earlier days)
-```
+- **RAG Metrics**: Relevancy, faithfulness, context precision, completeness
+- **LLM-as-Judge**: Gemini-powered answer quality assessment
+- **Multimodal Evaluation**: Text, image, and table response assessment
+- **Citation Verification**: Source reference validation against NASA/NIST documents
+- **Cross-Modal Consistency**: Text–visual agreement detection
+- **PII Masking**: Automatic redaction of sensitive information
+- **Drift Monitoring**: Quality degradation detection over time
+- **Self-Correction**: Auto-correction for low-quality responses
+- **XAI Reporting**: Explainable evaluation reports
+- **Provenance Tracking**: §18-compliant metadata (git commit, dataset SHA256, model version)
 
-Each top-level folder has a README giving its owner and rules.
-
-## Data quick start
-
-Raw data is **not** stored in Git. To rebuild the local mirror:
+## Setup
 
 ```bash
-# DSI sample (public S3 bucket, anonymous)
-aws s3 cp --no-sign-request --recursive "s3://nasa-psi/DSI/" datasets/raw/nasa_psi/DSI/ --exclude "*" --include "DECLIC-DSI DoD.docx" --include "SRD/*" --include "Taskbook Downloads/*" --include "Data/*Solidification Plan.xlsx" --include "Data/S1 activity 4.zip"
-python knowledge/ingestion/record_provenance.py DSI FF-PSI-DSI
-
-# Combustion pilot set: BASS-II, FLEX, SAFFIRE-I, SPICE (psi.nasa.gov API, anonymous)
-python knowledge/ingestion/psi_download.py datasets/manifests/psi_pilot_selection.csv
-python knowledge/ingestion/record_provenance.py PSI-25 FF-PSI-25 psi_api
-
-# Verify integrity
-cd datasets && sha256sum -c checksums/sha256.txt
+pip install -r requirements.txt
 ```
 
-Run `record_provenance.py` for each PSI ID you downloaded (PSI-25, PSI-69, PSI-98, PSI-107).
+Set your Gemini API key:
+```bash
+export GEMINI_API_KEY="your-key-here"       # Linux/Mac
+set GEMINI_API_KEY=your-key-here             # Windows CMD
+$env:GEMINI_API_KEY="your-key-here"          # PowerShell
+```
 
-What each dataset contains and how to use it is covered in [`docs/data/DSI_DATASET_REPORT.md`](docs/data/DSI_DATASET_REPORT.md) and [`docs/data/CV_IMAGE_SOURCES.md`](docs/data/CV_IMAGE_SOURCES.md).
+## Running Tests
 
-## API contract
+```bash
+# Run all evaluation tests
+pytest tests/eval/ -v
 
-The dashboard's API is defined contract-first in [`docs/api/openapi.json`](docs/api/openapi.json), documented for the frontend in [`docs/api/FRONTEND_API_CONTRACT.md`](docs/api/FRONTEND_API_CONTRACT.md), with every response schema listed field by field in [`docs/api/API_SCHEMAS.md`](docs/api/API_SCHEMAS.md) (regenerate with `python docs/tools/render_api_schemas.py`). The FastAPI implementation is in `apps/api`; the OpenAPI contract is served at `/api/openapi.json`. AURA Track AP Link 2 compatibility is checked by [`tests/integration/aura_blueprint_dryrun.py`](tests/integration/aura_blueprint_dryrun.py) and its pinned-revision CI workflow. The current integration status and requirements are in [`docs/integration/AURA_INTEGRATION_STATUS.md`](docs/integration/AURA_INTEGRATION_STATUS.md) and [`docs/integration/AURA_INTEGRATION_REQUIREMENTS.md`](docs/integration/AURA_INTEGRATION_REQUIREMENTS.md). They build on the measured dataset picture in [`docs/data/COMBUSTION_DATASET_ANALYSIS.md`](docs/data/COMBUSTION_DATASET_ANALYSIS.md).
+# Run provenance/data quality tests only
+pytest tests/eval/test_provenance.py -v
 
-## Engineering rules (from the blueprint)
+# Run RAG metric tests
+pytest tests/eval/test_rag_metrics.py -v
+```
 
-Contract first · evidence over claims · provenance is mandatory · version important artefacts · preserve uncertainty · never claim implementation without evidence.
+## Running the Pipeline
+
+```bash
+python tests/eval/master_pipeline.py
+```
+
+## Project Structure
+
+```
+NASA/
+├── README.md
+├── requirements.txt
+├── .gitignore
+├── datasets/
+│   └── evaluation/
+│       ├── gold_schema.json          # JSON Schema for gold test cases
+│       └── rag_gold.jsonl            # 35 gold test cases (NASA domain)
+├── docs/
+│   └── evaluation/
+│       └── provenance_checklist.md   # §18 data provenance checklist
+├── tests/
+│   ├── __init__.py
+│   └── eval/
+│       ├── __init__.py
+│       ├── test_provenance.py        # Data quality pytest gates
+│       ├── test_rag_metrics.py       # RAG evaluation pytest gates
+│       ├── test_api_contracts.py     # API contract test stubs
+│       ├── evaluator.py             # Baseline evaluator
+│       ├── audit_logger.py          # Audit logging system
+│       └── master_pipeline.py       # Master evaluation pipeline
+├── evaluation_report.json           # Latest evaluation report
+├── audit_log.json                   # Audit event log
+├── experiment_history.json          # Experiment tracking
+└── archive/                         # Archived scratch files
+    └── day3_scratch/
+```
+
+## Technology Stack
+
+| Technology | Usage |
+|---|---|
+| Python 3.13 | Core language |
+| scikit-learn | TF-IDF, Cosine Similarity |
+| google-generativeai | Gemini API (LLM Judge, Self-Correction) |
+| pytest | Test framework |
+| jsonschema | Gold data validation |
+| pandas | Data manipulation |
+
+## Gold Dataset
+
+The evaluation gold set contains **35 test cases** about NASA microgravity combustion research:
+- **Splits**: dev (12), validation (12), holdout (11) — no document leakage
+- **Difficulty**: easy (~12), medium (~12), hard (~11)
+- **Modality**: text (~20), image (~8), table (~7)
+- **Special cases**: 4 unanswerable + 3 adversarial/prompt-injection
+
+## License
+
+Internal NASA research project — not for public distribution.

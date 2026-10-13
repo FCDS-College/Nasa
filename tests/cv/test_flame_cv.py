@@ -248,3 +248,15 @@ def test_naive_resize_would_have_distorted(tmp_path):
     x, y, w, h = cv2.boundingRect(max(cv2.findContours(th, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[0],
                                       key=cv2.contourArea))
     assert w / h < 0.75  # a perfect circle becomes a tall ellipse
+
+def test_artifact_paths_are_repo_relative(tmp_path, dirs):
+    p = circle(tmp_path)
+    r = analyze_image(req(p), *dirs)
+    
+    mask_uri = r["segmentation"].get("maskUri")
+    if mask_uri:
+        assert not Path(mask_uri).is_absolute(), f"Absolute path detected in maskUri: {mask_uri}"
+        
+    derived_uri = r["preprocessing"].get("derivedUri")
+    if derived_uri:
+        assert not Path(derived_uri).is_absolute(), f"Absolute path detected in derivedUri: {derived_uri}"
