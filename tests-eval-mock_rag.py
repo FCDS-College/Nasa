@@ -1,5 +1,4 @@
-import json
-from typing import Dict, Any, List
+from typing import Dict, Any
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]

@@ -1,5 +1,5 @@
 import numpy as np
-from typing import List, Set, Dict, Any
+from typing import List, Dict
 
 def compute_recall_at_k(retrieved_ids: List[str], expected_ids: List[str], k: int = 5) -> float:
     """

@@ -1,16 +1,12 @@
 import numpy as np
-import pytest
 from tests.eval.cv_metrics import (
     compute_mask_iou,
-    compute_dice_coefficient,
-    compute_precision_recall_masks
+    compute_dice_coefficient
 )
 from tests.eval.ranking import (
     rank_models,
     rank_documents,
-    rank_evidence,
-    rank_knowledge_records,
-    rank_datasets
+    rank_knowledge_records
 )
 
 def test_cv_iou_and_dice_perfect_overlap():

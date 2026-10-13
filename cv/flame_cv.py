@@ -3,16 +3,14 @@ flame_cv.py - Flame in Freefall: computer-vision pipeline (Engineer 3), v1.1.0 (
 """
 from __future__ import annotations
 
-import copy
 import hashlib
 import json
 import os
-import shutil
 import tempfile
 from dataclasses import asdict, dataclass, replace
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Literal, Optional, Tuple
+from typing import Any, Dict, List, Literal, Optional, Tuple
 
 import cv2
 import numpy as np
