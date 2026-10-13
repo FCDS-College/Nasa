@@ -22,7 +22,7 @@
 | L-8 | [Runbook](operations/RUNBOOK.md) | Draft (needs a clean-machine dry run) | 2026-10-12 |
 | L-9 | [Observability](operations/OBSERVABILITY.md) | In review | 2026-10-12 |
 | L-10 | [Security and access control](operations/SECURITY.md) | Draft (final in W7) | 2026-10-12 |
-| L-11 | [Release v0.1.0-mvp](releases/v0.1.0-mvp.md) | Tagged; sign-offs pending | 2026-10-12 |
+| L-11 | [Release v0.1.0-mvp](releases/v0.1.0-mvp.md) | Tag approved, push pending; sign-offs pending | 2026-10-12 |
 | L-12 | [AURA integration status](integration/AURA_INTEGRATION_STATUS.md) §0 | Current | 2026-10-12 |
 | H-1 | [Dependency audit](hybrid-ai/PHASE_2_HYBRID_AI_DEPENDENCY_AUDIT.md) | In review | 2026-10-12 |
 | H-2 | [Hybrid AI architecture](hybrid-ai/PHASE_2_HYBRID_AI_ARCHITECTURE.md) | In review | 2026-10-12 |
