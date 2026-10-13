@@ -40,6 +40,7 @@ STATUS_UNAVAILABLE = "retrieval_unavailable"
 
 
 class FlameResponse(BaseModel):
+    """Response of FlameRAGService: original and rewritten query, the GroundedAnswer (None when retrieval is unavailable), status, cache_hit, memory used and conflicts, versions and error."""
     original_query: str
     rewritten_query: str
     answer: GroundedAnswer | None = None
@@ -52,6 +53,10 @@ class FlameResponse(BaseModel):
 
 
 class FlameRAGService:
+    """Wires query rewrite, session memory, cache, retrieval, composer and failure handling (see docs/ai/retrieval-pipeline.md).
+
+    If retrieval or the reranker fails the result has status "retrieval_unavailable" and no answer; it never returns an uncited answer."""
+
     def __init__(
         self,
         retrieval_pipeline,
@@ -103,6 +108,7 @@ class FlameRAGService:
         return f"{self.composer.llm.name}@{self.composer.llm.version}"
 
     def versions(self) -> dict[str, str]:
+        """Return the versions recorded per request: embedding_model, chunker, reranker, corpus_version, prompt, llm."""
         return {
             "embedding_model": self.embedding_model,
             "chunker": self.chunker,

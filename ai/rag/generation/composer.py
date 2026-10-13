@@ -53,6 +53,15 @@ def _strip_fences(text: str) -> str:
 
 
 class GroundedAnswerComposer(AnswerComposer):
+    """Builds a cited answer from an EvidenceBundle, validating citations and abstaining when evidence is missing, weak or conflicting.
+
+    Args:
+        llm: an LLMProvider.
+        registry: PromptRegistry (default registry if omitted).
+        min_top_score: minimum best-evidence score before answering (default 0.3, not calibrated).
+
+    See docs/ai/grounded-generation.md."""
+
     def __init__(
         self,
         llm: LLMProvider,

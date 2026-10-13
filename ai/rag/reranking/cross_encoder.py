@@ -18,6 +18,12 @@ class RerankerUnavailable(RuntimeError):
 
 
 class CrossEncoderReranker(Reranker):
+    """Cross-encoder reranker (default model cross-encoder/ms-marco-MiniLM-L-6-v2, own version string 1.0.0) with score logging.
+
+    Raises:
+        ValueError: if candidate_size < 1.
+        RerankerUnavailable (from rerank): if the model cannot load or scoring fails. There is no silent fallback."""
+
     def __init__(
         self,
         model_name: str = "cross-encoder/ms-marco-MiniLM-L-6-v2",

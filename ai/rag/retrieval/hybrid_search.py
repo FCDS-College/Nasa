@@ -1,5 +1,9 @@
 class HybridSearchService:
 
+    """Combines vector and keyword scores over the given chunks: hybrid = vector_weight * vector_score + keyword_weight * (keyword_score / max keyword score), weights 0.7 and 0.3 by default.
+
+    Note: every given chunk gets a score, so up to top_k chunks are returned even when their hybrid score is 0."""
+
     def __init__(
         self,
         vector_search,

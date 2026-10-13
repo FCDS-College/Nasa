@@ -13,6 +13,7 @@ STATUS_CONFLICTING = "conflicting_evidence"
 
 
 class Claim(BaseModel):
+    """One validated statement: text, label (one of CLAIM_LABELS), evidence_ids (retrieved chunk ids) and citation_ids (C1, C2, ...)."""
     text: str
     label: str
     evidence_ids: list[str]
@@ -20,6 +21,10 @@ class Claim(BaseModel):
 
 
 class GroundedAnswer(BaseModel):
+    """Final answer object.
+
+    status is one of answered, partially_supported, insufficient_evidence, conflicting_evidence. Holds the rebuilt answer text, claims, citations, warnings, dropped citation ids, abstention reason, memory ids used and the prompt/model versions."""
+
     question: str
     status: str
     answer: str = ""
@@ -33,4 +38,5 @@ class GroundedAnswer(BaseModel):
 
     @property
     def abstained(self) -> bool:
+        """True when status is insufficient_evidence or conflicting_evidence."""
         return self.status in (STATUS_INSUFFICIENT, STATUS_CONFLICTING)

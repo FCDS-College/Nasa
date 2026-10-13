@@ -1,6 +1,21 @@
 class CitationManager:
 
+    """Builds citation records from context sources.
+
+    The citation id equals the chunk id. Document version and locator are preserved so a citation can be traced back to its source (see docs/ai/citation-provenance.md)."""
+
     def create_citations(self, sources):
+        """Create one citation dict per source.
+
+        Args:
+            sources: list of dicts with chunk_id, document_id, document_version and optionally metadata and locator.
+
+        Returns:
+            List of citations with citation_id, chunk_id, document_id, document_version, metadata and (when present) locator.
+
+        Raises:
+            KeyError: if a source lacks chunk_id, document_id or document_version."""
+
         citations = []
 
         for source in sources:
@@ -32,6 +47,14 @@ class CitationManager:
         return citations
 
     def attach_citations(self, context_result):
+        """Add citations to a context result.
+
+        Args:
+            context_result: dict with `context` and `sources` (output of ContextBuilder.build).
+
+        Returns:
+            Dict with `context`, `sources` and `citations`."""
+
         sources = context_result.get(
             "sources",
             []

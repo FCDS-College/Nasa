@@ -13,6 +13,7 @@ DEFAULT_ABBREVIATIONS = {
 
 
 class RewrittenQuery(BaseModel):
+    """The original query, the rewritten query, the rules applied and the rewriter version."""
     original: str
     rewritten: str
     rules_applied: list[str] = Field(default_factory=list)
@@ -20,10 +21,12 @@ class RewrittenQuery(BaseModel):
 
     @property
     def changed(self) -> bool:
+        """True when the rewritten query differs from the original."""
         return self.original != self.rewritten
 
 
 class QueryRewriter:
+    """Rule-based rewriter (version 1.0.0): whitespace normalisation and abbreviation expansion. Not LLM-based."""
     VERSION = "1.0.0"
 
     def __init__(self, abbreviations: dict[str, str] | None = None):

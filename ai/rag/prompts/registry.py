@@ -19,6 +19,10 @@ _SEMVER = re.compile(r"^\d+\.\d+\.\d+$")
 
 
 def compute_hash(template: str, output_schema: dict | None) -> str:
+    """Return the SHA-256 hex digest of template + output_schema (JSON with sorted keys).
+
+    Used to detect a prompt edited without a new version."""
+
     payload = json.dumps(
         {"template": template, "output_schema": output_schema},
         sort_keys=True,
@@ -28,6 +32,7 @@ def compute_hash(template: str, output_schema: dict | None) -> str:
 
 
 class Prompt(BaseModel):
+    """One versioned prompt loaded from a JSON file in library/ (id, version, purpose, input variables, output schema, template, content hash)."""
     id: str
     version: str
     purpose: str
@@ -59,6 +64,11 @@ class Prompt(BaseModel):
 
 
 class PromptRegistry:
+    """Loads and serves versioned prompts from a directory.
+
+    Raises:
+        ValueError: at load time for a non-semver version, a duplicate (id, version), or a content hash that does not match the stored one."""
+
     def __init__(self, library_dir: Path | str = LIBRARY_DIR):
         self._prompts: dict[tuple[str, str], Prompt] = {}
         self._load(Path(library_dir))
@@ -95,6 +105,7 @@ class PromptRegistry:
         return max(versions, key=lambda p: tuple(int(x) for x in p.version.split(".")))
 
     def all(self) -> list[Prompt]:
+        """Return all prompts sorted by id and then version."""
         return sorted(self._prompts.values(), key=lambda p: (p.id, p.version))
 
     def table(self) -> str:

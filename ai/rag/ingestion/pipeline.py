@@ -4,6 +4,7 @@ from ai.rag.ingestion.chunker import SimpleChunker
 
 class IngestionPipeline:
 
+    """Creates a document and splits it into chunks (default chunker: SimpleChunker)."""
     def __init__(self, chunker=None):
         self.chunker = chunker or SimpleChunker()
 
@@ -18,6 +19,16 @@ class IngestionPipeline:
         metadata=None,
     ):
         # Step 1: Create internal document representation
+        """Create a document and chunk it.
+
+        Args:
+            document_id, title, source, source_type, text: document fields.
+            version: document version string (default "1").
+            metadata: optional metadata dict.
+
+        Returns:
+            {"document": dict, "chunks": list of chunk dicts}."""
+
         document = create_document(
             document_id=document_id,
             title=title,

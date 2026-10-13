@@ -1,5 +1,6 @@
 class Reranker:
 
+    """Passthrough reranker: rerank_score equals the hybrid retrieval score. Default in RAGRetrievalPipeline until CrossEncoderReranker replaces it (see docs/ai/retrieval-pipeline.md)."""
     def rerank(self, query, results, top_k=5):
         """
         Rerank retrieval results using the score produced

@@ -7,6 +7,10 @@ from ai.rag.ingestion.document import create_document
 
 class PDFDocumentLoader:
 
+    """Loads a PDF as one document per page.
+
+    Each document has id "<stem>_page_<n>", version "1", metadata domain="combustion" (hard-coded) and locator {"page": n}."""
+
     def load(self, source):
         """
         Load a PDF as page-level documents.

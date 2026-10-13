@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 
 
 class PipelineVersions(BaseModel):
+    """Versions recorded for reproducibility. FlameRAGService currently returns its own dict and does not fill this model yet."""
     embedding_model: str
     chunker: str
     reranker: str

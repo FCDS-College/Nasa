@@ -26,6 +26,14 @@ ABSTENTION_TTL_SECONDS = 300.0
 
 
 def normalize_query(query: str) -> str:
+    """Lower-case, trim and collapse whitespace so equivalent queries share one cache key.
+
+    Args:
+        query: raw query text.
+
+    Returns:
+        The normalised query string."""
+
     return re.sub(r"\s+", " ", query.strip().lower())
 
 
@@ -79,6 +87,13 @@ def is_cacheable(answer: Any) -> bool:
 
 
 def ttl_for(answer: Any) -> float:
+    """Return the cache lifetime in seconds for an answer.
+
+    Abstentions (status insufficient_evidence or conflicting_evidence) get ABSTENTION_TTL_SECONDS (300); every other answer gets DEFAULT_TTL_SECONDS (3600).
+
+    Args:
+        answer: a GroundedAnswer or a dict with a `status` key."""
+
     status = getattr(answer, "status", None) or (answer.get("status") if isinstance(answer, dict) else None)
     if status in ("insufficient_evidence", "conflicting_evidence"):
         return ABSTENTION_TTL_SECONDS
@@ -113,6 +128,10 @@ class InMemoryCacheService(CacheService):
         self._saved_ms: list[float] = []
 
     def get(self, key: str):
+        """Return the cached value for `key`, or None on a miss or expiry.
+
+        Expired entries are deleted. A hit increments `hits` and records the entry's stored compute time as time saved; a miss increments `misses`."""
+
         entry = self._entries.get(key)
         if entry is None or entry.expires_at <= self._clock():
             if entry is not None:
@@ -124,6 +143,18 @@ class InMemoryCacheService(CacheService):
         return entry.value
 
     def set(self, key: str, value: Any, ttl_seconds: float, manifest: dict, compute_ms: float = 0.0) -> None:
+        """Store `value` under `key` with a TTL and a dependency manifest.
+
+        Args:
+            key: key from build_cache_key.
+            value: the object to cache.
+            ttl_seconds: lifetime in seconds.
+            manifest: dict that must contain `corpus_version`.
+            compute_ms: time it took to compute the value (used for the saved-time metrics).
+
+        Raises:
+            ValueError: if ttl_seconds <= 0 or the manifest lacks corpus_version."""
+
         if ttl_seconds <= 0:
             raise ValueError("ttl_seconds must be > 0")
         if not manifest or "corpus_version" not in manifest:
@@ -158,6 +189,10 @@ class InMemoryCacheService(CacheService):
         return len(self._entries)
 
     def metrics(self) -> dict:
+        """Return cache metrics as a dict.
+
+        Keys: hits, misses, hit_rate (hits / (hits + misses), 0.0 when empty), saved_ms_p50, saved_ms_p95 (percentiles of compute time saved by hits), entries."""
+
         total = self.hits + self.misses
         return {
             "hits": self.hits,

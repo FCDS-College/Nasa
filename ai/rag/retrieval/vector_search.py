@@ -4,6 +4,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 class VectorSearchService:
 
+    """In-memory cosine-similarity search with a minimum score (default 0.7). Results below min_score are dropped. Not persistent; a pgvector index is Planned."""
     def __init__(self, min_score=0.7):
       self.chunks = []
       self.embeddings = []

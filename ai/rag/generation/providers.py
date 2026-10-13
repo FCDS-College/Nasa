@@ -15,6 +15,7 @@ _EVIDENCE_RE = re.compile(r'<evidence id="([^"]+)"[^>]*>\n(.*?)\n</evidence>', r
 
 
 class ExtractiveLLMProvider(LLMProvider):
+    """Offline deterministic baseline. It is NOT a language model: it quotes the first sentence of the top evidence blocks as "observed" claims. For tests and demos only."""
     name = "extractive-baseline"
     version = "1.0.0"
 
@@ -22,6 +23,15 @@ class ExtractiveLLMProvider(LLMProvider):
         self.max_claims = max_claims
 
     def generate(self, system_prompt: str, user_prompt: str) -> str:
+        """Return a JSON string {"claims": [...]}.
+
+        Args:
+            system_prompt: ignored.
+            user_prompt: prompt containing <evidence> blocks.
+
+        Returns:
+            One claim per evidence block, up to max_claims, labelled "observed" and citing that block's id."""
+
         claims = []
         for chunk_id, text in _EVIDENCE_RE.findall(user_prompt)[: self.max_claims]:
             text = text.replace("&lt;", "<").replace("&gt;", ">").strip()

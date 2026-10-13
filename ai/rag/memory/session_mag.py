@@ -29,6 +29,11 @@ def new_conversation_id() -> str:
 
 
 class MemoryRecord(BaseModel):
+    """One session memory item (see docs/ai/mag-policy.md).
+
+    Raises:
+        ValueError: for an origin outside ORIGINS, confidence outside 0..1, expires_at <= created_at, or an empty user_id/conversation_id."""
+
     id: str = Field(default_factory=lambda: "mem_" + uuid.uuid4().hex[:12])
     user_id: str
     conversation_id: str
@@ -62,11 +67,13 @@ def _tokens(text: str) -> set[str]:
 
 
 class InMemorySessionMemory(MemoryStore):
+    """Process-local session memory store scoped by user and conversation. Data is lost on restart."""
     def __init__(self, clock: Callable[[], float] = time.time):
         self._clock = clock
         self._records: dict[str, MemoryRecord] = {}
 
     def add(self, record: MemoryRecord) -> MemoryRecord:
+        """Store a MemoryRecord (a record with the same id is replaced) and return it."""
         self._records[record.id] = record
         return record
 
@@ -82,6 +89,19 @@ class InMemorySessionMemory(MemoryStore):
         claim_key: str | None = None,
         claim_value: str | None = None,
     ) -> MemoryRecord:
+        """Create and store a record from plain text.
+
+        Args:
+            user_id, conversation_id: owner and scope (required).
+            text: memory content.
+            origin: user, extracted or system_summary.
+            confidence: 0..1.
+            ttl_seconds: lifetime (default 24 hours).
+            evidence_refs, claim_key, claim_value: optional provenance and conflict-check fields.
+
+        Raises:
+            ValueError: from MemoryRecord validation."""
+
         now = self._clock()
         return self.add(
             MemoryRecord(
@@ -121,6 +141,11 @@ class InMemorySessionMemory(MemoryStore):
         return [r for _, _, r in scored[:top_k]]
 
     def delete_conversation(self, user_id: str, conversation_id: str) -> int:
+        """Delete every record of one user's conversation.
+
+        Returns:
+            The number of records deleted."""
+
         ids = [
             i for i, r in self._records.items()
             if r.user_id == user_id and r.conversation_id == conversation_id
@@ -130,6 +155,11 @@ class InMemorySessionMemory(MemoryStore):
         return len(ids)
 
     def purge_expired(self) -> int:
+        """Delete expired records.
+
+        Returns:
+            The number of records deleted."""
+
         now = self._clock()
         ids = [i for i, r in self._records.items() if r.expires_at <= now]
         for i in ids:

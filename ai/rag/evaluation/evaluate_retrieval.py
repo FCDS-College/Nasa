@@ -23,6 +23,11 @@ from ai.rag.evaluation.metrics import (
 
 def build_test_chunks():
 
+    """Build the synthetic test corpus (one repeated paragraph about microgravity, chunk_size 200, overlap 30).
+
+    Returns:
+        List of chunk dicts. This is synthetic data, not NASA data."""
+
     document = {
         "document_id": "test_001",
         "version": "1",
@@ -49,6 +54,10 @@ def build_test_chunks():
 
 
 def main():
+
+    """Run the synthetic retrieval evaluation and print Recall@K, MRR and citation coverage for EVALUATION_DATASET.
+
+    Requires the sentence-transformers model. The numbers come from synthetic data and are not a benchmark on the real corpus."""
 
     print("\n==============================")
     print("BUILDING TEST CORPUS")

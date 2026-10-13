@@ -2,6 +2,7 @@ import re
 
 class KeywordSearchService:
 
+    """Whole-word overlap search: the score is the number of distinct query words found as complete words in the chunk. Substring matches do not count."""
     def search(
         self,
         chunks,
