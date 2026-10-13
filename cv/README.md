@@ -5,6 +5,7 @@ Flame-image analysis with OpenCV (PyTorch layer planned). **Owner:** Engineer 3.
 | Path | What it is |
 |---|---|
 | `flame_cv.py` | The pipeline: validate, letterbox preprocess, segment, features, confidence/quality flags, `AnalysisResult` (+ mask/overlay artifacts), intake manifest, analysis cache, evaluation runner and `flame_analysis_api_adapter` (imported by `apps/api` as `cv.flame_cv`) |
+| `video_ingestion.py`, `temporal_analysis.py`, `video_analysis.py` | **[E3-6, E3-7, E3-8]** Video ingestion (validation, metadata, stable frame IDs, sampling, VFR normalization), tracking and temporal metrics, and the resumable end-to-end `python -m cv.video_analysis <video>` CLI. Temporal metrics are unevaluated against ground truth |
 | `cnn_pipeline.py`, `pinn_pipeline.py` | **Unvalidated prototypes** (TensorFlow). Not registered models; see the roadmap scope boundaries |
 | `configs/offline_manifest.json`, `utils/verify_offline_env.py` | Offline asset manifest and verifier (`python -m cv.utils.verify_offline_env --manifest cv/configs/offline_manifest.json`) |
 | [docs/cv/offline-operation.md](../docs/cv/offline-operation.md) | **[E3-10]** Offline installation and verification |
@@ -19,6 +20,8 @@ Flame-image analysis with OpenCV (PyTorch layer planned). **Owner:** Engineer 3.
 | [docs/cv/performance.md](../docs/cv/performance.md) | **[E3-9]** Performance and GPU profile. |
 | `contracts/` | JSON Schemas (`analysis_result.schema.json`, `image_intake_schema.json`), an example payload, per-image results and `evaluation_report.json` |
 | `notebooks/CVmodel_export.py` | Notebook export of the pipeline prototype; reference only, `flame_cv.py` is the source of truth |
+
+Run a video: `python -m cv.video_analysis path\to\video.mp4 --sample-every 30` (resumes automatically after interruption).
 
 Run the baseline: `python -m cv.flame_cv [image] [--out-dir cv/output]` (synthetic flame if no image).
 

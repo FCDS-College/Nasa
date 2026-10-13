@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Princess | Draft | 0.2.0 | 2026-10-14 | M10, M4, Workstream A, C1, Sub-phase 2H Task 6 | `cv/`, `docs/cv/`, `tests/cv/` |
+| Princess | Draft | 0.3.0 | 2026-10-14 | M10, M4, Workstream A, C1, Sub-phase 2H Task 6 | `cv/`, `docs/cv/`, `tests/cv/` |
 
 **Basis:** [Princess Documentation Requirements](./DOC_REQUIREMENTS_Princess.md), including the Sub-phase 2H additions. This roadmap is a work-tracking view of those requirements, not a replacement for the Phase 2 Plan.
 
@@ -26,10 +26,10 @@ Complete Princess's Phase 2 computer-vision responsibilities with a tested, vers
 
 - [ ] Ground-truth masks, reviewed dataset manifest, and leakage-controlled splits.
 - [ ] Final quantitative CV evaluation and reviewer sign-offs.
-- [ ] Automated validation of all applicable committed examples (the video contract fixture is now validated; `docs/cv/video-contract.md` and `cv/contracts` examples are not).
-- [ ] Implemented video ingestion and temporal analysis; current specifications describe intended behavior, not an implemented processing pipeline.
+- [ ] Committed examples still contain machine-specific absolute paths (`C:/FCDS/Nasa/...` in `cv/contracts/*.json` and `results/`); they validate against their schemas but should be regenerated from a real run, not hand-edited.
+- [ ] Evaluation of the video and temporal metrics against ground truth, and validation of flicker on reference data; the implementation has only synthetic and sample-video tests.
 - [ ] Empirical performance measurements with reproducible run metadata.
-- [ ] E3-10 offline/resume verification (draft doc and verifier exist; restart recovery and offline video processing untested), and CV contributions to Lead handoff items H-1, H-3, and H-7.
+- [ ] E3-10 offline/resume verification (draft doc and verifier exist; checkpoint resume is tested in-process, not as an application restart or on a network-disabled machine), and CV contributions to Lead handoff items H-1, H-3, and H-7.
 
 ## 3. Remaining roadmap
 
@@ -40,7 +40,7 @@ The weeks below follow the sequence and due-week labels in the requirements docu
 - [ ] **E3-1 / M4:** Bring `docs/cv/pipeline.md` into exact alignment with the restored implementation. Document actual entry points, each stage's function, validation and rejection behavior, all configuration defaults and their digest behavior, cache reuse/invalidation, artifact names and storage layout, and provider selection. Do not describe MinIO or HF Space integration as implemented until verified in code.
 - [ ] **E3-2:** Add synthetic worked examples for each image measurement. Confirm JSON field names, units, valid ranges, calibration needs, and quality flags against the live result schema. Add temporal definitions when those metrics are implemented.
 - [ ] **E3-3 / M10:** Work with Ziad to complete annotation assignments, review workflow, inter-annotator agreement method, source licensing/provenance, checksummed manifest, and group-based train/validation/holdout split. Ensure frames from one video or experiment cannot leak across splits.
-- [ ] **E3-8 / A4:** Align the schema and contract documentation. Extract or maintain one synthetic payload as a fixture and add an automated test that validates it against `cv/contracts/video_analysis_result.schema.json`. Specify versioning and backward compatibility.
+- [x] **E3-8 / A4:** Align the schema and contract documentation. Extract or maintain one synthetic payload as a fixture and add an automated test that validates it against `cv/contracts/video_analysis_result.schema.json`. Specify versioning and backward compatibility.
 - [ ] **Existing artifacts:** Validate applicable committed examples against their schemas. Regenerate stale reports only from actual evaluation runs; avoid committing machine-specific absolute paths in reusable examples.
 - [ ] **Notebook authority:** State at the top of each in-scope CV notebook/export which source module and document are authoritative.
 
@@ -60,12 +60,12 @@ The weeks below follow the sequence and due-week labels in the requirements docu
 
 ### Checkpoint C — Implement and specify video and temporal analysis (Weeks 2–5)
 
-- [ ] **E3-6 / A1:** Implement or integrate video ingestion. Verify supported formats/codecs and size/duration limits; capture fps, dimensions, frame count, and source/derived timestamps; handle variable frame rates according to the chosen policy; preserve original immutability; and record stable frame IDs and parent lineage.
-- [ ] **E3-7 / A2:** Implement tracking and temporal aggregation with explicit identity and missing-detection behavior. Calculate documented area-change, persistence, tracking-stability, and flicker metrics using their stated windows.
-- [ ] Enforce flicker validity conditions: appropriate sampling/Nyquist rate, minimum duration, and signal-quality thresholds. Return “not estimable” when those conditions are not satisfied.
-- [ ] **E3-8 / A4:** Connect frame-level and temporal outputs to the versioned video result contract. Include status/errors, artifacts, lineage, and source-frame references.
+- [x] **E3-6 / A1 (implemented, see `cv/video_ingestion.py`; MinIO/S3 original storage not implemented):** Implement or integrate video ingestion. Verify supported formats/codecs and size/duration limits; capture fps, dimensions, frame count, and source/derived timestamps; handle variable frame rates according to the chosen policy; preserve original immutability; and record stable frame IDs and parent lineage.
+- [x] **E3-7 / A2 (implemented, unevaluated):** Implement tracking and temporal aggregation with explicit identity and missing-detection behavior. Calculate documented area-change, persistence, tracking-stability, and flicker metrics using their stated windows.
+- [x] Enforce flicker validity conditions: appropriate sampling/Nyquist rate, minimum duration, and signal-quality thresholds. Return “not estimable” when those conditions are not satisfied.
+- [x] **E3-8 / A4:** Connect frame-level and temporal outputs to the versioned video result contract. Include status/errors, artifacts, lineage, and source-frame references.
 - [ ] Update E3-2 with implemented temporal metric definitions and synthetic examples. Ensure results carry pipeline/model versions, fps, source frames, and aggregation configuration.
-- [ ] Add focused tests for ingestion metadata, stable IDs, timestamps/VFR behavior, temporal metrics, missing frames, validity rules, and contract validation.
+- [x] Add focused tests for ingestion metadata, stable IDs, timestamps/VFR behavior, temporal metrics, missing frames, validity rules, and contract validation.
 - [ ] Coordinate artifact and overlay formats used by the UI with Belal and contract/API changes with the Lead.
 
 **Exit criteria:** a sample video can be ingested and analyzed end-to-end with traceable frame lineage, tested output contracts, and invalid temporal measurements represented as not estimable.
@@ -131,11 +131,12 @@ The weeks below follow the sequence and due-week labels in the requirements docu
 
 - The current Otsu/contour detector is heuristic; reflections, saturation, low light, blur, multiple flames, occlusion, or missing calibration can undermine measurements.
 - Scientific evaluation remains limited until reviewed ground truth spans independent tests/experiments and held-out groups.
-- Video and temporal behavior, offline execution, and restart recovery require implementation and integration tests; documentation alone is not evidence of completion.
+- Video and temporal behavior are implemented and tested on synthetic and sample videos only; offline execution and application-level restart recovery still need integration tests under the Lead's job infrastructure.
 - Hardware-specific performance and safe concurrency cannot be generalized without reproducible measurements on the target systems.
 - Dates and week numbers are copied from the requirements' planning sequence; the source does not establish a revised calendar schedule.
 
 ## Changelog
 
+- **0.3.0 (2026-10-14):** Video ingestion, temporal analysis, resumable video CLI, contract-example validation; tests now 67.
 - **0.2.0 (2026-10-14):** Recorded CLI, offline manifest/verifier, E3-10 draft, video fixture test and weekly note; test count updated to 37.
 - **0.1.0 (2026-10-13):** Initial remaining-work roadmap based on Princess Phase 2 documentation requirements and current branch evidence.

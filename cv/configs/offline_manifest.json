@@ -1,10 +1,25 @@
 {
-  "manifestVersion": "1.1.0",
+  "manifestVersion": "1.2.0",
   "description": "Offline assets manifest for the NASA CV pipeline. Only the Otsu baseline is a supported capability; the CNN and PINN modules are unvalidated prototypes.",
   "requiredAssets": [
     {
       "name": "Otsu Baseline Module",
       "path": "cv/flame_cv.py",
+      "minSizeBytes": 1000
+    },
+    {
+      "name": "Video Ingestion Module",
+      "path": "cv/video_ingestion.py",
+      "minSizeBytes": 1000
+    },
+    {
+      "name": "Temporal Analysis Module",
+      "path": "cv/temporal_analysis.py",
+      "minSizeBytes": 1000
+    },
+    {
+      "name": "Video Analysis Module",
+      "path": "cv/video_analysis.py",
       "minSizeBytes": 1000
     }
   ],
