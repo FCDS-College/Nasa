@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Princess | Draft | 0.1.0 | 2026-10-13 | M10, M4, Workstream A, C1, Sub-phase 2H Task 6 | `cv/`, `docs/cv/`, `tests/cv/` |
+| Princess | Draft | 0.2.0 | 2026-10-14 | M10, M4, Workstream A, C1, Sub-phase 2H Task 6 | `cv/`, `docs/cv/`, `tests/cv/` |
 
 **Basis:** [Princess Documentation Requirements](./DOC_REQUIREMENTS_Princess.md), including the Sub-phase 2H additions. This roadmap is a work-tracking view of those requirements, not a replacement for the Phase 2 Plan.
 
@@ -19,17 +19,17 @@ Complete Princess's Phase 2 computer-vision responsibilities with a tested, vers
 - [x] Added adaptive-parameter coverage and updated CV tests.
 - [x] Moved the CV documentation into `docs/cv/`, corrected `pipeline.md`, moved the baseline model card under `cv/models/`, and linked E3-1 through E3-9 from `cv/README.md`.
 - [x] Removed the redundant root-level requirements document; the canonical requirements remain at `docs/reports/DOC_REQUIREMENTS_Princess.md`.
-- [x] Verified `python -m pytest tests/cv` (25 passed) and `apps/api/tests/test_cv_adapter.py` (1 passed). These checks validate code integration, not scientific performance or Phase 2 acceptance.
+- [x] Added the `python -m cv.flame_cv` CLI, an offline manifest and verifier with wheel checksums, a draft `docs/cv/offline-operation.md`, a schema-validated video-contract fixture, and `WEEKLY_Princess.md`. CNN/PINN prototypes live in `cv/` but are optional and unvalidated.
+- [x] Verified ``python -m pytest tests/cv`` (37 passed; 25 before the offline/CLI/contract tests) and `apps/api/tests/test_cv_adapter.py` (1 passed). These checks validate code integration, not scientific performance or Phase 2 acceptance.
 
 ### Still open
 
 - [ ] Ground-truth masks, reviewed dataset manifest, and leakage-controlled splits.
 - [ ] Final quantitative CV evaluation and reviewer sign-offs.
-- [ ] Automated validation of the video contract example and all applicable committed examples.
+- [ ] Automated validation of all applicable committed examples (the video contract fixture is now validated; `docs/cv/video-contract.md` and `cv/contracts` examples are not).
 - [ ] Implemented video ingestion and temporal analysis; current specifications describe intended behavior, not an implemented processing pipeline.
 - [ ] Empirical performance measurements with reproducible run metadata.
-- [ ] E3-10 offline operation, offline/resume verification, and CV contributions to Lead handoff items H-1, H-3, and H-7.
-- [ ] Weekly Princess progress note at `docs/reports/WEEKLY_Princess.md`.
+- [ ] E3-10 offline/resume verification (draft doc and verifier exist; restart recovery and offline video processing untested), and CV contributions to Lead handoff items H-1, H-3, and H-7.
 
 ## 3. Remaining roadmap
 
@@ -137,4 +137,5 @@ The weeks below follow the sequence and due-week labels in the requirements docu
 
 ## Changelog
 
+- **0.2.0 (2026-10-14):** Recorded CLI, offline manifest/verifier, E3-10 draft, video fixture test and weekly note; test count updated to 37.
 - **0.1.0 (2026-10-13):** Initial remaining-work roadmap based on Princess Phase 2 documentation requirements and current branch evidence.
