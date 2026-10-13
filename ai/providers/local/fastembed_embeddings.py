@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import importlib.util
+from collections.abc import Callable
 import os
 import sys
 import time
@@ -24,15 +25,22 @@ MAX_CHUNK_CHARS = 2000
 
 
 class FastEmbedProvider:
-    def __init__(self, *, model_name: str = MODEL_NAME, cache_dir: str | None = None, offline: bool = False) -> None:
+    def __init__(self, *, model_name: str = MODEL_NAME, cache_dir: str | None = None,
+                 offline: bool | Callable[[], bool] = False) -> None:
+        """``offline`` may be a callable so the router's *current* mode decides (offline_only ⇒ cache-only)."""
         self._model_name = model_name
         self._cache_dir = cache_dir
-        self._offline = offline
+        self._offline_source = offline
         self._model = None
         self.info = ProviderInfo(
             name="fastembed", runtime="fastembed", locality=Locality.LOCAL,
             capabilities=frozenset({Capability.EMBEDDINGS}), model=model_name, version=None,
         )
+
+    @property
+    def _offline(self) -> bool:
+        source = self._offline_source
+        return bool(source()) if callable(source) else bool(source)
 
     def _cached_files(self) -> list[Path]:
         if not self._cache_dir:

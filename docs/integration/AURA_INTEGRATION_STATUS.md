@@ -15,7 +15,7 @@
 | Request shape | Unchanged: tools, knowledge and memory off; evidence in `context` (DATA channel); `response_schema`; `Idempotency-Key` = Flame request/analysis ID. Flame validates every reply again. |
 | Offline | In `offline_only`, AURA is never called or probed; `/api/health` reports `aura: disabled` with the message "AURA is blocked in offline_only mode." |
 | Link 2, contract | `openapi.json` 0.2.0 now includes `POST /api/chat`, `GET /api/ai/providers` and `PUT /api/admin/ai/mode`, each marked `x-aura-exclude: true`. AURA discovery skips them (AURA PR [#166](https://github.com/anasibrahimgnedy-collab/AURA-AI/pull/166)). New read tools: `api_list_documents`, `api_list_experiments`. |
-| Link 2, dry run | Against AURA PR #166's head (`009c9ce4`): 10 tools, all examples accepted, 3 operations excluded, exit 0. Against the old pin `b6994ac` it fails on purpose, because chat-related operations would leak. The workflow pin must move to #166's merge commit. |
+| Link 2, dry run | AURA PR #166 merged 2026-10-13. The workflow now pins AURA `main` at `c10fd13`: 10 tools, all examples accepted, 3 operations excluded, exit 0. Against the old pin `b6994ac` it fails on purpose, because chat-related operations would leak. |
 | AR-7 (live Link 2) | **Run on 2026-10-07** (AURA `docs/reports/flame-link2-live.md`): blueprint v2 with 8 `bp2_api_*` tools answered with real Flame evidence IDs. Caveats recorded there: the coverage gate was waived (0.35 instead of 0.8), the Super Admin self-approved, and the answers were pasted by hand. It must be re-run for the 0.2.0 contract (10 tools). |
 
 **Superseded MVP statements.** The following statements in §1–§12 below and in `AURA_INTEGRATION_REQUIREMENTS.md` are no longer true. They are kept unedited as history.

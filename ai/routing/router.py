@@ -157,12 +157,12 @@ class Router:
             if not permitted(provider, mode):
                 reasons.append({"provider": name, "reason": "egress_blocked"})
                 continue
-            if not self.breaker.allow(name):
-                reasons.append({"provider": name, "reason": "circuit_open"})
-                continue
             cached = self.monitor.cached(name)
             if cached.state == "down":
                 reasons.append({"provider": name, "reason": f"health_down:{cached.detail or 'unknown'}"})
+                continue
+            if not self.breaker.allow(name):   # last gate: may reserve the single half-open trial
+                reasons.append({"provider": name, "reason": "circuit_open"})
                 continue
 
             started = time.perf_counter()
@@ -172,7 +172,9 @@ class Router:
                     value = call(provider)
             except ProviderError as exc:
                 last_error = exc
-                if exc.code is not ProviderErrorCode.INVALID_REQUEST:
+                if exc.code is ProviderErrorCode.INVALID_REQUEST:
+                    self.breaker.release(name)
+                else:
                     self.breaker.record_failure(name)
                 attempts.append({"provider": name, "code": exc.code.value})
                 reasons.append({"provider": name, "reason": exc.code.value})
@@ -185,6 +187,9 @@ class Router:
                     reasons.append({"provider": name, "reason": "not_idempotent_after_send"})
                     break
                 continue
+            except BaseException:
+                self.breaker.release(name)
+                raise
 
             self.breaker.record_success(name)
             latency_ms = round((time.perf_counter() - started) * 1000, 1)

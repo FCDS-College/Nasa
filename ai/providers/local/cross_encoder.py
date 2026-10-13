@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import importlib.util
+from collections.abc import Callable
 
 from ai.providers.contracts.base import Capability, HealthStatus, Locality, ProviderInfo
 from ai.providers.contracts.errors import ProviderError, ProviderErrorCode
@@ -11,14 +12,19 @@ DEFAULT_MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 
 
 class CrossEncoderReranker:
-    def __init__(self, *, model_name: str = DEFAULT_MODEL, offline: bool = False) -> None:
+    def __init__(self, *, model_name: str = DEFAULT_MODEL, offline: bool | Callable[[], bool] = False) -> None:
         self._model_name = model_name
-        self._offline = offline
+        self._offline_source = offline
         self._model = None
         self.info = ProviderInfo(
             name="cross_encoder", runtime="sentence-transformers", locality=Locality.LOCAL,
             capabilities=frozenset({Capability.RERANKING}), model=model_name,
         )
+
+    @property
+    def _offline(self) -> bool:
+        source = self._offline_source
+        return bool(source()) if callable(source) else bool(source)
 
     def health(self, timeout_s: float) -> HealthStatus:
         if importlib.util.find_spec("sentence_transformers") is None:

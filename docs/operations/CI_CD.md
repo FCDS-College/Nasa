@@ -19,7 +19,7 @@ Result at `2afbc37`, 2026-10-12: **179 passed, 1 skipped**. The skip is `test_mi
 
 | Workflow / job | File | Runs | Trigger |
 |---|---|---|---|
-| CI / `python` | [`ci.yml`](../../.github/workflows/ci.yml) | `ruff check .` (error-only rules); `knowledge/ingestion/validate_registry.py`; `docs/tools/render_api_schemas.py --check`; `python -m pytest`. This includes the contract-parity test (ADR-010), contract-shape tests and the offline-routing scenarios (H-5). | every PR, push to `main` |
+| CI / `python` | [`ci.yml`](../../.github/workflows/ci.yml) | installs `tesseract-ocr` (for the real OCR test); `ruff check .` (error-only rules); `knowledge/ingestion/validate_registry.py`; `docs/tools/render_api_schemas.py --check`; `python -m pytest`. This includes the contract-parity test (ADR-010), contract-shape tests and the offline-routing scenarios (H-5). | every PR, push to `main` |
 | CI / `migrations` | `ci.yml` | pgvector/pg16 service: `alembic upgrade head`, `downgrade -1`, `upgrade head`, `seed`, `ingest` twice (idempotency) | every PR, push to `main` |
 | CI / `web` | `ci.yml` | `npm ci`, `npm run lint`, `npm run typecheck`, `npm run build` in `apps/web` | every PR, push to `main` |
 | CI / `secrets` | `ci.yml` | gitleaks 8.28.0 (download checksum-pinned) over full git history with `.gitleaks.toml` | every PR, push to `main` |

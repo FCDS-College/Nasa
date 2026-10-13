@@ -32,7 +32,7 @@ Week-1 documents and plan items are due on their branches (see `docs/README.md` 
 
 | Risk | Impact | Owner / next step |
 |---|---|---|
-| AURA PR #166 not merged | The Link 2 dry run is pinned to a branch commit | Lead: merge, then re-pin `aura-link2-contract.yml` |
+| ~~AURA PR #166 not merged~~ | Resolved 2026-10-13: merged, and the dry run is re-pinned to `c10fd13` | — |
 | No GPU access yet | H-7 and the L40S rows of H-3 stay Pending | Lead |
 | CPU local model quality (1 of 3 answers echoed a title) | Offline answers are weak | Eman (M3 prompts) + Ziad (H-7) |
 | `cv/flame_cv.py` v1.2.0 rewrite on `main` (0a6b053) dropped `analyze_image` and `AnalysisCache` | Image analysis fails on `main` (worker, HF Space app, router `flame_cv` provider); `tests/cv/test_flame_cv.py` fails at collection; PR #14 CI is red because of it | **Resolved in PR #14:** Princess's fix (branch `Princess` @ 1b32326) ported: `cv/flame_cv.py` and `tests/cv/test_flame_cv.py`; `cv/hf_space/app.py` and `test_hf_cv.py` now read `PIPELINE_VERSION`. Her branch still needs merging for the rest of her work. |

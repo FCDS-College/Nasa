@@ -215,10 +215,12 @@ def _create_document(session: Session, file_record: FileRecord) -> dict[str, int
         blank_pages.append(index)
         ocr = _ocr_page(page)
         if ocr is None:
-            ocr_status = "unavailable"
+            # "applied" wins once any page was OCRed; "unavailable" only if none could be.
+            if ocr_status != "applied":
+                ocr_status = "unavailable"
             continue
         ocr_text, confidence, ocr_engine = ocr
-        ocr_status = "applied" if ocr_status != "unavailable" else ocr_status
+        ocr_status = "applied"
         ocr_pages[str(index)] = confidence
         if len(ocr_text) >= MIN_PAGE_CHARS:
             passages.append((index, ocr_text, "ocr", round(confidence / 100, 3), confidence < OCR_MIN_CONFIDENCE))

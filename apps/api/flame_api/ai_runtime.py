@@ -39,6 +39,19 @@ def build_router(settings: Settings) -> Router:
     from ai.providers.local.vllm import VllmProvider
 
     registry = ProviderRegistry()
+    router = Router(
+        registry,
+        mode=ExecutionMode(settings.ai_execution_mode),
+        breaker=CircuitBreaker(threshold=settings.provider_failure_threshold, cooldown_s=settings.provider_cooldown_s),
+        monitor=HealthMonitor(probe_timeout_s=settings.provider_probe_timeout_s, ttl_s=settings.provider_health_ttl_s),
+        mode_source=current_mode_override,
+    )
+
+    def models_offline() -> bool:
+        # Local model runtimes must never download weights while the effective mode is offline_only,
+        # including after a runtime mode switch; downloads belong to the explicit `prepare` command.
+        return settings.embedding_offline or router.mode is ExecutionMode.OFFLINE_ONLY
+
     # Priority breaks ties inside one locality: GPU vLLM before CPU Ollama before llama.cpp.
     if settings.vllm_base_url:
         registry.register(VllmProvider(base_url=settings.vllm_base_url, model=settings.vllm_model,
@@ -52,24 +65,18 @@ def build_router(settings: Settings) -> Router:
     if settings.aura_enabled and settings.aura_service_token is not None:
         registry.register(AuraProvider(base_url=settings.aura_base_url, service_token=_secret(settings.aura_service_token),
                                        timeout_s=settings.aura_timeout_s, require_local=settings.aura_require_local), priority=50)
-    registry.register(FastEmbedProvider(cache_dir=settings.embedding_cache_dir, offline=settings.embedding_offline), priority=10)
+    registry.register(FastEmbedProvider(cache_dir=settings.embedding_cache_dir, offline=models_offline), priority=10)
     if settings.reranker_enabled:
         from ai.providers.local.cross_encoder import CrossEncoderReranker
 
-        registry.register(CrossEncoderReranker(offline=settings.embedding_offline), priority=10)
+        registry.register(CrossEncoderReranker(offline=models_offline), priority=10)
     # FLAME_CV_PROVIDER picks the preferred vision provider; the other one stays as the fallback.
     registry.register(FlameCvProvider(), priority=10 if settings.cv_provider == "local" else 20)
     if settings.cv_hf_space_url:
         registry.register(HfSpaceCvProvider(base_url=settings.cv_hf_space_url, token=_secret(settings.cv_hf_token),
                                             timeout_s=settings.cv_timeout_s, max_upload_bytes=settings.max_upload_bytes),
                           priority=10 if settings.cv_provider == "hf_space" else 20)
-    return Router(
-        registry,
-        mode=ExecutionMode(settings.ai_execution_mode),
-        breaker=CircuitBreaker(threshold=settings.provider_failure_threshold, cooldown_s=settings.provider_cooldown_s),
-        monitor=HealthMonitor(probe_timeout_s=settings.provider_probe_timeout_s, ttl_s=settings.provider_health_ttl_s),
-        mode_source=current_mode_override,
-    )
+    return router
 
 
 def get_router(settings: Settings | None = None) -> Router:

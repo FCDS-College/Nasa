@@ -76,7 +76,7 @@ Mapping of §8.5 Task 3 inputs:
 
 **Policies (all tested in `tests/unit/test_model_router.py`):**
 - **Ordering:** locality preference for the mode, then registration priority (vLLM 10 < Ollama 20 < llama.cpp 30 < AURA 50), then name. The order is deterministic.
-- **Circuit breaker:** opens after `FLAME_PROVIDER_FAILURE_THRESHOLD` (3) consecutive failures and stays open for `FLAME_PROVIDER_COOLDOWN_S` (30 s). It then half-opens for one trial call; a failed trial restarts the cooldown. A `invalid_request` error is our own fault and never trips it.
+- **Circuit breaker:** opens after `FLAME_PROVIDER_FAILURE_THRESHOLD` (3) consecutive failures and stays open for `FLAME_PROVIDER_COOLDOWN_S` (30 s). It then half-opens for **exactly one** trial call: the reservation is taken atomically, so concurrent callers skip the provider until the trial reports. A failed trial restarts the cooldown; a trial that ends without a verdict (our own `invalid_request`, or an unexpected exception) releases the reservation. A `invalid_request` error is our own fault and never trips it.
 - **Fallback:** only for fallback-eligible codes (`unavailable`, `timeout`, `model_missing`, `resource_exhausted`, `invalid_output`, `not_configured`, `egress_blocked`, `unsupported`).
 - **Idempotency:** a non-idempotent call whose request may have reached the provider (`request_sent = true`) is not sent anywhere else. Generation calls are idempotent by construction: same input, idempotency key = request or analysis ID, temperature 0.
 - **Loop prevention:** each provider is tried at most once per request.
@@ -109,7 +109,7 @@ Mapping of §8.5 Task 3 inputs:
 1. `policies.permitted()` returns `False` for every `EXTERNAL` provider in `offline_only`.
 2. `Router._route` checks permission **before** the circuit, the health state or the call. A blocked provider yields only the reason `egress_blocked`.
 3. `Router.refresh_health` skips blocked providers, so not even a readiness probe leaves.
-4. Embeddings with `FLAME_EMBEDDING_OFFLINE=true` set `HF_HUB_OFFLINE=1` and refuse to download.
+4. Local model weights are cache-only whenever `FLAME_EMBEDDING_OFFLINE=true` **or the live mode is `offline_only`**, including after a runtime switch (`ai_runtime.models_offline`). fastembed and the cross-encoder then set `HF_HUB_OFFLINE=1` and report `model_missing` instead of downloading. Downloads happen only through the explicit `prepare` command (H-3 §2). Tested by `test_offline_routing.py::test_switching_to_offline_only_makes_embeddings_cache_only`.
 5. Tests:
    - `apps/api/tests/test_offline_routing.py` replaces `socket.create_connection` with a function that fails the test, and asserts that the AURA host never appears in the request log;
    - `test_health.py::test_offline_only_reports_aura_as_blocked_and_never_probes_it` makes the AURA probe raise.

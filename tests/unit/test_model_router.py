@@ -174,3 +174,30 @@ def test_the_model_manifest_is_valid_and_complete():
     capabilities = {e["capability"] for e in entries if e["locality"] == "local"}
     assert {"structured", "embeddings", "vision"} <= capabilities, "one local model per critical capability"
     assert all(e["status"] in {"approved", "candidate", "retired"} for e in entries)
+
+
+def test_a_half_open_circuit_lets_exactly_one_trial_through():
+    clock = Clock()
+    breaker = CircuitBreaker(threshold=1, cooldown_s=30, clock=clock)
+    breaker.record_failure("aura")
+    assert breaker.allow("aura") is False
+    clock.now += 31
+    assert breaker.allow("aura") is True, "the single trial"
+    assert breaker.allow("aura") is False, "concurrent callers wait for the trial's verdict"
+    breaker.record_failure("aura")
+    assert breaker.allow("aura") is False, "a failed trial restarts the cooldown"
+    clock.now += 31
+    assert breaker.allow("aura") is True
+    breaker.record_success("aura")
+    assert breaker.allow("aura") is True and breaker.allow("aura") is True, "closed again"
+
+
+def test_a_trial_without_a_verdict_is_released():
+    clock = Clock()
+    cloud = Fake("aura", EXTERNAL, fail=ProviderError(ProviderErrorCode.INVALID_REQUEST, "bad"))
+    router = make(cloud, mode=ExecutionMode.CLOUD_PREFERRED, clock=clock, threshold=1)
+    router.breaker.record_failure("aura")
+    clock.now += 31
+    with pytest.raises(NoCompatibleProvider):
+        router.route("chat.answer", lambda p: p.run())
+    assert router.breaker.allow("aura") is True, "our own bad request must not leave the trial reserved"

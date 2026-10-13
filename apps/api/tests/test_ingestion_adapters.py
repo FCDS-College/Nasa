@@ -194,3 +194,48 @@ def test_ingest_publishes_a_corpus_version(session, tmp_path, monkeypatch):
     assert version.startswith("corpus-") and session.query(KnowledgePublication).count() == 1
     ingest._publish_corpus_version(session, {"pdf_documents": 1})
     assert session.query(KnowledgePublication).count() == 1, "same files, same version, no new publication"
+
+
+def test_real_tesseract_reads_a_scanned_page(session, tmp_path):
+    """No mocks: an image-only PDF page goes through PyMuPDF rendering and Tesseract (CI installs it)."""
+    import io
+    import shutil
+
+    pytest.importorskip("pytesseract")
+    if shutil.which("tesseract") is None:
+        pytest.skip("tesseract binary not installed")
+    from PIL import Image, ImageDraw, ImageFont
+
+    image = Image.new("RGB", (1700, 400), "white")
+    ImageDraw.Draw(image).text((60, 120), "Opposed flow flame spread", fill="black", font=ImageFont.load_default(size=96))
+    png = io.BytesIO()
+    image.save(png, format="PNG")
+    pdf = fitz.open()
+    page = pdf.new_page(width=612, height=144)
+    page.insert_image(page.rect, stream=png.getvalue())       # no text layer at all
+    path = tmp_path / "scanned.pdf"
+    pdf.save(path)
+    pdf.close()
+    record = add_file(session, path)
+
+    outcome, counts = ingest.ingest_file(session, record)
+    session.commit()
+
+    assert outcome == "ingested" and counts["ocr_pages"] == 1 and counts["chunks"] == 1
+    document = session.query(DocumentRecord).one()
+    assert document.text_layer == "none" and document.payload["ocr"]["status"] == "applied"
+    assert document.payload["ocr"]["engine"].startswith("tesseract-")
+    evidence = session.query(EvidenceRecord).one()
+    assert evidence.payload["extraction_method"] == "ocr" and 0 < evidence.payload["extraction_confidence"] <= 1
+    assert "flame" in evidence.excerpt.lower() and "spread" in evidence.excerpt.lower()
+
+
+def test_ocr_status_stays_applied_when_a_later_page_cannot_be_read(session, tmp_path, monkeypatch):
+    results = iter([("Scanned page about opposed flow flame spread.", 88.0, "tesseract-5"), None])
+    monkeypatch.setattr(ingest, "_ocr_page", lambda page: next(results))
+    record = add_file(session, make_pdf(tmp_path / "mixed.pdf", [None, None]))
+
+    ingest.ingest_file(session, record)
+    session.commit()
+
+    assert session.query(DocumentRecord).one().payload["ocr"]["status"] == "applied"

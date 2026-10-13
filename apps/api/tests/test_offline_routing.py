@@ -235,3 +235,21 @@ class _Body:
 
     def close(self):
         pass
+
+
+def test_switching_to_offline_only_makes_embeddings_cache_only(tmp_path, monkeypatch):
+    """Even with FLAME_EMBEDDING_OFFLINE=false, offline_only must never download model weights."""
+    from ai.providers.contracts.embeddings import EmbeddingRequest
+    from ai.providers.contracts.errors import ProviderError
+    from flame_api import ai_runtime
+
+    monkeypatch.setattr(main, "settings", settings_for("local_first", aura=False))
+    monkeypatch.setattr(main.settings, "embedding_cache_dir", str(tmp_path))
+    router = ai_runtime.get_router(main.settings)
+    fastembed = router.registry.get("fastembed")
+    assert fastembed._offline is False
+    router.set_mode(__import__("ai.routing", fromlist=["ExecutionMode"]).ExecutionMode.OFFLINE_ONLY)
+    assert fastembed._offline is True
+    with pytest.raises(ProviderError) as caught:
+        fastembed.embed(EmbeddingRequest(texts=("flame",)))
+    assert caught.value.code.value == "model_missing"

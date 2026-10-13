@@ -20,6 +20,7 @@ Clock = Callable[[], float]
 class _BreakerState:
     failures: int = 0
     opened_at: float | None = None
+    trial_in_flight: bool = False
 
 
 class CircuitBreaker:
@@ -40,7 +41,22 @@ class CircuitBreaker:
             return "half_open" if self._clock() - entry.opened_at >= self.cooldown_s else "open"
 
     def allow(self, name: str) -> bool:
-        return self.state(name) != "open"
+        """closed → True. open → False. half-open → True for exactly one caller (the trial) until it reports."""
+        with self._lock:
+            entry = self._state.get(name)
+            if entry is None or entry.opened_at is None:
+                return True
+            if self._clock() - entry.opened_at < self.cooldown_s or entry.trial_in_flight:
+                return False
+            entry.trial_in_flight = True
+            return True
+
+    def release(self, name: str) -> None:
+        """Give back a half-open trial that ended without a verdict (our own bad request, an unexpected error)."""
+        with self._lock:
+            entry = self._state.get(name)
+            if entry is not None:
+                entry.trial_in_flight = False
 
     def record_success(self, name: str) -> None:
         with self._lock:
@@ -49,6 +65,7 @@ class CircuitBreaker:
     def record_failure(self, name: str) -> None:
         with self._lock:
             entry = self._state.setdefault(name, _BreakerState())
+            entry.trial_in_flight = False
             entry.failures += 1
             if entry.failures >= self.threshold or entry.opened_at is not None:
                 entry.opened_at = self._clock()   # (re)open; a failed half-open trial restarts the cooldown

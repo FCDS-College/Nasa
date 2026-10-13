@@ -5,6 +5,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PYTHONPATH=/app
 
+# Tesseract for the OCR fallback on scanned PDF pages (M9); the `ocr` extra is its Python binding.
+RUN apt-get update && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 COPY apps/api /app/apps/api
 COPY cv /app/cv
@@ -18,7 +22,7 @@ COPY datasets/registry/source_registry.csv datasets/registry/source_registry.sch
 COPY datasets/metadata/files.jsonl /app/datasets/metadata/files.jsonl
 COPY datasets/samples/cv/manifest.jsonl /app/datasets/samples/cv/manifest.jsonl
 WORKDIR /app/apps/api
-RUN pip install '.[cv,ingestion,vector]'
+RUN pip install '.[cv,ingestion,ocr,vector]'
 
 EXPOSE 8000
 CMD ["uvicorn", "flame_api.main:app", "--host", "0.0.0.0", "--port", "8000"]
