@@ -190,6 +190,8 @@ class FlameRAGService:
                 model=self._llm_id(),
                 embedding_model=self.embedding_model,
                 reranker_version=self._reranker_version(),
+                provider=self.composer.llm.name,
+                execution_mode=getattr(self.composer.llm, "execution_mode", ""),
             )
             self.cache.set(key, t_answer, ttl_for(t_answer), manifest.model_dump(), compute_ms=compute_ms)
 

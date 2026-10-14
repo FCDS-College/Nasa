@@ -76,6 +76,8 @@ class DependencyManifest(BaseModel):
     model: str = ""
     embedding_model: str = ""
     reranker_version: str = ""
+    provider: str = ""
+    execution_mode: str = ""  # "local" or "cloud"; empty when unknown
 
 
 def is_cacheable(answer: Any) -> bool:

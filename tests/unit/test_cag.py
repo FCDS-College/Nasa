@@ -81,3 +81,11 @@ def test_answers_that_used_memory_are_not_cached():
 def test_manifest_required():
     with pytest.raises(ValueError):
         InMemoryCacheService().set("k", 1, 10, {})
+
+
+def test_manifest_records_provider_and_execution_mode():
+    m = DependencyManifest(corpus_version="c1", provider="extractive-baseline", execution_mode="local")
+    dumped = m.model_dump()
+    assert dumped["provider"] == "extractive-baseline"
+    assert dumped["execution_mode"] == "local"
+    assert DependencyManifest(corpus_version="c1").execution_mode == ""

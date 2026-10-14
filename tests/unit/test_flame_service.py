@@ -60,6 +60,9 @@ def test_end_to_end_cited_answer_and_versions(world, fake_embedding_service):
 def test_second_call_is_a_cache_hit_and_corpus_publish_invalidates(world, fake_embedding_service):
     svc, chunks = make_service(world, fake_embedding_service)
     svc.answer(Q, chunks)
+    stored = next(iter(svc.cache._entries.values())).manifest
+    assert stored["provider"] == "extractive-baseline"
+    assert stored["execution_mode"] == "local"
     assert svc.answer(Q, chunks).cache_hit is True
     assert svc.cache.invalidate_corpus("corpus-2") == 1
     assert svc.answer(Q, chunks).cache_hit is False

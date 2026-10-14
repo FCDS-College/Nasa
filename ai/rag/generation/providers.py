@@ -18,6 +18,7 @@ class ExtractiveLLMProvider(LLMProvider):
     """Offline deterministic baseline. It is NOT a language model: it quotes the first sentence of the top evidence blocks as "observed" claims. For tests and demos only."""
     name = "extractive-baseline"
     version = "1.0.0"
+    execution_mode = "local"
 
     def __init__(self, max_claims: int = 2):
         self.max_claims = max_claims
