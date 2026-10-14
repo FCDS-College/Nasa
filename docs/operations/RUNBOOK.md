@@ -45,7 +45,9 @@ Result on 2026-10-11:
 
 ## 3. Backup and restore
 
-The commands are in [E2-10 §5](../data/OFFLINE_DATA_AND_SYNC.md#5-local-backup-and-restore), shared with H-6. **The restore drill is not yet dated**: it is Pending and is a Week 2 task for Anas (E2).
+The commands are in [E2-10 §5](../data/OFFLINE_DATA_AND_SYNC.md#5-local-backup-and-restore), shared with H-6. **Restore drill, 2026-10-14:** a `pg_dump` of production (PostgreSQL 18.6, pgvector, 12 tables, migration `0003`) was restored into a scratch `pgvector/pgvector:pg18` container; `alembic upgrade head`, `downgrade -1` and `upgrade head` all passed; a custom-format dump restored into a fresh database gave identical row counts for all 21 tables. The drill was run by Princess from a workstation, not from a clean machine, so that acceptance criterion stays open.
+
+**Production migration, 2026-10-14:** after the drill and a full backup, `flame-api` and `flame-worker` were deployed from `main` with `railway up`. The pre-deploy step applied `0004_phase2_tables` (12 to 21 tables); row counts were unchanged and `/api/health` lists the `flame_cv_video` provider. Overall status stays `degraded` while the optional AURA provider is down.
 
 ## 4. Secret rotation
 1. Generate new values. Tokens are ≥ 32 characters, and the read and write tokens must differ.
@@ -111,4 +113,5 @@ docker compose -f infrastructure/compose.yaml up --build
 The Compose path, backup/restore and Railway steps have not been executed in this form. The acceptance criterion "executed from a clean machine by someone other than the Lead" is open.
 
 ## Changelog
+- 0.9.1 (2026-10-14): restore drill and the production `0004` migration recorded.
 - 0.9.0 (2026-10-12): first runbook; operational steps moved here from `infrastructure/README.md` and `apps/api/README.md`.

@@ -34,7 +34,7 @@
 **Validation commands run:** `python -m pytest`; `ruff check .`; `validate_registry.py`; `alembic upgrade head` / `downgrade` on PostgreSQL 16; the restore drill (E2-10 §5).
 
 **Known limitations:**
-- The restore drill and Alembic up/down were run on PostgreSQL 16 only. They were not re-run after the `Princess` merge.
+- The restore drill and Alembic up/down were first run on PostgreSQL 16. On 2026-10-14 they were re-run on PostgreSQL 18 with a copy of production data (see RUNBOOK §3); no clean-machine run yet.
 - The corpus is 3 PDFs (39 pages, 37 chunks); 100 referenced files are not on disk and are reported as skipped.
 - Open data defects are listed above.
 
