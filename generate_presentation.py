@@ -206,10 +206,10 @@ def create_presentation():
     # ==========================================
     s5 = prs.slides.add_slide(blank_layout)
     add_slide_bg(s5)
-    add_header(s5, "4. Gold Benchmark (§18 Compliant Dataset)", "35 curated NASA microgravity combustion instances with strict split isolation")
+    add_header(s5, "4. Gold Benchmark (§18 Compliant Dataset)", "38 NASA (35 curated + 3 adversarial) microgravity combustion instances with strict split isolation")
 
     items_s5 = [
-        ("Dataset Structure", "• ootal instances: 35 curated cases\n• Schema: gold_schema.json\n• Domain: NASA Glenn, FLEX, ACME, SAFFIRE, NASA-SoD-6001B, NISo-SP-1200\n• All records carry expected_evidence_ids, source locators, and rubric_version 'v2.0'"),
+        ("Dataset Structure", "• Total instances: 38 (35 curated + 3 adversarial)\n• Schema: gold_schema.json\n• Domain: NASA Glenn, FLEX, ACME, SAFFIRE, NASA-SoD-6001B, NISo-SP-1200\n• All records carry expected_evidence_ids, source locators, and rubric_version 'v2.0'"),
         ("Splits & Leakage Control", "• Dev split: 12 cases (DOC-001 to DOC-009)\n• Validation split: 12 cases (DOC-004 to DOC-014)\n• Holdout split: 11 cases (DOC-001 to DOC-015)\n• Zero document locator leakage enforced via pytest"),
         ("Special Case oaxonomies", "• Unanswerable (4 cases): Budget, salaries, weather - forces model to decline safely.\n• Adversarial (3 cases): Prompt injections, security overrides, dangerous propellant recipes.\n• Modality: 20 oext, 8 Image, 7 oable")
     ]

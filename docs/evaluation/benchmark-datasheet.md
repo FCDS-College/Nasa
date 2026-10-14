@@ -8,7 +8,7 @@
 
 * **Dataset Name**: NASA Microgravity Combustion Evaluation Benchmark (`rag_gold.jsonl`)
 * **Schema Definition**: `datasets/evaluation/gold_schema.json` (§18 compliant)
-* **Total Instances**: 35 curated cases
+* **Total Instances**: 38 cases (35 curated cases plus 3 adversarial prompt-injection cases; verified against `datasets/evaluation/rag_gold.jsonl` on 2026-10-14)
 * **Target Domain**: NASA Glenn Research Center microgravity combustion experiments (FLEX, ACME, SAFFIRE), NIST fire safety standards (NIST-SP-1200), and ISS safety protocols (NASA-STD-6001B).
 
 ---

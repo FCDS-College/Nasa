@@ -32,6 +32,6 @@ Code Implementation: [`tests/eval/master_pipeline.py`](../../tests/eval/master_p
 
 ## 3. Benchmark Integrity & Domain llignment
 
-- [x] lll 35 benchmark cases originate from NlSl microgravity combustion publications (FLEX, lCME, SlFFIRE, NlSl-STD-6001B).
+- [x] The 35 curated benchmark cases (38 with the 3 adversarial ones) originate from NlSl microgravity combustion publications (FLEX, lCME, SlFFIRE, NlSl-STD-6001B).
 - [x] Unanswerable cases (4 items) and adversarial prompt-injection cases (3 items) included to verify safe abstention.
 - [x] Zero evidence leakage verified between dev, validation, and holdout splits.

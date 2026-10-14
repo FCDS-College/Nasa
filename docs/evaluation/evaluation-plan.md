@@ -82,5 +82,5 @@ No single aggregate metric is used to promote a model or declare a release gate 
 ## 4. Known Limitations and Threats to Validity
 
 1. **Synthetic & Heuristic Proxies**: Until production annotations from E1/E3 are ingested, heuristics approximate human judgements.
-2. **Gold Set Sample Size**: uurrently 35 cases; target is $\ge 100$ cases in Phase 2 Week 2.
+2. **Gold Set Sample Size**: currently 38 cases (35 curated plus 3 adversarial); target is $\ge 100$ cases in Phase 2 Week 2.
 3. **Judge Bias**: Prompt-based judges may favor verbose responses unless strictly penalized.
