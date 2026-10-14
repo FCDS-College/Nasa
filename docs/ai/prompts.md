@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Eman | Draft | 0.1.0 | 2026-10-12 | M3, 2H (Planned parts marked) | `ai/rag/prompts/` |
+| Eman | In review | 0.2.0 | 2026-10-14 | M3, 2H (Planned parts marked) | `ai/rag/prompts/` |
 
 This document describes what the code does at commit `9319d65` (registry introduced) and `0fc94c3` (branch head, `Eman`). Anything not yet in code is marked **Planned**.
 
@@ -17,7 +17,7 @@ This document describes what the code does at commit `9319d65` (registry introdu
 | Evidence/instruction separation (tags + escaping) | Implemented | `render_evidence_block`, `render_memory_block` | `9319d65` | `test_evidence_block_escapes_tag_injection` | passed |
 | Markdown table generated from the registry | Implemented | `PromptRegistry.table()` | `9319d65` | `test_table_is_generated` | passed |
 | Evaluation run that approved each version | **Planned** | field `approved_by_eval_run` exists, value `null` | - | - | No evaluation run has approved any prompt yet. |
-| Provider/model each prompt was validated on (local vs cloud) | **Planned** (Sub-phase 2H) | no field yet | - | - | - |
+| Provider/model each prompt was validated on (local vs cloud) | **Planned** (Sub-phase 2H) | no field yet; the registry cannot record it until a prompt is evaluated on a real model | - | - | - |
 
 ## 2. Prompt table
 
@@ -69,6 +69,7 @@ Process: copy the JSON to `<id>.v<new>.json`, edit it, regenerate `content_hash`
 
 | Version | Date | Change |
 |---|---|---|
+| 0.2.0 | 2026-10-14 | Re-checked section 8.2: no prompt has been validated on any provider, so the provider/model column stays Planned and is explicit that it is empty by design. |
 | 0.1.0 | 2026-10-12 | First version: rewrite of `prompts.md` as a registry document matching `ai/rag/prompts/` at `9319d65`. |
 
 ## 8. ملخص بالعربي

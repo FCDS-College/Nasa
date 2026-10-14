@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Eman | Draft | 0.1.0 | 2026-10-12 | M3, 2H (Planned parts marked) | `ai/rag/generation/`, `ai/rag/service.py` |
+| Eman | In review | 0.2.0 | 2026-10-14 | M3, 2H (Planned parts marked) | `ai/rag/generation/`, `ai/rag/service.py` |
 
 This document describes the code at commit `9319d65` (composer) and `0fc94c3` (service, branch head). **Planned** marks behaviour that is not in code yet.
 
@@ -118,6 +118,10 @@ The model labels "Higher oxygen causes faster flame spread" as `observed`; the c
 ## 6. Failure and degraded behaviour
 
 - **Implemented:** if retrieval or the reranker raises, `FlameRAGService.answer` returns `status="retrieval_unavailable"`, `answer=None` and an `error` message. It never returns an uncited answer (test `test_reranker_down_returns_error_not_uncited_answer`).
+- **Degraded-mode wording (proposed, not in code):** these strings are the wording to implement; none is produced today.
+  - Local retrieval found nothing: "No evidence was found in the locally indexed documents. This does not mean external sources have nothing; external search is not used in this mode."
+  - External search unavailable: "External search is unavailable. This answer uses only the locally stored knowledge version `<knowledge_version>`, last synced `<last_sync>`."
+  - Possibly out of date: "This answer may be out of date. Locally stored knowledge was last synced on `<last_sync>`."
 - **Planned (2H):** offline disclaimers; showing `knowledge_version` and last-sync time when an answer may be out of date; never claiming the latest NASA/NIST information unless stored locally; separate wording for "external search unavailable" versus "local retrieval found nothing"; repair-and-retry rules for structured output (today invalid output abstains at once).
 
 ## 7. Known limitations
@@ -133,6 +137,7 @@ The model labels "Higher oxygen causes faster flame spread" as `observed`; the c
 
 | Version | Date | Change |
 |---|---|---|
+| 0.2.0 | 2026-10-14 | Added the proposed degraded-mode wording for 2H (still not produced by code). |
 | 0.1.0 | 2026-10-12 | First version, matching `GroundedAnswerComposer` at `9319d65` and `FlameRAGService` at `0fc94c3`. |
 
 ## 9. ملخص بالعربي
