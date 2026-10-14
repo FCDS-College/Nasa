@@ -404,3 +404,14 @@ Key decisions:
 9. A1 (AURA service credential) → A2 + A3 Option A interpretation behind a flag.
 10. `POST /api/chat` per MVP plan §12, either on Flame's own router or via AURA Option B. Decide based on the Day 7 RAG evaluation results, not on preference.
 11. A7: AURA consumes Flame through the Track AP OpenAPI connector (MVP plan §24).
+
+## Known limitations
+
+- Sections 1 onward are the 2026-10-05 audit, kept as history; only §0 is current.
+- AURA is external. In `offline_only` mode the router never contacts it, so there is no interpretation from AURA offline.
+- The dry run (`tests/integration/aura_blueprint_dryrun.py`) is pinned to an AURA commit and needs re-pinning whenever AURA changes.
+
+## Changelog
+
+- 2.0.0 (2026-10-12): Phase 2 status (§0), AURA as an optional provider.
+- 1.0.0 (2026-10-05): initial audit.

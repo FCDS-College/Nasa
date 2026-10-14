@@ -40,4 +40,10 @@ Week-1 documents and plan items are due on their branches (see `docs/README.md` 
 | Phase 2 baseline gate needs M2, M3, M10, M11 | The baseline can't be measured yet | Eman, Princess, Ziad |
 
 ## Changelog
+- 1.1.0 (2026-10-14): limitations added.
 - 1.0.0 (2026-10-12)
+
+## Known limitations
+
+- Peer sign-offs and GPU-dependent evidence (H-5, H-7) were not available this week.
+- Week 1 only; later weeks (2 to 8) have no status files yet.

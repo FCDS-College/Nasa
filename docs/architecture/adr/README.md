@@ -21,3 +21,12 @@ ADRs are immutable. A changed decision gets a new ADR that supersedes the old on
 | [010](ADR-010-contract-first-openapi.md) | Contract-first OpenAPI with a route-parity test | Accepted | Belal (E4) |
 
 "Accepted" here means it describes what is built on branch `ccr-c6a5a263-498la9` (PR #14). Each still needs the named engineer's sign-off, recorded in the table above, before the Week 1 gate counts it.
+
+## Known limitations
+
+- ADR-009 is Proposed; the other ADRs describe what is built on PR #14 and still need the named engineer's sign-off.
+- ADRs describe decisions, not behaviour. The code and tests are the source of truth.
+
+## Changelog
+
+- 1.0.0 (2026-10-12): ADR-001 to ADR-010.

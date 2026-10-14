@@ -149,3 +149,12 @@ No AURA work is needed for: `/health/ready` probing, `Idempotency-Key` on `/chat
 AURA's runbook (`docs/guides/flame-integration-runbook.md`) gives the exact interpretation request body (NR-1 flags, `context`, `response_schema` with the `inferred`/`hypothesized`/`unsupported` enum) and the error mapping for CR-5.
 
 **Definition of integrated:** Link 2 is integrated when step 3's report exists. Link 1 is integrated when an analysis on the dev stack carries `interpretation.status="completed"` with validated statements, and an AURA outage leaves the analysis `completed` with `INTERPRETATION_UNAVAILABLE`. Until then, the status in `AURA_INTEGRATION_STATUS.md` §1 stays accurate: implemented and contract-validated, but not proven live.
+
+## Known limitations
+
+- Dated 2026-10-05: the pinned revisions (`28921c0`, `3a60bca`, `25cc5b8`) are historical. The current state is in `AURA_INTEGRATION_STATUS.md` §0.
+- AURA is an optional provider in Phase 2 (`ai/providers/cloud/aura.py`). It is blocked in `offline_only` mode.
+
+## Changelog
+
+- 2026-10-14: limitations and changelog added; content unchanged since 2026-10-13.

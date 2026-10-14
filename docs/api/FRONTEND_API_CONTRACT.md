@@ -1,13 +1,13 @@
 # Flame in Freefall: Frontend API Contract (v0.1.0)
 
-**Audience:** Engineer 4 (frontend) and the Lead (backend). **Status:** contract agreed, **not implemented**.
+**Audience:** Engineer 4 (frontend) and the Lead (backend). **Status:** implemented by `apps/api`; this page describes the v0.1.0 contract, and later additions are in [CHANGELOG.md](CHANGELOG.md).
 **Machine-readable source of truth:** [`docs/api/openapi.json`](openapi.json) (OpenAPI 3.1.0). If this page and the JSON disagree, the JSON wins. Fix the page.
 **Every response schema, field by field:** [`docs/api/API_SCHEMAS.md`](API_SCHEMAS.md) (generated from `openapi.json`).
 **Background and evidence:** [`docs/integration/AURA_INTEGRATION_STATUS.md`](../integration/AURA_INTEGRATION_STATUS.md).
 
-> **Implementation status.** `apps/api` does not exist yet. No endpoint below is served today. Every
-> operation in `openapi.json` carries `x-implementation-status: not_implemented`. Build against the spec
-> with a mock server (see §3), and switch to the real API endpoint by endpoint as the Lead ships them.
+> **Implementation status.** `apps/api` serves the API. Every operation in `openapi.json` (version 0.2.0, 15
+> operations) carries `x-implementation-status: implemented`. The mock server in §3 is still useful for
+> frontend work without a backend.
 
 ---
 
@@ -724,3 +724,13 @@ A synchronous contract would have to be broken later, while an asynchronous one 
 | `GET /api/experiments` (list and facets) | MVP plan §12 | Planned, Experiment Explorer. |
 | `GET /api/openapi.json` | DAY2_TASKS §2 | Served by FastAPI once `apps/api` exists. It must match this file (contract test). |
 | Analysis cancel, video/temporal analysis | MVP plan §10 "Future CV" | Weeks 3–6. |
+
+## Known limitations
+
+- This page covers the v0.1.0 operations. `GET /api/documents`, `GET /api/experiments` and `POST /api/chat` (added in 0.2.0) are specified only in `openapi.json` and `CHANGELOG.md`; the JSON wins.
+- Section 7's "planned" rows predate 0.2.0, so some of them (document and experiment lists) now exist.
+
+## Changelog
+
+- 1.1.0 (2026-10-14): status corrected from "not implemented" to implemented; limitations and changelog added.
+- 1.0.0 (2026-10-06): contract agreed (v0.1.0).

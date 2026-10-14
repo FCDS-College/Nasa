@@ -35,3 +35,8 @@ Semver applies to `docs/api/openapi.json` `info.version`. Breaking changes need 
 
 ## 0.1.0 (MVP, `e73dcf1`)
 The ten MVP operations: health, dashboard counts, search, document, experiment, evidence, analysis create/list/get/artifact.
+
+## Known limitations
+
+- `API_SCHEMAS.md` is generated from `openapi.json` (`python docs/tools/render_api_schemas.py`), so do not hand-edit it. CI runs `--check`.
+- Pre-1.0: breaking changes only bump the minor version.
