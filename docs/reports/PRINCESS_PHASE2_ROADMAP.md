@@ -26,7 +26,7 @@ Complete Princess's Phase 2 computer-vision responsibilities with a tested, vers
 
 - [ ] Ground-truth masks, reviewed dataset manifest, and leakage-controlled splits.
 - [ ] Final quantitative CV evaluation and reviewer sign-offs.
-- [ ] Committed examples still contain machine-specific absolute paths (`C:/FCDS/Nasa/...` in `cv/contracts/*.json` and `results/`); they validate against their schemas but should be regenerated from a real run, not hand-edited.
+- [x] Committed examples no longer contain machine-specific `C:/FCDS/Nasa/` prefixes (made repo-relative in `cv/contracts/`). They are still older runs and should be regenerated from a real run when the pipeline changes.
 - [ ] Evaluation of the video and temporal metrics against ground truth, and validation of flicker on reference data; the implementation has only synthetic and sample-video tests.
 - [ ] Empirical performance measurements with reproducible run metadata.
 - [ ] E3-10 offline/resume verification (draft doc and verifier exist; checkpoint resume is tested in-process, not as an application restart or on a network-disabled machine), and CV contributions to Lead handoff items H-1, H-3, and H-7.

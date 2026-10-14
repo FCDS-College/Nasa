@@ -16,6 +16,6 @@
 
 **Tests:** `python -m pytest tests/cv` passes (67 tests).
 
-**Blockers:** ground-truth annotations and approved splits (Ziad); temporal metrics unevaluated against ground truth; committed contract examples still hold absolute `C:/FCDS` paths (regenerate from a real run); Python 3.14 limits TensorFlow to a release candidate.
+**Blockers:** ground-truth annotations and approved splits (Ziad); temporal metrics unevaluated against ground truth; committed contract examples are repo-relative now but still come from older runs; Python 3.14 limits TensorFlow to a release candidate.
 
 **Document changes:** `docs/cv/offline-operation.md` (new), `video-ingestion.md`, `temporal-analysis.md`, `video-contract.md`, `measurement-definitions.md`, `pipeline.md`, `cv/README.md`, roadmap v0.3.0.

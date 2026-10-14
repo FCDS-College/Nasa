@@ -50,7 +50,7 @@ def test_video_contract_schema_validation() -> None:
             "flickerFrequencyHz": "not estimable"
         },
         "artifacts": {
-            "summaryUri": "C:/FCDS/Nasa/datasets/processed/videos/vid_sample_01_summary.json",
+            "summaryUri": "datasets/processed/videos/vid_sample_01_summary.json",
             "checksum": "sha256:abcdef1234567890"
         }
     }
