@@ -38,107 +38,8 @@ interface ChatContextType {
   openSidebar: () => void;
 }
 
-const STORAGE_KEY_SESSIONS = "flame_chat_sessions_v1";
-const STORAGE_KEY_ACTIVE = "flame_active_session_id_v1";
-
-const INITIAL_SESSIONS: ChatSession[] = [
-  {
-    id: "sess-soot-microgravity",
-    title: "Microgravity Soot Formation",
-    createdAt: Date.now() - 1000 * 60 * 45, // 45 mins ago
-    updatedAt: Date.now() - 1000 * 60 * 45,
-    turns: [
-      {
-        id: "turn-1",
-        req: { query: "How does microgravity alter soot formation?" },
-        res: {
-          request_id: "req_101",
-          answer:
-            "In microgravity, buoyancy-induced convection is nearly eliminated. This causes flames to become spherical and soot residence times to increase significantly, altering soot formation pathways and radiative heat loss. The CLD Flame experiment observed larger primary soot particles compared to normal gravity (1g) conditions.",
-          sources: [
-            {
-              evidence_id: "01J9Z3N5B8C1E3G5J7M9P1R3T5",
-              document_id: "doc_991",
-              title: "Soot Formation in Microgravity",
-              location: "p. 4, §2.1",
-              url: "https://ntrs.nasa.gov/",
-            },
-          ],
-          memory_used: true,
-          cache_hit: false,
-          model: { provider: "vllm", name: "Llama-3-8B-Instruct", version: "v1.0" },
-          knowledge_version: "2026-10-03",
-          warnings: [],
-        },
-        timestamp: Date.now() - 1000 * 60 * 45,
-      },
-    ],
-  },
-  {
-    id: "sess-bass-ii-temp",
-    title: "BASS-II Temperature Profiles",
-    createdAt: Date.now() - 1000 * 60 * 60 * 18, // 18 hours ago
-    updatedAt: Date.now() - 1000 * 60 * 60 * 18,
-    turns: [
-      {
-        id: "turn-2",
-        req: { query: "What are the temperature profiles of BASS-II flames?" },
-        res: {
-          request_id: "req_102",
-          answer:
-            "BASS-II (Burning and Suppression of Solids - II) tests aboard the ISS demonstrated peak flame temperatures ranging from 1150 K to 1420 K depending on forced oxidizer flow velocity. Due to reduced heat losses via natural convection, radiative extinction thresholds shifted toward lower oxygen indices.",
-          sources: [
-            {
-              evidence_id: "01J9Z3N5B8C1E3G5J7M9P1R3T6",
-              document_id: "doc_992",
-              title: "BASS-II Flame Quenching & Temperature Diagnostics",
-              location: "Section 3.4, Table 2",
-              url: "https://ntrs.nasa.gov/",
-            },
-          ],
-          memory_used: true,
-          cache_hit: true,
-          model: { provider: "vllm", name: "Llama-3-8B-Instruct", version: "v1.0" },
-          knowledge_version: "2026-10-03",
-          warnings: [],
-        },
-        timestamp: Date.now() - 1000 * 60 * 60 * 18,
-      },
-    ],
-  },
-  {
-    id: "sess-droplet-combustion",
-    title: "Droplet Extinction Dynamics",
-    createdAt: Date.now() - 1000 * 60 * 60 * 48, // 2 days ago
-    updatedAt: Date.now() - 1000 * 60 * 60 * 48,
-    turns: [
-      {
-        id: "turn-3",
-        req: { query: "How does cool flame behavior manifest in isolated droplet combustion?" },
-        res: {
-          request_id: "req_103",
-          answer:
-            "In the FLEX (Flame Extinction Experiment) investigation, large alkane droplets exhibited a two-stage burning process. After conventional radiative extinction of the hot flame (~1700 K), a low-temperature 'cool flame' (~700-900 K) continued burning quasi-steadily without visible chemiluminescence until final extinction.",
-          sources: [
-            {
-              evidence_id: "01J9Z3N5B8C1E3G5J7M9P1R3T7",
-              document_id: "doc_993",
-              title: "FLEX Droplet Combustion & Cool Flame Regime",
-              location: "p. 12, Fig. 5",
-              url: "https://ntrs.nasa.gov/",
-            },
-          ],
-          memory_used: true,
-          cache_hit: false,
-          model: { provider: "vllm", name: "Llama-3-8B-Instruct", version: "v1.0" },
-          knowledge_version: "2026-10-03",
-          warnings: [],
-        },
-        timestamp: Date.now() - 1000 * 60 * 60 * 48,
-      },
-    ],
-  },
-];
+const STORAGE_KEY_SESSIONS = "flame_chat_sessions_v2";
+const STORAGE_KEY_ACTIVE = "flame_active_session_id_v2";
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
 
@@ -152,7 +53,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   // Auto-detect desktop screen to keep sidebar open by default on desktop, closed on mobile
   useEffect(() => {
     if (typeof window !== "undefined") {
-      setIsSidebarOpen(window.innerWidth >= 1024);
+      // Deferred so the initial sync does not cascade a render inside this effect
+      // (react-hooks/set-state-in-effect); it still runs before the first paint.
+      queueMicrotask(() => setIsSidebarOpen(window.innerWidth >= 1024));
       const handleResize = () => {
         if (window.innerWidth < 1024) {
           // Keep it closed on mobile resize
@@ -175,32 +78,30 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     setIsSidebarOpen(true);
   }, []);
 
-  // Initialize from LocalStorage
+  // Initialize from LocalStorage. Read synchronously, apply in a microtask so the hydration does not
+  // cascade a render inside this effect (react-hooks/set-state-in-effect).
   useEffect(() => {
+    let restored: ChatSession[] = [];
+    let active: string | null = null;
     try {
       const stored = localStorage.getItem(STORAGE_KEY_SESSIONS);
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          setSessions(parsed);
+          restored = parsed;
           const storedActive = localStorage.getItem(STORAGE_KEY_ACTIVE);
-          if (storedActive && parsed.some((s) => s.id === storedActive)) {
-            setActiveSessionId(storedActive);
-          } else {
-            setActiveSessionId(parsed[0].id);
-          }
-          setIsHydrated(true);
-          return;
+          active = storedActive && parsed.some((s) => s.id === storedActive) ? storedActive : parsed[0].id;
         }
       }
     } catch (e) {
       console.error("Failed to load chat sessions from localStorage:", e);
     }
 
-    // Default seed
-    setSessions(INITIAL_SESSIONS);
-    setActiveSessionId(INITIAL_SESSIONS[0].id);
-    setIsHydrated(true);
+    queueMicrotask(() => {
+      setSessions(restored);
+      setActiveSessionId(active);
+      setIsHydrated(true);
+    });
   }, []);
 
   // Save changes to LocalStorage
@@ -360,7 +261,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
                           memory_used: false,
                           cache_hit: false,
                           model: { provider: "error", name: "offline", version: "0.0" },
-                          knowledge_version: "2026-10-03",
+                          knowledge_version: "unversioned",
                           warnings: ["Inference timeout or connection failed"],
                         },
                       }

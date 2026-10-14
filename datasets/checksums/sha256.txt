@@ -119,3 +119,6 @@ c97875f8c1029d805f8206bd85b1b50990f4ea775f48f071065bacd860ef884a  raw/psi_api/PS
 0ba8a154fc17c560874c2ef23b508b9f078fa849650472f5819efc54eface32d  raw/psi_api/PSI-107/Reports/PSI-107_Reports_SPICE_30-DayPostFlightReport.pdf
 95e76859017d201dcd6a9fb12f1df568aed77e0edf7a1b609975db37f32fa680  raw/psi_api/PSI-107/Reports/PSI-107_Reports_SPICE_FinalReport.pdf
 a1e281ff575f3ba017b0b187b5dfc2789df097adc29e1e1d77821cbc7e185e16  raw/psi_api/PSI-107/Science Documents/PSI-107_Science Documents_SPICE_SRD.doc
+dc531270ffb646b26503955afb0c1df7bcc47482bbfed4a3d6b922de9629520d  ../docs/research/20000034017.pdf
+d237a76afe3aeba50b3ec804522faad75e542c91ceab7b919159edc74c33d3f7  ../docs/research/20040053557.pdf
+bb3dd1a5b3a0a6f85e42b5b285f7b191772b72317fe8ba36756d112cba774be2  ../docs/research/20080034883.pdf

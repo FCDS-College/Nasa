@@ -1,0 +1,56 @@
+{
+  "nVideos": 17,
+  "nTests": 15,
+  "nFramesPerVideo": 64,
+  "backbone": "resnet50",
+  "device": "cpu",
+  "protocol": "leave-one-test-out, inner group-CV for regularisation",
+  "tasks": {
+    "initialO2_regression": {
+      "n": 17,
+      "baselineMeanMAE": 2.303,
+      "models": {
+        "hand": {
+          "MAE": 2.459,
+          "beatsBaseline": false
+        },
+        "emb": {
+          "MAE": 2.135,
+          "beatsBaseline": true
+        },
+        "both": {
+          "MAE": 2.124,
+          "beatsBaseline": true
+        }
+      }
+    },
+    "fuelFamily_classification": {
+      "n": 17,
+      "baselineMajorityAcc": 0.353,
+      "classes": [
+        "nomex",
+        "pmma",
+        "rod",
+        "sibal",
+        "sphere",
+        "wax"
+      ],
+      "models": {
+        "hand": {
+          "accuracy": 0.353
+        },
+        "emb": {
+          "accuracy": 0.294
+        },
+        "both": {
+          "accuracy": 0.294
+        }
+      }
+    }
+  },
+  "limitations": [
+    "Only 15 independent tests; estimates have very high variance.",
+    "Fuel-family classes are mostly singletons, so held-out classes are unseen at test time.",
+    "Telemetry overlay rows are masked so the model cannot read test identity from text."
+  ]
+}

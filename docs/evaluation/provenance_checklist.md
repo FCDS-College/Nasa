@@ -1,12 +1,37 @@
-# 📋 Data Provenance & Evaluation Checklist
+| Owner | Status | Version | Last updated | Plan items | Code paths |
+|---|---|---|---|---|---|
+| Ziad | Approved | 1.0.0 | 2026-10-12 | M11, §18 | `tests/eval/test_provenance.py`, `tests/eval/master_pipeline.py` |
 
-## 1. Data Governance & Separation
-- **Gold Data Isolation**: تم فصل مجموعة البيانات المعيارية (`rag_gold.jsonl`) تماماً عن مخرجات التشغيل وسجلات التجارب التاريخية (`experiment_history.json`).
-- **Real-World Domain Sources**: تم استبدال الحالات الوهمية أو المتكررة بحالات حقيقية مستمدة من تقارير الفحص والأنظمة الهندسية المعتمدة.
+# Data Provenance and Evaluation Verification Checklist
 
-## 2. Evaluation Standards & Thresholds
-- **Automated Metric Computation**: حساب المقاييس إحصائياً وبرمجياً عبر `scikit-learn` ومنع كتابتها يدوياً.
-- **Strict Exit Codes**: أي حالة اختبار تفشل في اجتياز عتبة الجودة المعتمدة (`Threshold`) تتسبب في إيقاف التشغيل بـ `Exit Code != 0` لضمان عدم تمرير أي أخطاء للإنتاج.
+## 1. Automated Thresholds and Strict Exit Codes
 
-## 3. Compliance & Traceability
-- كافة السجلات مرتبطة بمعرفات تدقيق (`Audit Logs`) وتتبع بصري ونصي دقيق.
+* **Status**: **Operational & Verified in CI**
+* **Verification Command**:
+  ```bash
+  pytest tests/eval/test_provenance.py tests/eval/test_rag_metrics.py -v
+  ```
+* **Exit Code Policy**:
+  * Any violation of schema constraints, missing cases, duplicate queries, or evidence leakage across `dev`/`val`/`holdout` splits results in an immediate non-zero exit code (`exit 1`), halting CI pipeline execution.
+  * See verification implementation in [`tests/eval/test_provenance.py`](../../tests/eval/test_provenance.py#L43-L65).
+
+---
+
+## 2. §18 Provenance Metadata Tracking
+
+Every evaluation run automatically attaches execution provenance into [`evaluation_report.json`](../../evaluation_report.json):
+- `git_commit`: Hash extracted via git sub-process.
+- `dataset_sha256`: SHA-256 hash of `datasets/evaluation/rag_gold.jsonl`.
+- `timestamp`: ISO 8601 UTC timestamp.
+- `scorer_version`: Version string of current evaluation code.
+- `hardware`: Platform processor and OS architecture signature.
+
+Code Implementation: [`tests/eval/master_pipeline.py`](../../tests/eval/master_pipeline.py).
+
+---
+
+## 3. Benchmark Integrity & Domain Alignment
+
+- [x] All 35 benchmark cases originate from NASA microgravity combustion publications (FLEX, ACME, SAFFIRE, NASA-STD-6001B).
+- [x] Unanswerable cases (4 items) and adversarial prompt-injection cases (3 items) included to verify safe abstention.
+- [x] Zero evidence leakage verified between dev, validation, and holdout splits.

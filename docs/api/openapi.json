@@ -3,9 +3,9 @@
   "jsonSchemaDialect": "https://spec.openapis.org/oas/3.1/dialect/base",
   "info": {
     "title": "Flame in Freefall API",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "summary": "Frontend-facing REST contract for the Flame in Freefall scientific dashboard.",
-    "description": "Contract-first specification (MVP plan §12, DAY2_TASKS Lead deliverable). The FastAPI implementation is in `apps/api` and serves this document at `/api/openapi.json`; `x-implementation-status` records implementation state. API bearer authentication is required: use the read token for GET/HEAD and a distinct upload token for mutations. AURA Track AP compatibility is checked from this contract against a pinned AURA revision by `tests/integration/aura_blueprint_dryrun.py`.\n\nConventions: snake_case JSON; RFC 3339 UTC timestamps; ULID resource IDs; nullable means 'not present or not established' (never 0 for missing); every JSON success body has `meta`; every error body is `ErrorResponse`.\n\nScientific rules encoded in the schema: no temperature field exists; pixel measurements are `measured`, scale-derived physical sizes are `estimated`; AI interpretation is separate from measurements and limited to inferred/hypothesized/unsupported claim classes; evidence is only source content or deterministic calculation.",
+    "description": "Contract-first specification (MVP plan §12, DAY2_TASKS Lead deliverable). The FastAPI implementation is in `apps/api` and serves this document at `/api/openapi.json`; `x-implementation-status` records implementation state. API bearer authentication is required: use the read token for GET/HEAD and a distinct upload token for mutations. AURA Track AP compatibility is checked from this contract against a pinned AURA revision by `tests/integration/aura_blueprint_dryrun.py`.\n\nConventions: snake_case JSON; RFC 3339 UTC timestamps; ULID resource IDs; nullable means 'not present or not established' (never 0 for missing); every JSON success body has `meta`; every error body is `ErrorResponse`.\n\nScientific rules encoded in the schema: no temperature field exists; pixel measurements are `measured`, scale-derived physical sizes are `estimated`; AI interpretation is separate from measurements and limited to inferred/hypothesized/unsupported claim classes; evidence is only source content or deterministic calculation.\n\nAURA boundary (ADR-004, contract 0.2.0): operations marked `x-aura-exclude: true` (chat, AI status, admin writes) are skipped by AURA's OpenAPI discovery, so AURA can never compile a tool that calls back into Flame's model path. Changes: docs/api/CHANGELOG.md.",
     "license": {
       "name": "Proprietary (team internal)",
       "identifier": "LicenseRef-Proprietary"
@@ -37,6 +37,10 @@
     {
       "name": "Analysis",
       "description": "Flame image analysis and history."
+    },
+    {
+      "name": "Admin",
+      "description": "Authenticated configuration changes (write token, audited)."
     }
   ],
   "security": [
@@ -152,7 +156,7 @@
                       "meta": {
                         "request_id": "req_01J9Z3K8V5Q2N7X4M6R1T0W8YB",
                         "generated_at": "2026-10-05T09:30:00Z",
-                        "api_version": "0.1.0"
+                        "api_version": "0.2.0"
                       }
                     }
                   }
@@ -231,7 +235,7 @@
                       "meta": {
                         "request_id": "req_01J9Z3K8V5Q2N7X4M6R1T0W8YB",
                         "generated_at": "2026-10-05T09:30:00Z",
-                        "api_version": "0.1.0"
+                        "api_version": "0.2.0"
                       }
                     }
                   }
@@ -445,7 +449,7 @@
                       "meta": {
                         "request_id": "req_01J9Z3K8V5Q2N7X4M6R1T0W8YB",
                         "generated_at": "2026-10-05T09:30:00Z",
-                        "api_version": "0.1.0"
+                        "api_version": "0.2.0"
                       }
                     }
                   }
@@ -573,7 +577,7 @@
                       "meta": {
                         "request_id": "req_01J9Z3K8V5Q2N7X4M6R1T0W8YB",
                         "generated_at": "2026-10-05T09:30:00Z",
-                        "api_version": "0.1.0"
+                        "api_version": "0.2.0"
                       }
                     }
                   }
@@ -731,7 +735,7 @@
                       "meta": {
                         "request_id": "req_01J9Z3K8V5Q2N7X4M6R1T0W8YB",
                         "generated_at": "2026-10-05T09:30:00Z",
-                        "api_version": "0.1.0"
+                        "api_version": "0.2.0"
                       }
                     }
                   }
@@ -885,7 +889,7 @@
                       "meta": {
                         "request_id": "req_01J9Z3K8V5Q2N7X4M6R1T0W8YB",
                         "generated_at": "2026-10-05T09:30:00Z",
-                        "api_version": "0.1.0"
+                        "api_version": "0.2.0"
                       }
                     }
                   }
@@ -1050,7 +1054,7 @@
                       "meta": {
                         "request_id": "req_01J9Z3K8V5Q2N7X4M6R1T0W8YB",
                         "generated_at": "2026-10-05T09:30:00Z",
-                        "api_version": "0.1.0"
+                        "api_version": "0.2.0"
                       }
                     }
                   }
@@ -1289,7 +1293,7 @@
                       "meta": {
                         "request_id": "req_01J9Z3K8V5Q2N7X4M6R1T0W8YB",
                         "generated_at": "2026-10-05T09:30:00Z",
-                        "api_version": "0.1.0"
+                        "api_version": "0.2.0"
                       }
                     }
                   }
@@ -1628,7 +1632,7 @@
                       "meta": {
                         "request_id": "req_01J9Z3K8V5Q2N7X4M6R1T0W8YB",
                         "generated_at": "2026-10-05T09:30:00Z",
-                        "api_version": "0.1.0"
+                        "api_version": "0.2.0"
                       }
                     }
                   }
@@ -1837,6 +1841,633 @@
           }
         ]
       }
+    },
+    "/api/documents": {
+      "get": {
+        "operationId": "listDocuments",
+        "summary": "List documents",
+        "description": "Published documents, ordered by title, with filters and pagination (M6).",
+        "tags": [
+          "Research"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestIdHeader"
+          },
+          {
+            "name": "source_id",
+            "in": "query",
+            "required": false,
+            "style": "form",
+            "explode": true,
+            "description": "Filter by one or more source IDs (repeat the parameter).",
+            "schema": {
+              "type": "array",
+              "maxItems": 20,
+              "items": {
+                "type": "string",
+                "maxLength": 64
+              }
+            }
+          },
+          {
+            "name": "document_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 48
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "description": "Case-insensitive title substring.",
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of documents.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentListResponse"
+                },
+                "examples": {
+                  "documents": {
+                    "summary": "ILLUSTRATIVE values.",
+                    "value": {
+                      "items": [
+                        {
+                          "document_id": "01J9Z3M2A7D4F6H8K0N2Q4S6T8",
+                          "title": "Testing and Selection of Fire-Resistant Materials for Spacecraft Use",
+                          "document_type": "technical_report",
+                          "source": {
+                            "source_id": "FF-NTRS-20000034017",
+                            "title": "Testing and Selection of Fire-Resistant Materials for Spacecraft Use",
+                            "short_name": "NASA/TM-2000-209773",
+                            "repository": "NASA NTRS",
+                            "persistent_identifier": null,
+                            "license": null,
+                            "access_url": "https://ntrs.nasa.gov/citations/20000034017"
+                          },
+                          "page_count": 20,
+                          "text_layer": "full",
+                          "parser_version": "pymupdf-pages-0.2.0",
+                          "ingested_at": "2026-10-11T08:00:00Z",
+                          "knowledge_version": null
+                        }
+                      ],
+                      "pagination": {
+                        "page": 1,
+                        "page_size": 20,
+                        "total_items": 1,
+                        "total_pages": 1
+                      },
+                      "meta": {
+                        "request_id": "req_01J9Z3K8V5Q2N7X4M6R1T0W8YB",
+                        "generated_at": "2026-10-11T09:30:00Z",
+                        "api_version": "0.2.0"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "description": "A dependency is unavailable. Codes: DATABASE_UNAVAILABLE.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-implementation-status": "implemented",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/experiments": {
+      "get": {
+        "operationId": "listExperiments",
+        "summary": "List experiments",
+        "description": "Experiments with filters and pagination, ordered by source and test ID (M6). Replaces the frontend's `search?q=flame&type=experiment` workaround.",
+        "tags": [
+          "Research"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestIdHeader"
+          },
+          {
+            "name": "source_id",
+            "in": "query",
+            "required": false,
+            "style": "form",
+            "explode": true,
+            "description": "Filter by one or more source IDs (repeat the parameter).",
+            "schema": {
+              "type": "array",
+              "maxItems": 20,
+              "items": {
+                "type": "string",
+                "maxLength": 64
+              }
+            }
+          },
+          {
+            "name": "gravity_regime",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 32
+            }
+          },
+          {
+            "name": "fuel_or_material",
+            "in": "query",
+            "required": false,
+            "description": "Case-insensitive substring.",
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "investigation",
+            "in": "query",
+            "required": false,
+            "description": "Case-insensitive substring.",
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of experiments.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExperimentListResponse"
+                },
+                "examples": {
+                  "experiments": {
+                    "summary": "ILLUSTRATIVE values.",
+                    "value": {
+                      "items": [
+                        {
+                          "experiment_id": "01J9Z3N1W8X2Y4Z6A8C0E2G4J6",
+                          "test_id": "FLEX-001",
+                          "investigation": "FLEX",
+                          "source": {
+                            "source_id": "FF-PSI-69",
+                            "title": "Flame Extinguishment Experiment",
+                            "short_name": "FLEX",
+                            "repository": "NASA PSI",
+                            "persistent_identifier": "doi:10.60555/mbq8-0451",
+                            "license": "CC0-1.0",
+                            "access_url": "https://psi.nasa.gov/physci/repo/data/investigations/PSI-69"
+                          },
+                          "gravity_regime": "microgravity",
+                          "fuel_or_material": "n-heptane",
+                          "condition_count": 12
+                        }
+                      ],
+                      "pagination": {
+                        "page": 1,
+                        "page_size": 20,
+                        "total_items": 1,
+                        "total_pages": 1
+                      },
+                      "meta": {
+                        "request_id": "req_01J9Z3K8V5Q2N7X4M6R1T0W8YB",
+                        "generated_at": "2026-10-11T09:30:00Z",
+                        "api_version": "0.2.0"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "description": "A dependency is unavailable. Codes: DATABASE_UNAVAILABLE.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-implementation-status": "implemented",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/chat": {
+      "post": {
+        "operationId": "chat",
+        "summary": "Grounded research chat",
+        "description": "Flame retrieves its own evidence; the model router (local model, vLLM or AURA) writes an answer citing only that evidence. Read token. If no model can answer, returns 200 with the evidence and warning `generation_unavailable`. Excluded from AURA discovery: this endpoint itself calls AURA.",
+        "tags": [
+          "Research"
+        ],
+        "x-aura-exclude": true,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestIdHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "An answer (or degraded evidence-only reply).",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatResponse"
+                },
+                "examples": {
+                  "answered": {
+                    "summary": "ILLUSTRATIVE values.",
+                    "value": {
+                      "request_id": "req_01J9Z3K8V5Q2N7X4M6R1T0W8YB",
+                      "memory_used": false,
+                      "knowledge_version": "bge-small-en-v1.5-4210-20261011",
+                      "answer": "A cool flame was observed for n-heptane droplets in microgravity.",
+                      "sources": [
+                        {
+                          "evidence_id": "01J9Z3N5B8C1E3G5J7M9P1R3T5",
+                          "document_id": "01J9Z3M2A7D4F6H8K0N2Q4S6T8",
+                          "title": "PSI-69 Cool Flames",
+                          "location": "p. 3"
+                        }
+                      ],
+                      "cache_hit": false,
+                      "model": {
+                        "provider": "ollama",
+                        "name": "qwen2.5:3b-instruct-q4_K_M",
+                        "version": "unknown"
+                      },
+                      "execution": {
+                        "task": "chat.answer",
+                        "provider": "ollama",
+                        "runtime": "ollama",
+                        "model": "qwen2.5:3b-instruct-q4_K_M",
+                        "version": null,
+                        "locality": "local",
+                        "mode": "local_first",
+                        "fallback_used": false,
+                        "routing_reason": "preferred",
+                        "latency_ms": 41250.0,
+                        "attempts": []
+                      },
+                      "warnings": []
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "description": "No language model is configured or permitted in the current mode. Codes: CHAT_UNAVAILABLE, SEARCH_UNAVAILABLE, DATABASE_UNAVAILABLE.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-implementation-status": "implemented",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/ai/providers": {
+      "get": {
+        "operationId": "getAiProviders",
+        "summary": "AI execution mode and providers",
+        "description": "Execution mode, each registered provider (locality, capabilities, model), its cached health and circuit state, and routing counters. Probes are bounded and cached; external providers are never probed in offline_only.",
+        "tags": [
+          "System"
+        ],
+        "x-aura-exclude": true,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestIdHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Router status.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiProvidersResponse"
+                },
+                "examples": {
+                  "localFirst": {
+                    "summary": "ILLUSTRATIVE values.",
+                    "value": {
+                      "mode": "local_first",
+                      "providers": [
+                        {
+                          "name": "ollama",
+                          "runtime": "ollama",
+                          "locality": "local",
+                          "capabilities": [
+                            "chat",
+                            "structured"
+                          ],
+                          "model": "qwen2.5:3b-instruct-q4_K_M",
+                          "version": null,
+                          "priority": 20,
+                          "permitted": true,
+                          "health": {
+                            "state": "up",
+                            "latency_ms": 3.1,
+                            "detail": null,
+                            "model_present": true
+                          },
+                          "circuit": "closed"
+                        },
+                        {
+                          "name": "aura",
+                          "runtime": "aura",
+                          "locality": "external",
+                          "capabilities": [
+                            "chat",
+                            "structured"
+                          ],
+                          "model": null,
+                          "version": null,
+                          "priority": 50,
+                          "permitted": true,
+                          "health": {
+                            "state": "down",
+                            "latency_ms": 2001.0,
+                            "detail": "timeout",
+                            "model_present": null
+                          },
+                          "circuit": "open"
+                        }
+                      ],
+                      "decisions": {
+                        "chat.answer|ollama|ok": 12
+                      },
+                      "meta": {
+                        "request_id": "req_01J9Z3K8V5Q2N7X4M6R1T0W8YB",
+                        "generated_at": "2026-10-11T09:30:00Z",
+                        "api_version": "0.2.0"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "x-implementation-status": "implemented",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/ai/mode": {
+      "put": {
+        "operationId": "setAiMode",
+        "summary": "Change the AI execution mode",
+        "description": "Write token. Records an `audit_event` (action `ai.mode.changed`, before/after); every API and worker process picks the change up within ~10 s.",
+        "tags": [
+          "Admin"
+        ],
+        "x-aura-exclude": true,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestIdHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModeChangeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The mode changed.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModeChangeResponse"
+                },
+                "examples": {
+                  "goOffline": {
+                    "summary": "ILLUSTRATIVE values.",
+                    "value": {
+                      "previous_mode": "local_first",
+                      "mode": "offline_only",
+                      "meta": {
+                        "request_id": "req_01J9Z3K8V5Q2N7X4M6R1T0W8YB",
+                        "generated_at": "2026-10-11T09:30:00Z",
+                        "api_version": "0.2.0"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "description": "A dependency is unavailable. Codes: DATABASE_UNAVAILABLE.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-implementation-status": "implemented",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -1926,9 +2557,11 @@
           "MODEL_UNAVAILABLE",
           "QUEUE_UNAVAILABLE",
           "AURA_UNAVAILABLE",
-          "INTERNAL_ERROR"
+          "INTERNAL_ERROR",
+          "AUTHENTICATION_REQUIRED",
+          "CHAT_UNAVAILABLE"
         ],
-        "description": "Stable machine-readable error code. The frontend switches on this, never on `message`."
+        "description": "Stable machine-readable error code. The frontend switches on this, never on `message`. AURA_UNAVAILABLE is deprecated since 0.2.0: chat now degrades to an evidence-only answer instead."
       },
       "FieldError": {
         "type": "object",
@@ -2441,6 +3074,10 @@
           },
           "meta": {
             "$ref": "#/components/schemas/ResponseMeta"
+          },
+          "ai": {
+            "$ref": "#/components/schemas/AiStatus",
+            "description": "Execution mode and model providers (0.2.0)."
           }
         },
         "additionalProperties": false,
@@ -3573,6 +4210,17 @@
               "original_oriented_px"
             ],
             "description": "All pixel coordinates and measurements are in the original image's pixel grid after EXIF orientation, regardless of any internal resize."
+          },
+          "execution": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExecutionMetadata"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Which vision provider ran (flame_cv or hf_space) (0.2.0)."
           }
         },
         "additionalProperties": false,
@@ -4036,9 +4684,10 @@
         "type": "string",
         "enum": [
           "cv_pipeline",
-          "aura_interpretation"
+          "aura_interpretation",
+          "model_interpretation"
         ],
-        "description": "cv_pipeline: deterministic template text generated from measurements. aura_interpretation: model-generated text, validated by Flame before storage."
+        "description": "cv_pipeline: deterministic template text generated from measurements. aura_interpretation: model-generated text, validated by Flame before storage. model_interpretation: the same, written by a non-AURA model chosen by Flame's router."
       },
       "Statement": {
         "type": "object",
@@ -4144,11 +4793,8 @@
               "string",
               "null"
             ],
-            "enum": [
-              "aura",
-              null
-            ],
-            "description": "Which reasoning layer produced the statements."
+            "maxLength": 64,
+            "description": "Router provider that produced the statements (e.g. aura, ollama, vllm). Null until generated."
           },
           "model": {
             "type": [
@@ -4174,6 +4820,17 @@
               "null"
             ],
             "format": "date-time"
+          },
+          "execution": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExecutionMetadata"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Present once generated (0.2.0)."
           }
         },
         "additionalProperties": false,
@@ -4567,6 +5224,624 @@
           "image"
         ],
         "description": "multipart/form-data body for POST /api/analyses."
+      },
+      "ExecutionMode": {
+        "type": "string",
+        "enum": [
+          "cloud_preferred",
+          "local_first",
+          "offline_only"
+        ],
+        "description": "Hybrid AI execution mode (Sub-phase 2H). offline_only never contacts an external provider."
+      },
+      "ExecutionMetadata": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Which provider and model produced a result, and why the router chose it.",
+        "required": [
+          "task",
+          "provider",
+          "runtime",
+          "model",
+          "version",
+          "locality",
+          "mode",
+          "fallback_used",
+          "routing_reason",
+          "latency_ms",
+          "attempts"
+        ],
+        "properties": {
+          "task": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "provider": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "runtime": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 256
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 128
+          },
+          "locality": {
+            "type": "string",
+            "enum": [
+              "local",
+              "external"
+            ]
+          },
+          "mode": {
+            "$ref": "#/components/schemas/ExecutionMode"
+          },
+          "fallback_used": {
+            "type": "boolean"
+          },
+          "routing_reason": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "latency_ms": {
+            "type": "number",
+            "minimum": 0
+          },
+          "attempts": {
+            "type": "array",
+            "maxItems": 16,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "provider",
+                "code"
+              ],
+              "properties": {
+                "provider": {
+                  "type": "string"
+                },
+                "code": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "RoutingFailure": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "mode",
+          "reasons"
+        ],
+        "description": "Why no model could serve the request (degraded mode).",
+        "properties": {
+          "mode": {
+            "$ref": "#/components/schemas/ExecutionMode"
+          },
+          "reasons": {
+            "type": "array",
+            "maxItems": 32,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "provider",
+                "reason"
+              ],
+              "properties": {
+                "provider": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "reason": {
+                  "type": "string",
+                  "maxLength": 128
+                }
+              }
+            }
+          }
+        }
+      },
+      "AiProviderHealth": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "state",
+          "latency_ms",
+          "detail",
+          "model_present"
+        ],
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "up",
+              "down",
+              "degraded",
+              "unknown",
+              "blocked"
+            ]
+          },
+          "latency_ms": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "detail": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 64
+          },
+          "model_present": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        }
+      },
+      "AiProvider": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "runtime",
+          "locality",
+          "capabilities",
+          "model",
+          "version",
+          "priority",
+          "permitted",
+          "health",
+          "circuit"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "runtime": {
+            "type": "string"
+          },
+          "locality": {
+            "type": "string",
+            "enum": [
+              "local",
+              "external"
+            ]
+          },
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "chat",
+                "structured",
+                "embeddings",
+                "reranking",
+                "vision",
+                "video",
+                "transcription"
+              ]
+            }
+          },
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "priority": {
+            "type": "integer"
+          },
+          "permitted": {
+            "type": "boolean",
+            "description": "False when the current mode blocks it (external provider in offline_only)."
+          },
+          "health": {
+            "$ref": "#/components/schemas/AiProviderHealth"
+          },
+          "circuit": {
+            "type": "string",
+            "enum": [
+              "closed",
+              "open",
+              "half_open"
+            ]
+          }
+        }
+      },
+      "AiStatus": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "mode",
+          "providers"
+        ],
+        "properties": {
+          "mode": {
+            "$ref": "#/components/schemas/ExecutionMode"
+          },
+          "providers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AiProvider"
+            }
+          }
+        }
+      },
+      "AiProvidersResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "mode",
+          "providers",
+          "decisions",
+          "meta"
+        ],
+        "properties": {
+          "mode": {
+            "$ref": "#/components/schemas/ExecutionMode"
+          },
+          "providers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AiProvider"
+            }
+          },
+          "decisions": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "description": "Routing decision counters keyed `task|provider|outcome`, since process start."
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        }
+      },
+      "ModeChangeRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "mode"
+        ],
+        "properties": {
+          "mode": {
+            "$ref": "#/components/schemas/ExecutionMode"
+          }
+        }
+      },
+      "ModeChangeResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "previous_mode",
+          "mode",
+          "meta"
+        ],
+        "properties": {
+          "previous_mode": {
+            "$ref": "#/components/schemas/ExecutionMode"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/ExecutionMode"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        }
+      },
+      "ChatRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "query"
+        ],
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "conversation_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 128,
+            "description": "Accepted, not yet used server-side (M5)."
+          }
+        }
+      },
+      "ChatSource": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "evidence_id",
+          "document_id",
+          "title",
+          "location"
+        ],
+        "properties": {
+          "evidence_id": {
+            "type": "string"
+          },
+          "document_id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          }
+        }
+      },
+      "ChatModel": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "provider",
+          "name",
+          "version"
+        ],
+        "properties": {
+          "provider": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      },
+      "ChatWarning": {
+        "type": "string",
+        "enum": [
+          "no_matching_evidence",
+          "citations_not_in_retrieved_evidence_removed",
+          "answer_cites_no_evidence",
+          "generation_unavailable",
+          "model_fallback_used"
+        ]
+      },
+      "ChatResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "request_id",
+          "memory_used",
+          "knowledge_version",
+          "answer",
+          "sources",
+          "cache_hit",
+          "model",
+          "execution",
+          "warnings"
+        ],
+        "properties": {
+          "request_id": {
+            "type": "string"
+          },
+          "memory_used": {
+            "type": "boolean"
+          },
+          "knowledge_version": {
+            "type": "string",
+            "description": "`unversioned` until the first publication."
+          },
+          "answer": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatSource"
+            }
+          },
+          "cache_hit": {
+            "type": "boolean"
+          },
+          "model": {
+            "$ref": "#/components/schemas/ChatModel"
+          },
+          "execution": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExecutionMetadata"
+              },
+              {
+                "$ref": "#/components/schemas/RoutingFailure"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "ExecutionMetadata when a model answered; RoutingFailure when none could (warning generation_unavailable); null when no evidence matched."
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatWarning"
+            }
+          }
+        }
+      },
+      "DocumentSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "document_id",
+          "title",
+          "document_type",
+          "source",
+          "page_count",
+          "text_layer",
+          "parser_version",
+          "ingested_at",
+          "knowledge_version"
+        ],
+        "properties": {
+          "document_id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "document_type": {
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/SourceRef"
+          },
+          "page_count": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "text_layer": {
+            "type": "string"
+          },
+          "parser_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ingested_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "knowledge_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "DocumentListResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "items",
+          "pagination",
+          "meta"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DocumentSummary"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Pagination"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        }
+      },
+      "ExperimentSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "experiment_id",
+          "test_id",
+          "investigation",
+          "source",
+          "gravity_regime",
+          "fuel_or_material",
+          "condition_count"
+        ],
+        "properties": {
+          "experiment_id": {
+            "type": "string"
+          },
+          "test_id": {
+            "type": "string"
+          },
+          "investigation": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source": {
+            "$ref": "#/components/schemas/SourceRef"
+          },
+          "gravity_regime": {
+            "type": "string"
+          },
+          "fuel_or_material": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "condition_count": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "ExperimentListResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "items",
+          "pagination",
+          "meta"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExperimentSummary"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Pagination"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        }
       }
     },
     "parameters": {

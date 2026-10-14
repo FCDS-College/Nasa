@@ -212,3 +212,12 @@ Potential version information includes:
 * corpus/document version
 
 This information is required for reproducibility and cache invalidation.
+
+## Known limitations
+
+- This page describes the RAG service boundaries as designed in the MVP. The provider contracts used by the Phase 2 router are in `docs/hybrid-ai/PHASE_2_HYBRID_AI_API_CONTRACTS.md`; where the two differ, that page and the code in `ai/providers/contracts/` win.
+- It carries no owner/status header yet.
+
+## Changelog
+
+- 2026-10-14: limitations and changelog added. The content is unchanged since 2026-10-06.
