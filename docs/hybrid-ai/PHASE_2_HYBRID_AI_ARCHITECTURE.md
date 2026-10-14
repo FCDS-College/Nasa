@@ -29,7 +29,7 @@ Next.js (apps/web) ──/api/*──▶ FastAPI (apps/api/flame_api/main.py, an
             Local data services: PostgreSQL + pgvector · Redis (RQ, events) · MinIO
 ```
 
-The RQ worker (`worker.py`) uses the same router for `vision.analyze` and `analysis.interpret`. Graph RAG (D4) and the video provider (Workstream A) plug in as new tasks and providers; the router doesn't change.
+The RQ worker (`worker.py`) uses the same router for `vision.analyze` and `analysis.interpret`. Graph RAG (D4) plugs in as a new task and providers; the router doesn't change. The local video provider (`flame_cv_video`) is already registered for `video.analyze`.
 
 ## 2. Execution modes
 

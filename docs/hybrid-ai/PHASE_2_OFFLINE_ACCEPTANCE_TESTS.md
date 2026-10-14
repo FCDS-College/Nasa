@@ -21,10 +21,10 @@
 | S3 | Cloud LLM unavailable | Local LLM handles language tasks | `test_model_router.py::test_cloud_preferred_uses_the_cloud_and_falls_back_to_local_when_it_fails` | ✅ answered by Ollama, AURA blocked (§3 run 1) | Pending |
 | S4 | Cloud embedding service unavailable | Local embeddings support indexing and retrieval | `test_offline_routing.py::test_offline_embeddings_never_download_a_missing_model` | ✅ `vector_index build` embedded 37 chunks; `verify` ran with `HF_HUB_OFFLINE=1` | Pending |
 | S5 | External research search unavailable | Uses local sources, discloses the limitation | n/a: Flame has no live external search (H-1 §2). Answers carry `knowledge_version`. Covered by `test_chat.py` (knowledge_version present). | ✅ answer carried `knowledge_version = bge-small-en-v1.5-37-20261011` | Pending |
-| S6 | A video is already stored locally | Local video processing completes offline | **Not yet testable**: no video provider (Workstream A). Image analog: `test_model_router.py::test_vision_falls_back_from_the_hf_space_to_local_cv` | — | Pending |
+| S6 | A video is already stored locally | Local video processing completes offline | Automated: `tests/unit/test_video_provider.py::test_video_task_routes_offline_and_returns_frames` (offline_only, real OpenCV, synthetic video) | `pytest tests/unit/test_video_provider.py` | Automated (provider level; API/job path pending) |
 | S7 | Local LLM exceeds available memory | Controlled resource error, no crash | `test_offline_routing.py::test_a_local_model_out_of_memory_is_a_controlled_degraded_answer` | — | Pending |
 | S8 | Local model missing or corrupt | Health reports it; actionable error | `test_offline_routing.py::test_a_missing_local_model_is_reported_by_health_with_an_actionable_reason`, `…_is_skipped_without_a_call` | ✅ with Ollama stopped: `llm` = down "No local language model is ready." (§3 run 3) | Pending |
-| S9 | App restarts during a video job | Resumes or enters a recoverable state | **Not yet testable** (Workstream A; L-6 defines the checkpoints) | — | Pending |
+| S9 | App restarts during a video job | Resumes or enters a recoverable state | Provider level: `test_resuming_the_same_work_dir_reuses_the_checkpoint` and `tests/cv/test_video_pipeline.py` (interrupted-run resume). A kill-and-restart run through the worker is not yet exercised | `pytest tests/unit/test_video_provider.py tests/cv/test_video_pipeline.py` | Partial |
 | S10 | Connectivity returns | Eligible cloud operations resume | `test_model_router.py::test_the_circuit_opens_skips_the_dead_provider_then_half_opens_after_cooldown` | — | Pending |
 | S11 | Offline-Only mode | No external AI requests | `test_offline_routing.py::test_offline_only_answers_locally_and_makes_no_external_request`; `test_model_router.py::test_offline_only_never_calls_an_external_provider`, `…_does_not_even_probe_external_providers` | ✅ zero `aura.invalid` lookups in the API log | Pending |
 | S12 | Local answer with incomplete evidence | States uncertainty; no invented citations | `test_chat.py::test_an_answer_that_cites_nothing_is_flagged`; citations outside the retrieved set are dropped (`test_answer_is_written_by_aura_from_flame_evidence_only`) | ✅ run 1: the model said the passages did not answer the question | Pending |
@@ -56,7 +56,7 @@ Overall status was `unhealthy` in run 3 only because MinIO, a required service, 
 
 ## 4. Still required for the Definition of Done (§8.9 item 8)
 1. One Level C run of S1–S13 on the Compose stack (H-6) by an engineer other than the Lead, recorded here with date, commit, mode, logs and pass/fail.
-2. S6 and S9 automated once Workstream A ships a video provider (Princess).
+2. S6 and S9 are automated at provider level; add the API/worker path once an endpoint submits video jobs.
 
 ## Known limitations
 - Level A fakes the HTTP layer. It proves the routing logic, not the runtimes' real failure modes.
