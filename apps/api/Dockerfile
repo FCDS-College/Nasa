@@ -15,6 +15,10 @@ COPY cv /app/cv
 # Provider contracts, adapters and the router (M1 / 2H). Stdlib-only apart from optional extras.
 COPY ai/providers /app/ai/providers
 COPY ai/routing /app/ai/routing
+# Flame's answer cache (CAG): only the cache module and the interfaces it implements.
+COPY ai/interfaces.py /app/ai/interfaces.py
+COPY ai/rag/__init__.py /app/ai/rag/__init__.py
+COPY ai/rag/cache /app/ai/rag/cache
 # The 3 registered NTRS reports (FF-NTRS-*) are small and committed, so they ship with the image.
 COPY docs/research /app/docs/research
 COPY docs/api/openapi.json /app/docs/api/openapi.json
