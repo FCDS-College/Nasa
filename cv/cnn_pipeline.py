@@ -3,13 +3,12 @@ cnn_pipeline.py - Dynamic CNN Pipeline with Train/Test Split and Accuracy Enhanc
 """
 from __future__ import annotations
 
-import os
 from pathlib import Path
-from typing import Any, Dict, List, Tuple, Optional
+from typing import Any, Dict, List, Tuple
 
 import numpy as np
 import tensorflow as tf
-from tensorflow.keras import layers, models, callbacks, optimizers
+from tensorflow.keras import layers, models, optimizers
 
 
 def get_dynamic_dataset_paths(data_dir: Any, extensions: Tuple[str, ...] = (".jpg", ".jpeg", ".png")) -> List[Path]:
