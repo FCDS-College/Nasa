@@ -59,7 +59,7 @@ NASA/
 ├── datasets/
 │   └── evaluation/
 │       ├── gold_schema.json          # JSON Schema for gold test cases
-│       └── rag_gold.jsonl            # 35 gold test cases (NASA domain)
+│       └── rag_gold.jsonl            # 38 gold test cases (NASA domain)
 ├── docs/
 │   └── evaluation/
 │       └── provenance_checklist.md   # §18 data provenance checklist
@@ -93,7 +93,7 @@ NASA/
 
 ## Gold Dataset
 
-The evaluation gold set contains **35 test cases** about NASA microgravity combustion research:
+The evaluation gold set contains **38 test cases** about NASA microgravity combustion research:
 - **Splits**: dev (12), validation (12), holdout (11) — no document leakage
 - **Difficulty**: easy (~12), medium (~12), hard (~11)
 - **Modality**: text (~20), image (~8), table (~7)
