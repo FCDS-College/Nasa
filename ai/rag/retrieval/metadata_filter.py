@@ -1,5 +1,6 @@
 class MetadataFilter:
 
+    """Exact-match metadata filter: a chunk is kept only if every filter key equals its metadata value. Empty filters keep all chunks."""
     def filter(self, chunks, filters):
         """
         Filter chunks based on metadata values.

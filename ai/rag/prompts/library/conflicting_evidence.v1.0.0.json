@@ -1,0 +1,14 @@
+{
+  "id": "conflicting_evidence",
+  "version": "1.0.0",
+  "purpose": "Message when retrieved sources contradict each other",
+  "input_variables": [
+    "question",
+    "evidence_ids"
+  ],
+  "output_schema": null,
+  "template": "The retrieved sources disagree on: \"{{question}}\".\nConflicting evidence ids: {{evidence_ids}}.\nBoth positions are shown with their citations; this assistant does not pick a winner without further evidence.",
+  "model_capability": "none (template only)",
+  "content_hash": "28cda48207786188e00dbe8639165d119cb5106b7572c20df2a57dd4476c93f3",
+  "approved_by_eval_run": null
+}

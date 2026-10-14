@@ -14,6 +14,10 @@ from ai.rag.citations.citation_manager import CitationManager
 
 class RAGRetrievalPipeline:
 
+    """End-to-end retrieval: default domain filter, metadata filter, hybrid search, evidence check, rerank, context building and citations.
+
+    Returns an EvidenceBundle with status "insufficient_evidence" when the filters leave no chunks or no chunk passes the vector minimum score."""
+
     def __init__(
         self,
         vector_search,
