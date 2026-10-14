@@ -93,10 +93,10 @@ NASA/
 
 ## Gold Dataset
 
-The evaluation gold set contains **38 test cases** about NASA microgravity combustion research:
-- **Splits**: dev (12), validation (12), holdout (11) — no document leakage
-- **Difficulty**: easy (~12), medium (~12), hard (~11)
-- **Modality**: text (~20), image (~8), table (~7)
+The evaluation gold set contains **38 test cases** (35 curated plus 3 adversarial) about NASA microgravity combustion research:
+- **Splits**: dev (14), validation (14), holdout (10) — no document leakage
+- **Difficulty**: easy (12), medium (12), hard (14)
+- **Modality**: text (22), image (8), table (8)
 - **Special cases**: 4 unanswerable + 3 adversarial/prompt-injection
 
 ## License
