@@ -74,7 +74,7 @@ After any change to the manifest, run `python -m flame_api.seed` so the `model` 
 | Ziad (E5) | — | — | Pending |
 
 ## Known limitations
-- Most checksums and every H-7-backed reason are Pending until the L40S and benchmark runs.
+- Most checksums and every H-7-backed reason are Pending until the L40S and benchmark runs. **Decision (Anas, 2026-10-14):** the GPU benchmarks are not a production gate. Production ships on the CPU and Ollama path; every GPU row stays **Planned** until the Hugging Face jobs billing (402) is resolved.
 - The C1 model cards (Ziad) are not written yet. `model_card` points at this document's anchors until they are.
 
 ## Changelog

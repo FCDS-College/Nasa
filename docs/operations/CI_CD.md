@@ -52,10 +52,11 @@ Until then CI is advisory. The working rule is that nobody merges a PR, or pushe
 - Never add a test that needs internet. The offline tests patch `socket.create_connection` to catch that.
 
 ## Known limitations
-- Branch protection cannot be enabled on the current plan (§3), so CI is advisory.
+- Branch protection cannot be enabled on the current plan (§3), so CI is advisory. **Decision (Anas, 2026-10-14):** leave it off and rely on pull-request review by convention: nobody pushes to `main` directly except the Lead, every change is reviewed by another engineer, and a red CI run blocks the merge by agreement, not by GitHub.
 - Ruff runs a narrow rule set, to be widened per directory by each owner.
 - The web app has no tests yet (M7, Belal).
 
 ## Changelog
+- 1.2.0 (2026-10-14): L-7 closed as a documented exception: branch protection stays off by decision.
 - 1.1.0 (2026-10-14): check names verified against `main`; branch protection found blocked by the plan.
 - 1.0.0 (2026-10-12): first CI (previously only the AURA dry run existed).

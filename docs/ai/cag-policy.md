@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Eman | In review | 0.2.0 | 2026-10-14 | M4, 2H (Planned parts marked) | `ai/rag/cache/cag.py`, `ai/rag/service.py` |
+| Eman | In review | 0.3.0 | 2026-10-14 | M4, 2H (Planned parts marked) | `ai/rag/cache/cag.py`, `ai/rag/service.py` |
 
 Cache-Augmented Generation (CAG) here means: a final, already-validated answer is stored under a key that contains every version it depends on, and is served again only when all those versions are unchanged. This document describes the code at commit `9319d65` (cache module) and `0fc94c3` (service wiring). The fix that records `compute_ms` in the service is in commit `d7bf6b2` . **Planned** marks behaviour not yet in code.
 
@@ -18,6 +18,7 @@ Cache-Augmented Generation (CAG) here means: a final, already-validated answer i
 | Answers that used session memory are never cached | Implemented | `is_cacheable`, `FlameRAGService.answer` | `test_answers_that_used_memory_are_not_cached`, `test_memory_is_disclosed_and_bypasses_cache` |
 | `cache_hit` produced by Flame's own cache | Implemented | `FlameResponse.cache_hit` in `ai/rag/service.py` | `test_second_call_is_a_cache_hit_and_corpus_publish_invalidates` |
 | Metrics (hits, misses, hit rate, time saved p50/p95) | Implemented | `InMemoryCacheService.metrics` | `test_cache_metrics_record_time_saved_on_hits` |
+| `/api/chat` answer cache (`cache_hit` is Flame's own value) | Implemented | `apps/api/flame_api/answer_cache.py`, wired in `apps/api/flame_api/main.py` (commit `bda1200`); never caches answers that carry warnings | `python -m pytest apps/api/tests/test_answer_cache.py` |
 | Redis / shared cache backend | **Planned** | only `InMemoryCacheService` exists (process-local) | - |
 | Embedding, retrieval-ID and rerank caches | **Planned** | - | - |
 | Provider and execution mode recorded in entries | Implemented | `DependencyManifest.provider` / `.execution_mode` in `ai/rag/cache/cag.py`, filled by `FlameRAGService.answer` (commit `1c118b3`); test `test_manifest_records_provider_and_execution_mode` and `test_second_call_is_a_cache_hit_and_corpus_publish_invalidates` | `python -m pytest tests/unit/test_cag.py tests/unit/test_flame_service.py`: passed |
@@ -65,11 +66,11 @@ Stored with each entry (`DependencyManifest`):
 Required behaviour: when a new knowledge version is published (event owned by Anas, E2), cached answers built on older versions must stop being served. See `docs/data/KNOWLEDGE_VERSIONING.md` (owned by E2; confirm that file exists at this path).
 
 - **Implemented:** the cache can do it: `invalidate_corpus(current_corpus_version)` removes every entry whose manifest has a different `corpus_version`, and `invalidate_document(document_id, new_version)` removes entries that cite an outdated document. Even without calling them, entries cannot be served after a version change because `corpus_version` is part of the key.
-- **Planned:** nothing subscribes to the publication event yet, so no code calls these methods automatically. The integration point is the API layer owned by the Lead and E2.
+- **Decision (Anas, 2026-10-14):** the publish step is the trigger. In the API, `/api/chat` compares the current published knowledge version (`current_knowledge_version`, written by `knowledge_version.publish`) with the last one it saw, and calls `invalidate_corpus` when it changed (`apps/api/flame_api/answer_cache.py`). The key also contains the version, so a stale entry cannot be served even before the sweep runs. Tests: `apps/api/tests/test_answer_cache.py`. Other worker or API processes get the same effect, because each checks the database, not the Redis event. Subscribing to the `flame:knowledge.published` Redis channel is **Planned** and not needed for correctness.
 
 ## 5. Where `cache_hit` comes from
 
-`FlameRAGService.answer` (`ai/rag/service.py`) looks the key up in its own `CacheService`. A hit returns `FlameResponse(cache_hit=True)`; a miss computes the answer and returns `cache_hit=False`. AURA is not involved in this value. The `/api/chat` endpoint does not call this service yet (**Planned**, owned by the Lead), so today the value is produced only inside the service and its tests.
+`FlameRAGService.answer` (`ai/rag/service.py`) looks the key up in its own `CacheService`. A hit returns `FlameResponse(cache_hit=True)`; a miss computes the answer and returns `cache_hit=False`. AURA is not involved in this value. `/api/chat` does not call `FlameRAGService` yet, but it uses the same cache module through `answer_cache.py`, so `cache_hit` there is Flame's own value.
 
 ## 6. Metrics and how to read them
 
@@ -100,6 +101,7 @@ No production hit rate exists: no real traffic and no real corpus have been run 
 
 | Version | Date | Change |
 |---|---|---|
+| 0.3.0 | 2026-10-14 | Cache wired into `/api/chat`; the knowledge-version publish step is the invalidation trigger (Lead decision). |
 | 0.2.0 | 2026-10-14 | Manifest now records provider and execution mode (`1c118b3`); placeholder commit text removed. |
 | 0.1.0 | 2026-10-12 | First version: rewrite of `cag-policy.md` to match `ai/rag/cache/cag.py` and `ai/rag/service.py`; policies that are not implemented are marked Planned. |
 

@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Eman | Draft (ADR in section 2 is **Proposed**, awaiting the Lead) | 0.1.0 | 2026-10-12 | M2, 2H (Planned parts marked) | `ai/rag/retrieval/`, `ai/rag/reranking/`, `ai/rag/query/`, `ai/rag/service.py`, `apps/api/flame_api/main.py` |
+| Eman | In review (ADR in section 2 is **Accepted**) | 0.2.0 | 2026-10-12 | M2, 2H (Planned parts marked) | `ai/rag/retrieval/`, `ai/rag/reranking/`, `ai/rag/query/`, `ai/rag/service.py`, `apps/api/flame_api/main.py` |
 
 This document describes the code on branch `Eman` at commits `9319d65` (retrieval fusion/reranker/rewrite modules), `0fc94c3` (service wiring) and `d7bf6b2` (cache timing fix). Facts about `apps/api` come from a search of Eman's working tree on 2026-10-12 (`Select-String` over `apps/api/flame_api/*.py`); line numbers refer to that tree. **Planned** marks behaviour not yet in code.
 
@@ -22,9 +22,9 @@ Facts about stack B:
 - Experiment results are scored by counting query words found in `searchable_text` (line ~369); no reranking.
 - The `search` endpoint returns 503 `SEARCH_UNAVAILABLE` (retryable) if the query fails (line ~384).
 
-## 2. Consolidation decision (ADR, **Proposed**)
+## 2. Consolidation decision (ADR, **Accepted** 2026-10-14)
 
-**Status:** Proposed by Eman on 2026-10-12. Needs agreement from the Lead (Anas). Ask the Lead where ADR files live; this text can be moved there unchanged.
+**Status:** Accepted by Anas (Lead) on 2026-10-14: `ai/rag` is the one retrieval stack, with `FlameRAGService` behind `/api/search` and `/api/chat` and a pgvector adapter for dense search. **Done so far:** semantic results are now merged on every page and under an experiment filter in `/api/search`, and `/api/chat` has Flame's own version-keyed answer cache (`apps/api/flame_api/answer_cache.py`). **Still Planned:** moving the lexical SQL and the router-based generation behind `FlameRAGService`, the cross-encoder reranker in the API, and the pgvector adapter class. The route keeps its current behaviour until those are tested.
 
 **Context.** Two retrieval paths exist (section 1). Stack A is richer but unused by the API. Stack B is what the dashboard and AURA call, but it is lexical only and cannot rerank, cite versions, or abstain.
 
@@ -135,7 +135,7 @@ The API also returns `retrieval.searched_but_empty`, which separates "searched a
 
 ## 9. Known limitations
 
-- The API does not use this pipeline yet; the ADR above is a proposal.
+- The API uses only part of this pipeline: the answer cache and semantic results on every page. The rest of the ADR is accepted but still Planned (see section 2).
 - Dense search in the library is an in-memory cosine search with a fixed minimum score (`0.7`); there is no persistent or pgvector index.
 - No evaluation numbers exist: Recall@k, MRR and grounded-answer rate will come from Ziad's harness (E1-10).
 - Fusion weights, RRF `k`, the vector minimum score and rerank candidate size are untuned defaults.
@@ -147,6 +147,7 @@ The API also returns `retrieval.searched_but_empty`, which separates "searched a
 
 | Version | Date | Change |
 |---|---|---|
+| 0.2.0 | 2026-10-14 | ADR accepted by the Lead; recorded what is wired into the API and what is still Planned. |
 | 0.1.0 | 2026-10-12 | First version. Documents both stacks, proposes the consolidation ADR, and describes the stages, fusion, reranker, rewrite, versions and failure behaviour as implemented at `0fc94c3`/`d7bf6b2`. |
 
 ## 11. ملخص بالعربي
