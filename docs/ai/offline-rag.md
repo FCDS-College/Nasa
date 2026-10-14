@@ -2,9 +2,9 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Eman | Draft | 0.1.0 | 2026-10-12 | 2H Task 5 | `ai/rag/service.py`, `ai/rag/generation/`, `ai/rag/retrieval/`, `ai/rag/reranking/`, `tests/unit/test_offline_rag.py` |
+| Eman | In review | 0.2.0 | 2026-10-14 | 2H Task 5 | `ai/rag/service.py`, `ai/rag/generation/`, `ai/rag/retrieval/`, `ai/rag/reranking/`, `tests/unit/test_offline_rag.py` |
 
-Sub-phase 2H requires Flame to keep answering when the internet, cloud models or external AI services (including AURA) are unavailable. This document says what the code does today and marks everything else **Planned**. The test file `tests/unit/test_offline_rag.py` was added in commit `34c9849` (replace with `git rev-parse --short HEAD` after committing); the other code is at `9319d65`, `0fc94c3` and `d7bf6b2` on branch `Eman`.
+Sub-phase 2H requires Flame to keep answering when the internet, cloud models or external AI services (including AURA) are unavailable. This document says what the code does today and marks everything else **Planned**. The test file `tests/unit/test_offline_rag.py` was added in commit `34c9849` ; the other code is at `9319d65`, `0fc94c3`, `d7bf6b2` and `1c118b3` (provider and execution mode in cache entries) on branch `Eman`.
 
 ## 1. What is implemented and what is not
 
@@ -77,7 +77,7 @@ Details of each stage are in `retrieval-pipeline.md` and `grounded-generation.md
 
 ## 7. Local vs cloud results
 
-**Planned.** No benchmark run has compared local and cloud models. When Ziad's harness produces them, this section will list the run IDs, commit, benchmark version and checksum, and the numbers will be copied from the harness output, not typed.
+**Planned. Run IDs: none.** No benchmark run has compared local and cloud models. When Ziad's harness produces them, this section will list the run IDs, commit, benchmark version and checksum, and the numbers will be copied from the harness output, not typed.
 
 ## 8. Known limitations
 
@@ -91,6 +91,7 @@ Details of each stage are in `retrieval-pipeline.md` and `grounded-generation.md
 
 | Version | Date | Change |
 |---|---|---|
+| 0.2.0 | 2026-10-14 | Replaced the placeholder commit text, added the cache manifest commit `1c118b3`, and stated that no local-vs-cloud run IDs exist yet. |
 | 0.1.0 | 2026-10-12 | First version: describes the offline flow as implemented, adds the no-network test, and marks the rest as Planned. |
 
 ## 10. ملخص بالعربي
