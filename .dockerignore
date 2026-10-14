@@ -14,8 +14,8 @@ datasets/*
 !datasets/metadata/files.jsonl
 !datasets/samples/
 !datasets/samples/cv/
+datasets/samples/cv/*
 !datasets/samples/cv/manifest.jsonl
-datasets/samples/cv/*/
 datasets/raw/
 datasets/derived/
 tests
