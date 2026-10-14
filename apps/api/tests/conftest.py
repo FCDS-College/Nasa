@@ -21,11 +21,13 @@ from api_contract import CONTRACT_PATH, assert_contract_component  # noqa: F401 
 @pytest.fixture(autouse=True)
 def fresh_ai_runtime():
     """Router, circuit state and any runtime mode override are per test."""
-    from flame_api import ai_runtime
+    from flame_api import ai_runtime, answer_cache
 
     ai_runtime.reset()
+    answer_cache.reset()
     yield
     ai_runtime.reset()
+    answer_cache.reset()
 
 
 @pytest.fixture

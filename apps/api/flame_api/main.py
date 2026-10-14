@@ -28,8 +28,8 @@ from flame_api.contracts import error_body, response_meta
 from flame_api.database import engine, get_session
 from flame_api.analysis import router as analysis_router
 from ai.routing import ExecutionMode, NoCompatibleProvider
-from flame_api import ai_runtime, telemetry
-from flame_api.generation import answer_question
+from flame_api import ai_runtime, answer_cache, telemetry
+from flame_api.generation import CHAT_INSTRUCTIONS, answer_question
 from flame_api.knowledge_version import current_knowledge_version
 from flame_api.models import AnalysisRecord, DocumentChunk, DocumentRecord, EvidenceRecord, ExperimentCondition, ExperimentRecord, SourceRecord
 from flame_api.vector_index import VectorUnavailableError, index_status, search_chunks
@@ -398,7 +398,7 @@ def search(
             total_items += doc_query.count()
             lexical_chunks = doc_query.all()
             semantic_scores: dict[str, float] = {}
-            if page == 1 and domain in {"combustion", "all"} and not experiment_id:
+            if domain in {"combustion", "all"}:
                 try:
                     status = index_status(session)
                     if status["state"] == "up":
@@ -412,6 +412,8 @@ def search(
                 extra = session.query(DocumentChunk).options(joinedload(DocumentChunk.document).joinedload(DocumentRecord.source)).filter(DocumentChunk.chunk_id.in_(extra_ids))
                 if source_filter:
                     extra = extra.filter(DocumentChunk.source_id.in_(source_filter))
+                if experiment_id:
+                    extra = extra.filter(text("document_chunk.evidence_id in (select evidence_id from evidence where experiment_id = :experiment_id)")).params(experiment_id=experiment_id)
                 extra_chunks = extra.all()
                 total_items += len(extra_chunks)
                 lexical_chunks = [*lexical_chunks, *extra_chunks]
@@ -587,6 +589,12 @@ def chat(request: Request, body: ChatBody, session: Session = Depends(get_sessio
             content=error_body(request, "RATE_LIMITED", "Too many chat requests. Try again shortly.", retryable=True),
             headers={"Retry-After": "10"},
         )
+    started = time.perf_counter()
+    cache_version = current_knowledge_version(session) or "unversioned"
+    cache_key = answer_cache.make_key(question, knowledge_version=cache_version, instructions=CHAT_INSTRUCTIONS, mode=router.mode.value)
+    cached = answer_cache.lookup(cache_key, cache_version)
+    if cached is not None:
+        return {**cached, "request_id": request.state.request_id, "cache_hit": True}
     with telemetry.span("chat.retrieve", **{"flame.request_id": request.state.request_id}) as current:
         retrieved = _retrieve_passages(request, session, question)
         if not isinstance(retrieved, JSONResponse):
@@ -658,15 +666,18 @@ def chat(request: Request, body: ChatBody, session: Session = Depends(get_sessio
         request.state.request_id, len(items), len(sources), result["dropped_citations"],
         execution["provider"], execution["locality"],
     )
-    return {
+    response = {
         **base,
         "answer": result["answer"],
         "sources": sources,
-        "cache_hit": result["cached"],
+        "cache_hit": False,
         "model": {"provider": result["provider"], "name": result["model"], "version": execution.get("version") or "unknown"},
         "execution": execution,
         "warnings": warnings,
     }
+    if not warnings and sources:
+        answer_cache.store(cache_key, response, knowledge_version=cache_version, instructions=CHAT_INSTRUCTIONS, started=started)
+    return response
 
 
 @app.get("/api/ai/providers", tags=["System"])
