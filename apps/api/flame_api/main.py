@@ -32,6 +32,7 @@ from flame_api import ai_runtime, answer_cache, telemetry
 from flame_api.generation import CHAT_INSTRUCTIONS, answer_question
 from flame_api.knowledge_version import current_knowledge_version
 from flame_api.models import AnalysisRecord, DocumentChunk, DocumentRecord, EvidenceRecord, ExperimentCondition, ExperimentRecord, SourceRecord
+from ai.rag.retrieval.fusion import reciprocal_rank_fusion
 from flame_api.vector_index import VectorUnavailableError, index_status, search_chunks
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -417,6 +418,10 @@ def search(
                 extra_chunks = extra.all()
                 total_items += len(extra_chunks)
                 lexical_chunks = [*lexical_chunks, *extra_chunks]
+            terms = query.lower().split()
+            lexical_chunks.sort(key=lambda c: (-sum(term in c.text[:400].lower() for term in terms), c.chunk_id))
+            dense_ranking = sorted(semantic_scores, key=lambda cid: (-semantic_scores[cid], cid))
+            fused = dict(reciprocal_rank_fusion([[c.chunk_id for c in lexical_chunks], dense_ranking]))
             for chunk in lexical_chunks:
                 document = chunk.document
                 snippet = chunk.text[:400]
@@ -424,7 +429,7 @@ def search(
                     "result_id": chunk.chunk_id,
                     "result_type": "document",
                     "rank": len(results) + 1 + offset,
-                    "score": float(sum(term.lower() in snippet.lower() for term in query.split())) + semantic_scores.get(chunk.chunk_id, 0.0),
+                    "score": round(fused[chunk.chunk_id], 6),
                     "title": document.title,
                     "snippet": snippet,
                     "highlights": [],
@@ -454,13 +459,17 @@ def search(
             if experiment_id:
                 exp_query = exp_query.filter(ExperimentRecord.experiment_id == experiment_id)
             total_items += exp_query.count()
-            for experiment in exp_query.all():
+            experiments = sorted(
+                exp_query.all(),
+                key=lambda e: (-sum(term in e.searchable_text.lower() for term in query.lower().split()), e.experiment_id),
+            )
+            for experiment_rank, experiment in enumerate(experiments, start=1):
                 snippet = experiment.fuel_or_material or experiment.test_id
                 results.append({
                     "result_id": experiment.experiment_id,
                     "result_type": "experiment",
                     "rank": len(results) + 1 + offset,
-                    "score": float(sum(term.lower() in experiment.searchable_text.lower() for term in query.split())),
+                    "score": round(1.0 / (60 + experiment_rank), 6),
                     "title": f"{experiment.investigation or 'Experiment'} {experiment.test_id}",
                     "snippet": snippet,
                     "highlights": [],

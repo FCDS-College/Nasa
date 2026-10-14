@@ -19,6 +19,8 @@ COPY ai/routing /app/ai/routing
 COPY ai/interfaces.py /app/ai/interfaces.py
 COPY ai/rag/__init__.py /app/ai/rag/__init__.py
 COPY ai/rag/cache /app/ai/rag/cache
+COPY ai/rag/retrieval/__init__.py /app/ai/rag/retrieval/__init__.py
+COPY ai/rag/retrieval/fusion.py /app/ai/rag/retrieval/fusion.py
 # The 3 registered NTRS reports (FF-NTRS-*) are small and committed, so they ship with the image.
 COPY docs/research /app/docs/research
 COPY docs/api/openapi.json /app/docs/api/openapi.json

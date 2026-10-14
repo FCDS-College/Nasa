@@ -24,7 +24,7 @@ Facts about stack B:
 
 ## 2. Consolidation decision (ADR, **Accepted** 2026-10-14)
 
-**Status:** Accepted by Anas (Lead) on 2026-10-14: `ai/rag` is the one retrieval stack, with `FlameRAGService` behind `/api/search` and `/api/chat` and a pgvector adapter for dense search. **Done so far:** semantic results are now merged on every page and under an experiment filter in `/api/search`, and `/api/chat` has Flame's own version-keyed answer cache (`apps/api/flame_api/answer_cache.py`). **Still Planned:** moving the lexical SQL and the router-based generation behind `FlameRAGService`, the cross-encoder reranker in the API, and the pgvector adapter class. The route keeps its current behaviour until those are tested.
+**Status:** Accepted by Anas (Lead) on 2026-10-14: `ai/rag` is the one retrieval stack, with `FlameRAGService` behind `/api/search` and `/api/chat` and a pgvector adapter for dense search. **Done so far:** `/api/search` ranks with `reciprocal_rank_fusion` from `ai/rag/retrieval/fusion.py` (k=60; lexical list ordered by term hits, fused with the dense list; experiments use their lexical rank), semantic results are merged on every page and under an experiment filter, tests in `apps/api/tests/test_search_fusion.py`; `/api/chat` has Flame's own version-keyed answer cache (`apps/api/flame_api/answer_cache.py`). **Still Planned:** moving the lexical SQL and the router-based generation behind `FlameRAGService`, the cross-encoder reranker in the API (the response still has no reranker stage), and the pgvector adapter class. The route keeps its current behaviour until those are tested.
 
 **Context.** Two retrieval paths exist (section 1). Stack A is richer but unused by the API. Stack B is what the dashboard and AURA call, but it is lexical only and cannot rerank, cite versions, or abstain.
 
@@ -147,6 +147,7 @@ The API also returns `retrieval.searched_but_empty`, which separates "searched a
 
 | Version | Date | Change |
 |---|---|---|
+| 0.3.0 | 2026-10-14 | `/api/search` now fuses lexical and dense rankings with RRF. |
 | 0.2.0 | 2026-10-14 | ADR accepted by the Lead; recorded what is wired into the API and what is still Planned. |
 | 0.1.0 | 2026-10-12 | First version. Documents both stacks, proposes the consolidation ADR, and describes the stages, fusion, reranker, rewrite, versions and failure behaviour as implemented at `0fc94c3`/`d7bf6b2`. |
 
