@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Lead (Anas) | In review (sign-off: Ziad E5, Princess E3) | 1.0.0 | 2026-10-12 | 2H Task 4, C1, M8 | `ai/routing/model_manifest.json`, `apps/api/flame_api/seed.py:seed_models`, table `model` |
+| Lead (Anas) | In review (Princess E3: signed 2026-10-14; Ziad E5: pending) | 1.1.0 | 2026-10-14 | 2H Task 4, C1, M8 | `ai/routing/model_manifest.json`, `apps/api/flame_api/seed.py:seed_models`, table `model` |
 
 **Source of truth.** [`ai/routing/model_manifest.json`](../../ai/routing/model_manifest.json) is validated by `ai/routing/registry.py:load_manifest`, which rejects unknown keys, duplicates and missing required fields. `python -m flame_api.seed` loads it into the `model` table, the C1 model registry (no second registry). Status values:
 - `approved`: in use and evaluated;
@@ -18,7 +18,7 @@
 | <a id="embeddings"></a>`fastembed:BAAI/bge-small-en-v1.5` | embeddings | fastembed 0.9.0 | `Qdrant/bge-small-en-v1.5-onnx-Q@aa8f8b060edb00e03bfdd08813a2949946c8ba55` | ONNX quantized | MIT | `51f1bd0addd6e859e42c2c8021a5e5461385bb676a649f4b269aa445449f2431` (m) | 66,465,124 B model; 67,181,750 B cache (m) | ~300 MB (e) | yes | approved |
 | <a id="reranker"></a>`sentence-transformers:cross-encoder/ms-marco-MiniLM-L-6-v2` | reranking | sentence-transformers | Pending | — | Apache-2.0 | Pending | Pending | ~400 MB (e) | yes | candidate |
 | <a id="computer-vision"></a>`flame_cv:cv-opencv-v1.2.0-auto` | vision | OpenCV | `cv-opencv-v1.2.0-auto` (v1.1.0 kept in `cv/oldversion/`) | — | project code | n/a (code; git commit is the version) | — | ~0.5 GB / 50 MP (e) | yes | approved |
-| <a id="video"></a>`flame_cv_video:cv-video-v1.0.0` | video | OpenCV | `cv-video-v1.0.0` (wraps `cv-opencv-v1.2.0-auto`) | ? | project code | n/a (code; git commit is the version) | ? | ~0.5 GB (e) | yes | approved |
+| <a id="video"></a>`flame_cv_video:cv-video-v1.0.0` | video | OpenCV | `cv-video-v1.0.0` (wraps `cv-opencv-v1.2.0-auto`) | — | project code | n/a (code; git commit is the version) | — | ~0.5 GB (e) | yes | approved |
 | `hf_space:flame_cv` | vision (external) | HF Space | same pipeline | — | project code | n/a | — | — | yes | approved |
 | `aura:orchestrator` | structured (external) | AURA | whatever AURA routes to (reported per response) | — | self-hosted | n/a | — | — | — | approved |
 
@@ -66,9 +66,17 @@ After any change to the manifest, run `python -m flame_api.seed` so the `model` 
   - `OLLAMA_KEEP_ALIVE=30m` (Compose) and `keep_alive` per request keep the model resident. The measured cold start added about 25 s over the warm calls.
   - fastembed loads once per process (`FastEmbedProvider._load`).
 
+## Review and sign-off
+
+| Reviewer | Date | Commit | Result |
+|---|---|---|---|
+| Princess (E3) | 2026-10-14 | `d7adf5e` | Signed for the CV and video rows. Checked: all 8 manifest entries load through `load_manifest` and each `model_id` appears in this table; versions match the manifest; `FLAME_CV` and `flame_cv_video` run on CPU only and need no weights (confirmed by the passing `tests/cv` and `tests/unit/test_video_provider.py`). RAM figures for CV and video remain estimates (e). The LLM, reranker and vLLM rows were not reviewed: they need the L40S or a download. |
+| Ziad (E5) | — | — | Pending |
+
 ## Known limitations
 - Most checksums and every H-7-backed reason are Pending until the L40S and benchmark runs.
 - The C1 model cards (Ziad) are not written yet. `model_card` points at this document's anchors until they are.
 
 ## Changelog
+- 1.1.0 (2026-10-14): `flame_cv_video` row; Princess's review recorded; Ziad's review still pending.
 - 1.0.0 (2026-10-12): first registry; embedding checksum and Ollama size measured.
