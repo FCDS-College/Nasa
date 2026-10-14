@@ -106,7 +106,28 @@
       "ram_mb": 500,
       "vram_mb": null,
       "cpu_only": true,
-      "notes": "Heuristic Otsu-contour pipeline with auto-adaptive preprocessing (v1.2.0, Princess, ported from branch Princess @ 1b32326), no weights. v1.1.0 is kept in cv/oldversion/. M10 evaluation: docs/CV/evaluation-report.md (draft)."
+      "notes": "Heuristic Otsu-contour pipeline with auto-adaptive preprocessing (v1.2.0, Princess, ported from branch Princess @ 1b32326), no weights. v1.1.0 is kept in cv/oldversion/. M10 evaluation: docs/cv/evaluation-report.md (draft)."
+    },
+    {
+      "model_id": "flame_cv_video:cv-video-v1.0.0",
+      "capability": "video",
+      "provider": "flame_cv_video",
+      "runtime": "opencv",
+      "name": "flame_cv_video",
+      "version": "cv-video-v1.0.0",
+      "quantization": null,
+      "license": "project code",
+      "source_url": "cv/video_analysis.py",
+      "sha256": null,
+      "size_bytes": null,
+      "locality": "local",
+      "context_window": null,
+      "status": "approved",
+      "model_card": "docs/hybrid-ai/PHASE_2_LOCAL_MODEL_REGISTRY.md#video",
+      "ram_mb": 500,
+      "vram_mb": null,
+      "cpu_only": true,
+      "notes": "Resumable frame sampling, per-frame flame_cv analysis and temporal summary (Princess, E3). No weights; local only. Spec: docs/cv/video-ingestion.md, docs/cv/temporal-analysis.md."
     },
     {
       "model_id": "hf_space:flame_cv",

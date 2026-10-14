@@ -34,6 +34,7 @@ def build_router(settings: Settings) -> Router:
     from ai.providers.cloud.hf_space_cv import HfSpaceCvProvider
     from ai.providers.local.fastembed_embeddings import FastEmbedProvider
     from ai.providers.local.flame_cv import FlameCvProvider
+    from ai.providers.local.flame_cv_video import FlameCvVideoProvider
     from ai.providers.local.llamacpp import LlamaCppProvider
     from ai.providers.local.ollama import OllamaProvider
     from ai.providers.local.vllm import VllmProvider
@@ -72,6 +73,7 @@ def build_router(settings: Settings) -> Router:
         registry.register(CrossEncoderReranker(offline=models_offline), priority=10)
     # FLAME_CV_PROVIDER picks the preferred vision provider; the other one stays as the fallback.
     registry.register(FlameCvProvider(), priority=10 if settings.cv_provider == "local" else 20)
+    registry.register(FlameCvVideoProvider(), priority=10)  # local only: video never leaves the machine
     if settings.cv_hf_space_url:
         registry.register(HfSpaceCvProvider(base_url=settings.cv_hf_space_url, token=_secret(settings.cv_hf_token),
                                             timeout_s=settings.cv_timeout_s, max_upload_bytes=settings.max_upload_bytes),
