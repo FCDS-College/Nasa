@@ -1,6 +1,6 @@
 # Flame Image Sources for the CV / NN Layers
 
-> Related: the source registry guide ([SOURCE_REGISTRY.md](SOURCE_REGISTRY.md)) lists every registered source, and derived-image lineage is in [PROVENANCE.md](PROVENANCE.md) §2. Princess's annotation protocol (`docs/CV/annotation-protocol.md`) should link back here.
+> Related: the source registry guide ([SOURCE_REGISTRY.md](SOURCE_REGISTRY.md)) lists every registered source, and derived-image lineage is in [PROVENANCE.md](PROVENANCE.md) §2. Princess's annotation protocol (`docs/cv/annotation-protocol.md`) should link back here.
 
 **Date:** 2026-10-04 · **Purpose:** find enough real microgravity flame imagery to build, train and evaluate the CV pipeline (`cv/contracts/analysis_result.json`, `cv/pipeline.py`) and the PyTorch learning layer (MVP plan §5.7, §5.9, §10).
 **Machine-readable inventory:** `datasets/manifests/psi_combustion_file_inventory.csv` (7,514 files, one row per PSI object)
