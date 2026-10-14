@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Eman | Draft (design only; every behaviour is **Planned**) | 0.1.0 | 2026-10-14 | D4 | none yet (Planned: i/rag/graph/) |
+| Eman | Draft (design only; every behaviour is **Planned**) | 0.1.0 | 2026-10-14 | D4 | none yet (Planned: `ai/rag/graph/`) |
 
 **Status: design only.** Graph RAG depends on D2 and D3 (graph schema and storage) and on M8 (entity and relation tables owned by Anas, E2). None exists. Everything below is **Planned**. Examples use synthetic ids. No metric is reported because no run exists.
 

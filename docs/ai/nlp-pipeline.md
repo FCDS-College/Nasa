@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Eman | Draft (design only; every behaviour is **Planned**) | 0.1.0 | 2026-10-14 | D1 | none yet (Planned: i/rag/nlp/) |
+| Eman | Draft (design only; every behaviour is **Planned**) | 0.1.0 | 2026-10-14 | D1 | none yet (Planned: `ai/rag/nlp/`) |
 
 **Status: design only.** No extractor exists in the repository at commit of this document. Every table below describes behaviour to build and is **Planned**. Nothing here reports a precision, recall or F1 value, because no extractor has been run. Examples are synthetic.
 

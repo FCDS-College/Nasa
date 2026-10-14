@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Eman | Draft (design only; every behaviour is **Planned**) | 0.1.0 | 2026-10-14 | D5, M5 | i/rag/memory/session_mag.py (M5, implemented); graph parts none yet |
+| Eman | Draft (design only; every behaviour is **Planned**) | 0.1.0 | 2026-10-14 | D5, M5 | `ai/rag/memory/session_mag.py` (M5, implemented); graph parts none yet |
 
 **Status: design only.** Session MAG (M5) is implemented in `ai/rag/memory/session_mag.py` and documented in `mag-policy.md`. Both graph memories below are **Planned**. Examples are synthetic.
 
