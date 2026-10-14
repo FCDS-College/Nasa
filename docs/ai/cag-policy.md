@@ -2,9 +2,9 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Eman | Draft | 0.1.0 | 2026-10-12 | M4, 2H (Planned parts marked) | `ai/rag/cache/cag.py`, `ai/rag/service.py` |
+| Eman | In review | 0.2.0 | 2026-10-14 | M4, 2H (Planned parts marked) | `ai/rag/cache/cag.py`, `ai/rag/service.py` |
 
-Cache-Augmented Generation (CAG) here means: a final, already-validated answer is stored under a key that contains every version it depends on, and is served again only when all those versions are unchanged. This document describes the code at commit `9319d65` (cache module) and `0fc94c3` (service wiring). The fix that records `compute_ms` in the service is in commit `d7bf6b2` (replace with `git rev-parse --short HEAD` after committing). **Planned** marks behaviour not yet in code.
+Cache-Augmented Generation (CAG) here means: a final, already-validated answer is stored under a key that contains every version it depends on, and is served again only when all those versions are unchanged. This document describes the code at commit `9319d65` (cache module) and `0fc94c3` (service wiring). The fix that records `compute_ms` in the service is in commit `d7bf6b2` . **Planned** marks behaviour not yet in code.
 
 ## 1. What is implemented
 
@@ -20,7 +20,8 @@ Cache-Augmented Generation (CAG) here means: a final, already-validated answer i
 | Metrics (hits, misses, hit rate, time saved p50/p95) | Implemented | `InMemoryCacheService.metrics` | `test_cache_metrics_record_time_saved_on_hits` |
 | Redis / shared cache backend | **Planned** | only `InMemoryCacheService` exists (process-local) | - |
 | Embedding, retrieval-ID and rerank caches | **Planned** | - | - |
-| Offline reuse and execution mode in entries | **Planned** (2H) | - | - |
+| Provider and execution mode recorded in entries | Implemented | `DependencyManifest.provider` / `.execution_mode` in `ai/rag/cache/cag.py`, filled by `FlameRAGService.answer` (commit `1c118b3`); test `test_manifest_records_provider_and_execution_mode` and `test_second_call_is_a_cache_hit_and_corpus_publish_invalidates` | `python -m pytest tests/unit/test_cag.py tests/unit/test_flame_service.py`: passed |
+| Serving entries offline | Implemented for the in-process cache only | An entry built by the local `ExtractiveLLMProvider` (`execution_mode="local"`) needs no network to be served; no Redis or shared cache exists | - |
 
 Test command: `python -m pytest -q tests/unit`. Result on Eman's machine at `0fc94c3` (2026-10-12): **81 passed**. Sandbox run after the `compute_ms` fix (`test_cag.py`, `test_flame_service.py`): **19 passed**.
 
@@ -92,13 +93,14 @@ No production hit rate exists: no real traffic and no real corpus have been run 
 - No automatic invalidation yet (no subscriber to the knowledge-version event).
 - Keys depend on the normalised query text; paraphrases miss.
 - TTLs (3600 s / 300 s) are defaults, not tuned.
-- `model` records the LLM name and version but not the execution mode (local/cloud) or provider separately (**Planned**, 2H).
+- `model` keeps `<name>@<version>`; `provider` and `execution_mode` ("local" or "cloud") are now stored separately in the manifest (commit `1c118b3`). Only the local baseline provider exists, so no entry has `execution_mode="cloud"` yet. The execution mode is not part of the cache key, so a cloud and a local answer to the same query with the same model name would share a key (**Planned** decision).
 - Metrics are not exposed through an API endpoint yet.
 
 ## 8. Changelog
 
 | Version | Date | Change |
 |---|---|---|
+| 0.2.0 | 2026-10-14 | Manifest now records provider and execution mode (`1c118b3`); placeholder commit text removed. |
 | 0.1.0 | 2026-10-12 | First version: rewrite of `cag-policy.md` to match `ai/rag/cache/cag.py` and `ai/rag/service.py`; policies that are not implemented are marked Planned. |
 
 ## 9. ملخص بالعربي
