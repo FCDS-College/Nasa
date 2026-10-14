@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Eman | Draft | 0.1.0 | 2026-10-14 | M13, 2H (Planned parts marked) | `cv/contracts/analysis_result.schema.json`, `apps/api/flame_api/analysis.py`, `apps/api/flame_api/aura_integration.py` (Lead), `ai/rag/` (no CV code yet) |
+| Eman | In review | 0.2.0 | 2026-10-14 | M13, 2H (Planned parts marked) | `cv/contracts/analysis_result.schema.json`, `apps/api/flame_api/analysis.py`, `apps/api/flame_api/aura_integration.py` (Lead), `ai/rag/` (no CV code yet) |
 
 This document describes how a computer-vision (CV) analysis result becomes a labelled interpretation, what the code does today, and what is **Planned**. Status facts come from: the schema file `cv/contracts/analysis_result.schema.json`, one sample `cv/contracts/analysis_result.json` (schemaVersion `1.1.0`), a search of `apps/api/flame_api/*.py` on 2026-10-12, and `docs/integration/AURA_INTEGRATION_REQUIREMENTS.md`.
 
@@ -107,6 +107,12 @@ Input fields: `detection.status = PRESENT`, `geometry.elongation = 4.0`, `calibr
 | "The flame temperature is about 1500 K." | `inferred` | `EV-SYN-0001` | **Rejected**: temperature from RGB |
 | "The region is 12 mm wide." | `inferred` | `EV-SYN-0001` | **Rejected**: no scale (`calibrationState = ABSENT`) |
 
+## 5a. Evidence for this document
+
+- Code at: `9319d65` (composer, prompt registry), `0fc94c3` (service wiring); document commit `7b009ff` on branch `Eman`.
+- Tests: `python -m pytest tests/unit/test_composer.py tests/unit/test_flame_service.py` (passed with the merge of `main`, 2026-10-14). No test exercises a CV `AnalysisResult` yet, so the interpretation flow itself is **Planned**.
+- Local language model rule (2H): the local model may only interpret measured CV results; it must never change a measured value, a quality flag or a warning. Enforcement (compare every number in the answer with the `AnalysisResult`) is **Planned**.
+
 ## 6. Known limitations
 
 - No local (non-AURA) interpretation code exists; sections 2, 3 and 5 describe the contract it must follow.
@@ -119,7 +125,17 @@ Input fields: `detection.status = PRESENT`, `geometry.elongation = 4.0`, `calibr
 
 | Version | Date | Change |
 |---|---|---|
+| 0.2.0 | 2026-10-14 | Added commit and test evidence, the local-model rule and a sign-off table. |
 | 0.1.0 | 2026-10-14 | First version, based on the CV contract schema and the API integration code as found on branch `Eman`. |
+
+
+
+### Sign-off
+
+| Role | Name | Status |
+|---|---|---|
+| Lead | Anas | pending |
+| CV owner | Princess | pending |
 
 ## 8. ملخص بالعربي
 
