@@ -46,3 +46,13 @@ def test_semantic_hits_are_merged_on_page_two_and_under_an_experiment_filter(cli
     assert page2["retrieval"]["mode"] == "hybrid"
     everything = client.get("/api/search", params={"q": "flame", "type": "document", "page_size": 10}).json()
     assert "c3" in [r["result_id"] for r in everything["results"]], "a dense-only hit is returned"
+
+
+def test_dense_only_hit_scores_only_its_dense_rank(client, session_factory, monkeypatch):
+    _seed(session_factory)
+    monkeypatch.setattr(main, "index_status", lambda session: {"state": "up", "version": "kv-test"})
+    monkeypatch.setattr(main, "search_chunks", lambda session, query, limit=20, **_: [("c3", 0.9)])
+    body = client.get("/api/search", params={"q": "flame", "type": "document", "page_size": 10}).json()
+    by_id = {r["result_id"]: r["score"] for r in body["results"]}
+    assert by_id["c3"] == round(1 / 61, 6), "dense rank 1 only; no phantom lexical rank"
+    assert by_id["c0"] == round(1 / 61, 6)

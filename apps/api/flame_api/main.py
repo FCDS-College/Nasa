@@ -398,6 +398,7 @@ def search(
                 doc_query = doc_query.filter(text("document_chunk.evidence_id in (select evidence_id from evidence where experiment_id = :experiment_id)")).params(experiment_id=experiment_id)
             total_items += doc_query.count()
             lexical_chunks = doc_query.all()
+            extra_chunks: list[DocumentChunk] = []
             semantic_scores: dict[str, float] = {}
             if domain in {"combustion", "all"}:
                 try:
@@ -417,12 +418,12 @@ def search(
                     extra = extra.filter(text("document_chunk.evidence_id in (select evidence_id from evidence where experiment_id = :experiment_id)")).params(experiment_id=experiment_id)
                 extra_chunks = extra.all()
                 total_items += len(extra_chunks)
-                lexical_chunks = [*lexical_chunks, *extra_chunks]
             terms = query.lower().split()
             lexical_chunks.sort(key=lambda c: (-sum(term in c.text[:400].lower() for term in terms), c.chunk_id))
             dense_ranking = sorted(semantic_scores, key=lambda cid: (-semantic_scores[cid], cid))
+            # only true lexical hits enter the lexical ranking; dense-only hits are ranked by the dense list alone
             fused = dict(reciprocal_rank_fusion([[c.chunk_id for c in lexical_chunks], dense_ranking]))
-            for chunk in lexical_chunks:
+            for chunk in [*lexical_chunks, *extra_chunks]:
                 document = chunk.document
                 snippet = chunk.text[:400]
                 results.append({
