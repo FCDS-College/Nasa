@@ -10,7 +10,7 @@ interface CardProps {
 export function Card({ children, className = "", hover = false, glow = false }: CardProps) {
   return (
     <section
-      className={`rounded-2xl ${className}`}
+      className={`rounded-2xl ${hover ? "transition-all duration-200 hover:border-blue-500/30 hover:shadow-lg cursor-pointer" : ""} ${className}`}
       style={{
         background: 'var(--bg-card)',
         backdropFilter: 'blur(24px) saturate(1.4)',

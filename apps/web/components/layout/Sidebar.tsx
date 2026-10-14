@@ -12,8 +12,27 @@ import {
   Clock,
   X,
   Sparkles,
+  FileText,
+  Fingerprint,
+  Beaker,
+  Network,
+  Activity,
+  LayoutDashboard,
 } from "lucide-react";
 import { useChat } from "@/lib/context/ChatContext";
+
+const navItems = [
+  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { label: "Research Chat", href: "/chat", icon: MessageSquare },
+  { label: "Flame Analysis", href: "/analysis", icon: Flame },
+  { label: "Scientific Search", href: "/search", icon: Search },
+  { label: "Document Explorer", href: "/documents", icon: FileText },
+  { label: "Evidence Inspector", href: "/evidence", icon: Fingerprint },
+  { label: "Experiment Matrix", href: "/experiments", icon: Beaker },
+  { label: "Analysis History", href: "/history", icon: Clock },
+  { label: "Knowledge Base", href: "/knowledge", icon: Network },
+  { label: "System Status", href: "/status", icon: Activity },
+];
 
 function formatRelativeTime(timestamp: number) {
   const diff = Math.max(0, Date.now() - timestamp);
@@ -137,8 +156,42 @@ export function Sidebar() {
           </button>
         </div>
 
+        {/* Workspace Navigation */}
+        <div className="px-3 py-2.5" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+          <div className="px-2 pb-1.5 text-[10px] font-bold uppercase tracking-[0.15em]"
+               style={{ color: 'var(--text-dim)' }}>
+            Platform Modules
+          </div>
+          <div className="space-y-0.5 max-h-[220px] overflow-y-auto pr-1">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = pathname === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => {
+                    if (typeof window !== "undefined" && window.innerWidth < 1024) {
+                      closeSidebar();
+                    }
+                  }}
+                  className="flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all"
+                  style={{
+                    background: isActive ? 'rgba(59,130,246,0.1)' : 'transparent',
+                    color: isActive ? 'var(--accent-flame)' : 'var(--text-secondary)',
+                    border: isActive ? '1px solid rgba(59,130,246,0.25)' : '1px solid transparent',
+                  }}
+                >
+                  <Icon className="h-3.5 w-3.5 shrink-0" style={{ color: isActive ? 'var(--accent-flame)' : 'var(--text-dim)' }} />
+                  <span className="truncate">{item.label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+
         {/* New Chat Button */}
-        <div className="p-4 pb-2">
+        <div className="p-3 pb-2">
           <button
             id="new-chat-btn"
             onClick={handleNewChat}

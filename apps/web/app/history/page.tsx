@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { fetchAnalysesHistory } from "@/lib/api/client";
 import { AnalysisSummary } from "@/lib/api/types";
-import { History, ArrowRight, CheckCircle2, Clock, Database } from "lucide-react";
+import { History, ArrowRight, CheckCircle2, Clock } from "lucide-react";
 import Link from "next/link";
 
 export default function HistoryPage() {

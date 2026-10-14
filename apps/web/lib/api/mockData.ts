@@ -1,4 +1,4 @@
-import { SystemHealth, ChatResponse, SearchResponse, EvidenceRecord, AnalysisResult, KnowledgeEntity, DashboardData, AnalysisSummary, ExperimentRecord } from "./types";
+import { SystemHealth, ChatResponse, SearchResponse, EvidenceRecord, AnalysisResult, KnowledgeEntity, DashboardData, AnalysisSummary, ExperimentRecord, DocumentRecord } from "./types";
 
 export const mockHealth: SystemHealth = {
   status: "ok",
@@ -145,5 +145,92 @@ export const mockExperiments: ExperimentRecord[] = [
       { variable: "Pressure", value: 1, unit: "atm", method: "cabin ambient" },
       { variable: "Flow Velocity", value: 5, unit: "cm/s", method: "anemometer" }
     ]
+  }
+];
+
+export const mockDocuments: DocumentRecord[] = [
+  {
+    document_id: "01J9Z3M2A7D4F6H8K0N2Q4S6T8",
+    title: "Testing and Selection of Fire-Resistant Materials for Spacecraft Use",
+    document_type: "technical_report",
+    identifier: "NASA/TM-2000-209773",
+    persistent_identifier: "https://ntrs.nasa.gov/citations/20000034017",
+    source: {
+      source_id: "FF-NTRS-20000034017",
+      title: "Testing and Selection of Fire-Resistant Materials for Spacecraft Use",
+      short_name: "NASA/TM-2000-209773",
+      repository: "NASA NTRS",
+      access_url: "https://ntrs.nasa.gov/citations/20000034017",
+    },
+    file: {
+      file_id: "sha256:dc531270ffb646b2",
+      sha256: "dc531270ffb646b26503955afb0c1df7bcc47482bbfed4a3d6b922de9629520d",
+      original_filename: "20000034017.pdf",
+      media_type: "application/pdf",
+      size_bytes: 1297410,
+      canonical_source_url: "https://ntrs.nasa.gov/api/citations/20000034017/downloads/20000034017.pdf",
+    },
+    page_count: 24,
+    text_layer: "full",
+    pages_without_text: [],
+    evidence_count: 14,
+    ingested_at: "2026-10-05T08:00:00Z",
+    summary: "Investigation of flammability and fire-spread characteristics of selected spacecraft materials under microgravity and normal gravity conditions, focusing on convective flow rates and ambient oxygen concentration."
+  },
+  {
+    document_id: "01J9Z3M3B8E5G7J9L1N3R5S7U9",
+    title: "Microgravity Combustion Research: 2004 Program Overview",
+    document_type: "publication",
+    identifier: "NASA/TM-2004-213348",
+    persistent_identifier: "https://ntrs.nasa.gov/citations/20040053557",
+    source: {
+      source_id: "FF-NTRS-20040053557",
+      title: "Microgravity Combustion Research: 2004 Program Overview",
+      short_name: "NASA/TM-2004-213348",
+      repository: "NASA NTRS",
+      access_url: "https://ntrs.nasa.gov/citations/20040053557",
+    },
+    file: {
+      file_id: "sha256:88941f1737e3d1ac",
+      sha256: "88941f1737e3d1acb7cbe3233860bb4a66a1a441dfdf5fa71295fc7469a9b3a7",
+      original_filename: "20040053557.pdf",
+      media_type: "application/pdf",
+      size_bytes: 3418290,
+      canonical_source_url: "https://ntrs.nasa.gov/api/citations/20040053557/downloads/20040053557.pdf",
+    },
+    page_count: 58,
+    text_layer: "full",
+    pages_without_text: [],
+    evidence_count: 28,
+    ingested_at: "2026-10-05T08:15:00Z",
+    summary: "Comprehensive synthesis of laminar diffusion flame behavior, droplet combustion, soot formation mechanisms, and spacecraft fire safety research conducted aboard drop towers and the ISS."
+  },
+  {
+    document_id: "01J9Z3M4C9F6H8K0M2P4T6V8W0",
+    title: "Flammability Assessment of Materials in Microgravity and Low-Gravity Regimes",
+    document_type: "technical_report",
+    identifier: "NASA/TP-2008-215092",
+    persistent_identifier: "https://ntrs.nasa.gov/citations/20080034883",
+    source: {
+      source_id: "FF-NTRS-20080034883",
+      title: "Flammability Assessment of Materials in Microgravity and Low-Gravity Regimes",
+      short_name: "NASA/TP-2008-215092",
+      repository: "NASA NTRS",
+      access_url: "https://ntrs.nasa.gov/citations/20080034883",
+    },
+    file: {
+      file_id: "sha256:1a58c823098f921d",
+      sha256: "1a58c823098f921da8c4e09f8742b781a8b7921a86b97607a8ffbd25e839e09d",
+      original_filename: "20080034883.pdf",
+      media_type: "application/pdf",
+      size_bytes: 2189400,
+      canonical_source_url: "https://ntrs.nasa.gov/api/citations/20080034883/downloads/20080034883.pdf",
+    },
+    page_count: 36,
+    text_layer: "partial",
+    pages_without_text: [14, 15],
+    evidence_count: 9,
+    ingested_at: "2026-10-05T08:30:00Z",
+    summary: "Experimental results and comparative flammability thresholds across terrestrial 1g, lunar 0.16g, Martian 0.38g, and ISS microgravity environments. Pages 14-15 contain scanned test figures pending OCR."
   }
 ];

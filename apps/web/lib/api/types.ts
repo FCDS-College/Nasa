@@ -100,6 +100,56 @@ export interface AnalysisResult {
   }[];
   warnings: string[];
   created_at: string;
+  imageUrl?: string;
+  overlayUrl?: string;
+  filename?: string;
+}
+
+export interface DocumentRecord {
+  document_id: string;
+  title: string;
+  document_type: string;
+  identifier: string | null;
+  persistent_identifier?: string | null;
+  source: {
+    source_id: string;
+    title: string;
+    short_name?: string;
+    repository: string;
+    access_url?: string;
+  };
+  file?: {
+    file_id: string;
+    sha256: string;
+    original_filename: string;
+    media_type: string;
+    size_bytes: number;
+    canonical_source_url?: string | null;
+  };
+  page_count?: number | null;
+  text_layer?: "full" | "partial" | "none" | "unknown";
+  pages_without_text?: number[];
+  evidence_count?: number;
+  ingested_at?: string;
+  summary?: string;
+}
+
+export interface ApiErrorDetail {
+  code: string;
+  message: string;
+  request_id?: string;
+  retryable?: boolean;
+  field_errors?: { field: string; message: string }[];
+  details?: Record<string, unknown>;
+}
+
+export interface AnalysisCreateForm {
+  image: File;
+  experiment_id?: string;
+  scale_px_per_mm?: number;
+  scale_source?: string;
+  request_interpretation?: boolean;
+  notes?: string;
 }
 
 export interface KnowledgeEntity {
@@ -148,3 +198,4 @@ export interface ExperimentRecord {
     method: string;
   }[];
 }
+

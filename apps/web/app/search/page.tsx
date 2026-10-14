@@ -7,7 +7,6 @@ import { mockSearchResults } from "@/lib/api/mockData";
 import { Badge } from "@/components/ui/Badge";
 import {
   Search as SearchIcon,
-  FileText,
   ExternalLink,
   Filter,
   Fingerprint,

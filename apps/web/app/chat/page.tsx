@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { useChat } from "@/lib/context/ChatContext";
 import {
   Send,
   Server,
   CheckCircle,
-  AlertTriangle,
   Fingerprint,
   Sparkles,
   Flame,
@@ -76,6 +75,27 @@ export default function ChatPage() {
           boxShadow: "var(--shadow-elevated)",
         }}
       >
+        {/* Live API Integration Notice Banner */}
+        <div className="flex items-center justify-between px-5 py-2.5 text-xs rounded-t-2xl"
+             style={{
+               background: 'rgba(59,130,246,0.06)',
+               borderBottom: '1px solid var(--border-subtle)',
+               color: 'var(--text-secondary)',
+             }}>
+          <div className="flex items-center gap-2">
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold"
+                  style={{ background: 'rgba(245,158,11,0.15)', color: 'var(--accent-warning)', border: '1px solid rgba(245,158,11,0.25)' }}>
+              Simulated Chat Demo
+            </span>
+            <span className="text-[11px] hidden sm:inline" style={{ color: 'var(--text-muted)' }}>
+              Live <code>POST /api/chat</code> endpoint is scheduled for Lead delivery (MVP §12 / Days 5–7). Citations and responses below demonstrate grounding and UI flow.
+            </span>
+          </div>
+          <Link href="/documents" className="text-[11px] underline" style={{ color: 'var(--accent-flame)' }}>
+            Inspect Corpus Papers →
+          </Link>
+        </div>
+
         {/* Messages Area */}
         <div className="flex flex-col p-4 sm:p-6 lg:p-8 space-y-6 min-h-[50vh]">
           {turns.length === 0 ? (
@@ -284,26 +304,30 @@ export default function ChatPage() {
                             color: "var(--text-dim)",
                           }}
                         >
+                          <span className="px-2 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wider"
+                                style={{ background: 'rgba(245,158,11,0.1)', color: 'var(--accent-warning)', border: '1px solid rgba(245,158,11,0.2)' }}>
+                            Simulated Output
+                          </span>
                           <span className="flex items-center gap-1.5">
                             <Server className="h-3.5 w-3.5" />
                             {turn.res.model.provider}:{turn.res.model.name}
                           </span>
-                          {turn.res.cache_hit && (
-                            <span
-                              className="flex items-center gap-1"
-                              style={{ color: "var(--accent-aurora)" }}
-                            >
-                              <CheckCircle className="h-3.5 w-3.5" /> Cached
-                            </span>
-                          )}
-                          {turn.res.memory_used && (
-                            <span
-                              className="flex items-center gap-1"
-                              style={{ color: "var(--accent-plasma)" }}
-                            >
-                              <AlertTriangle className="h-3.5 w-3.5" /> Grounded
-                            </span>
-                          )}
+                          <span
+                            className="flex items-center gap-1"
+                            style={{ color: "var(--text-muted)" }}
+                            title="Cache-Augmented Generation (CAG) metadata status"
+                          >
+                            <CheckCircle className="h-3.5 w-3.5" style={{ color: "var(--accent-flame)" }} />
+                            CAG Cache: Simulated
+                          </span>
+                          <span
+                            className="flex items-center gap-1"
+                            style={{ color: "var(--text-muted)" }}
+                            title="Memory-Augmented Generation (MAG) session scope"
+                          >
+                            <Sparkles className="h-3.5 w-3.5" style={{ color: "var(--accent-flame)" }} />
+                            MAG Memory: Session Scoped
+                          </span>
                           <span className="hidden sm:inline">
                             Corpus: {turn.res.knowledge_version}
                           </span>

@@ -140,27 +140,61 @@ const INITIAL_SESSIONS: ChatSession[] = [
   },
 ];
 
+function getInitialSessions(): ChatSession[] {
+  if (typeof window !== "undefined") {
+    try {
+      const stored = window.localStorage.getItem(STORAGE_KEY_SESSIONS);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.error("Failed to load chat sessions from localStorage:", e);
+    }
+  }
+  return INITIAL_SESSIONS;
+}
+
+function getInitialActiveSessionId(initialSessions: ChatSession[]): string | null {
+  if (typeof window !== "undefined") {
+    try {
+      const storedActive = window.localStorage.getItem(STORAGE_KEY_ACTIVE);
+      if (storedActive && initialSessions.some((s) => s.id === storedActive)) {
+        return storedActive;
+      }
+    } catch (e) {
+      console.error("Failed to load active session ID from localStorage:", e);
+    }
+  }
+  return initialSessions[0]?.id || null;
+}
+
+function getInitialSidebarOpen(): boolean {
+  if (typeof window !== "undefined") {
+    return window.innerWidth >= 1024;
+  }
+  return false;
+}
+
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
 
 export function ChatProvider({ children }: { children: React.ReactNode }) {
-  const [sessions, setSessions] = useState<ChatSession[]>([]);
-  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [sessions, setSessions] = useState<ChatSession[]>(getInitialSessions);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(() =>
+    getInitialActiveSessionId(sessions)
+  );
   const [isSending, setIsSending] = useState(false);
-  const [isHydrated, setIsHydrated] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(getInitialSidebarOpen);
 
-  // Auto-detect desktop screen to keep sidebar open by default on desktop, closed on mobile
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      setIsSidebarOpen(window.innerWidth >= 1024);
-      const handleResize = () => {
-        if (window.innerWidth < 1024) {
-          // Keep it closed on mobile resize
-        }
-      };
-      window.addEventListener("resize", handleResize);
-      return () => window.removeEventListener("resize", handleResize);
-    }
+    if (typeof window === "undefined") return;
+    const handleResize = () => {
+      // Responsive layout adjustments if needed
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   const toggleSidebar = useCallback(() => {
@@ -175,48 +209,20 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     setIsSidebarOpen(true);
   }, []);
 
-  // Initialize from LocalStorage
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY_SESSIONS);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setSessions(parsed);
-          const storedActive = localStorage.getItem(STORAGE_KEY_ACTIVE);
-          if (storedActive && parsed.some((s) => s.id === storedActive)) {
-            setActiveSessionId(storedActive);
-          } else {
-            setActiveSessionId(parsed[0].id);
-          }
-          setIsHydrated(true);
-          return;
-        }
-      }
-    } catch (e) {
-      console.error("Failed to load chat sessions from localStorage:", e);
-    }
-
-    // Default seed
-    setSessions(INITIAL_SESSIONS);
-    setActiveSessionId(INITIAL_SESSIONS[0].id);
-    setIsHydrated(true);
-  }, []);
-
   // Save changes to LocalStorage
   useEffect(() => {
-    if (!isHydrated) return;
+    if (typeof window === "undefined") return;
     try {
-      localStorage.setItem(STORAGE_KEY_SESSIONS, JSON.stringify(sessions));
+      window.localStorage.setItem(STORAGE_KEY_SESSIONS, JSON.stringify(sessions));
       if (activeSessionId) {
-        localStorage.setItem(STORAGE_KEY_ACTIVE, activeSessionId);
+        window.localStorage.setItem(STORAGE_KEY_ACTIVE, activeSessionId);
       } else {
-        localStorage.removeItem(STORAGE_KEY_ACTIVE);
+        window.localStorage.removeItem(STORAGE_KEY_ACTIVE);
       }
     } catch (e) {
       console.error("Failed to persist chat sessions:", e);
     }
-  }, [sessions, activeSessionId, isHydrated]);
+  }, [sessions, activeSessionId]);
 
   const activeSession = sessions.find((s) => s.id === activeSessionId) || null;
 

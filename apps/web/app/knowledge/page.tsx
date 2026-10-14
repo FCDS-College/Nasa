@@ -29,16 +29,22 @@ export default function KnowledgePage() {
     <div className="flex flex-col w-full p-4 sm:p-6 lg:p-8 space-y-6">
       {/* Header */}
       <div className="animate-fade-in-up">
-        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2.5"
-            style={{ color: 'var(--text-primary)' }}>
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg"
-               style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)' }}>
-            <Network className="h-4 w-4" style={{ color: 'var(--accent-flame)' }} />
-          </div>
-          Knowledge Explorer
-        </h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2.5"
+              style={{ color: 'var(--text-primary)' }}>
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg"
+                 style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)' }}>
+              <Network className="h-4 w-4" style={{ color: 'var(--accent-flame)' }} />
+            </div>
+            Knowledge Explorer
+          </h1>
+          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold"
+                style={{ background: 'rgba(245,158,11,0.1)', color: 'var(--accent-warning)', border: '1px solid rgba(245,158,11,0.25)' }}>
+            Demo Data
+          </span>
+        </div>
         <p className="mt-2 text-sm" style={{ color: 'var(--text-muted)' }}>
-          Browse extracted scientific entities, relations, and the evidence connecting them.
+          Browse extracted scientific entities, relations, and the evidence connecting them (knowledge extraction graph).
         </p>
       </div>
 
