@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Lead (Anas) | In review (sign-off: Ziad E5) | 1.0.0 | 2026-10-12 | M12 | `.github/workflows/`, `pytest.ini`, `ruff.toml`, `.gitleaks.toml` |
+| Lead (Anas) | In review (sign-off: Ziad E5) | 1.1.0 | 2026-10-14 | M12 | `.github/workflows/`, `pytest.ini`, `ruff.toml`, `.gitleaks.toml` |
 
 ## 1. The single repo-root test command
 
@@ -29,7 +29,13 @@ The OpenAPI freshness check is the parity test plus the `API_SCHEMAS.md` check (
 
 ## 3. Required checks for merging into `main`
 
-Set in GitHub → Settings → Branches → `main` → "Require status checks". This is a repository-admin action and is **not yet done**.
+Set in GitHub → Settings → Branches → `main` → "Require status checks". This is a repository-admin action and is **not yet done, and cannot be done on the current plan**. On 2026-10-14 the GitHub API answered `403 Upgrade to GitHub Pro or make this repository public to enable this feature` for both branch protection and rulesets: `FCDS-College/Nasa` is private and the `FCDS-College` organization is on the free plan. The check names below were verified against the latest runs on `main` (all five concluded `success`), and the `AURA_REPO_TOKEN` secret exists.
+
+To enforce them, do one of the following, then apply the checks below:
+1. upgrade the organization to a paid plan (or GitHub Team), or
+2. make the repository public.
+
+Until then CI is advisory. The working rule is that nobody merges a PR, or pushes to `main`, while a check is red.
 
 `Python lint + tests (repo root)`, `Migrations, seed and ingest on PostgreSQL + pgvector`, `Web lint, typecheck and build`, `Secret scan (gitleaks, full history)`, `flame-openapi`.
 
@@ -46,9 +52,10 @@ Set in GitHub → Settings → Branches → `main` → "Require status checks". 
 - Never add a test that needs internet. The offline tests patch `socket.create_connection` to catch that.
 
 ## Known limitations
-- Branch protection is not configured (§3).
+- Branch protection cannot be enabled on the current plan (§3), so CI is advisory.
 - Ruff runs a narrow rule set, to be widened per directory by each owner.
 - The web app has no tests yet (M7, Belal).
 
 ## Changelog
+- 1.1.0 (2026-10-14): check names verified against `main`; branch protection found blocked by the plan.
 - 1.0.0 (2026-10-12): first CI (previously only the AURA dry run existed).

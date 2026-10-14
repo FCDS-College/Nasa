@@ -36,7 +36,7 @@ Week-1 documents and plan items are due on their branches (see `docs/README.md` 
 | No GPU access yet | H-7 and the L40S rows of H-3 stay Pending | Lead |
 | CPU local model quality (1 of 3 answers echoed a title) | Offline answers are weak | Eman (M3 prompts) + Ziad (H-7) |
 | `cv/flame_cv.py` v1.2.0 rewrite on `main` (0a6b053) dropped `analyze_image` and `AnalysisCache` | Image analysis fails on `main` (worker, HF Space app, router `flame_cv` provider); `tests/cv/test_flame_cv.py` fails at collection; PR #14 CI is red because of it | **Resolved in PR #14:** Princess's fix (branch `Princess` @ 1b32326) ported: `cv/flame_cv.py` and `tests/cv/test_flame_cv.py`; `cv/hf_space/app.py` and `test_hf_cv.py` now read `PIPELINE_VERSION`. Her branch still needs merging for the rest of her work. |
-| Branch protection not configured | CI isn't enforced | Repository admin (L-7 §3) |
+| Branch protection not configured | CI isn't enforced. Blocked on 2026-10-14: the private repo is on the GitHub Free plan | Repository admin: upgrade the plan or make the repo public (L-7 §3) |
 | Phase 2 baseline gate needs M2, M3, M10, M11 | The baseline can't be measured yet | Eman, Princess, Ziad |
 
 ## Changelog
