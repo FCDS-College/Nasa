@@ -30,6 +30,18 @@ set GEMINI_API_KEY=your-key-here             # Windows CMD
 $env:GEMINI_API_KEY="your-key-here"          # PowerShell
 ```
 
+## Installing the Datasets
+
+Raw NASA data is git-ignored. On a fresh clone, rebuild it (DSI from the public `nasa-psi` bucket, combustion pilot from the psi.nasa.gov API) and verify every file against `datasets/checksums/sha256.txt`:
+
+```bash
+python knowledge/ingestion/install_datasets.py               # everything, ~6 GB
+python knowledge/ingestion/install_datasets.py --skip-large  # skip the 3 GB DSI zip
+python knowledge/ingestion/install_datasets.py --verify-only # just check hashes
+```
+
+It is resumable and skips files that are already complete.
+
 ## Running Tests
 
 ```bash
