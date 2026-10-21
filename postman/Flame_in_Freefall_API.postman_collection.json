@@ -1,0 +1,598 @@
+{
+  "info": {
+    "_postman_id": "7b8e1a4d-3f9c-4912-8d77-flame-freefall-collection",
+    "name": "Flame in Freefall API",
+    "description": "Comprehensive Postman collection for the Flame in Freefall scientific intelligence platform (NASA Space Apps Challenge). Covers System Health, Telemetry, Search, Evidence, Documents, Experiments, Flame Analysis Studio, and Research Chat RAG endpoints.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": {
+      "major": 0,
+      "minor": 1,
+      "patch": 0
+    }
+  },
+  "item": [
+    {
+      "name": "1. System & Health",
+      "description": "System health and telemetry monitoring endpoints.",
+      "item": [
+        {
+          "name": "GET System Health (Proxied)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "health"]
+            },
+            "description": "Fetches overall system health, database connectivity, vector index latency, and queue status via the frontend proxy."
+          },
+          "response": []
+        },
+        {
+          "name": "GET System Health (Direct Backend)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{apiOrigin}}/api/health",
+              "host": ["{{apiOrigin}}"],
+              "path": ["api", "health"]
+            },
+            "description": "Direct health probe to the FastAPI backend service (port 8000)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. Dashboard & Telemetry",
+      "description": "Aggregated metrics and dataset corpus counts.",
+      "item": [
+        {
+          "name": "GET Dashboard Counts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{readToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/dashboard/counts",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "dashboard", "counts"]
+            },
+            "description": "Returns counts of cataloged scientific documents, vector chunks, and microgravity experiment runs."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. Scientific Search & Discovery",
+      "description": "Hybrid semantic and lexical search across scientific literature and experiments.",
+      "item": [
+        {
+          "name": "GET Search All (Hybrid)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{readToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/search?q={{searchQuery}}&mode=hybrid&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "search"],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "{{searchQuery}}",
+                  "description": "Search query terms"
+                },
+                {
+                  "key": "mode",
+                  "value": "hybrid",
+                  "description": "Retrieval mode: hybrid, vector, or text"
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Maximum number of results"
+                }
+              ]
+            },
+            "description": "Performs hybrid retrieval using dense embeddings and sparse keyword ranking."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Search Documents Only",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{readToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/search?q={{searchQuery}}&type=document&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "search"],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "{{searchQuery}}"
+                },
+                {
+                  "key": "type",
+                  "value": "document"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Filters search hits strictly to peer-reviewed NASA/NTRS technical publications."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Search Experiments Only",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{readToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/search?q=BASS-II&type=experiment&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "search"],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "BASS-II"
+                },
+                {
+                  "key": "type",
+                  "value": "experiment"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Filters search hits strictly to microgravity flight and drop-tower experiment logs."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "4. Document Explorer",
+      "description": "Document metadata, chunking structure, and provenance lookup.",
+      "item": [
+        {
+          "name": "GET Document by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{readToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/documents/{{sampleDocId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "documents", "{{sampleDocId}}"]
+            },
+            "description": "Retrieves publication metadata, accession identifier, author list, and cryptographic hash."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "5. Experiment Matrix",
+      "description": "Microgravity experimental conditions and measurement parameters.",
+      "item": [
+        {
+          "name": "GET Experiment by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{readToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/experiments/{{sampleExperimentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "experiments", "{{sampleExperimentId}}"]
+            },
+            "description": "Retrieves facility parameters (e.g. BASS-II, ACME, CIR), fuel type, oxidizer concentration, and chamber pressure."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "6. Evidence & Provenance",
+      "description": "Cryptographically verifiable evidence snippets and citation chains.",
+      "item": [
+        {
+          "name": "GET Evidence by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{readToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/evidence/{{sampleEvidenceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "evidence", "{{sampleEvidenceId}}"]
+            },
+            "description": "Fetches exact passage text, bounding coordinates, source document, SHA-256 hash, and confidence rating."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "7. Flame Analysis Studio",
+      "description": "Computer vision segmentation, flame geometry extraction, and measurement artifacts.",
+      "item": [
+        {
+          "name": "POST Create Flame Analysis (Async 202)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{writeToken}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": "",
+                  "description": "Flame image frame (PNG or JPEG, < 10 MB)"
+                },
+                {
+                  "key": "experiment_id",
+                  "value": "exp_bass2_run07",
+                  "type": "text"
+                },
+                {
+                  "key": "pixel_scale_mm_per_px",
+                  "value": "0.085",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{apiOrigin}}/api/analyses",
+              "host": ["{{apiOrigin}}"],
+              "path": ["api", "analyses"]
+            },
+            "description": "Uploads an experimental flame frame and enqueues an asynchronous CV analysis job in RQ. Returns 202 Accepted with analysis ULID."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Analysis History List",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{readToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/analyses?page=1&page_size=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "analyses"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "page_size",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "Retrieves paginated history of past flame analyses and measurements."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Analysis by ID (Polling Target)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{readToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/analyses/{{sampleAnalysisId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "analyses", "{{sampleAnalysisId}}"]
+            },
+            "description": "Retrieves the status (queued, processing, completed, failed) and extracted geometric measurements for a specific analysis run."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Analysis Artifact - Original Image",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{readToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/analyses/{{sampleAnalysisId}}/artifacts/original",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "analyses", "{{sampleAnalysisId}}", "artifacts", "original"]
+            },
+            "description": "Streams binary bytes of the raw uploaded frame."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Analysis Artifact - Segmentation Mask",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{readToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/analyses/{{sampleAnalysisId}}/artifacts/mask",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "analyses", "{{sampleAnalysisId}}", "artifacts", "mask"]
+            },
+            "description": "Streams binary PNG of the binary flame segmentation mask."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Analysis Artifact - Measurement Overlay",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{readToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/analyses/{{sampleAnalysisId}}/artifacts/overlay",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "analyses", "{{sampleAnalysisId}}", "artifacts", "overlay"]
+            },
+            "description": "Streams binary PNG of the color-coded measurement overlay with contour, centroid marker, and major/minor axes."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "8. Research Chat (RAG)",
+      "description": "Evidence-grounded RAG conversation and scientific inference.",
+      "item": [
+        {
+          "name": "POST Research Chat Inquiry",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"What are the primary factors affecting flame extinction in BASS-II microgravity tests?\",\n  \"conversation_id\": \"conv_spaceapps_01\",\n  \"filters\": {\n    \"domain\": [\"combustion\", \"microgravity\"]\n  },\n  \"requested_model\": \"flame-router-v1\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/chat",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "chat"]
+            },
+            "description": "Submits a scientific research prompt. Handled securely by the Next.js proxy route with a 4 KB ceiling and returns grounded answers with evidence citations."
+          },
+          "response": []
+        },
+        {
+          "name": "POST Research Chat - Droplet Combustion Query",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"Explain how droplet diameter affects the d-squared law under spherical symmetry in freefall.\",\n  \"conversation_id\": \"conv_spaceapps_02\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/chat",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "chat"]
+            },
+            "description": "Queries combustion theory and references droplet burn-rate measurements from microgravity experiments."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "9. Security & Error Edge Cases",
+      "description": "Verification of proxy allow-lists, payload guardrails, and error normalization.",
+      "item": [
+        {
+          "name": "POST Chat Payload Exceeding 4 KB (Expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"This query is intentionally bloated to exceed the strict 4096-byte ceiling enforced by the Next.js server-side proxy route apps/web/app/api/[...path]/route.ts to prevent denial-of-service and buffer exhaustion vulnerabilities in upstream LLM inference endpoints. ... \"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/chat",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "chat"]
+            },
+            "description": "Verifies that payloads > 4 KB are rejected immediately by the server proxy with HTTP 400."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Non-Existent Analysis (Expect 404)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/analyses/01J9Z999999999999999999999",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "analyses", "01J9Z999999999999999999999"]
+            },
+            "description": "Verifies that an unknown analysis ULID returns HTTP 404 with standard ErrorResponse JSON."
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE Method Disallowed on Proxy (Expect 404)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/analyses/sample",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "analyses", "sample"]
+            },
+            "description": "Verifies that destructive HTTP methods (DELETE, PUT) are blocked by the proxy allow-list."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
