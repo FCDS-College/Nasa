@@ -15,13 +15,13 @@ export async function POST(
   if (path.join("/") !== "chat") {
     return Response.json({ error: { code: "NOT_FOUND", message: "Route was not found." } }, { status: 404 });
   }
-  const origin = process.env.FLAME_API_ORIGIN;
-  if (!origin) {
-    return Response.json({ error: { code: "API_NOT_CONFIGURED", message: "FLAME_API_ORIGIN is not configured." } }, { status: 503 });
-  }
   const body = await request.text();
   if (body.length > 4096) {
     return Response.json({ error: { code: "VALIDATION_ERROR", message: "Request is too large. Maximum payload size is 4 KB." } }, { status: 400 });
+  }
+  const origin = process.env.FLAME_API_ORIGIN;
+  if (!origin) {
+    return Response.json({ error: { code: "API_NOT_CONFIGURED", message: "FLAME_API_ORIGIN is not configured." } }, { status: 503 });
   }
 
   const headers: Record<string, string> = { Accept: "application/json", "Content-Type": "application/json" };

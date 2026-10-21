@@ -27,8 +27,13 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/api/health",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "health"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "health"
+              ]
             },
             "description": "Fetches overall system health, database connectivity, vector index latency, and queue status via the frontend proxy."
           },
@@ -46,8 +51,13 @@
             ],
             "url": {
               "raw": "{{apiOrigin}}/api/health",
-              "host": ["{{apiOrigin}}"],
-              "path": ["api", "health"]
+              "host": [
+                "{{apiOrigin}}"
+              ],
+              "path": [
+                "api",
+                "health"
+              ]
             },
             "description": "Direct health probe to the FastAPI backend service (port 8000)."
           },
@@ -76,8 +86,14 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/api/dashboard/counts",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "dashboard", "counts"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "dashboard",
+                "counts"
+              ]
             },
             "description": "Returns counts of cataloged scientific documents, vector chunks, and microgravity experiment runs."
           },
@@ -106,8 +122,13 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/api/search?q={{searchQuery}}&mode=hybrid&limit=20",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "search"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "search"
+              ],
               "query": [
                 {
                   "key": "q",
@@ -147,8 +168,13 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/api/search?q={{searchQuery}}&type=document&limit=10",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "search"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "search"
+              ],
               "query": [
                 {
                   "key": "q",
@@ -185,8 +211,13 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/api/search?q=BASS-II&type=experiment&limit=10",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "search"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "search"
+              ],
               "query": [
                 {
                   "key": "q",
@@ -229,8 +260,14 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/api/documents/{{sampleDocId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "documents", "{{sampleDocId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "documents",
+                "{{sampleDocId}}"
+              ]
             },
             "description": "Retrieves publication metadata, accession identifier, author list, and cryptographic hash."
           },
@@ -259,8 +296,14 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/api/experiments/{{sampleExperimentId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "experiments", "{{sampleExperimentId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "experiments",
+                "{{sampleExperimentId}}"
+              ]
             },
             "description": "Retrieves facility parameters (e.g. BASS-II, ACME, CIR), fuel type, oxidizer concentration, and chamber pressure."
           },
@@ -289,8 +332,14 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/api/evidence/{{sampleEvidenceId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "evidence", "{{sampleEvidenceId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "evidence",
+                "{{sampleEvidenceId}}"
+              ]
             },
             "description": "Fetches exact passage text, bounding coordinates, source document, SHA-256 hash, and confidence rating."
           },
@@ -340,8 +389,13 @@
             },
             "url": {
               "raw": "{{apiOrigin}}/api/analyses",
-              "host": ["{{apiOrigin}}"],
-              "path": ["api", "analyses"]
+              "host": [
+                "{{apiOrigin}}"
+              ],
+              "path": [
+                "api",
+                "analyses"
+              ]
             },
             "description": "Uploads an experimental flame frame and enqueues an asynchronous CV analysis job in RQ. Returns 202 Accepted with analysis ULID."
           },
@@ -364,8 +418,13 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/api/analyses?page=1&page_size=20",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "analyses"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "analyses"
+              ],
               "query": [
                 {
                   "key": "page",
@@ -398,8 +457,14 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/api/analyses/{{sampleAnalysisId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "analyses", "{{sampleAnalysisId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "analyses",
+                "{{sampleAnalysisId}}"
+              ]
             },
             "description": "Retrieves the status (queued, processing, completed, failed) and extracted geometric measurements for a specific analysis run."
           },
@@ -418,8 +483,16 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/api/analyses/{{sampleAnalysisId}}/artifacts/original",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "analyses", "{{sampleAnalysisId}}", "artifacts", "original"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "analyses",
+                "{{sampleAnalysisId}}",
+                "artifacts",
+                "original"
+              ]
             },
             "description": "Streams binary bytes of the raw uploaded frame."
           },
@@ -438,8 +511,16 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/api/analyses/{{sampleAnalysisId}}/artifacts/mask",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "analyses", "{{sampleAnalysisId}}", "artifacts", "mask"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "analyses",
+                "{{sampleAnalysisId}}",
+                "artifacts",
+                "mask"
+              ]
             },
             "description": "Streams binary PNG of the binary flame segmentation mask."
           },
@@ -458,8 +539,16 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/api/analyses/{{sampleAnalysisId}}/artifacts/overlay",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "analyses", "{{sampleAnalysisId}}", "artifacts", "overlay"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "analyses",
+                "{{sampleAnalysisId}}",
+                "artifacts",
+                "overlay"
+              ]
             },
             "description": "Streams binary PNG of the color-coded measurement overlay with contour, centroid marker, and major/minor axes."
           },
@@ -491,8 +580,13 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/chat",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "chat"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "chat"
+              ]
             },
             "description": "Submits a scientific research prompt. Handled securely by the Next.js proxy route with a 4 KB ceiling and returns grounded answers with evidence citations."
           },
@@ -518,8 +612,13 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/chat",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "chat"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "chat"
+              ]
             },
             "description": "Queries combustion theory and references droplet burn-rate measurements from microgravity experiments."
           },
@@ -543,12 +642,17 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"query\": \"This query is intentionally bloated to exceed the strict 4096-byte ceiling enforced by the Next.js server-side proxy route apps/web/app/api/[...path]/route.ts to prevent denial-of-service and buffer exhaustion vulnerabilities in upstream LLM inference endpoints. ... \"\n}"
+              "raw": "{\n  \"query\": \"EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_EXCEEDING_PAYLOAD_LIMIT_\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/chat",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "chat"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "chat"
+              ]
             },
             "description": "Verifies that payloads > 4 KB are rejected immediately by the server proxy with HTTP 400."
           },
@@ -566,15 +670,21 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/api/analyses/01J9Z999999999999999999999",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "analyses", "01J9Z999999999999999999999"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "analyses",
+                "01J9Z999999999999999999999"
+              ]
             },
             "description": "Verifies that an unknown analysis ULID returns HTTP 404 with standard ErrorResponse JSON."
           },
           "response": []
         },
         {
-          "name": "DELETE Method Disallowed on Proxy (Expect 404)",
+          "name": "DELETE Method Disallowed on Proxy (Expect 405)",
           "request": {
             "method": "DELETE",
             "header": [
@@ -585,10 +695,16 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/api/analyses/sample",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "analyses", "sample"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "analyses",
+                "sample"
+              ]
             },
-            "description": "Verifies that destructive HTTP methods (DELETE, PUT) are blocked by the proxy allow-list."
+            "description": "Verifies that destructive HTTP methods (DELETE, PUT) are blocked by the Next.js route handler, returning HTTP 405 Method Not Allowed."
           },
           "response": []
         }
