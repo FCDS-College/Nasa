@@ -1,0 +1,49 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "RagGoldCase",
+  "description": "Standard schema for NASA Flame microgravity combustion evaluation gold records (MVP §18 compliant)",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string", "pattern": "^TC_[A-Z]+_[0-9]{3}$" },
+    "query": { "type": "string", "minLength": 10 },
+    "golden_answer": { "type": "string" },
+    "expected_evidence_ids": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "expected_evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "locator": { "type": "string" },
+          "text": { "type": "string" },
+          "source_id": { "type": "string" },
+          "author": { "type": "string" },
+          "reviewer": { "type": "string" }
+        },
+        "required": ["locator", "text", "source_id"]
+      }
+    },
+    "split": { "type": "string", "enum": ["dev", "validation", "holdout"] },
+    "difficulty": { "type": "string", "enum": ["easy", "medium", "hard"] },
+    "modality": { "type": "string", "enum": ["text", "image", "table", "multi"] },
+    "source_scope": { "type": "string" },
+    "answerable": { "type": "boolean" },
+    "category": { "type": "string" },
+    "rubric_version": { "type": "string" }
+  },
+  "required": [
+    "id",
+    "query",
+    "golden_answer",
+    "expected_evidence_ids",
+    "expected_evidence",
+    "split",
+    "difficulty",
+    "modality",
+    "source_scope",
+    "answerable",
+    "rubric_version"
+  ]
+}
