@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "1.2.0",
+  "status": "SUCCESS",
+  "analysisId": "vid_an_synthetic_01",
+  "videoId": "vid_synthetic_01",
+  "pipelineVersion": "cv-opencv-v1.2.0-auto",
+  "videoMetadata": {
+    "fps": 30.0,
+    "frameCount": 3,
+    "durationSeconds": 0.1,
+    "resolution": [1920, 1080]
+  },
+  "frameMeasurements": [
+    {"frameIndex": 0, "timestamp": 0.0, "detectionStatus": "PRESENT", "pixelArea": 1520.5},
+    {"frameIndex": 1, "timestamp": 0.0333, "detectionStatus": "PRESENT", "pixelArea": 1498.0},
+    {"frameIndex": 2, "timestamp": 0.0667, "detectionStatus": "ABSENT", "pixelArea": null}
+  ],
+  "temporalSummary": {
+    "persistenceRate": 0.667,
+    "flickerFrequencyHz": "not_estimable"
+  }
+}

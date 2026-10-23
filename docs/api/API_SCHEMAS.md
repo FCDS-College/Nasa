@@ -1,6 +1,6 @@
 # Flame in Freefall: API Response Schemas
 
-**Generated from [`openapi.json`](openapi.json)** (OpenAPI 3.1.0, API 0.1.0) by `docs/tools/render_api_schemas.py`. Do not edit by hand.
+**Generated from [`openapi.json`](openapi.json)** (OpenAPI 3.1.0, API 0.2.0) by `docs/tools/render_api_schemas.py`. Do not edit by hand.
 Endpoint behaviour, examples and display rules: [`FRONTEND_API_CONTRACT.md`](FRONTEND_API_CONTRACT.md).
 
 Reading the tables: *Required = yes* means the key is always present. A nullable field (`| null`) is still present, with value `null`, which means "not present or not established" and is never a stand-in for `0`. The only optional keys in responses are those of [`ErrorDetails`](#errordetails).
@@ -9,7 +9,7 @@ Reading the tables: *Required = yes* means the key is always present. A nullable
 
 | Method | Path | Success | Error statuses (body: [`ErrorResponse`](#errorresponse) unless noted) |
 |---|---|---|---|
-| GET | `/api/health` | 200 [`HealthResponse`](#healthresponse) | 429, 500, 503 [`HealthResponse`](#healthresponse) |
+| GET | `/api/health` | 200 [`HealthResponse`](#healthresponse) | 401, 429, 500, 503 [`HealthResponse`](#healthresponse) |
 | GET | `/api/dashboard/counts` | 200 [`DashboardCountsResponse`](#dashboardcountsresponse) | 400, 401, 403, 429, 500, 503 |
 | GET | `/api/search` | 200 [`SearchResponse`](#searchresponse) | 400, 401, 403, 429, 500, 503 |
 | GET | `/api/documents/{document_id}` | 200 [`DocumentResponse`](#documentresponse) | 400, 401, 403, 404, 429, 500, 503 |
@@ -19,6 +19,11 @@ Reading the tables: *Required = yes* means the key is always present. A nullable
 | GET | `/api/analyses` | 200 [`AnalysisListResponse`](#analysislistresponse) | 400, 401, 403, 429, 500, 503 |
 | GET | `/api/analyses/{analysis_id}` | 200 [`AnalysisResponse`](#analysisresponse) | 400, 401, 403, 404, 429, 500, 503 |
 | GET | `/api/analyses/{analysis_id}/artifacts/{artifact_kind}` | 200 `image/png` bytes or `image/jpeg` bytes | 400, 401, 403, 404, 409, 429, 500, 503 |
+| GET | `/api/documents` | 200 [`DocumentListResponse`](#documentlistresponse) | 400, 401, 403, 429, 500, 503 |
+| GET | `/api/experiments` | 200 [`ExperimentListResponse`](#experimentlistresponse) | 400, 401, 403, 429, 500, 503 |
+| POST | `/api/chat` | 200 [`ChatResponse`](#chatresponse) | 400, 401, 403, 429, 500, 503 |
+| GET | `/api/ai/providers` | 200 [`AiProvidersResponse`](#aiprovidersresponse) | 400, 401, 403, 429, 500 |
+| PUT | `/api/admin/ai/mode` | 200 [`ModeChangeResponse`](#modechangeresponse) | 400, 401, 403, 429, 500, 503 |
 
 ## 2. Object schemas
 
@@ -32,6 +37,7 @@ Reading the tables: *Required = yes* means the key is always present. A nullable
 | `knowledge_version` | string \| `null` | yes | Published corpus/knowledge version. Null until the first index publication. |
 | `services` | [`HealthServices`](#healthservices) | yes |  |
 | `meta` | [`ResponseMeta`](#responsemeta) | yes |  |
+| `ai` | [`AiStatus`](#aistatus) | no | Execution mode and model providers (0.2.0). |
 
 ### ErrorResponse
 
@@ -101,6 +107,53 @@ All counts are exact `COUNT(*)` reads at `meta.generated_at`. On failure the end
 | `pagination` | [`Pagination`](#pagination) | yes |  |
 | `meta` | [`ResponseMeta`](#responsemeta) | yes |  |
 
+### DocumentListResponse
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `items` | [`DocumentSummary`](#documentsummary)[] | yes |  |
+| `pagination` | [`Pagination`](#pagination) | yes |  |
+| `meta` | [`ResponseMeta`](#responsemeta) | yes |  |
+
+### ExperimentListResponse
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `items` | [`ExperimentSummary`](#experimentsummary)[] | yes |  |
+| `pagination` | [`Pagination`](#pagination) | yes |  |
+| `meta` | [`ResponseMeta`](#responsemeta) | yes |  |
+
+### ChatResponse
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `request_id` | string | yes |  |
+| `memory_used` | boolean | yes |  |
+| `knowledge_version` | string | yes | `unversioned` until the first publication. |
+| `answer` | string (maxLength=4000) | yes |  |
+| `sources` | [`ChatSource`](#chatsource)[] | yes |  |
+| `cache_hit` | boolean | yes |  |
+| `model` | [`ChatModel`](#chatmodel) | yes |  |
+| `execution` | [`ExecutionMetadata`](#executionmetadata) \| [`RoutingFailure`](#routingfailure) \| `null` | yes | ExecutionMetadata when a model answered; RoutingFailure when none could (warning generation_unavailable); null when no evidence matched. |
+| `warnings` | [`ChatWarning`](#chatwarning)[] | yes |  |
+
+### AiProvidersResponse
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `mode` | [`ExecutionMode`](#executionmode) | yes |  |
+| `providers` | [`AiProvider`](#aiprovider)[] | yes |  |
+| `decisions` | object | yes | Routing decision counters keyed `task\|provider\|outcome`, since process start. |
+| `meta` | [`ResponseMeta`](#responsemeta) | yes |  |
+
+### ModeChangeResponse
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `previous_mode` | [`ExecutionMode`](#executionmode) | yes |  |
+| `mode` | [`ExecutionMode`](#executionmode) | yes |  |
+| `meta` | [`ResponseMeta`](#responsemeta) | yes |  |
+
 ### VersionInfo
 
 | Field | Type | Required | Description |
@@ -133,6 +186,13 @@ Present on every successful JSON response (MVP plan §12: request_id, server tim
 | `request_id` | string | yes | Correlation ID for this request. Echoes the caller's `X-Request-ID` when supplied, otherwise server-generated. Also returned in the `X-Request-ID` response header. |
 | `generated_at` | string (date-time) | yes | Server time (UTC) at which the response was produced. |
 | `api_version` | string | yes | Semantic version of this API contract. |
+
+### AiStatus
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `mode` | [`ExecutionMode`](#executionmode) | yes |  |
+| `providers` | [`AiProvider`](#aiprovider)[] | yes |  |
 
 ### ErrorBody
 
@@ -292,6 +352,91 @@ Echo of the filters the server actually applied, after defaults.
 | `warning_count` | integer (minimum=0) | yes |  |
 | `overlay_url` | string (uri-reference) \| `null` | yes | Overlay artifact URL when completed with a flame; use as thumbnail. |
 
+### DocumentSummary
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `document_id` | string | yes |  |
+| `title` | string | yes |  |
+| `document_type` | string | yes |  |
+| `source` | [`SourceRef`](#sourceref) | yes |  |
+| `page_count` | integer \| `null` (minimum=0) | yes |  |
+| `text_layer` | string | yes |  |
+| `parser_version` | string \| `null` | yes |  |
+| `ingested_at` | string (date-time) | yes |  |
+| `knowledge_version` | string \| `null` | yes |  |
+
+### ExperimentSummary
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `experiment_id` | string | yes |  |
+| `test_id` | string | yes |  |
+| `investigation` | string \| `null` | yes |  |
+| `source` | [`SourceRef`](#sourceref) | yes |  |
+| `gravity_regime` | string | yes |  |
+| `fuel_or_material` | string \| `null` | yes |  |
+| `condition_count` | integer (minimum=0) | yes |  |
+
+### ChatSource
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `evidence_id` | string | yes |  |
+| `document_id` | string | yes |  |
+| `title` | string | yes |  |
+| `location` | string | yes |  |
+
+### ChatModel
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `provider` | string | yes |  |
+| `name` | string | yes |  |
+| `version` | string | yes |  |
+
+### ExecutionMetadata
+
+Which provider and model produced a result, and why the router chose it.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `task` | string (maxLength=64) | yes |  |
+| `provider` | string (maxLength=64) | yes |  |
+| `runtime` | string (maxLength=64) | yes |  |
+| `model` | string \| `null` (maxLength=256) | yes |  |
+| `version` | string \| `null` (maxLength=128) | yes |  |
+| `locality` | `"local"` \| `"external"` | yes |  |
+| `mode` | [`ExecutionMode`](#executionmode) | yes |  |
+| `fallback_used` | boolean | yes |  |
+| `routing_reason` | string (maxLength=1000) | yes |  |
+| `latency_ms` | number (minimum=0) | yes |  |
+| `attempts` | object[] (maxItems=16) | yes |  |
+
+### RoutingFailure
+
+Why no model could serve the request (degraded mode).
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `mode` | [`ExecutionMode`](#executionmode) | yes |  |
+| `reasons` | object[] (maxItems=32) | yes |  |
+
+### AiProvider
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `name` | string | yes |  |
+| `runtime` | string | yes |  |
+| `locality` | `"local"` \| `"external"` | yes |  |
+| `capabilities` | `"chat"` \| `"structured"` \| `"embeddings"` \| `"reranking"` \| `"vision"` \| `"video"` \| `"transcription"`[] | yes |  |
+| `model` | string \| `null` | yes |  |
+| `version` | string \| `null` | yes |  |
+| `priority` | integer | yes |  |
+| `permitted` | boolean | yes | False when the current mode blocks it (external provider in offline_only). |
+| `health` | [`AiProviderHealth`](#aiproviderhealth) | yes |  |
+| `circuit` | `"closed"` \| `"open"` \| `"half_open"` | yes |  |
+
 ### ServiceHealth
 
 | Field | Type | Required | Description |
@@ -431,6 +576,7 @@ Structured value for table/measurement evidence.
 | `detector` | [`ModelInfo`](#modelinfo) \| `null` | yes |  |
 | `segmenter` | [`ModelInfo`](#modelinfo) \| `null` | yes |  |
 | `measurement_space` | `"original_oriented_px"` | yes | All pixel coordinates and measurements are in the original image's pixel grid after EXIF orientation, regardless of any internal resize. |
+| `execution` | [`ExecutionMetadata`](#executionmetadata) \| `null` | no | Which vision provider ran (flame_cv or hf_space) (0.2.0). |
 
 ### FlameAnalysisResult
 
@@ -449,11 +595,12 @@ Optional AI interpretation. Never alters measurements; displayed separately from
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `status` | [`InterpretationStatus`](#interpretationstatus) | yes |  |
-| `provider` | `"aura"` \| `null` | yes | Which reasoning layer produced the statements. |
+| `provider` | string \| `null` (maxLength=64) | yes | Router provider that produced the statements (e.g. aura, ollama, vllm). Null until generated. |
 | `model` | string \| `null` | yes | Model identifier reported by the provider. |
 | `statements` | [`Statement`](#statement)[] | yes |  |
 | `rejected_statement_count` | integer (minimum=0) | yes | Statements dropped by Flame validation (unknown evidence IDs, disallowed claim class, temperature claims). |
 | `generated_at` | string (date-time) \| `null` | yes |  |
+| `execution` | [`ExecutionMetadata`](#executionmetadata) \| `null` | no | Present once generated (0.2.0). |
 
 ### Artifact
 
@@ -482,6 +629,15 @@ Optional AI interpretation. Never alters measurements; displayed separately from
 | `code` | [`AnalysisFailureCode`](#analysisfailurecode) | yes |  |
 | `message` | string | yes |  |
 | `retryable` | boolean | yes |  |
+
+### AiProviderHealth
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `state` | `"up"` \| `"down"` \| `"degraded"` \| `"unknown"` \| `"blocked"` | yes |  |
+| `latency_ms` | number \| `null` (minimum=0) | yes |  |
+| `detail` | string \| `null` (maxLength=64) | yes |  |
+| `model_present` | boolean \| `null` | yes |  |
 
 ### Calibration
 
@@ -647,12 +803,27 @@ multipart/form-data body for POST /api/analyses.
 | `request_interpretation` | boolean (default=false) | no | Ask for an AURA interpretation after measurements complete. Ignored (status unavailable + warning) when AURA is disabled. |
 | `notes` | string (maxLength=2000) | no |  |
 
+### ModeChangeRequest
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `mode` | [`ExecutionMode`](#executionmode) | yes |  |
+
+### ChatRequest
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `query` | string (minLength=1, maxLength=500) | yes |  |
+| `conversation_id` | string \| `null` (maxLength=128) | no | Accepted, not yet used server-side (M5). |
+
 ## 3. Enums
 
 | Enum | Values | Meaning |
 |---|---|---|
 | <a id="overallstatus"></a>`OverallStatus` | `healthy`, `degraded`, `unhealthy` | healthy: every service up. degraded: a required service degraded or an optional one down/degraded. unhealthy: a required service down. |
-| <a id="errorcode"></a>`ErrorCode` | `VALIDATION_ERROR`, `UNAUTHORIZED`, `FORBIDDEN`, `ROUTE_NOT_FOUND`, `DOCUMENT_NOT_FOUND`, `EXPERIMENT_NOT_FOUND`, `EVIDENCE_NOT_FOUND`, `ANALYSIS_NOT_FOUND`, `ARTIFACT_NOT_FOUND`, `ARTIFACT_NOT_READY`, `PAYLOAD_TOO_LARGE`, `UNSUPPORTED_MEDIA_TYPE`, `IMAGE_INVALID`, `UNKNOWN_EXPERIMENT`, `RATE_LIMITED`, `DATABASE_UNAVAILABLE`, `STORAGE_UNAVAILABLE`, `SEARCH_UNAVAILABLE`, `MODEL_UNAVAILABLE`, `QUEUE_UNAVAILABLE`, `AURA_UNAVAILABLE`, `INTERNAL_ERROR` | Stable machine-readable error code. The frontend switches on this, never on `message`. |
+| <a id="chatwarning"></a>`ChatWarning` | `no_matching_evidence`, `citations_not_in_retrieved_evidence_removed`, `answer_cites_no_evidence`, `generation_unavailable`, `model_fallback_used` |  |
+| <a id="executionmode"></a>`ExecutionMode` | `cloud_preferred`, `local_first`, `offline_only` | Hybrid AI execution mode (Sub-phase 2H). offline_only never contacts an external provider. |
+| <a id="errorcode"></a>`ErrorCode` | `VALIDATION_ERROR`, `UNAUTHORIZED`, `FORBIDDEN`, `ROUTE_NOT_FOUND`, `DOCUMENT_NOT_FOUND`, `EXPERIMENT_NOT_FOUND`, `EVIDENCE_NOT_FOUND`, `ANALYSIS_NOT_FOUND`, `ARTIFACT_NOT_FOUND`, `ARTIFACT_NOT_READY`, `PAYLOAD_TOO_LARGE`, `UNSUPPORTED_MEDIA_TYPE`, `IMAGE_INVALID`, `UNKNOWN_EXPERIMENT`, `RATE_LIMITED`, `DATABASE_UNAVAILABLE`, `STORAGE_UNAVAILABLE`, `SEARCH_UNAVAILABLE`, `MODEL_UNAVAILABLE`, `QUEUE_UNAVAILABLE`, `AURA_UNAVAILABLE`, `INTERNAL_ERROR`, `AUTHENTICATION_REQUIRED`, `CHAT_UNAVAILABLE` | Stable machine-readable error code. The frontend switches on this, never on `message`. AURA_UNAVAILABLE is deprecated since 0.2.0: chat now degrades to an evidence-only answer instead. |
 | <a id="searchresulttype"></a>`SearchResultType` | `document`, `experiment` | document: a matched passage inside a parsed document (carries a page/section locator). experiment: a matched experiment/test record. |
 | <a id="documenttype"></a>`DocumentType` | `technical_report`, `publication`, `test_plan`, `requirements`, `final_report`, `thesis`, `dataset_documentation`, `other` | Document classification assigned at ingestion. |
 | <a id="searchdomain"></a>`SearchDomain` | `combustion`, `all` | combustion (default) excludes non-combustion sources such as FF-PSI-DSI (DAY2_TASKS domain filter rule). all disables that filter. |
@@ -676,5 +847,5 @@ multipart/form-data body for POST /api/analyses.
 | <a id="warningcode"></a>`WarningCode` | `SCALE_CALIBRATION_ABSENT`, `RADIOMETRIC_CALIBRATION_ABSENT`, `TEMPERATURE_NOT_AVAILABLE`, `EXIF_ORIENTATION_APPLIED`, `COLOR_CONVERTED_TO_RGB`, `LOW_DETECTION_CONFIDENCE`, `MULTIPLE_FLAMES`, `SATURATION_CLIPPING`, `BLUR_DETECTED`, `LOW_LIGHT`, `OCCLUSION`, `QUALITY_CHECK_NOT_IMPLEMENTED`, `INTERPRETATION_UNAVAILABLE`, `INTERPRETATION_STATEMENTS_REJECTED` | Stable warning code. |
 | <a id="analysisfailurecode"></a>`AnalysisFailureCode` | `IMAGE_DECODE_FAILED`, `MODEL_UNAVAILABLE`, `PIPELINE_ERROR`, `TIMEOUT`, `CANCELLED` | Why a job ended in failed/cancelled. A no-flame image is NOT a failure: it completes with detection.status = absent. |
 | <a id="claimclass"></a>`ClaimClass` | `observed`, `measured`, `estimated`, `inferred`, `hypothesized`, `unsupported` | Scientific interpretation label (MVP plan §10). cv_pipeline statements are observed/measured/estimated only; aura_interpretation statements are inferred/hypothesized/unsupported only. |
-| <a id="statementorigin"></a>`StatementOrigin` | `cv_pipeline`, `aura_interpretation` | cv_pipeline: deterministic template text generated from measurements. aura_interpretation: model-generated text, validated by Flame before storage. |
+| <a id="statementorigin"></a>`StatementOrigin` | `cv_pipeline`, `aura_interpretation`, `model_interpretation` | cv_pipeline: deterministic template text generated from measurements. aura_interpretation: model-generated text, validated by Flame before storage. model_interpretation: the same, written by a non-AURA model chosen by Flame's router. |
 | <a id="measurementclass"></a>`MeasurementClass` | `measured`, `estimated` | measured: computed from validated pixels with a stated method and pixel units. estimated: depends on an assumption/calibration (e.g. caller-supplied scale) and carries uncertainty. |

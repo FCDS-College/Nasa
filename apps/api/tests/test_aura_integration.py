@@ -4,6 +4,7 @@ from urllib.error import HTTPError
 import pytest
 from pydantic import SecretStr
 
+from ai.providers import http as provider_http
 from flame_api import aura_integration
 from flame_api.config import Settings
 
@@ -74,7 +75,7 @@ def test_interpretation_uses_data_channel_and_filters_untrusted_claims(monkeypat
             }
         )
 
-    monkeypatch.setattr(aura_integration, "urlopen", fake_urlopen)
+    monkeypatch.setattr(provider_http, "urlopen", fake_urlopen)
     measured_context = [
         {
             "id": EVIDENCE_ID,
@@ -119,7 +120,7 @@ def test_interpretation_http_errors_are_isolated(monkeypatch, status_code):
             None,
         )
 
-    monkeypatch.setattr(aura_integration, "urlopen", unavailable)
+    monkeypatch.setattr(provider_http, "urlopen", unavailable)
 
     with pytest.raises(aura_integration.AuraIntegrationError) as error:
         aura_integration.interpret_analysis(
@@ -135,7 +136,7 @@ def test_interpretation_http_errors_are_isolated(monkeypatch, status_code):
 
 def test_interpretation_rejects_malformed_structured_output(monkeypatch):
     monkeypatch.setattr(
-        aura_integration,
+        provider_http,
         "urlopen",
         lambda *_, **__: FakeResponse({"data": {"statements": "not-an-array"}}),
     )
@@ -154,7 +155,7 @@ def test_interpretation_transport_failures_are_isolated(monkeypatch, failure):
     def unavailable(*_, **__):
         raise failure
 
-    monkeypatch.setattr(aura_integration, "urlopen", unavailable)
+    monkeypatch.setattr(provider_http, "urlopen", unavailable)
 
     with pytest.raises(aura_integration.AuraIntegrationError):
         aura_integration.interpret_analysis(
@@ -169,7 +170,7 @@ def test_aura_readiness_reports_non_success_as_down(monkeypatch):
     def unavailable(*_, **__):
         raise HTTPError("https://aura.example/health/ready", 503, "not ready", {}, None)
 
-    monkeypatch.setattr(aura_integration, "urlopen", unavailable)
+    monkeypatch.setattr(provider_http, "urlopen", unavailable)
 
     status, latency = aura_integration.check_aura_ready(aura_settings())
 
@@ -182,7 +183,7 @@ def test_image_measurement_becomes_citable_evidence(
 ):
     from datetime import UTC, datetime
 
-    from conftest import assert_contract_component
+    from api_contract import assert_contract_component
     from flame_api.models import AnalysisRecord
     from flame_api.worker import _aura_request_context, _image_measurement_evidence
 

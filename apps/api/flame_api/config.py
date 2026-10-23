@@ -1,5 +1,6 @@
 from functools import lru_cache
 from hmac import compare_digest
+from typing import Literal
 from urllib.parse import urlsplit
 
 from pydantic import Field, SecretStr, field_validator, model_validator
@@ -17,6 +18,16 @@ class Settings(BaseSettings):
         if value.startswith("postgresql://"):
             return "postgresql+psycopg://" + value.removeprefix("postgresql://")
         return value
+
+    @field_validator(
+        "cv_hf_space_url", "cv_hf_token", "ollama_base_url", "vllm_base_url", "vllm_api_key",
+        "llamacpp_base_url", "embedding_cache_dir", mode="before",
+    )
+    @classmethod
+    def normalize_empty_cv_settings(
+        cls, value: str | SecretStr | None
+    ) -> str | SecretStr | None:
+        return None if value == "" else value
 
     environment: str = "development"
     api_version: str = "0.1.0"
@@ -38,7 +49,38 @@ class Settings(BaseSettings):
     aura_base_url: str = "https://aura-ai-production-03a4.up.railway.app"
     aura_service_token: SecretStr | None = None
     aura_timeout_s: float = Field(default=120.0, gt=0, le=120)
+    # True refuses any AURA provider that is not on AURA's own host. A deployment whose only model
+    # is a self-hosted GPU Space (a remote provider to AURA) must set this to false, or every
+    # AURA call fails with 503 all_providers_failed.
+    aura_require_local: bool = True
+    chat_rate_limit_per_minute: int = Field(default=30, ge=1, le=600)
+    # Deprecated: the `llm` health entry now reflects the model router. Kept so old .env files load.
     llm_enabled: bool = False
+    # --- Sub-phase 2H / M1: model router. Names documented in docs/hybrid-ai/PHASE_2_HYBRID_AI_ARCHITECTURE.md.
+    ai_execution_mode: Literal["cloud_preferred", "local_first", "offline_only"] = "local_first"
+    ollama_base_url: str | None = None
+    ollama_model: str = "qwen2.5:3b-instruct-q4_K_M"
+    ollama_keep_alive: str = "30m"
+    vllm_base_url: str | None = None
+    vllm_model: str = "Qwen/Qwen2.5-7B-Instruct-AWQ"
+    vllm_api_key: SecretStr | None = None
+    llamacpp_base_url: str | None = None
+    llamacpp_model: str = "local"
+    # A local model on CPU runs ~5-10 tokens/s; 500 output tokens must finish inside this.
+    llm_timeout_s: float = Field(default=180.0, gt=0, le=600)
+    provider_failure_threshold: int = Field(default=3, ge=1, le=20)
+    provider_cooldown_s: float = Field(default=30.0, ge=1, le=3600)
+    provider_probe_timeout_s: float = Field(default=2.0, gt=0, le=5)
+    provider_health_ttl_s: float = Field(default=15.0, ge=1, le=600)
+    embedding_cache_dir: str | None = None
+    embedding_offline: bool = False
+    reranker_enabled: bool = False
+    otel_enabled: bool = False
+    otel_service_name: str = "flame-api"
+    cv_provider: Literal["local", "hf_space"] = "local"
+    cv_hf_space_url: str | None = None
+    cv_hf_token: SecretStr | None = None
+    cv_timeout_s: float = Field(default=300.0, gt=0, le=600)
 
     @model_validator(mode="after")
     def require_distinct_api_tokens(self):
@@ -65,6 +107,36 @@ class Settings(BaseSettings):
             raise ValueError("FLAME_AURA_BASE_URL must be an HTTPS origin without embedded credentials.")
         if self.aura_enabled and self.aura_service_token is None:
             raise ValueError("FLAME_AURA_SERVICE_TOKEN is required when AURA interpretation is enabled.")
+        if self.cv_hf_space_url is not None:
+            cv_url = urlsplit(self.cv_hf_space_url)
+            if (
+                cv_url.scheme != "https"
+                or not cv_url.netloc
+                or cv_url.path not in {"", "/"}
+                or cv_url.username is not None
+                or cv_url.password is not None
+                or cv_url.query
+                or cv_url.fragment
+            ):
+                raise ValueError("FLAME_CV_HF_SPACE_URL must be an HTTPS origin without embedded credentials.")
+        for name in ("ollama_base_url", "vllm_base_url", "llamacpp_base_url"):
+            value = getattr(self, name)
+            if value is None:
+                continue
+            local_url = urlsplit(value)
+            # Local runtimes live on the same (possibly disconnected) network, so plain HTTP is allowed.
+            if (
+                local_url.scheme not in {"http", "https"}
+                or not local_url.netloc
+                or local_url.path not in {"", "/"}
+                or local_url.username is not None
+                or local_url.password is not None
+                or local_url.query
+                or local_url.fragment
+            ):
+                raise ValueError(f"FLAME_{name.upper()} must be an http(s) origin without a path or credentials.")
+        if self.cv_provider == "hf_space" and self.cv_hf_space_url is None:
+            raise ValueError("FLAME_CV_HF_SPACE_URL is required when FLAME_CV_PROVIDER=hf_space.")
         return self
 
 

@@ -55,7 +55,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   // Auto-detect desktop screen to keep sidebar open by default on desktop, closed on mobile
   useEffect(() => {
     if (typeof window !== "undefined") {
-      setIsSidebarOpen(window.innerWidth >= 1024);
+      // Deferred so the initial sync does not cascade a render inside this effect
+      // (react-hooks/set-state-in-effect); it still runs before the first paint.
+      queueMicrotask(() => setIsSidebarOpen(window.innerWidth >= 1024));
       const handleResize = () => {
         if (window.innerWidth < 1024) {
           // Keep it closed on mobile resize
@@ -78,32 +80,30 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     setIsSidebarOpen(true);
   }, []);
 
-  // Initialize from LocalStorage
+  // Initialize from LocalStorage. Read synchronously, apply in a microtask so the hydration does not
+  // cascade a render inside this effect (react-hooks/set-state-in-effect).
   useEffect(() => {
+    let restored: ChatSession[] = [];
+    let active: string | null = null;
     try {
       const stored = localStorage.getItem(STORAGE_KEY_SESSIONS);
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          setSessions(parsed);
+          restored = parsed;
           const storedActive = localStorage.getItem(STORAGE_KEY_ACTIVE);
-          if (storedActive && parsed.some((s) => s.id === storedActive)) {
-            setActiveSessionId(storedActive);
-          } else {
-            setActiveSessionId(parsed[0].id);
-          }
-          setIsHydrated(true);
-          return;
+          active = storedActive && parsed.some((s) => s.id === storedActive) ? storedActive : parsed[0].id;
         }
       }
     } catch (e) {
       console.error("Failed to load chat sessions from localStorage:", e);
     }
 
-    // Default seed
-    setSessions(INITIAL_SESSIONS);
-    setActiveSessionId(INITIAL_SESSIONS[0].id);
-    setIsHydrated(true);
+    queueMicrotask(() => {
+      setSessions(restored);
+      setActiveSessionId(active);
+      setIsHydrated(true);
+    });
   }, []);
 
   // Save changes to LocalStorage
@@ -263,7 +263,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
                           memory_used: false,
                           cache_hit: false,
                           model: { provider: "error", name: "offline", version: "0.0" },
-                          knowledge_version: "2026-10-03",
+                          knowledge_version: "unversioned",
                           warnings: ["Inference timeout or connection failed"],
                         },
                       }

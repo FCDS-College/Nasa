@@ -5,7 +5,7 @@
   "segmenterVersion": "1.1.0",
   "configDigest": "5140c618f88cd05b",
   "dataset": {
-    "imageDir": "C:/FCDS/Nasa/datasets/samples/cv/FF-PSI-107/SPICE_GMT045_2009_jpegs",
+    "imageDir": "datasets/samples/cv/FF-PSI-107/SPICE_GMT045_2009_jpegs",
     "nImagesFound": 10,
     "nAnalyzed": 10,
     "nWithGroundTruth": 0,

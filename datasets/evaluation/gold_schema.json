@@ -1,24 +1,34 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "RagGoldCase",
+  "description": "Schema for NASA microgravity combustion RAG evaluation gold test cases (§18 compliant)",
   "type": "object",
   "properties": {
-    "case_id": { "type": "string" },
-    "split": { "type": "string" },
-    "query": { "type": "string" },
+    "case_id": { "type": "string", "pattern": "^TC_[A-Z]+_[0-9]{3}$" },
+    "split": { "type": "string", "enum": ["dev", "validation", "holdout"] },
+    "query": { "type": "string", "minLength": 10 },
+    "golden_answer": { "type": "string" },
     "expected_evidence": {
       "type": "array",
       "items": {
         "type": "object",
         "properties": {
           "locator": { "type": "string" },
-          "text": { "type": "string" }
+          "text": { "type": "string" },
+          "source_scope": { "type": "string" }
         },
         "required": ["locator", "text"]
       }
     },
+    "expected_evidence_ids": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
     "answerable": { "type": "boolean" },
+    "difficulty": { "type": "string", "enum": ["easy", "medium", "hard"] },
+    "modality": { "type": "string", "enum": ["text", "image", "table", "multi"] },
+    "category": { "type": "string" },
     "rubric_version": { "type": "string" }
   },
-  "required": ["case_id", "split", "query", "expected_evidence", "answerable", "rubric_version"]
+  "required": ["case_id", "split", "query", "golden_answer", "expected_evidence", "expected_evidence_ids", "answerable", "difficulty", "modality", "rubric_version"]
 }

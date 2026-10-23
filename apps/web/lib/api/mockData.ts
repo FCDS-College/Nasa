@@ -1,4 +1,4 @@
-import { SystemHealth, ChatResponse, SearchResponse, EvidenceRecord, AnalysisResult, KnowledgeEntity, DashboardData, AnalysisSummary, ExperimentRecord } from "./types";
+import { SystemHealth, SearchResponse, EvidenceRecord, AnalysisResult, KnowledgeEntity, DashboardData, AnalysisSummary, ExperimentRecord } from "./types";
 
 export const mockHealth: SystemHealth = {
   status: "ok",
@@ -40,19 +40,6 @@ export const mockDashboard: DashboardData = {
   ingestion_alerts: [
     { id: "A1", message: "NIST rate limit reached, retrying in 10m", severity: "warning" },
   ]
-};
-
-export const mockChatResponse: ChatResponse = {
-  request_id: "req_123456",
-  answer: "In microgravity, buoyancy-induced convection is nearly eliminated. This causes flames to become spherical and soot residence times to increase significantly, altering soot formation pathways and radiative heat loss. The CLD Flame experiment observed larger primary soot particles compared to 1g conditions.",
-  sources: [
-    { evidence_id: "01J9Z3N5B8C1E3G5J7M9P1R3T5", document_id: "doc_991", title: "Soot Formation in Microgravity", location: "p. 4, §2.1", url: "https://ntrs.nasa.gov/" }
-  ],
-  memory_used: true,
-  cache_hit: false,
-  model: { provider: "vllm", name: "Llama-3-8B-Instruct", version: "v1.0" },
-  knowledge_version: "2026-10-03",
-  warnings: []
 };
 
 export const mockSearchResults: SearchResponse = {

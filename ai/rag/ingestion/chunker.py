@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 
 class Chunker(ABC):
 
+    """Abstract interface that splits a document into retrievable chunks."""
     @abstractmethod
     def chunk(self, document):
         """
@@ -12,6 +13,11 @@ class Chunker(ABC):
 
 
 class SimpleChunker(Chunker):
+
+    """Fixed-size character chunker with overlap that breaks on word boundaries.
+
+    Raises:
+        ValueError: if chunk_size <= 0, overlap < 0 or overlap >= chunk_size."""
 
     def __init__(self, chunk_size=500, overlap=50):
 
@@ -34,6 +40,17 @@ class SimpleChunker(Chunker):
         self.overlap = overlap
 
     def chunk(self, document):
+
+        """Split a document into chunks.
+
+        Args:
+            document: dict with document_id, version, text and metadata.
+
+        Returns:
+            List of chunk dicts: chunk_id ("<document_id>_chunk_<n>"), document_id, document_version, text, chunk_index, metadata. The metadata dict is shared by reference with the document.
+
+        Raises:
+            KeyError: if document lacks a required key."""
 
         text = document["text"]
 

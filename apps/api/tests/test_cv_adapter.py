@@ -6,7 +6,7 @@ from flame_api.worker import _adapt_result
 
 
 def test_cv_result_adapter_preserves_measurement_semantics(tmp_path):
-    from conftest import assert_contract_component
+    from api_contract import assert_contract_component
 
     image_path = tmp_path / "source.png"
     mask_path = tmp_path / "mask.png"

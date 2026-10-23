@@ -34,11 +34,11 @@ from pydantic import BaseModel, ConfigDict, Field
 # --------------------------------------------------------------------------------------
 # Versions
 # --------------------------------------------------------------------------------------
-SCHEMA_VERSION = "1.1.0"
-PIPELINE_VERSION = "cv-opencv-v1.1.0"
-PREPROCESS_VERSION = "letterbox-lanczos-v1"
-SEGMENTER_NAME = "otsu-contour-baseline"
-SEGMENTER_VERSION = "1.1.0"
+SCHEMA_VERSION = "1.2.0"
+PIPELINE_VERSION = "cv-opencv-v1.2.0-auto"
+PREPROCESS_VERSION = "letterbox-lanczos-auto-v1"
+SEGMENTER_NAME = "otsu-contour-adaptive"
+SEGMENTER_VERSION = "1.2.0"
 
 DEFAULT_OPTIONS = {
     "runSegmentation": True,
@@ -54,25 +54,32 @@ DEFAULT_OPTIONS = {
 @dataclass(frozen=True)
 class CVConfig:
     # intake policy
-    target_size: int = 512
+    target_size: Optional[int] = None
     max_file_bytes: int = 10 * 1024 * 1024
     max_pixels: int = 100_000_000
     min_dim: int = 64
     allowed_formats: Tuple[str, ...] = ("jpeg", "png")
     # segmentation
-    blur_kernel: int = 3
-    min_threshold: int = 50          # floor applied on top of Otsu
-    min_area_px: int = 30            # in processed (letterboxed) pixels
+    blur_kernel: Optional[int] = None
+    min_threshold: Optional[int] = None  # legacy explicit floor applied on top of Otsu
+    min_threshold_offset: float = 0.0
+    min_area_px: Optional[int] = None  # legacy explicit minimum in processed pixels
+    min_area_ratio: float = 0.0001
     multi_flame_ratio: float = 0.20  # a 2nd blob >= 20% of the largest counts as another flame
     stability_delta: float = 0.10    # +/-10% threshold perturbation for stability IoU
     # detection decision
-    min_contrast: float = 25.0       # inside-vs-outside mean gray
+    min_contrast: Optional[float] = None  # legacy fixed contrast threshold
+    min_contrast_factor: float = 0.1
     present_score: float = 0.60
+    score_contrast_weight: float = 0.5
+    score_area_weight: float = 0.3
+    score_stability_weight: float = 0.2
     # quality flags
     blur_gradient_min: float = 10.0  # mean boundary gradient (gray levels / pixel)
     clip_level: int = 250
     clip_fraction: float = 0.05
-    lowlight_peak: int = 100         # 99.5th percentile of gray below this => low light
+    lowlight_peak: Optional[int] = None  # legacy fixed threshold
+    lowlight_percentile_threshold: float = 99.5
     edge_margin_px: int = 1
 
     def to_dict(self) -> Dict[str, Any]:
@@ -80,6 +87,19 @@ class CVConfig:
 
     def digest(self) -> str:
         return hashlib.sha256(json.dumps(self.to_dict(), sort_keys=True).encode()).hexdigest()[:16]
+
+
+def compute_auto_target_size(w: int, h: int, default_target: int = 512) -> int:
+    """Choose a bounded square preprocessing size based on the input dimensions."""
+    max_dim = max(w, h)
+    if max_dim < default_target:
+        return max(max_dim, 64)
+    return default_target
+
+
+def compute_auto_blur_kernel(w: int, h: int) -> int:
+    """Choose an odd Gaussian kernel proportional to the smaller image dimension."""
+    return max(3, int(min(w, h) * 0.01) | 1)
 
 
 # --------------------------------------------------------------------------------------
@@ -131,8 +151,16 @@ def utc_now() -> str:
 
 
 def posix(p: Any) -> str:
-    """Always store paths with forward slashes (fixes Windows backslashes in JSON)."""
-    return Path(str(p)).as_posix()
+    """Always store paths with forward slashes (fixes Windows backslashes in JSON) and repo-relative if possible."""
+    if p is None:
+        return ""
+    path_obj = Path(str(p))
+    try:
+        if path_obj.is_absolute():
+            path_obj = path_obj.relative_to(Path.cwd())
+    except ValueError:
+        pass
+    return path_obj.as_posix()
 
 
 def sha256_file(path: Any) -> str:
@@ -171,7 +199,6 @@ class _M(BaseModel):
 
 
 class BoundingBox(_M):
-    """Original-image pixel coordinates."""
     ymin: Optional[float] = None
     xmin: Optional[float] = None
     ymax: Optional[float] = None
@@ -228,10 +255,10 @@ class Geometry(_M):
     pixelArea: float
     centroid: Point
     perimeter: float
-    aspectRatio: float          # bbox width / height
-    elongation: float           # major / minor axis of min-area rectangle (>= 1)
-    circularity: float          # 4*pi*A / P^2, clipped to [0, 1]
-    symmetryLR: float           # IoU of mask with its left-right mirror (inside bbox)
+    aspectRatio: float
+    elongation: float
+    circularity: float
+    symmetryLR: float
     symmetryUD: float
 
 
@@ -245,9 +272,9 @@ class ColorStats(_M):
 class Appearance(_M):
     note: str = "Image-derived statistics inside the flame mask; not physical state variables."
     colorSpaceStatistics: ColorStats
-    meanSaturationInMask: float   # HSV S, 0..1
-    meanValueInMask: float        # HSV V, 0..1
-    intensityP5: float            # gray level 0..255
+    meanSaturationInMask: float
+    meanValueInMask: float
+    intensityP5: float
     intensityP50: float
     intensityP95: float
 
@@ -272,9 +299,9 @@ class QualityFlags(_M):
     saturationClipping: bool
     lowLight: bool
     multipleFlames: bool
-    occlusion: bool           # proxy: flame region touches the frame edge (possible crop/occlusion)
+    occlusion: bool
     scaleAbsent: bool
-    calibrationAbsent: bool   # radiometric / spectral calibration (always True in the MVP)
+    calibrationAbsent: bool
 
 
 class QualityMetrics(_M):
@@ -348,7 +375,6 @@ class ErrorResponse(_M):
     error: ErrorDetail
 
 
-# ---- intake / manifest contract ------------------------------------------------------
 class SourceInfo(_M):
     sourceId: Optional[str] = None
     experiment: Optional[str] = None
@@ -378,16 +404,12 @@ class ImageIntakeRecord(_M):
     derived: DerivedInfo
     source: Optional[SourceInfo] = None
     license: Optional[str] = None
-    groupId: Optional[str] = Field(
-        default=None, description="Experiment/run id. Split by group, never by frame, to avoid leakage.")
+    groupId: Optional[str] = Field(default=None)
     split: Literal["dev", "validation", "holdout", "unassigned"] = "unassigned"
     groundTruthMaskUri: Optional[str] = None
     ingestedAt: str
 
 
-# --------------------------------------------------------------------------------------
-# JSONL stores (idempotent upsert, atomic rewrite)
-# --------------------------------------------------------------------------------------
 class JsonlStore:
     def __init__(self, path: Any):
         self.path = Path(path)
@@ -430,7 +452,7 @@ class IntakeManifest(JsonlStore):
         key = self.key_for(rec.sha256, rec.derived.preprocessVersion, target)
         old = self._load().get(key)
         data = rec.model_dump(mode="json")
-        if old:  # keep human-curated fields when re-ingesting
+        if old:
             for f in ("source", "license", "groupId", "split", "groundTruthMaskUri"):
                 if data.get(f) in (None, "unassigned") and old.get(f) not in (None, "unassigned"):
                     data[f] = old[f]
@@ -438,8 +460,6 @@ class IntakeManifest(JsonlStore):
 
 
 def dedupe_legacy_manifest(path: Any) -> Dict[str, int]:
-    """Clean a legacy manifest.jsonl (duplicated rows, mixed formats). Keeps the latest row per image
-    checksum (or imageId when no checksum exists) and writes a .bak copy first."""
     path = Path(path)
     if not path.exists():
         return {"before": 0, "after": 0}
@@ -466,14 +486,11 @@ def dedupe_legacy_manifest(path: Any) -> Dict[str, int]:
 
 
 def split_for_group(group_id: str, dev: float = 0.6, val: float = 0.2) -> str:
-    """Deterministic split by experiment/run (not by frame) to prevent train/test leakage."""
     bucket = int(hashlib.sha256(group_id.encode()).hexdigest(), 16) % 1000 / 1000.0
     return "dev" if bucket < dev else ("validation" if bucket < dev + val else "holdout")
 
 
 class AnalysisCache(JsonlStore):
-    """Non-authoritative accelerator. Key = checksum + all versions; each entry stores its dependency
-    manifest so stale entries can be invalidated explicitly."""
     VERSION_FIELDS = ("pipelineVersion", "preprocessVersion", "segmenterVersion", "configDigest")
 
     def get(self, key: str) -> Optional[Dict[str, Any]]:
@@ -507,9 +524,6 @@ def make_cache_key(input_sha: str, cfg: CVConfig, options: Dict[str, bool],
     return key, deps
 
 
-# --------------------------------------------------------------------------------------
-# Intake validation + letterbox preprocessing
-# --------------------------------------------------------------------------------------
 def validate_image(path: Any, cfg: CVConfig) -> Dict[str, Any]:
     p = Path(path)
     if not p.is_file():
@@ -528,7 +542,7 @@ def validate_image(path: Any, cfg: CVConfig) -> Dict[str, Any]:
             if w < cfg.min_dim or h < cfg.min_dim:
                 raise ImageTooSmallError(f"{w}x{h} is below the {cfg.min_dim}px minimum.")
             im.verify()
-        with Image.open(p) as im:  # full decode, catches truncated files
+        with Image.open(p) as im:
             im.load()
     except CVError:
         raise
@@ -565,13 +579,16 @@ def letterbox_geometry(w: int, h: int, target: int) -> Letterbox:
     return Letterbox(s, (target - nw) // 2, (target - nh) // 2, nw, nh, w, h, target)
 
 
-def preprocess_image(path: Any, out_dir: Any, cfg: CVConfig) -> Tuple[np.ndarray, Letterbox, str, str]:
-    """EXIF-orient -> RGB -> aspect-preserving Lanczos resize -> black padding. Saves a lossless PNG."""
+def preprocess_image(
+    path: Any, out_dir: Any, cfg: CVConfig
+) -> Tuple[np.ndarray, Letterbox, str, str]:
     with Image.open(path) as im:
         im = ImageOps.exif_transpose(im).convert("RGB")
-        lb = letterbox_geometry(im.size[0], im.size[1], cfg.target_size)
+        orig_w, orig_h = im.size
+        target_size = cfg.target_size or compute_auto_target_size(orig_w, orig_h)
+        lb = letterbox_geometry(orig_w, orig_h, target_size)
         resized = im.resize((lb.new_w, lb.new_h), Image.Resampling.LANCZOS)
-    canvas = Image.new("RGB", (cfg.target_size, cfg.target_size), (0, 0, 0))
+    canvas = Image.new("RGB", (target_size, target_size), (0, 0, 0))
     canvas.paste(resized, (lb.pad_x, lb.pad_y))
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -583,9 +600,10 @@ def preprocess_image(path: Any, out_dir: Any, cfg: CVConfig) -> Tuple[np.ndarray
 def ingest_image(path: Any, out_dir: Any, manifest_path: Any, cfg: Optional[CVConfig] = None,
                  source: Optional[SourceInfo] = None, license: Optional[str] = None,
                  group_id: Optional[str] = None, split: Optional[str] = None) -> ImageIntakeRecord:
-    """Validate + preprocess + idempotently upsert into the dataset manifest."""
     cfg = cfg or CVConfig()
     intake = validate_image(path, cfg)
+    if cfg.target_size is None:
+        cfg = replace(cfg, target_size=compute_auto_target_size(intake["width"], intake["height"]))
     _, lb, derived_path, derived_sha = preprocess_image(path, out_dir, cfg)
     rec = _intake_record(intake, lb, derived_path, derived_sha, cfg, source, license, group_id, split)
     IntakeManifest(manifest_path).upsert_record(rec, cfg.target_size)
@@ -604,13 +622,13 @@ def _intake_record(intake, lb, derived_path, derived_sha, cfg, source=None, lice
         source=source, license=license, groupId=group_id, split=split, ingestedAt=utc_now())
 
 
-# --------------------------------------------------------------------------------------
-# Segmentation
-# --------------------------------------------------------------------------------------
 def _find_main(gray_blur: np.ndarray, lb: Letterbox, cfg: CVConfig, thr: Optional[float] = None) -> Dict[str, Any]:
     crop = gray_blur[lb.pad_y:lb.pad_y + lb.new_h, lb.pad_x:lb.pad_x + lb.new_w]
-    otsu, _ = cv2.threshold(crop, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)  # padding excluded
-    t = float(max(otsu, cfg.min_threshold)) if thr is None else float(thr)
+    otsu, _ = cv2.threshold(crop, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    threshold = otsu + cfg.min_threshold_offset
+    if cfg.min_threshold is not None:
+        threshold = max(threshold, cfg.min_threshold)
+    t = float(threshold) if thr is None else float(thr)
     binm = (gray_blur > t).astype(np.uint8) * 255
     k = np.ones((3, 3), np.uint8)
     binm = cv2.morphologyEx(binm, cv2.MORPH_OPEN, k)
@@ -622,7 +640,10 @@ def _find_main(gray_blur: np.ndarray, lb: Letterbox, cfg: CVConfig, thr: Optiona
         return res
     areas = {i: int(stats[i, cv2.CC_STAT_AREA]) for i in range(1, n)}
     res["largest_area"] = max(areas.values())
-    valid = [i for i, a in areas.items() if a >= cfg.min_area_px]
+    min_area = cfg.min_area_px
+    if min_area is None:
+        min_area = max(10, int(lb.new_w * lb.new_h * cfg.min_area_ratio))
+    valid = [i for i, a in areas.items() if a >= min_area]
     if not valid:
         return res
     best = max(valid, key=lambda i: areas[i])
@@ -631,7 +652,7 @@ def _find_main(gray_blur: np.ndarray, lb: Letterbox, cfg: CVConfig, thr: Optiona
     cnts, _ = cv2.findContours(comp, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
     cnt = max(cnts, key=cv2.contourArea)
     main = np.zeros_like(comp)
-    cv2.drawContours(main, [cnt], -1, 255, cv2.FILLED)  # filled external contour (holes closed)
+    cv2.drawContours(main, [cnt], -1, 255, cv2.FILLED)
     res["main"], res["contour"] = main, cnt
     return res
 
@@ -694,9 +715,6 @@ def _appearance(rgb: np.ndarray, gray: np.ndarray, main: np.ndarray) -> Appearan
         intensityP95=float(np.percentile(g, 95)))
 
 
-# --------------------------------------------------------------------------------------
-# Core analysis
-# --------------------------------------------------------------------------------------
 def _write_artifacts(rgb, main, cnt, masks_dir: Path, stem: str) -> Tuple[str, str, str, str]:
     masks_dir.mkdir(parents=True, exist_ok=True)
     mask_path = masks_dir / f"{stem}_mask.png"
@@ -719,11 +737,12 @@ def _compute(req: Dict[str, Any], intake: Dict[str, Any], cfg: CVConfig, options
             _intake_record(intake, lb, derived_path, derived_sha, cfg), cfg.target_size)
 
     gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
-    k = cfg.blur_kernel | 1
+    blur_kernel = cfg.blur_kernel or compute_auto_blur_kernel(lb.new_w, lb.new_h)
+    k = blur_kernel | 1
     gb = cv2.GaussianBlur(gray, (k, k), 0)
     content = _content_mask(lb)
     content_gray = gray[content > 0]
-    p995 = float(np.percentile(content_gray, 99.5))
+    p995 = float(np.percentile(content_gray, cfg.lowlight_percentile_threshold))
 
     seg_info = _find_main(gb, lb, cfg)
     main, cnt = seg_info["main"], seg_info["contour"]
@@ -731,12 +750,14 @@ def _compute(req: Dict[str, Any], intake: Dict[str, Any], cfg: CVConfig, options
     det_conf, seg_conf = 0.0, 0.0
     status = "ABSENT"
     metrics: Dict[str, Any] = {"boundaryGradient": None, "flameContrast": None, "clippedFraction": None}
-    flags = {"blur": False, "saturationClipping": False, "lowLight": p995 < cfg.lowlight_peak,
+    median_intensity = float(np.median(content_gray))
+    lowlight_threshold = cfg.lowlight_peak if cfg.lowlight_peak is not None else max(50.0, median_intensity * 0.8)
+    flags = {"blur": False, "saturationClipping": False, "lowLight": p995 < lowlight_threshold,
              "multipleFlames": seg_info["n_significant"] > 1, "occlusion": False}
 
     run_seg = options["runSegmentation"]
     if not run_seg:
-        main = cnt = None  # nothing downstream may use the (unrequested) segmentation
+        main = cnt = None
         status = "UNCERTAIN"
         warnings.append("Segmentation not requested: detection status is UNCERTAIN and no measurements were computed.")
     elif main is not None:
@@ -752,18 +773,24 @@ def _compute(req: Dict[str, Any], intake: Dict[str, Any], cfg: CVConfig, options
         inside_mean = float(gray[sel].mean())
         outside_mean = float(gray[outside_sel].mean()) if outside_sel.any() else 0.0
         contrast = inside_mean - outside_mean
+        background_std = float(gray[outside_sel].std()) if outside_sel.any() else 10.0
+        min_contrast = cfg.min_contrast if cfg.min_contrast is not None else max(
+            15.0, background_std * cfg.min_contrast_factor)
         area_frac = float(sel.sum()) / float(lb.new_w * lb.new_h)
-        score = (0.5 * _clip01(contrast / 120.0) + 0.3 * _clip01(area_frac / 0.002) + 0.2 * seg_conf)
+        score = (
+            cfg.score_contrast_weight * _clip01(contrast / 120.0)
+            + cfg.score_area_weight * _clip01(area_frac / 0.002)
+            + cfg.score_stability_weight * seg_conf
+        )
 
-        if score >= cfg.present_score and contrast >= cfg.min_contrast:
+        if score >= cfg.present_score and contrast >= min_contrast:
             status, det_conf = "PRESENT", _clip01(score)
-        elif contrast >= cfg.min_contrast / 2:
+        elif contrast >= min_contrast / 2:
             status, det_conf = "UNCERTAIN", _clip01(score)
             warnings.append("Detection UNCERTAIN: low contrast or small/unstable region; treat measurements with caution.")
         else:
             status, det_conf = "ABSENT", min(0.9, _clip01(1 - score))
 
-        # quality flags & metrics (only meaningful when there is a region)
         edge = main.astype(np.int16) - cv2.erode(main, np.ones((3, 3), np.uint8)).astype(np.int16)
         gx = cv2.Sobel(gray.astype(np.float32), cv2.CV_32F, 1, 0, ksize=3) / 8.0
         gy = cv2.Sobel(gray.astype(np.float32), cv2.CV_32F, 0, 1, ksize=3) / 8.0
@@ -780,7 +807,7 @@ def _compute(req: Dict[str, Any], intake: Dict[str, Any], cfg: CVConfig, options
         metrics.update(boundaryGradient=round(bgrad, 2), flameContrast=round(contrast, 2),
                        clippedFraction=round(clip_frac, 4))
     else:
-        det_conf = 0.9  # nothing above threshold / min area -> heuristic confidence in absence
+        det_conf = 0.9
 
     if status == "ABSENT":
         main = cnt = None
@@ -788,7 +815,6 @@ def _compute(req: Dict[str, Any], intake: Dict[str, Any], cfg: CVConfig, options
         seg_conf = 0.0
         warnings.append("No flame-like bright region detected; no measurements were produced.")
 
-    # --- measurements -------------------------------------------------------------------
     geometry = appearance = physical = None
     bbox = BoundingBox()
     seg = Segmentation(maskStatus="NOT_REQUESTED" if not run_seg else "EMPTY_MASK",
@@ -813,7 +839,6 @@ def _compute(req: Dict[str, Any], intake: Dict[str, Any], cfg: CVConfig, options
                 assumptions="mmPerPixel refers to ORIGINAL image pixels at the flame plane; no lens, perspective "
                             "or depth correction applied. 2D projected values only.")
 
-    # --- warnings -----------------------------------------------------------------------
     if mm is None:
         warnings.append("Scale calibration absent: spatial measurements are in original-image pixels, not physical units.")
     warnings.append("Temperature cannot be claimed from RGB imagery without camera response, spectral and exposure "
@@ -877,7 +902,6 @@ def _artifacts_exist(payload: Dict[str, Any]) -> bool:
 
 def analyze_image(request: Dict[str, Any], out_cv_dir: Any, out_masks_dir: Any, cfg: Optional[CVConfig] = None,
                   cache: Optional[AnalysisCache] = None, manifest_path: Any = None) -> Dict[str, Any]:
-    """Raises CVError subclasses; use analyze_image_safe for an error envelope."""
     cfg = cfg or CVConfig()
     req = dict(request)
     if not req.get("imagePath"):
@@ -894,6 +918,8 @@ def analyze_image(request: Dict[str, Any], out_cv_dir: Any, out_masks_dir: Any, 
     options = {**DEFAULT_OPTIONS, **{k: bool(v) for k, v in (req.get("options") or {}).items() if k in DEFAULT_OPTIONS}}
 
     intake = validate_image(req["imagePath"], cfg)
+    if cfg.target_size is None:
+        cfg = replace(cfg, target_size=compute_auto_target_size(intake["width"], intake["height"]))
     key, deps = make_cache_key(intake["sha256"], cfg, options, mm)
 
     if cache is not None:
@@ -917,7 +943,7 @@ def analyze_image_safe(request: Dict[str, Any], *args, **kwargs) -> Dict[str, An
     except CVError as e:
         return ErrorResponse(requestId=request.get("requestId"), error=ErrorDetail(
             code=e.code, message=e.message, retryable=e.retryable, httpStatus=e.http_status)).model_dump(mode="json")
-    except Exception as e:  # unexpected: never leak a stack trace
+    except Exception as e:
         return ErrorResponse(requestId=request.get("requestId"), error=ErrorDetail(
             code="INTERNAL_ERROR", message=f"Unexpected failure: {type(e).__name__}", retryable=False,
             httpStatus=500)).model_dump(mode="json")
@@ -926,15 +952,11 @@ def analyze_image_safe(request: Dict[str, Any], *args, **kwargs) -> Dict[str, An
 def flame_analysis_api_adapter(request_payload: Dict[str, Any], output_cv_dir: Any, output_masks_dir: Any,
                                manifest_file: Any = None, cache_manifest_path: Any = None,
                                cfg: Optional[CVConfig] = None) -> Dict[str, Any]:
-    """Drop-in replacement for the old adapter (same name), now cached/validated/versioned."""
     cache = AnalysisCache(cache_manifest_path) if cache_manifest_path else None
     return analyze_image_safe(request_payload, output_cv_dir, output_masks_dir, cfg=cfg, cache=cache,
                               manifest_path=manifest_file)
 
 
-# --------------------------------------------------------------------------------------
-# Evaluation
-# --------------------------------------------------------------------------------------
 def segmentation_metrics(pred: np.ndarray, gt: np.ndarray) -> Dict[str, float]:
     p, g = pred > 0, gt > 0
     tp = float(np.logical_and(p, g).sum())
@@ -949,7 +971,6 @@ def segmentation_metrics(pred: np.ndarray, gt: np.ndarray) -> Dict[str, float]:
 
 
 def letterbox_mask(gt_path: Any, result: Dict[str, Any]) -> np.ndarray:
-    """Bring an original-resolution ground-truth mask into the processed (letterboxed) space."""
     pre = result["preprocessing"]
     with Image.open(gt_path) as im:
         im = im.convert("L")
@@ -964,8 +985,6 @@ def letterbox_mask(gt_path: Any, result: Dict[str, Any]) -> np.ndarray:
 
 def run_cv_evaluation(image_dir: Any, out_cv_dir: Any, out_masks_dir: Any, gt_dir: Any = None,
                       cfg: Optional[CVConfig] = None, acceptance_iou: Optional[float] = None) -> Dict[str, Any]:
-    """Real evaluation: detection distribution, quality-flag rates and (when ground truth exists)
-    IoU / F1 / precision / recall. Without ground truth it reports NOT_EVALUATED - it never fakes a pass."""
     cfg = cfg or CVConfig()
     images = sorted(p for p in Path(image_dir).glob("**/*") if p.suffix.lower() in (".jpg", ".jpeg", ".png"))
     per_image, errors, ious = [], [], []
@@ -1007,19 +1026,25 @@ def run_cv_evaluation(image_dir: Any, out_cv_dir: Any, out_masks_dir: Any, gt_di
                 errors.append({"imageId": p.stem, "code": "GT_ERROR", "message": str(e)})
         per_image.append(row)
 
-    seg: Dict[str, Any] = {"status": "NOT_EVALUATED", "reason": "No ground-truth masks were provided."}
+    seg: Dict[str, Any] = {"status": "NOT_EVALUATED", "reason": "No ground-truth masks provided or acceptance threshold is null."}
     verdict = "NOT_EVALUATED"
-    if ious:
+    if ious and acceptance_iou is not None:
         arr = lambda k: [m[k] for m in ious]
         seg = {"status": "EVALUATED", "n": len(ious),
                "meanIoU": round(float(np.mean(arr("iou"))), 4), "medianIoU": round(float(np.median(arr("iou"))), 4),
                "minIoU": round(float(np.min(arr("iou"))), 4), "meanF1": round(float(np.mean(arr("f1"))), 4),
                "meanPrecision": round(float(np.mean(arr("precision"))), 4),
                "meanRecall": round(float(np.mean(arr("recall"))), 4)}
-        if acceptance_iou is not None:
-            verdict = "PASS" if seg["meanIoU"] >= acceptance_iou else "FAIL"
-        else:
-            verdict = "REPORT_ONLY"
+        verdict = "PASS" if seg["meanIoU"] >= acceptance_iou else "FAIL"
+    elif ious:
+        arr = lambda k: [m[k] for m in ious]
+        seg = {"status": "EVALUATED", "n": len(ious),
+               "meanIoU": round(float(np.mean(arr("iou"))), 4), "medianIoU": round(float(np.median(arr("iou"))), 4),
+               "minIoU": round(float(np.min(arr("iou"))), 4), "meanF1": round(float(np.mean(arr("f1"))), 4),
+               "meanPrecision": round(float(np.mean(arr("precision"))), 4),
+               "meanRecall": round(float(np.mean(arr("recall"))), 4)}
+        verdict = "REPORT_ONLY"
+
     n = len(per_image)
     return {
         "schemaVersion": SCHEMA_VERSION, "generatedAt": utc_now(), "pipelineVersion": PIPELINE_VERSION,
@@ -1037,9 +1062,6 @@ def run_cv_evaluation(image_dir: Any, out_cv_dir: Any, out_masks_dir: Any, gt_di
     }
 
 
-# --------------------------------------------------------------------------------------
-# Schema export
-# --------------------------------------------------------------------------------------
 def export_schemas(out_dir: Any, cfg: Optional[CVConfig] = None) -> List[str]:
     cfg = cfg or CVConfig()
     out_dir = Path(out_dir)
@@ -1066,13 +1088,9 @@ def export_schemas(out_dir: Any, cfg: Optional[CVConfig] = None) -> List[str]:
     return paths
 
 
-# --------------------------------------------------------------------------------------
-# Synthetic data helpers (tests / demo only - NOT scientific data)
-# --------------------------------------------------------------------------------------
 def make_synthetic_flame(path: Any, size: Tuple[int, int] = (3008, 2000),
                          blobs: Iterable[Tuple[int, int, int, int]] = ((1500, 1000, 300, 300),),
                          noise: float = 2.0, seed: int = 0, gt_path: Any = None, soften: float = 5.0) -> None:
-    """Warm-coloured soft ellipses on a dark noisy background. blobs = (cx, cy, rx, ry)."""
     w, h = size
     rng = np.random.default_rng(seed)
     gt = np.zeros((h, w), np.uint8)
@@ -1084,3 +1102,33 @@ def make_synthetic_flame(path: Any, size: Tuple[int, int] = (3008, 2000),
     Image.fromarray(np.clip(img, 0, 255).astype(np.uint8)).save(path, quality=95)
     if gt_path:
         Image.fromarray(gt).save(gt_path)
+
+
+def main(argv: Optional[List[str]] = None) -> int:
+    import argparse
+    import sys
+
+    parser = argparse.ArgumentParser(prog="python -m cv.flame_cv", description="Run the Otsu flame analysis on an image.")
+    parser.add_argument("image", nargs="?", help="Path to the image; a synthetic flame is generated if omitted.")
+    parser.add_argument("--out-dir", default="cv/output", help="Directory for the result JSON and masks.")
+    args = parser.parse_args(argv)
+
+    out_dir = Path(args.out_dir)
+    masks_dir = out_dir / "masks"
+    masks_dir.mkdir(parents=True, exist_ok=True)
+
+    image = args.image
+    if not image:
+        image = str(out_dir / "synthetic_flame.png")
+        make_synthetic_flame(image)
+        print(f"[*] No image given; generated synthetic flame at {image}", file=sys.stderr)
+
+    result = analyze_image_safe({"imagePath": str(image)}, out_dir, masks_dir)
+    text = json.dumps(result, indent=2, ensure_ascii=False)
+    atomic_write_text(out_dir / "analysis_result.json", text)
+    print(text)
+    return 1 if "error" in result else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

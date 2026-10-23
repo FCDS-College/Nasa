@@ -18,7 +18,7 @@
     "contentWidth": 512,
     "contentHeight": 340,
     "denoising": "none on derived image; segmentation uses a 3x3 Gaussian on a copy",
-    "derivedUri": "C:/FCDS/Nasa/datasets/processed/cv/ISS018E030363_processed.png",
+    "derivedUri": "datasets/processed/cv/ISS018E030363_processed.png",
     "derivedChecksum": "sha256:69aed10a251c9aac32e6a23cac95b378aac74abba8d30a8c3d99b3dc1a36a298"
   },
   "detection": {
@@ -39,9 +39,9 @@
     "maskType": "binary",
     "maskStatus": "SUCCESS",
     "maskCoordinateSpace": "processed_letterbox",
-    "maskUri": "C:/FCDS/Nasa/datasets/processed/masks/ISS018E030363_mask.png",
+    "maskUri": "datasets/processed/masks/ISS018E030363_mask.png",
     "maskChecksum": "sha256:3d0fd9b92df1bff298db257f00bf2a483c83d281056c834849a33a59e776fe16",
-    "overlayArtifactUri": "C:/FCDS/Nasa/datasets/processed/masks/ISS018E030363_overlay.png",
+    "overlayArtifactUri": "datasets/processed/masks/ISS018E030363_overlay.png",
     "overlayChecksum": "sha256:ee02f8977e869b9d3dd3c3fb2f9d07d4a5f205dbdd92aa01a83d176d405eddac",
     "thresholdOtsu": 110.0,
     "thresholdApplied": 110.0
@@ -114,7 +114,7 @@
     ]
   },
   "provenance": {
-    "inputUri": "C:/FCDS/Nasa/datasets/samples/cv/FF-PSI-107/SPICE_GMT045_2009_jpegs/ISS018E030363.jpg",
+    "inputUri": "datasets/samples/cv/FF-PSI-107/SPICE_GMT045_2009_jpegs/ISS018E030363.jpg",
     "inputChecksum": "sha256:0d9ef9b9ccc77806d32175d1ccd646b6518832f8aee27787d99d411b2983a8b0",
     "pipelineVersion": "cv-opencv-v1.1.0",
     "preprocessVersion": "letterbox-lanczos-v1",
@@ -153,7 +153,7 @@
   "request": {
     "requestId": "cli_ISS018E030363",
     "imageId": "ISS018E030363",
-    "imagePath": "C:\\FCDS\\Nasa\\datasets\\samples\\cv\\FF-PSI-107\\SPICE_GMT045_2009_jpegs\\ISS018E030363.jpg",
+    "imagePath": "datasets/samples/cv/FF-PSI-107/SPICE_GMT045_2009_jpegs/ISS018E030363.jpg",
     "options": {
       "runSegmentation": true,
       "extractGeometry": true,

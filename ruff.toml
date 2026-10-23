@@ -1,0 +1,12 @@
+# Python lint gate for CI (M12, docs/operations/CI_CD.md). Deliberately narrow to start: real
+# errors (syntax, undefined names, unused imports/variables), not style. Widen per directory as
+# each owner cleans up.
+target-version = "py311"
+line-length = 130
+extend-exclude = ["tests/eval/archive", "cv/notebooks", "**/*.ipynb", ".railway"]
+
+[lint]
+select = ["E9", "F63", "F7", "F82", "F401", "F811", "F841"]
+
+[lint.per-file-ignores]
+"**/__init__.py" = ["F401"]

@@ -1,0 +1,14 @@
+{
+  "id": "insufficient_evidence",
+  "version": "1.0.0",
+  "purpose": "Abstention message when evidence is missing/weak",
+  "input_variables": [
+    "question",
+    "reason"
+  ],
+  "output_schema": null,
+  "template": "I could not find enough evidence in the available NASA sources to answer: \"{{question}}\".\nReason: {{reason}}.\nNo claim is made. You may rephrase the question, narrow the topic, or ask for the sources that were searched.",
+  "model_capability": "none (template only)",
+  "content_hash": "d741f5bbcc854b5ea3975763a0cf0a757a8cc27e3ff8e85a06ae6b1bc1998b55",
+  "approved_by_eval_run": null
+}

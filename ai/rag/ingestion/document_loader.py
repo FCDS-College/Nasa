@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 
 class DocumentLoader(ABC):
 
+    """Abstract interface for loaders that produce documents in the internal dict representation."""
     @abstractmethod
     def load(self, source):
         """
