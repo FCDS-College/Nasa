@@ -7,6 +7,8 @@ validates it again (``flame_api/generation.py``).
 """
 from __future__ import annotations
 
+import hashlib
+import json
 import time
 from typing import Any
 
@@ -17,6 +19,7 @@ from ai.providers.contracts.structured import StructuredRequest, StructuredRespo
 from ai.providers.http import probe, request_json
 
 MAX_CONTEXT_ENTRIES = 16
+MAX_CONTEXT_TEXT = 2000  # AURA rejects a longer `context[].text` with 422 (ContextEntry)
 
 
 class AuraProvider:
@@ -49,7 +52,8 @@ class AuraProvider:
             "require_local": bool(request.options.get("require_local", self._require_local)),
             "max_output_tokens": request.max_output_tokens,
             "temperature": request.temperature,
-            "context": [{"id": p.id, "text": p.text, "source": p.source} for p in request.context[:MAX_CONTEXT_ENTRIES]],
+            "context": [{"id": p.id, "text": p.text[:MAX_CONTEXT_TEXT], "source": p.source}
+                        for p in request.context[:MAX_CONTEXT_ENTRIES]],
         }
         if schema is not None:
             body["response_schema"] = schema
@@ -57,12 +61,17 @@ class AuraProvider:
 
     def _post(self, request: ChatRequest, schema: dict[str, Any] | None) -> dict[str, Any]:
         key = request.idempotency_key
+        body = self._body(request, schema)
         headers = {"Authorization": f"Bearer {self._token}"}
         if key:
-            headers.update({"Idempotency-Key": key, "X-Correlation-Id": key})
+            # AURA replays any stored <500 answer for 24h and rejects the same key with a different body
+            # (422 idempotency_key_reused). Binding the key to the body keeps exact retries deduplicated
+            # while a re-run with new evidence or instructions is a new request.
+            digest = hashlib.sha256(json.dumps(body, sort_keys=True, separators=(",", ":")).encode()).hexdigest()[:16]
+            headers.update({"Idempotency-Key": f"{key}:{digest}", "X-Correlation-Id": key})
         decoded = request_json(
             "POST", f"{self._base}/api/v3/chat", provider="aura",
-            timeout_s=request.timeout_s or self._timeout_s, body=self._body(request, schema), headers=headers,
+            timeout_s=request.timeout_s or self._timeout_s, body=body, headers=headers,
         )
         if not isinstance(decoded, dict):
             raise ProviderError(ProviderErrorCode.INVALID_OUTPUT, "aura returned a non-object.", provider="aura")

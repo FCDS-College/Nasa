@@ -10,7 +10,6 @@ import {
   AnalysisSummary,
   ExperimentRecord,
 } from "./types";
-import { mockKnowledge } from "./mockData";
 
 // Every call goes through the same-origin /api proxy (app/api/[...path]), which
 // holds the Flame API read token server-side.
@@ -152,8 +151,9 @@ export async function fetchAnalysis(id?: string): Promise<AnalysisResult | null>
   try {
     let analysisId = id;
     if (!analysisId) {
-      const list = await getJson("analyses?status=completed&page_size=1");
-      analysisId = list.items?.[0]?.analysis_id;
+      // The studio renders image overlays, so pick the newest completed image analysis (videos are flame_video).
+      const list = await getJson("analyses?status=completed&page_size=20");
+      analysisId = list.items?.find((i: Json) => (i.analysis_type ?? "flame_image") === "flame_image")?.analysis_id;
       if (!analysisId) return null;
     }
     const { analysis: a } = await getJson(`analyses/${analysisId}`);
@@ -175,9 +175,10 @@ export async function fetchAnalysis(id?: string): Promise<AnalysisResult | null>
   }
 }
 
-// AURA-backed knowledge graph is not exposed by the Flame API yet.
+// The Flame API exposes no knowledge graph yet (docs/ai/graph-rag.md: Planned). Return nothing rather
+// than sample entities, so the page never shows invented "verified" relations or citations.
 export async function fetchKnowledge(): Promise<KnowledgeEntity[]> {
-  return mockKnowledge;
+  return [];
 }
 
 export async function fetchAnalysesHistory(): Promise<AnalysisSummary[]> {

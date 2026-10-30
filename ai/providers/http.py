@@ -29,6 +29,15 @@ def _rejected_fields(raw: bytes) -> list[tuple[str, str, str]]:
         return []
 
 
+def _error_code(raw: bytes) -> str | None:
+    """The top-level string ``error`` of a JSON error body (AURA's shape), else None."""
+    try:
+        value = json.loads(raw).get("error")
+    except (ValueError, AttributeError, TypeError):
+        return None
+    return value if isinstance(value, str) else None
+
+
 def _map_http_error(exc: HTTPError, provider: str) -> ProviderError:
     try:
         raw = exc.read(8192) or b""
@@ -44,6 +53,9 @@ def _map_http_error(exc: HTTPError, provider: str) -> ProviderError:
         mapped = ProviderErrorCode.MODEL_MISSING
     elif code in {401, 403}:
         mapped = ProviderErrorCode.NOT_CONFIGURED
+    elif code == 422 and _error_code(raw) == "output_invalid":
+        # The request was fine; the provider's model failed the response schema. Another model may not.
+        mapped = ProviderErrorCode.INVALID_OUTPUT
     elif code >= 500:
         mapped = ProviderErrorCode.UNAVAILABLE
     else:

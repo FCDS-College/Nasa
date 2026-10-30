@@ -135,6 +135,9 @@ async def database_error_handler(request: Request, exc: SQLAlchemyError):
 async def http_error_handler(request: Request, exc: StarletteHTTPException):
     if exc.status_code == 404:
         return JSONResponse(status_code=404, content=error_body(request, "ROUTE_NOT_FOUND", "Route was not found."))
+    if exc.status_code == 405:
+        return JSONResponse(status_code=405, content=error_body(request, "METHOD_NOT_ALLOWED", "Method is not allowed on this route."),
+                            headers=getattr(exc, "headers", None))
     return JSONResponse(status_code=exc.status_code, content=error_body(request, "INTERNAL_ERROR", "Request could not be completed."))
 
 

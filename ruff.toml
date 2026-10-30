@@ -3,7 +3,7 @@
 # each owner cleans up.
 target-version = "py311"
 line-length = 130
-extend-exclude = ["tests/eval/archive", "cv/notebooks", "**/*.ipynb", ".railway"]
+extend-exclude = ["tests/eval/archive", "tests/eval/Ziad____10", "cv/notebooks", "**/*.ipynb", ".railway"]
 
 [lint]
 select = ["E9", "F63", "F7", "F82", "F401", "F811", "F841"]

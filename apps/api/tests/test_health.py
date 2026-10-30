@@ -1,9 +1,11 @@
+import json
 import os
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.exc import SQLAlchemyError
 
+from api_contract import CONTRACT_PATH
 from flame_api import main
 
 
@@ -23,7 +25,7 @@ def test_health_contract_shape_and_request_id_echo(monkeypatch):
 
     assert response.headers["X-Request-ID"] == "health-test_1"
     assert body["meta"]["request_id"] == "health-test_1"
-    assert body["meta"]["api_version"] == "0.1.0"
+    assert body["meta"]["api_version"] == json.loads(CONTRACT_PATH.read_text())["info"]["version"]
     assert set(body["services"]) == {
         "api", "database", "vector_index", "object_storage", "cache", "cv_model", "llm", "aura"
     }

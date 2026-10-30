@@ -9,7 +9,7 @@ scipy>=1.11.0
 
 # Image & Video Ingestion / Processing
 opencv-python-headless>=4.8.0
-pillow>=10.0.0
+pillow>=13.0.0
 
 # Deep Learning Frameworks (CNN & PINN prototypes only; unvalidated)
 # Offline wheels were built with Python 3.14, which only has TensorFlow release candidates.

@@ -95,7 +95,8 @@ def test_interpretation_uses_data_channel_and_filters_untrusted_claims(monkeypat
     assert sent["request"].full_url.endswith("/api/v3/chat")
     assert sent["request"].get_header("Authorization") == f"Bearer {AURA_TOKEN}"
     assert sent["request"].get_header("X-correlation-id") == ANALYSIS_ID
-    assert sent["request"].get_header("Idempotency-key") == ANALYSIS_ID
+    key, digest = sent["request"].get_header("Idempotency-key").rsplit(":", 1)
+    assert key == ANALYSIS_ID and len(digest) == 16
     assert sent["timeout"] == 120
     assert request_body["plan"] is False
     assert request_body["use_tools"] is False
@@ -107,6 +108,50 @@ def test_interpretation_uses_data_channel_and_filters_untrusted_claims(monkeypat
     assert len(result["statements"]) == 2
     assert result["rejected_statement_count"] == 2
     assert result["model"] == "local-test-model"
+
+
+def _capture(monkeypatch, sent):
+    def fake_urlopen(request, timeout):
+        sent.append(request)
+        return FakeResponse({"data": {"statements": []}, "model": "m"})
+
+    monkeypatch.setattr(provider_http, "urlopen", fake_urlopen)
+
+
+def test_idempotency_key_changes_with_the_body_and_context_is_capped(monkeypatch):
+    sent = []
+    _capture(monkeypatch, sent)
+    long_text = "x" * 5000
+    for text in ("a", "a", long_text):
+        aura_integration.interpret_analysis(
+            aura_settings(), analysis_id=ANALYSIS_ID,
+            context=[{"id": EVIDENCE_ID, "source": "flame/image_measurement", "text": text}],
+            allowed_evidence_ids={EVIDENCE_ID},
+        )
+    keys = [request.get_header("Idempotency-key") for request in sent]
+    assert keys[0] == keys[1]          # an exact retry is still deduplicated by AURA
+    assert keys[0] != keys[2]          # new evidence is a new request, not 422 idempotency_key_reused
+    assert len(json.loads(sent[2].data)["context"][0]["text"]) == 2000  # AURA's ContextEntry limit
+
+
+def test_aura_schema_failure_is_fallback_eligible(monkeypatch):
+    import io
+
+    from ai.providers.contracts.errors import ProviderErrorCode
+
+    def output_invalid(*_, **__):
+        body = io.BytesIO(json.dumps({"error": "output_invalid", "message": "schema", "retryable": False}).encode())
+        raise HTTPError("https://aura.example/api/v3/chat", 422, "unprocessable", {}, body)
+
+    def our_mistake(*_, **__):
+        raise HTTPError("https://aura.example/api/v3/chat", 422, "unprocessable", {}, io.BytesIO(b'{"detail": []}'))
+
+    for opener, expected in ((output_invalid, ProviderErrorCode.INVALID_OUTPUT), (our_mistake, ProviderErrorCode.INVALID_REQUEST)):
+        monkeypatch.setattr(provider_http, "urlopen", opener)
+        with pytest.raises(provider_http.ProviderError) as error:
+            provider_http.request_json("POST", "https://aura.example/api/v3/chat", provider="aura", timeout_s=1, body={})
+        assert error.value.code is expected
+        assert error.value.fallback_eligible is (expected is ProviderErrorCode.INVALID_OUTPUT)
 
 
 @pytest.mark.parametrize("status_code", [429, 503])

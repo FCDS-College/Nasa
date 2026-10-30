@@ -6,6 +6,24 @@
 
 Semver applies to `docs/api/openapi.json` `info.version`. Breaking changes need a minor bump while we are pre-1.0, an entry here, and one release of deprecation where practical.
 
+## 0.3.0 (2026-10-30)
+
+All changes are additive; 0.2.0 clients keep working.
+
+**Added**
+- Video analyses on the existing resource (ADR-005): `POST /api/analyses` accepts `video` (MP4/MOV/AVI by content, H.264/H.265, ≤ 200 MiB, ≤ 600 s) instead of `image`, with `sample_every_n_frames` (default 30) and `max_frames` (default 300, ≤ `FLAME_MAX_VIDEO_FRAMES`). Exactly one of `image`/`video` is required (`AnalysisCreateForm.oneOf`).
+- `AnalysisType` gains `flame_video`; `Analysis.result` may be `FlameVideoAnalysisResult` (`video`, `sampling`, `frames[]` in time order, `temporal_summary`, `observations`). Pixel units only; no temperature; no calibration for video yet.
+- `AnalysisInput.video` (`VideoInput`) and video media types on `AnalysisInput.media_type` and `Artifact.media_type` (the `original` artifact of a video is the video).
+- `EvidenceKind` gains `video_measurement`; `AnalysisFailureCode` gains `VIDEO_DECODE_FAILED`.
+- `ErrorCode` gains `VIDEO_INVALID` and `METHOD_NOT_ALLOWED` (405 used to come back as `INTERNAL_ERROR`).
+
+**Fixed**
+- `meta.api_version` returned `0.1.0` although the contract was `0.2.0`; it now equals `info.version` and a test pins the two together.
+- `AnalysisSummary.analysis_type` is read from the stored analysis instead of being hard-coded.
+
+**Removal postponed**
+- `AURA_UNAVAILABLE` stays in `ErrorCode` for this release (it is not emitted); removing an enum value is a breaking change and needs its own coordinated release with AURA's compiled tools.
+
 ## 0.2.0 (2026-10-12, PR #14)
 
 **Added**
