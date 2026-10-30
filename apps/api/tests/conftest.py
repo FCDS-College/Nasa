@@ -19,10 +19,15 @@ from api_contract import CONTRACT_PATH, assert_contract_component  # noqa: F401 
 
 
 @pytest.fixture(autouse=True)
-def fresh_ai_runtime():
-    """Router, circuit state and any runtime mode override are per test."""
+def fresh_ai_runtime(monkeypatch):
+    """Router, circuit state and any runtime mode override are per test.
+
+    The persisted mode is read through the real FLAME_DATABASE_URL, not the test's SQLite session, so a
+    developer's running Postgres (with an `ai.mode.changed` audit row) would otherwise leak into tests.
+    """
     from flame_api import ai_runtime, answer_cache
 
+    monkeypatch.setattr(ai_runtime, "_latest_audited_mode", lambda: None)
     ai_runtime.reset()
     answer_cache.reset()
     yield
