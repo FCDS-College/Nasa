@@ -69,6 +69,11 @@ export default function KnowledgePage() {
           <Share2 className="h-5 w-5 animate-spin" style={{ color: 'var(--accent-flame)' }} />
           Loading knowledge graph...
         </div>
+      ) : entities.length === 0 ? (
+        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+          The knowledge graph is not available yet: the Flame API does not expose extracted entities or relations.
+          Use Search for evidence-backed passages and experiments.
+        </p>
       ) : (
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {filtered.map((entity, i) => (

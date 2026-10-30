@@ -4,6 +4,8 @@
 |---|---|---|---|---|---|
 | Lead (Anas) | Current (§0); §1 onward is the 2026-10-05 audit, kept as history | 2.0.0 | 2026-10-12 | M1, §12, L-12 | `ai/providers/cloud/aura.py`, `apps/api/flame_api/generation.py`, `tests/integration/aura_blueprint_dryrun.py` |
 
+> **Superseded for current facts (2026-10-30):** see [AURA_INTEGRATION_AUDIT.md](AURA_INTEGRATION_AUDIT.md) and [API_INTEGRATION_REFERENCE.md](API_INTEGRATION_REFERENCE.md). Contract is now 0.3.0; two Link 1 defects were fixed there.
+
 ## 0. Phase 2 status (2026-10-12): AURA is an optional provider
 
 **Decision:** [ADR-004](../architecture/adr/ADR-004-aura-boundary.md). AURA is one optional, external provider behind Flame's model router (M1 / Sub-phase 2H). It is never a core dependency.

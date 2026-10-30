@@ -15,7 +15,7 @@
 | L-1 | [ADRs 001–010](architecture/adr/README.md) | 001–005 and 010 Accepted (awaiting sign-off); 006–009 Proposed | 2026-10-12 |
 | L-2 | [Architecture overview](architecture/overview.md) | In review | 2026-10-12 |
 | L-3 | delivered as H-2 + H-4 | In review | 2026-10-12 |
-| L-4 | [openapi.json](api/openapi.json) 0.2.0, [API_SCHEMAS.md](api/API_SCHEMAS.md), [CHANGELOG](api/CHANGELOG.md) | Current | 2026-10-12 |
+| L-4 | [openapi.json](api/openapi.json) 0.3.0, [API_SCHEMAS.md](api/API_SCHEMAS.md), [CHANGELOG](api/CHANGELOG.md) | Current | 2026-10-30 |
 | L-5 | [Index synchronization contract](architecture/index-sync-contract.md) | In review | 2026-10-12 |
 | L-6 | [Background jobs](architecture/background-jobs.md) | In review | 2026-10-12 |
 | L-7 | [CI/CD and testing](operations/CI_CD.md) | In review | 2026-10-12 |
@@ -23,7 +23,7 @@
 | L-9 | [Observability](operations/OBSERVABILITY.md) | In review | 2026-10-12 |
 | L-10 | [Security and access control](operations/SECURITY.md) | Draft (final in W7) | 2026-10-12 |
 | L-11 | [Release v0.1.0-mvp](releases/v0.1.0-mvp.md) | Tag approved, push pending; sign-offs pending | 2026-10-12 |
-| L-12 | [AURA integration status](integration/AURA_INTEGRATION_STATUS.md) §0 | Current | 2026-10-12 |
+| L-12 | [AURA integration audit](integration/AURA_INTEGRATION_AUDIT.md) (current), [API integration reference](integration/API_INTEGRATION_REFERENCE.md); [status report](integration/AURA_INTEGRATION_STATUS.md) §0 is history | Current | 2026-10-30 |
 | H-1 | [Dependency audit](hybrid-ai/PHASE_2_HYBRID_AI_DEPENDENCY_AUDIT.md) | In review | 2026-10-12 |
 | H-2 | [Hybrid AI architecture](hybrid-ai/PHASE_2_HYBRID_AI_ARCHITECTURE.md) | In review | 2026-10-12 |
 | H-3 | [Local model registry](hybrid-ai/PHASE_2_LOCAL_MODEL_REGISTRY.md) | In review (checksums partly Pending) | 2026-10-12 |
@@ -66,6 +66,7 @@
 
 | Document | Status | Owner |
 |---|---|---|
+| 2026-10-30 system audit: [status audit](reviews/SYSTEM_STATUS_AUDIT.md), [roadmap](plan/IMPLEMENTATION_ROADMAP.md), [implementation changelog](reviews/IMPLEMENTATION_CHANGELOG.md), [readiness report](reviews/FINAL_SYSTEM_READINESS_REPORT.md) | Current | Lead |
 | [Phase 2 plan](plan/PHASE2_PLAN.md) | Current | Lead |
 | [Frontend API contract](api/FRONTEND_API_CONTRACT.md), [service contracts](api/service-contracts.md) | MVP-era (contract 0.1.0) | Lead / Belal |
 | [AURA integration requirements](integration/AURA_INTEGRATION_REQUIREMENTS.md) | Partly superseded (see L-12 §0) | Lead |

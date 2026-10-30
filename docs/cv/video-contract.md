@@ -7,6 +7,8 @@
 ## 1. Overview
 This document defines the JSON Schema and contract for video analysis results. `cv/video_analysis.py` (`analyze_video`) produces payloads that must validate against `cv/contracts/video_analysis_result.schema.json`; `tests/cv/test_video_pipeline.py` and `tests/cv/test_contract_examples.py` enforce this.
 
+API exposure (contract 0.3.0): `POST /api/analyses` with a `video` part creates a `flame_video` analysis. The worker maps this payload to the snake_case `FlameVideoAnalysisResult` in `docs/api/openapi.json` (`apps/api/flame_api/worker.py`, `_adapt_video_result`); this camelCase schema remains the pipeline's internal contract.
+
 ## 2. Backward-Compatibility and Versioning
 - Any breaking structural modification requires a major version increment in `schemaVersion`.
 - Optional fields may be added under minor versions without disrupting existing API consumers. v1.3.0 only adds optional fields, so v1.2.0 payloads (the example below) remain valid.
