@@ -61,7 +61,7 @@ AURA agent (Link 2, read token, 10 GET tools) ───────────�
 
 | Area | Status | Basis |
 |---|---|---|
-| Integration with AURA | **Contract-ready; deployment untested** | Dry run vs AURA HEAD: 10 tools accepted, 3 excluded. AURA's integration tests: 251 passed. Link 1 defects fixed. Flame GETs verified with auth. Open: AURA A1–A5, a staging run (P1-8), per-client tokens before public exposure (P2-1). |
+| Integration with AURA | **Contract-ready; deployment untested** | Dry run vs AURA HEAD: 10 tools accepted, 3 excluded. AURA's integration tests: 251 passed. Link 1 defects fixed. Flame GETs verified with auth. AURA A1–A4 merged (AURA-AI #200) and the CI pin moved to `d696fad` (A5). Open: a staging run (P1-8), per-client tokens before public exposure (P2-1). |
 | AI / RAG | **Functional, quality unmeasured** | Hybrid retrieval with evidence IDs and locators; grounded chat with citation filtering; CAG works. No valid evaluation (P1-6); `ai/rag` reranker and memory not wired in (ADR-006). |
 | CV (image) | **Functional, heuristic** | Runtime-verified; scientific labelling correct; detector unvalidated against labels. |
 | CV (video) | **Functional (new), heuristic** | Runtime-verified on a 1343-frame NASA clip; time order, Nyquist and tracking-gap guards. |
@@ -135,7 +135,7 @@ Logs from these runs were kept in the session's scratch area; they are not commi
 
 1. Merge this branch so CI goes green and the critical dependency fixes ship.
 2. Run the compose dry run, then the AURA staging test (P1-7, P1-8).
-3. Ask AURA for changes A1 (no replay of retryable failures) and A3 (readiness that reflects `require_local`), then bump the pinned AURA revision in `aura-link2-contract.yml`.
+3. ~~Ask AURA for changes A1–A4 and bump the pinned AURA revision~~ Done 2026-10-30: AURA-AI #200, pin `d696fad`.
 4. Re-annotate the gold set and run real evaluation; rank models only from recorded runs (P1-6).
 5. Per-client tokens and rate limiting (P2-1, P2-2), then stuck-job recovery (P2-4).
 
