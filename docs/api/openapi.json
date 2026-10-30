@@ -3,7 +3,7 @@
   "jsonSchemaDialect": "https://spec.openapis.org/oas/3.1/dialect/base",
   "info": {
     "title": "Flame in Freefall API",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "summary": "Frontend-facing REST contract for the Flame in Freefall scientific dashboard.",
     "description": "Contract-first specification (MVP plan §12, DAY2_TASKS Lead deliverable). The FastAPI implementation is in `apps/api` and serves this document at `/api/openapi.json`; `x-implementation-status` records implementation state. API bearer authentication is required: use the read token for GET/HEAD and a distinct upload token for mutations. AURA Track AP compatibility is checked from this contract against a pinned AURA revision by `tests/integration/aura_blueprint_dryrun.py`.\n\nConventions: snake_case JSON; RFC 3339 UTC timestamps; ULID resource IDs; nullable means 'not present or not established' (never 0 for missing); every JSON success body has `meta`; every error body is `ErrorResponse`.\n\nScientific rules encoded in the schema: no temperature field exists; pixel measurements are `measured`, scale-derived physical sizes are `estimated`; AI interpretation is separate from measurements and limited to inferred/hypothesized/unsupported claim classes; evidence is only source content or deterministic calculation.\n\nAURA boundary (ADR-004, contract 0.2.0): operations marked `x-aura-exclude: true` (chat, AI status, admin writes) are skipped by AURA's OpenAPI discovery, so AURA can never compile a tool that calls back into Flame's model path. Changes: docs/api/CHANGELOG.md.",
     "license": {
@@ -957,8 +957,8 @@
     "/api/analyses": {
       "post": {
         "operationId": "createAnalysis",
-        "summary": "Upload an image and start a flame analysis",
-        "description": "Validates the upload synchronously (size, type by content, decode, dimensions), stores the original immutably, and enqueues the CV job. Always asynchronous: returns 202 with the Analysis in status `queued`; poll GET /api/analyses/{analysis_id}.",
+        "summary": "Upload an image or a video and start a flame analysis",
+        "description": "Validates the upload synchronously (size, type by content, decode, dimensions), stores the original immutably, and enqueues the CV job. Always asynchronous: returns 202 with the Analysis in status `queued`; poll GET /api/analyses/{analysis_id}. Videos (0.3.0) are probed synchronously (container, codec, fps, duration) and analysed on sampled frames by the local video provider; poll the same way.",
         "tags": [
           "Analysis"
         ],
@@ -1072,7 +1072,7 @@
             "$ref": "#/components/responses/Forbidden"
           },
           "413": {
-            "description": "Image exceeds the upload limit. Codes: PAYLOAD_TOO_LARGE.",
+            "description": "Image or video exceeds the upload limit. Codes: PAYLOAD_TOO_LARGE.",
             "headers": {
               "X-Request-ID": {
                 "$ref": "#/components/headers/X-Request-ID"
@@ -1087,7 +1087,7 @@
             }
           },
           "415": {
-            "description": "Not a PNG or JPEG (detected from content). Codes: UNSUPPORTED_MEDIA_TYPE.",
+            "description": "Not a PNG/JPEG image or MP4/MOV/AVI video (detected from content). Codes: UNSUPPORTED_MEDIA_TYPE.",
             "headers": {
               "X-Request-ID": {
                 "$ref": "#/components/headers/X-Request-ID"
@@ -2559,7 +2559,9 @@
           "AURA_UNAVAILABLE",
           "INTERNAL_ERROR",
           "AUTHENTICATION_REQUIRED",
-          "CHAT_UNAVAILABLE"
+          "CHAT_UNAVAILABLE",
+          "METHOD_NOT_ALLOWED",
+          "VIDEO_INVALID"
         ],
         "description": "Stable machine-readable error code. The frontend switches on this, never on `message`. AURA_UNAVAILABLE is deprecated since 0.2.0: chat now degrades to an evidence-only answer instead."
       },
@@ -3721,7 +3723,8 @@
           "document_passage",
           "experiment_condition",
           "dataset_file",
-          "image_measurement"
+          "image_measurement",
+          "video_measurement"
         ],
         "description": "What the evidence points at."
       },
@@ -3968,9 +3971,10 @@
       "AnalysisType": {
         "type": "string",
         "enum": [
-          "flame_image"
+          "flame_image",
+          "flame_video"
         ],
-        "description": "Only single-image flame analysis exists in v0.1. Video/temporal analysis is Weeks 3–6."
+        "description": "flame_image: one PNG/JPEG image. flame_video (0.3.0, ADR-005): an MP4/MOV/AVI video analysed on sampled frames with a temporal summary."
       },
       "ArtifactKind": {
         "type": "string",
@@ -3997,7 +4001,10 @@
             "type": "string",
             "enum": [
               "image/png",
-              "image/jpeg"
+              "image/jpeg",
+              "video/mp4",
+              "video/quicktime",
+              "video/x-msvideo"
             ],
             "description": "Media type served."
           },
@@ -4072,7 +4079,7 @@
           "image_sha256": {
             "type": "string",
             "pattern": "^[a-f0-9]{64}$",
-            "description": "Lowercase hex SHA-256 of the exact bytes."
+            "description": "Lowercase hex SHA-256 of the exact uploaded bytes (the video file for flame_video; the field name predates video)."
           },
           "original_filename": {
             "type": "string"
@@ -4081,9 +4088,12 @@
             "type": "string",
             "enum": [
               "image/png",
-              "image/jpeg"
+              "image/jpeg",
+              "video/mp4",
+              "video/quicktime",
+              "video/x-msvideo"
             ],
-            "description": "Media type detected from content (not from the filename or client header)."
+            "description": "Media type detected from content (not from the filename or client header). Video types only for flame_video."
           },
           "size_bytes": {
             "type": "integer",
@@ -4133,6 +4143,17 @@
               "string",
               "null"
             ]
+          },
+          "video": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VideoInput"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Probe metadata and sampling policy; present only for flame_video (0.3.0)."
           }
         },
         "additionalProperties": false,
@@ -4896,7 +4917,8 @@
           "MODEL_UNAVAILABLE",
           "PIPELINE_ERROR",
           "TIMEOUT",
-          "CANCELLED"
+          "CANCELLED",
+          "VIDEO_DECODE_FAILED"
         ],
         "description": "Why a job ended in failed/cancelled. A no-flame image is NOT a failure: it completes with detection.status = absent."
       },
@@ -4974,7 +4996,11 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/FlameAnalysisResult",
-                "description": "Non-null iff status = completed."
+                "description": "flame_image, non-null iff status = completed."
+              },
+              {
+                "$ref": "#/components/schemas/FlameVideoAnalysisResult",
+                "description": "flame_video, non-null iff status = completed."
               },
               {
                 "type": "null"
@@ -5179,7 +5205,7 @@
           "image": {
             "type": "string",
             "contentMediaType": "application/octet-stream",
-            "description": "PNG or JPEG, ≤ 10 MiB, ≥ 64×64 px, ≤ 50 megapixels. Type is detected from the bytes."
+            "description": "PNG or JPEG, ≤ 10 MiB, ≥ 64×64 px, ≤ 50 megapixels. Type is detected from the bytes. Send exactly one of image or video."
           },
           "experiment_id": {
             "type": "string",
@@ -5217,13 +5243,41 @@
           "notes": {
             "type": "string",
             "maxLength": 2000
+          },
+          "video": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "description": "MP4/MOV/AVI (detected from the bytes), H.264/H.265, ≤ 200 MiB (FLAME_MAX_VIDEO_UPLOAD_BYTES), ≤ 600 s. Creates a flame_video analysis (0.3.0). Calibration fields are rejected for video."
+          },
+          "sample_every_n_frames": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10000,
+            "default": 30,
+            "description": "Video only: analyse every N-th frame."
+          },
+          "max_frames": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 300,
+            "description": "Video only: cap on sampled frames (≤ FLAME_MAX_VIDEO_FRAMES, default 600)."
           }
         },
         "additionalProperties": false,
-        "required": [
-          "image"
-        ],
-        "description": "multipart/form-data body for POST /api/analyses."
+        "required": [],
+        "description": "multipart/form-data body for POST /api/analyses.",
+        "oneOf": [
+          {
+            "required": [
+              "image"
+            ]
+          },
+          {
+            "required": [
+              "video"
+            ]
+          }
+        ]
       },
       "ExecutionMode": {
         "type": "string",
@@ -5842,6 +5896,346 @@
             "$ref": "#/components/schemas/ResponseMeta"
           }
         }
+      },
+      "VideoInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "container",
+          "codec",
+          "fps",
+          "frame_count",
+          "duration_seconds",
+          "variable_frame_rate",
+          "sample_every_n_frames",
+          "max_frames"
+        ],
+        "properties": {
+          "container": {
+            "type": "string",
+            "enum": [
+              "mp4",
+              "mov",
+              "avi"
+            ]
+          },
+          "codec": {
+            "type": "string",
+            "description": "FourCC reported by the decoder, e.g. avc1."
+          },
+          "fps": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "description": "Constant frame rate used for timestamps (VFR streams are resampled; see variable_frame_rate)."
+          },
+          "frame_count": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "duration_seconds": {
+            "type": "number",
+            "minimum": 0
+          },
+          "variable_frame_rate": {
+            "type": "boolean"
+          },
+          "sample_every_n_frames": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "max_frames": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "description": "Video metadata probed synchronously at upload (cv/video_ingestion.py probe_video)."
+      },
+      "VideoFrameMeasurement": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "frame_index",
+          "source_frame_index",
+          "timestamp_s",
+          "source_timestamp_s",
+          "detection_status",
+          "detection_confidence",
+          "pixel_area",
+          "centroid",
+          "error_code"
+        ],
+        "properties": {
+          "frame_index": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Index in the constant-frame-rate timeline."
+          },
+          "source_frame_index": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "timestamp_s": {
+            "type": "number",
+            "minimum": 0,
+            "description": "frame_index / fps."
+          },
+          "source_timestamp_s": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Container timestamp when usable."
+          },
+          "detection_status": {
+            "$ref": "#/components/schemas/DetectionStatus"
+          },
+          "detection_confidence": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "pixel_area": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Flame mask area in px² (measured). Null when absent or the frame failed."
+          },
+          "centroid": {
+            "anyOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "x",
+                  "y"
+                ],
+                "properties": {
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Mask centroid in px."
+          },
+          "error_code": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "CV error for this frame; the frame is then reported as uncertain."
+          }
+        }
+      },
+      "VideoTemporalSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "persistence_rate",
+          "flicker_frequency_hz",
+          "flicker_status",
+          "flicker_note",
+          "area_change_rate_px2_per_s",
+          "tracking_stability_px2",
+          "track_sessions",
+          "classification",
+          "method",
+          "tracking_note"
+        ],
+        "properties": {
+          "persistence_rate": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Fraction of sampled frames with a detected flame."
+          },
+          "flicker_frequency_hz": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Dominant area oscillation; null when not estimable (see flicker_note). Limited by the sampling rate (Nyquist)."
+          },
+          "flicker_status": {
+            "type": "string",
+            "enum": [
+              "estimated",
+              "not_estimable"
+            ]
+          },
+          "flicker_note": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "area_change_rate_px2_per_s": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "mean_abs",
+              "max_abs",
+              "pairs"
+            ],
+            "properties": {
+              "mean_abs": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "max_abs": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "pairs": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          },
+          "tracking_stability_px2": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Mean rolling centroid variance in px². Null when not estimable (see tracking_note)."
+          },
+          "track_sessions": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "description": "Null when the sampling interval exceeds the tracking gap (see tracking_note)."
+          },
+          "classification": {
+            "type": "string",
+            "enum": [
+              "measured"
+            ],
+            "description": "Deterministic statistics over per-frame pixel measurements; no physical units."
+          },
+          "method": {
+            "type": "string"
+          },
+          "tracking_note": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why tracking metrics are null, e.g. sampled frames are further apart than the 0.5 s tracking gap."
+          }
+        },
+        "description": "Thresholds and configuration are in docs/cv/temporal-analysis.md."
+      },
+      "FlameVideoAnalysisResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "video",
+          "sampling",
+          "frames",
+          "temporal_summary",
+          "observations"
+        ],
+        "properties": {
+          "video": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "fps",
+              "frame_count",
+              "duration_seconds",
+              "width",
+              "height"
+            ],
+            "properties": {
+              "fps": {
+                "type": "number"
+              },
+              "frame_count": {
+                "type": "integer"
+              },
+              "duration_seconds": {
+                "type": "number"
+              },
+              "width": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "height": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              }
+            }
+          },
+          "sampling": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "sample_every_n_frames",
+              "max_frames",
+              "frames_analyzed",
+              "frames_with_errors"
+            ],
+            "properties": {
+              "sample_every_n_frames": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "max_frames": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "frames_analyzed": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "frames_with_errors": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          },
+          "frames": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VideoFrameMeasurement"
+            },
+            "description": "Sampled frames in time order; temporal order is preserved."
+          },
+          "temporal_summary": {
+            "$ref": "#/components/schemas/VideoTemporalSummary"
+          },
+          "observations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Statement"
+            }
+          }
+        },
+        "description": "Result of a flame_video analysis (0.3.0). Pixel units only; no temperature."
       }
     },
     "parameters": {

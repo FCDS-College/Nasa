@@ -45,6 +45,7 @@ def process_analysis(analysis_id: str) -> None:
     artifacts = dict(record.artifacts)
     session.close()
 
+    aura_request = None
     try:
         import cv2  # noqa: F401  (fail fast with MODEL_UNAVAILABLE when OpenCV is missing)
 
@@ -96,7 +97,6 @@ def process_analysis(analysis_id: str) -> None:
         now = _now()
         session = SessionLocal()
         record = session.get(AnalysisRecord, analysis_id)
-        aura_request = None
         if record:
             completed = {
                 **record.payload,
@@ -135,18 +135,35 @@ def process_analysis(analysis_id: str) -> None:
                 aura_request = _aura_request_context(session, record, measurement_evidence)
             session.commit()
         session.close()
-        if aura_request is not None:
-            _run_aura_interpretation(
-                analysis_id,
-                aura_request["context"],
-                aura_request["evidence_ids"],
-            )
     except Exception as exc:
-        session = SessionLocal()
+        decode_code = "IMAGE_DECODE_FAILED" if isinstance(exc, (OSError, ValueError)) else "PIPELINE_ERROR"
+        _mark_failed(analysis_id, exc, decode_code, "Image analysis could not be completed.")
+        raise
+    # Outside the CV try: the analysis is already committed as completed, so an interpretation
+    # problem must never turn it into a failed one (interpretation is optional and separate).
+    if aura_request is not None:
+        try:
+            _run_aura_interpretation(analysis_id, aura_request["context"], aura_request["evidence_ids"])
+        except Exception:
+            logger.exception("analysis_id=%s interpretation_error", analysis_id)
+            _store_interpretation(analysis_id, _UNAVAILABLE_INTERPRETATION, warning=True)
+
+
+_UNAVAILABLE_INTERPRETATION = {
+    "status": "unavailable", "provider": None, "model": None, "statements": [], "rejected_statement_count": 0, "generated_at": None,
+}
+
+
+def _mark_failed(analysis_id: str, exc: Exception, decode_code: str, message: str) -> None:
+    session = SessionLocal()
+    try:
         record = session.get(AnalysisRecord, analysis_id)
         if record:
             now = _now()
-            failure_code = "MODEL_UNAVAILABLE" if isinstance(exc, (ImportError, ProviderError, NoCompatibleProvider)) else "IMAGE_DECODE_FAILED" if isinstance(exc, (OSError, ValueError)) else "PIPELINE_ERROR"
+            failure_code = "MODEL_UNAVAILABLE" if isinstance(exc, (ImportError, ProviderError, NoCompatibleProvider)) else decode_code
+            cause = exc.last_error if isinstance(exc, NoCompatibleProvider) else exc
+            if isinstance(cause, ProviderError) and cause.code.value == "invalid_request":
+                failure_code = decode_code   # the provider rejected the media itself; retrying will not help
             record.status = "failed"
             record.updated_at = now
             record.completed_at = now
@@ -155,12 +172,203 @@ def process_analysis(analysis_id: str) -> None:
                 "status": "failed",
                 "updated_at": now.isoformat().replace("+00:00", "Z"),
                 "completed_at": now.isoformat().replace("+00:00", "Z"),
-                "failure": {"code": failure_code, "message": "Image analysis could not be completed.", "retryable": failure_code == "MODEL_UNAVAILABLE"},
+                "failure": {"code": failure_code, "message": message, "retryable": failure_code == "MODEL_UNAVAILABLE"},
                 "poll_after_ms": None,
             }
             session.commit()
+    finally:
         session.close()
+
+
+def process_video_analysis(analysis_id: str) -> None:
+    """flame_video (ADR-005): sampled frames through the routed local video provider, then a temporal summary."""
+    from ai.providers.contracts.video import VideoAnalysisRequest
+
+    session = SessionLocal()
+    record = session.get(AnalysisRecord, analysis_id)
+    if record is None or record.status != "queued":
+        session.close()
+        return
+    started = _now()
+    record.status = "processing"
+    record.updated_at = started
+    record.payload = {**record.payload, "status": "processing", "updated_at": _iso(started), "started_at": _iso(started),
+                      "poll_after_ms": 2000}
+    session.commit()
+    payload = dict(record.payload)
+    original = dict(record.artifacts["original"])
+    session.close()
+
+    try:
+        video_input = payload["input"]["video"]
+        with tempfile.TemporaryDirectory(prefix="flame-video-") as working:
+            work = Path(working)
+            video_path = work / f"original.{video_input['container']}"
+            video_path.write_bytes(get_bytes(original["object_key"]))
+            request = VideoAnalysisRequest(
+                video_path=video_path, video_id=analysis_id, work_dir=work / "job",
+                sample_every_n_frames=video_input["sample_every_n_frames"], max_frames=video_input["max_frames"],
+            )
+            routed = ai_runtime.get_router(settings).route("video.analyze", lambda provider: provider.analyze_video(request))
+        response = routed.value
+        result, pipeline, warnings = _adapt_video_result(response, video_input)
+    except Exception as exc:
+        _mark_failed(analysis_id, exc, "VIDEO_DECODE_FAILED", "Video analysis could not be completed.")
         raise
+
+    now = _now()
+    session = SessionLocal()
+    try:
+        record = session.get(AnalysisRecord, analysis_id)
+        if record is None:
+            return
+        evidence = _video_measurement_evidence(session, record, payload["input"], pipeline["pipeline_version"], result, now)
+        for observation in result["observations"]:
+            observation["evidence_ids"] = [evidence.evidence_id]
+        record.status = "completed"
+        record.updated_at = now
+        record.completed_at = now
+        record.pipeline_version = pipeline["pipeline_version"]
+        record.payload = {
+            **record.payload,
+            "status": "completed",
+            "updated_at": _iso(now),
+            "completed_at": _iso(now),
+            "pipeline": {**pipeline, "execution": routed.metadata.to_dict()},
+            "result": result,
+            "warnings": [*record.payload.get("warnings", []), *warnings],
+            "poll_after_ms": None,
+        }
+        session.add(evidence)
+        session.commit()
+    finally:
+        session.close()
+
+
+def _iso(value: datetime) -> str:
+    return value.isoformat().replace("+00:00", "Z")
+
+
+def _video_frame(row: dict) -> dict:
+    centroid = row.get("centroid") or None
+    status = str(row.get("detectionStatus", "UNCERTAIN")).lower()
+    return {
+        "frame_index": row["frameIndex"],
+        "source_frame_index": row.get("sourceFrameIndex"),
+        "timestamp_s": row["timestamp"],
+        "source_timestamp_s": row.get("sourceTimestamp"),
+        "detection_status": status if status in {"present", "absent", "uncertain"} else "uncertain",
+        "detection_confidence": row.get("detectionConfidence"),
+        "pixel_area": row.get("pixelArea"),
+        "centroid": {"x": centroid["x"], "y": centroid["y"]} if centroid else None,
+        "error_code": (row.get("error") or {}).get("code"),
+    }
+
+
+def _adapt_video_result(response, video_input):
+    summary = response.summary or {}
+    temporal = summary.get("temporalSummary") or {}
+    metadata = summary.get("videoMetadata") or {}
+    frames = [_video_frame(row) for row in response.frames]
+    present = sum(frame["detection_status"] == "present" for frame in frames)
+    errors = sum(frame["error_code"] is not None for frame in frames)
+    flicker = temporal.get("flickerFrequencyHz")
+    area_rate = temporal.get("areaChangeRate") or {}
+    stability = temporal.get("trackingStability") or {}
+    width, height = (metadata.get("resolution") or [None, None])[:2]
+    # cv/temporal_analysis.py starts a new track after a gap > max_gap_s, so when sampled frames are
+    # further apart than that every frame is its own "session" (docs/cv/temporal-analysis.md). Report
+    # tracking as not estimable instead of publishing those numbers.
+    from cv.temporal_analysis import TemporalConfig
+
+    fps = metadata.get("fps") or video_input["fps"]
+    interval_s = video_input["sample_every_n_frames"] / fps if fps else None
+    max_gap_s = TemporalConfig().max_gap_s
+    tracking_ok = interval_s is not None and interval_s <= max_gap_s
+    result = {
+        "video": {
+            "fps": metadata.get("fps", video_input["fps"]),
+            "frame_count": metadata.get("frameCount", video_input["frame_count"]),
+            "duration_seconds": metadata.get("durationSeconds", video_input["duration_seconds"]),
+            "width": width,
+            "height": height,
+        },
+        "sampling": {
+            "sample_every_n_frames": video_input["sample_every_n_frames"],
+            "max_frames": video_input["max_frames"],
+            "frames_analyzed": len(frames),
+            "frames_with_errors": errors,
+        },
+        "frames": frames,
+        "temporal_summary": {
+            "persistence_rate": temporal.get("persistenceRate"),
+            "flicker_frequency_hz": flicker if isinstance(flicker, (int, float)) else None,
+            "flicker_status": "estimated" if temporal.get("flickerStatus") == "ESTIMATED" else "not_estimable",
+            "flicker_note": temporal.get("flickerNote"),
+            "area_change_rate_px2_per_s": {"mean_abs": area_rate.get("meanAbs"), "max_abs": area_rate.get("maxAbs"),
+                                           "pairs": area_rate.get("pairs", 0)},
+            "tracking_stability_px2": stability.get("value") if tracking_ok else None,
+            "track_sessions": temporal.get("trackSessions", 0) if tracking_ok else None,
+            "tracking_note": None if tracking_ok else (
+                f"Sampling interval {interval_s:.3f} s exceeds the {max_gap_s} s tracking gap, so tracking is not estimable; "
+                "sample more densely (smaller sample_every_n_frames) to track the flame."
+            ),
+            "classification": "measured",
+            "method": "cv/temporal_analysis.py summarize() over sampled per-frame CV detections",
+        },
+        "observations": [{
+            "statement_id": "cv-video-persistence",
+            "text": f"Brightness-based CV detected a flame in {present} of {len(frames)} sampled frames.",
+            "claim_class": "measured",
+            "origin": "cv_pipeline",
+            "evidence_ids": [],
+            "measurement_refs": ["temporal_summary/persistence_rate"],
+        }],
+    }
+    pipeline = {
+        "pipeline_version": response.pipeline_version or "unknown",
+        "preprocessing_version": (response.pipeline_version or "unknown").split("+")[-1],
+        "detector": None,
+        "segmenter": None,
+        "measurement_space": "original_oriented_px",
+    }
+    warnings = [
+        {"code": "TEMPERATURE_NOT_AVAILABLE", "severity": "info", "message": "Temperature is not reported without radiometric calibration."},
+        {"code": "SCALE_CALIBRATION_ABSENT", "severity": "warning", "message": "Video measurements are in pixels; no scale calibration was supplied."},
+    ]
+    if present:
+        warnings.append({"code": "LOW_DETECTION_CONFIDENCE", "severity": "warning",
+                         "message": "Brightness-based detection is heuristic; per-frame results are not validated against labels."})
+    return result, pipeline, warnings
+
+
+def _video_measurement_evidence(session, record, input_data, pipeline_version, result, now):
+    source_file = session.get(FileRecord, input_data["source_file_id"]) if input_data.get("source_file_id") else None
+    sampling = result["sampling"]
+    return EvidenceRecord(
+        evidence_id=stable_ulid(f"video-measurement:{record.analysis_id}:{pipeline_version}"),
+        source_id=source_file.source_id if source_file else None,
+        file_id=source_file.file_id if source_file else None,
+        document_id=None,
+        experiment_id=record.experiment_id,
+        analysis_id=record.analysis_id,
+        kind="video_measurement",
+        origin="calculated_measurement",
+        excerpt=None,
+        locator={"type": "file", "page": None, "section": None, "row": None, "frame_index": None,
+                 "label": f"video analysis {record.analysis_id} ({sampling['frames_analyzed']} sampled frames)"},
+        payload={
+            "citation": f"Flame CV video analysis {record.analysis_id}, video SHA-256 {record.image_sha256}",
+            "value": None,
+            "measurement_or_claim_type": "flame_video_temporal_measurements",
+            "extraction_method": "cv_pipeline",
+            "extraction_confidence": None,
+            "review_status": "machine_extracted",
+            "transformation_id": pipeline_version,
+            "knowledge_version": None,
+        },
+        created_at=now,
+    )
 
 
 def _image_measurement_evidence(session, record, result, input_data, now):

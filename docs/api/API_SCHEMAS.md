@@ -1,6 +1,6 @@
 # Flame in Freefall: API Response Schemas
 
-**Generated from [`openapi.json`](openapi.json)** (OpenAPI 3.1.0, API 0.2.0) by `docs/tools/render_api_schemas.py`. Do not edit by hand.
+**Generated from [`openapi.json`](openapi.json)** (OpenAPI 3.1.0, API 0.3.0) by `docs/tools/render_api_schemas.py`. Do not edit by hand.
 Endpoint behaviour, examples and display rules: [`FRONTEND_API_CONTRACT.md`](FRONTEND_API_CONTRACT.md).
 
 Reading the tables: *Required = yes* means the key is always present. A nullable field (`| null`) is still present, with value `null`, which means "not present or not established" and is never a stand-in for `0`. The only optional keys in responses are those of [`ErrorDetails`](#errordetails).
@@ -326,7 +326,7 @@ Echo of the filters the server actually applied, after defaults.
 | `completed_at` | string (date-time) \| `null` | yes |  |
 | `input` | [`AnalysisInput`](#analysisinput) | yes |  |
 | `pipeline` | [`PipelineInfo`](#pipelineinfo) \| `null` | yes | Null while queued. |
-| `result` | [`FlameAnalysisResult`](#flameanalysisresult) \| `null` | yes | Non-null iff status = completed. |
+| `result` | [`FlameAnalysisResult`](#flameanalysisresult) \| [`FlameVideoAnalysisResult`](#flamevideoanalysisresult) \| `null` | yes | flame_image, non-null iff status = completed. |
 | `interpretation` | [`Interpretation`](#interpretation) | yes |  |
 | `artifacts` | [`Artifact`](#artifact)[] | yes | `original` is present from creation; the others appear when status = completed. |
 | `warnings` | [`Warning`](#warning)[] | yes |  |
@@ -555,9 +555,9 @@ Structured value for table/measurement evidence.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `image_sha256` | string | yes | Lowercase hex SHA-256 of the exact bytes. |
+| `image_sha256` | string | yes | Lowercase hex SHA-256 of the exact uploaded bytes (the video file for flame_video; the field name predates video). |
 | `original_filename` | string | yes |  |
-| `media_type` | `"image/png"` \| `"image/jpeg"` | yes | Media type detected from content (not from the filename or client header). |
+| `media_type` | `"image/png"` \| `"image/jpeg"` \| `"video/mp4"` \| `"video/quicktime"` \| `"video/x-msvideo"` | yes | Media type detected from content (not from the filename or client header). Video types only for flame_video. |
 | `size_bytes` | integer (minimum=1) | yes |  |
 | `width` | integer (minimum=1) | yes | After EXIF orientation. |
 | `height` | integer (minimum=1) | yes | After EXIF orientation. |
@@ -566,6 +566,7 @@ Structured value for table/measurement evidence.
 | `frame_index` | integer \| `null` (minimum=0) | yes |  |
 | `calibration` | [`Calibration`](#calibration) | yes |  |
 | `notes` | string \| `null` | yes |  |
+| `video` | [`VideoInput`](#videoinput) \| `null` | no | Probe metadata and sampling policy; present only for flame_video (0.3.0). |
 
 ### PipelineInfo
 
@@ -588,6 +589,18 @@ Structured value for table/measurement evidence.
 | `quality_flags` | [`QualityFlags`](#qualityflags) | yes |  |
 | `observations` | [`Statement`](#statement)[] | yes | Deterministic statements derived from the measurements. |
 
+### FlameVideoAnalysisResult
+
+Result of a flame_video analysis (0.3.0). Pixel units only; no temperature.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `video` | object | yes |  |
+| `sampling` | object | yes |  |
+| `frames` | [`VideoFrameMeasurement`](#videoframemeasurement)[] | yes | Sampled frames in time order; temporal order is preserved. |
+| `temporal_summary` | [`VideoTemporalSummary`](#videotemporalsummary) | yes |  |
+| `observations` | [`Statement`](#statement)[] | yes |  |
+
 ### Interpretation
 
 Optional AI interpretation. Never alters measurements; displayed separately from them.
@@ -608,7 +621,7 @@ Optional AI interpretation. Never alters measurements; displayed separately from
 |---|---|---|---|
 | `kind` | [`ArtifactKind`](#artifactkind) | yes |  |
 | `url` | string (uri-reference) | yes | API-relative URL to fetch the bytes: /api/analyses/{analysis_id}/artifacts/{kind}. Never a raw object-storage URL. |
-| `media_type` | `"image/png"` \| `"image/jpeg"` | yes | Media type served. |
+| `media_type` | `"image/png"` \| `"image/jpeg"` \| `"video/mp4"` \| `"video/quicktime"` \| `"video/x-msvideo"` | yes | Media type served. |
 | `sha256` | string | yes | Lowercase hex SHA-256 of the exact bytes. |
 | `width` | integer (minimum=1) | yes |  |
 | `height` | integer (minimum=1) | yes |  |
@@ -646,6 +659,21 @@ Optional AI interpretation. Never alters measurements; displayed separately from
 | `state` | [`CalibrationState`](#calibrationstate) | yes |  |
 | `scale_px_per_mm` | number \| `null` (exclusiveMinimum=0) | yes |  |
 | `scale_source` | string \| `null` | yes | How the scale was established, as supplied by the caller. |
+
+### VideoInput
+
+Video metadata probed synchronously at upload (cv/video_ingestion.py probe_video).
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `container` | `"mp4"` \| `"mov"` \| `"avi"` | yes |  |
+| `codec` | string | yes | FourCC reported by the decoder, e.g. avc1. |
+| `fps` | number (exclusiveMinimum=0) | yes | Constant frame rate used for timestamps (VFR streams are resampled; see variable_frame_rate). |
+| `frame_count` | integer (minimum=1) | yes |  |
+| `duration_seconds` | number (minimum=0) | yes |  |
+| `variable_frame_rate` | boolean | yes |  |
+| `sample_every_n_frames` | integer (minimum=1) | yes |  |
+| `max_frames` | integer (minimum=1) | yes |  |
 
 ### ModelInfo
 
@@ -706,6 +734,37 @@ Image-quality flags (MVP plan §10). Null = the check is not implemented / was n
 | `origin` | [`StatementOrigin`](#statementorigin) | yes |  |
 | `evidence_ids` | string (ULID)[] | yes | Flame evidence IDs supporting the statement. Every ID is verified to exist before the statement is stored; `unsupported` statements have none. |
 | `measurement_refs` | string[] | yes | JSON-pointer-style references into `result.measurements`, e.g. `geometry_px/area`. |
+
+### VideoFrameMeasurement
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `frame_index` | integer (minimum=0) | yes | Index in the constant-frame-rate timeline. |
+| `source_frame_index` | integer \| `null` (minimum=0) | yes |  |
+| `timestamp_s` | number (minimum=0) | yes | frame_index / fps. |
+| `source_timestamp_s` | number \| `null` | yes | Container timestamp when usable. |
+| `detection_status` | [`DetectionStatus`](#detectionstatus) | yes |  |
+| `detection_confidence` | number \| `null` | yes |  |
+| `pixel_area` | number \| `null` | yes | Flame mask area in px² (measured). Null when absent or the frame failed. |
+| `centroid` | object \| `null` | yes | Mask centroid in px. |
+| `error_code` | string \| `null` | yes | CV error for this frame; the frame is then reported as uncertain. |
+
+### VideoTemporalSummary
+
+Thresholds and configuration are in docs/cv/temporal-analysis.md.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `persistence_rate` | number \| `null` (minimum=0, maximum=1) | yes | Fraction of sampled frames with a detected flame. |
+| `flicker_frequency_hz` | number \| `null` | yes | Dominant area oscillation; null when not estimable (see flicker_note). Limited by the sampling rate (Nyquist). |
+| `flicker_status` | `"estimated"` \| `"not_estimable"` | yes |  |
+| `flicker_note` | string \| `null` | yes |  |
+| `area_change_rate_px2_per_s` | object | yes |  |
+| `tracking_stability_px2` | number \| `null` | yes | Mean rolling centroid variance in px². Null when not estimable (see tracking_note). |
+| `track_sessions` | integer \| `null` (minimum=0) | yes | Null when the sampling interval exceeds the tracking gap (see tracking_note). |
+| `classification` | `"measured"` | yes | Deterministic statistics over per-frame pixel measurements; no physical units. |
+| `method` | string | yes |  |
+| `tracking_note` | string \| `null` | yes | Why tracking metrics are null, e.g. sampled frames are further apart than the 0.5 s tracking gap. |
 
 ### BoundingBox
 
@@ -794,7 +853,7 @@ multipart/form-data body for POST /api/analyses.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `image` | string (application/octet-stream) | yes | PNG or JPEG, ≤ 10 MiB, ≥ 64×64 px, ≤ 50 megapixels. Type is detected from the bytes. |
+| `image` | string (application/octet-stream) | no | PNG or JPEG, ≤ 10 MiB, ≥ 64×64 px, ≤ 50 megapixels. Type is detected from the bytes. Send exactly one of image or video. |
 | `experiment_id` | string (ULID) | no | Link the image to an existing experiment. Unknown ID → 422 UNKNOWN_EXPERIMENT. |
 | `source_file_id` | string | no | File identifier as recorded in datasets/metadata/files.jsonl (`sha256:` + first 16 hex chars). |
 | `frame_index` | integer (minimum=0) | no |  |
@@ -802,6 +861,9 @@ multipart/form-data body for POST /api/analyses.
 | `scale_source` | string (minLength=1, maxLength=500) | no | How the scale was obtained (e.g. ruler in frame, documented camera geometry). |
 | `request_interpretation` | boolean (default=false) | no | Ask for an AURA interpretation after measurements complete. Ignored (status unavailable + warning) when AURA is disabled. |
 | `notes` | string (maxLength=2000) | no |  |
+| `video` | string (application/octet-stream) | no | MP4/MOV/AVI (detected from the bytes), H.264/H.265, ≤ 200 MiB (FLAME_MAX_VIDEO_UPLOAD_BYTES), ≤ 600 s. Creates a flame_video analysis (0.3.0). Calibration fields are rejected for video. |
+| `sample_every_n_frames` | integer (minimum=1, maximum=10000, default=30) | no | Video only: analyse every N-th frame. |
+| `max_frames` | integer (minimum=1, default=300) | no | Video only: cap on sampled frames (≤ FLAME_MAX_VIDEO_FRAMES, default 600). |
 
 ### ModeChangeRequest
 
@@ -823,18 +885,18 @@ multipart/form-data body for POST /api/analyses.
 | <a id="overallstatus"></a>`OverallStatus` | `healthy`, `degraded`, `unhealthy` | healthy: every service up. degraded: a required service degraded or an optional one down/degraded. unhealthy: a required service down. |
 | <a id="chatwarning"></a>`ChatWarning` | `no_matching_evidence`, `citations_not_in_retrieved_evidence_removed`, `answer_cites_no_evidence`, `generation_unavailable`, `model_fallback_used` |  |
 | <a id="executionmode"></a>`ExecutionMode` | `cloud_preferred`, `local_first`, `offline_only` | Hybrid AI execution mode (Sub-phase 2H). offline_only never contacts an external provider. |
-| <a id="errorcode"></a>`ErrorCode` | `VALIDATION_ERROR`, `UNAUTHORIZED`, `FORBIDDEN`, `ROUTE_NOT_FOUND`, `DOCUMENT_NOT_FOUND`, `EXPERIMENT_NOT_FOUND`, `EVIDENCE_NOT_FOUND`, `ANALYSIS_NOT_FOUND`, `ARTIFACT_NOT_FOUND`, `ARTIFACT_NOT_READY`, `PAYLOAD_TOO_LARGE`, `UNSUPPORTED_MEDIA_TYPE`, `IMAGE_INVALID`, `UNKNOWN_EXPERIMENT`, `RATE_LIMITED`, `DATABASE_UNAVAILABLE`, `STORAGE_UNAVAILABLE`, `SEARCH_UNAVAILABLE`, `MODEL_UNAVAILABLE`, `QUEUE_UNAVAILABLE`, `AURA_UNAVAILABLE`, `INTERNAL_ERROR`, `AUTHENTICATION_REQUIRED`, `CHAT_UNAVAILABLE` | Stable machine-readable error code. The frontend switches on this, never on `message`. AURA_UNAVAILABLE is deprecated since 0.2.0: chat now degrades to an evidence-only answer instead. |
+| <a id="errorcode"></a>`ErrorCode` | `VALIDATION_ERROR`, `UNAUTHORIZED`, `FORBIDDEN`, `ROUTE_NOT_FOUND`, `DOCUMENT_NOT_FOUND`, `EXPERIMENT_NOT_FOUND`, `EVIDENCE_NOT_FOUND`, `ANALYSIS_NOT_FOUND`, `ARTIFACT_NOT_FOUND`, `ARTIFACT_NOT_READY`, `PAYLOAD_TOO_LARGE`, `UNSUPPORTED_MEDIA_TYPE`, `IMAGE_INVALID`, `UNKNOWN_EXPERIMENT`, `RATE_LIMITED`, `DATABASE_UNAVAILABLE`, `STORAGE_UNAVAILABLE`, `SEARCH_UNAVAILABLE`, `MODEL_UNAVAILABLE`, `QUEUE_UNAVAILABLE`, `AURA_UNAVAILABLE`, `INTERNAL_ERROR`, `AUTHENTICATION_REQUIRED`, `CHAT_UNAVAILABLE`, `METHOD_NOT_ALLOWED`, `VIDEO_INVALID` | Stable machine-readable error code. The frontend switches on this, never on `message`. AURA_UNAVAILABLE is deprecated since 0.2.0: chat now degrades to an evidence-only answer instead. |
 | <a id="searchresulttype"></a>`SearchResultType` | `document`, `experiment` | document: a matched passage inside a parsed document (carries a page/section locator). experiment: a matched experiment/test record. |
 | <a id="documenttype"></a>`DocumentType` | `technical_report`, `publication`, `test_plan`, `requirements`, `final_report`, `thesis`, `dataset_documentation`, `other` | Document classification assigned at ingestion. |
 | <a id="searchdomain"></a>`SearchDomain` | `combustion`, `all` | combustion (default) excludes non-combustion sources such as FF-PSI-DSI (DAY2_TASKS domain filter rule). all disables that filter. |
 | <a id="retrievalmode"></a>`RetrievalMode` | `lexical`, `hybrid` | lexical: Postgres full-text only (available first). hybrid: lexical + pgvector dense ranks fused. Scores are only comparable within one mode. |
 | <a id="textlayer"></a>`TextLayer` | `full`, `partial`, `none`, `unknown` | Whether the original PDF has an extractable text layer. partial: some pages need OCR (see pages_without_text). |
 | <a id="gravityregime"></a>`GravityRegime` | `microgravity`, `partial_gravity`, `normal_gravity`, `unknown` | Gravity regime as reported by the source; `unknown` when the source does not state it. |
-| <a id="evidencekind"></a>`EvidenceKind` | `document_passage`, `experiment_condition`, `dataset_file`, `image_measurement` | What the evidence points at. |
+| <a id="evidencekind"></a>`EvidenceKind` | `document_passage`, `experiment_condition`, `dataset_file`, `image_measurement`, `video_measurement` | What the evidence points at. |
 | <a id="evidenceorigin"></a>`EvidenceOrigin` | `source_evidence`, `calculated_measurement` | source_evidence: content that exists in an upstream NASA/NIST artefact. calculated_measurement: a deterministic, reproducible computation by a versioned Flame pipeline. Model-generated interpretation and inference are NEVER evidence. |
 | <a id="extractionmethod"></a>`ExtractionMethod` | `verbatim_text`, `ocr`, `table_parse`, `cv_pipeline`, `manual` | How the evidence content was obtained. |
 | <a id="reviewstatus"></a>`ReviewStatus` | `raw`, `machine_extracted`, `human_verified`, `rejected` | Review state (data dictionary: review_status). The UI must visibly distinguish human_verified and must not render rejected evidence as support. |
-| <a id="analysistype"></a>`AnalysisType` | `flame_image` | Only single-image flame analysis exists in v0.1. Video/temporal analysis is Weeks 3–6. |
+| <a id="analysistype"></a>`AnalysisType` | `flame_image`, `flame_video` | flame_image: one PNG/JPEG image. flame_video (0.3.0, ADR-005): an MP4/MOV/AVI video analysed on sampled frames with a temporal summary. |
 | <a id="analysisstatus"></a>`AnalysisStatus` | `queued`, `processing`, `completed`, `failed`, `cancelled` | Terminal states: completed, failed, cancelled. `cancelled` is set only by the server (shutdown/operator); there is no client cancel endpoint in v0.1. |
 | <a id="detectionstatus"></a>`DetectionStatus` | `present`, `absent`, `uncertain` | Whether a flame was detected. |
 | <a id="calibrationstate"></a>`CalibrationState` | `absent`, `spatial_scale_provided` | absent: measurements are pixels only. spatial_scale_provided: caller supplied px-per-mm, enabling ESTIMATED physical lengths/areas. No radiometric calibration state exists in v0.1, so temperature is never produced. |
@@ -845,7 +907,7 @@ multipart/form-data body for POST /api/analyses.
 | <a id="interpretationstatus"></a>`InterpretationStatus` | `not_requested`, `pending`, `completed`, `unavailable`, `failed` | unavailable: AURA disabled or unreachable; the analysis itself still completes. |
 | <a id="artifactkind"></a>`ArtifactKind` | `original`, `preprocessed`, `mask`, `overlay` | original: the uploaded bytes, immutable. preprocessed: oriented/colour-converted input to the model. mask: binary flame mask (PNG, original resolution). overlay: original with mask contour drawn (PNG). |
 | <a id="warningcode"></a>`WarningCode` | `SCALE_CALIBRATION_ABSENT`, `RADIOMETRIC_CALIBRATION_ABSENT`, `TEMPERATURE_NOT_AVAILABLE`, `EXIF_ORIENTATION_APPLIED`, `COLOR_CONVERTED_TO_RGB`, `LOW_DETECTION_CONFIDENCE`, `MULTIPLE_FLAMES`, `SATURATION_CLIPPING`, `BLUR_DETECTED`, `LOW_LIGHT`, `OCCLUSION`, `QUALITY_CHECK_NOT_IMPLEMENTED`, `INTERPRETATION_UNAVAILABLE`, `INTERPRETATION_STATEMENTS_REJECTED` | Stable warning code. |
-| <a id="analysisfailurecode"></a>`AnalysisFailureCode` | `IMAGE_DECODE_FAILED`, `MODEL_UNAVAILABLE`, `PIPELINE_ERROR`, `TIMEOUT`, `CANCELLED` | Why a job ended in failed/cancelled. A no-flame image is NOT a failure: it completes with detection.status = absent. |
+| <a id="analysisfailurecode"></a>`AnalysisFailureCode` | `IMAGE_DECODE_FAILED`, `MODEL_UNAVAILABLE`, `PIPELINE_ERROR`, `TIMEOUT`, `CANCELLED`, `VIDEO_DECODE_FAILED` | Why a job ended in failed/cancelled. A no-flame image is NOT a failure: it completes with detection.status = absent. |
 | <a id="claimclass"></a>`ClaimClass` | `observed`, `measured`, `estimated`, `inferred`, `hypothesized`, `unsupported` | Scientific interpretation label (MVP plan §10). cv_pipeline statements are observed/measured/estimated only; aura_interpretation statements are inferred/hypothesized/unsupported only. |
 | <a id="statementorigin"></a>`StatementOrigin` | `cv_pipeline`, `aura_interpretation`, `model_interpretation` | cv_pipeline: deterministic template text generated from measurements. aura_interpretation: model-generated text, validated by Flame before storage. model_interpretation: the same, written by a non-AURA model chosen by Flame's router. |
 | <a id="measurementclass"></a>`MeasurementClass` | `measured`, `estimated` | measured: computed from validated pixels with a stated method and pixel units. estimated: depends on an assumption/calibration (e.g. caller-supplied scale) and carries uncertainty. |

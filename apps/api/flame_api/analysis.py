@@ -1,10 +1,13 @@
 import hashlib
 import io
 import math
+import tempfile
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, Header, Path as ApiPath, Request, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse, Response
 from redis import Redis
 from rq import Queue
@@ -17,11 +20,14 @@ from flame_api.contracts import error_body, response_meta
 from flame_api.database import get_session
 from flame_api.ids import new_ulid
 from flame_api.models import AnalysisRecord, ExperimentRecord, FileRecord
-from flame_api.storage import client as storage_client, put_bytes
+from flame_api.storage import client as storage_client, put_bytes, put_file
 
 router = APIRouter(tags=["Analysis"])
 settings = get_settings()
 ULID_PATTERN = r"^[0-9A-HJKMNP-TV-Z]{26}$"
+DEFAULT_SAMPLE_EVERY = 30   # one frame per second at 30 fps
+DEFAULT_MAX_FRAMES = 300
+_UPLOAD_CHUNK = 1024 * 1024
 
 
 def _error(request: Request, status: int, code: str, message: str, *, details=None, retryable=False):
@@ -46,7 +52,10 @@ def _analysis_response(record: AnalysisRecord, request: Request):
 @router.post("/api/analyses", status_code=202)
 async def create_analysis(
     request: Request,
-    image: UploadFile = File(...),
+    image: UploadFile | None = File(None),
+    video: UploadFile | None = File(None),
+    sample_every_n_frames: int | None = Form(None, ge=1, le=10_000),
+    max_frames: int | None = Form(None, ge=1),
     experiment_id: str | None = Form(None),
     source_file_id: str | None = Form(None),
     frame_index: int | None = Form(None, ge=0),
@@ -57,8 +66,12 @@ async def create_analysis(
     idempotency_key: str | None = Header(None, alias="Idempotency-Key", min_length=8, max_length=128),
     session: Session = Depends(get_session),
 ):
+    if (image is None) == (video is None):
+        return _error(request, 400, "VALIDATION_ERROR", "Send exactly one of `image` or `video`.")
     if (scale_px_per_mm is None) != (scale_source is None):
         return _error(request, 400, "VALIDATION_ERROR", "scale_px_per_mm and scale_source must be provided together.")
+    if video is None and (sample_every_n_frames is not None or max_frames is not None):
+        return _error(request, 400, "VALIDATION_ERROR", "sample_every_n_frames and max_frames apply to video uploads only.")
     if idempotency_key:
         existing = session.query(AnalysisRecord).filter_by(idempotency_key=idempotency_key).one_or_none()
         if existing:
@@ -67,6 +80,13 @@ async def create_analysis(
         return _error(request, 422, "UNKNOWN_EXPERIMENT", "Experiment was not found.", details={"resource_id": experiment_id})
     if source_file_id and session.get(FileRecord, source_file_id) is None:
         return _error(request, 422, "VALIDATION_ERROR", "Source file was not found.")
+    if video is not None:
+        return await _create_video_analysis(
+            request, session, video, experiment_id=experiment_id, source_file_id=source_file_id,
+            sample_every=sample_every_n_frames or DEFAULT_SAMPLE_EVERY, max_frames=max_frames or DEFAULT_MAX_FRAMES,
+            scale_given=scale_px_per_mm is not None, request_interpretation=request_interpretation, notes=notes,
+            idempotency_key=idempotency_key,
+        )
 
     content = await image.read(settings.max_upload_bytes + 1)
     if len(content) > settings.max_upload_bytes:
@@ -156,6 +176,140 @@ async def create_analysis(
         payload=payload,
         artifacts={"original": {**original_artifact, "object_key": original_key}},
     )
+    return _store_and_enqueue(request, session, record, payload, original_key, "flame_api.worker.process_analysis")
+
+
+_VIDEO_MEDIA = {"mp4": "video/mp4", "mov": "video/quicktime", "avi": "video/x-msvideo"}
+
+
+def _sniff_video(head: bytes) -> str | None:
+    """Container from the leading bytes (ISO-BMFF `ftyp` box or RIFF/AVI), never from the filename."""
+    if head[4:8] == b"ftyp":
+        return "mov" if head[8:12] == b"qt  " else "mp4"
+    if head[:4] == b"RIFF" and head[8:12] == b"AVI ":
+        return "avi"
+    return None
+
+
+async def _spool(upload: UploadFile, target: Path, limit: int) -> int | None:
+    """Copy the upload to disk in chunks; None when it exceeds ``limit`` (nothing is kept in memory)."""
+    size = 0
+    with open(target, "wb") as out:
+        while chunk := await upload.read(_UPLOAD_CHUNK):
+            size += len(chunk)
+            if size > limit:
+                return None
+            out.write(chunk)
+    return size
+
+
+def _probe(path: Path):
+    from cv.video_ingestion import VideoConfig, probe_video
+
+    return probe_video(path, VideoConfig(max_bytes=settings.max_video_upload_bytes))
+
+
+async def _create_video_analysis(request: Request, session: Session, video: UploadFile, *, experiment_id, source_file_id,
+                                 sample_every: int, max_frames: int, scale_given: bool, request_interpretation: bool,
+                                 notes, idempotency_key):
+    if scale_given:
+        # The video pipeline reports pixel measurements only; accepting a scale would imply physical output.
+        return _error(request, 400, "VALIDATION_ERROR", "Spatial calibration is not supported for video analyses yet.")
+    if max_frames > settings.max_video_frames:
+        return _error(request, 400, "VALIDATION_ERROR", f"max_frames must be at most {settings.max_video_frames}.")
+    with tempfile.TemporaryDirectory(prefix="flame-video-upload-") as working:
+        spooled = Path(working) / "upload.bin"
+        size = await _spool(video, spooled, settings.max_video_upload_bytes)
+        if size is None:
+            return _error(request, 413, "PAYLOAD_TOO_LARGE", "Video exceeds the upload limit.",
+                          details={"limit_bytes": settings.max_video_upload_bytes})
+        with open(spooled, "rb") as handle:
+            container = _sniff_video(handle.read(16))
+        if container is None:
+            return _error(request, 415, "UNSUPPORTED_MEDIA_TYPE", "Only MP4, MOV and AVI videos are accepted.",
+                          details={"allowed_media_types": sorted(_VIDEO_MEDIA.values())})
+        path = spooled.rename(spooled.with_suffix(f".{container}"))
+        try:
+            from cv.flame_cv import CVError
+        except ImportError:
+            return _error(request, 503, "MODEL_UNAVAILABLE", "The video pipeline is not installed on this server.", retryable=True)
+        try:
+            record = await run_in_threadpool(_probe, path)
+        except CVError as exc:
+            status = {"UNSUPPORTED_MEDIA_TYPE": 415, "VIDEO_TOO_LONG": 413, "FILE_TOO_LARGE": 413}.get(exc.code, 422)
+            code = "UNSUPPORTED_MEDIA_TYPE" if status == 415 else "PAYLOAD_TOO_LARGE" if status == 413 else "VIDEO_INVALID"
+            return _error(request, status, code, exc.message)
+        checksum = record["checksum"].removeprefix("sha256:")
+        media_type = _VIDEO_MEDIA[container]
+        width, height = record["resolution"]
+        analysis_id = new_ulid()
+        now = datetime.now(UTC)
+        original_key = f"analyses/{analysis_id}/original.{container}"
+        try:
+            put_file(original_key, str(path), media_type)
+        except Exception:
+            return _error(request, 503, "STORAGE_UNAVAILABLE", "Video storage is unavailable.", retryable=True)
+
+    filename = video.filename or f"upload.{container}"
+    input_payload = {
+        "image_sha256": checksum,
+        "original_filename": filename,
+        "media_type": media_type,
+        "size_bytes": size,
+        "width": width,
+        "height": height,
+        "experiment_id": experiment_id,
+        "source_file_id": source_file_id,
+        "frame_index": None,
+        "calibration": {"state": "absent", "scale_px_per_mm": None, "scale_source": None},
+        "notes": notes,
+        "video": {
+            "container": container,
+            "codec": record["codec"],
+            "fps": record["fps"],
+            "frame_count": record["frameCount"],
+            "duration_seconds": record["durationSeconds"],
+            "variable_frame_rate": record["timestamps"]["variableFrameRate"],
+            "sample_every_n_frames": sample_every,
+            "max_frames": max_frames,
+        },
+    }
+    original_artifact = {"kind": "original", "url": f"/api/analyses/{analysis_id}/artifacts/original", "media_type": media_type,
+                         "sha256": checksum, "width": width, "height": height, "size_bytes": size}
+    warnings = []
+    if request_interpretation:
+        warnings.append({"code": "INTERPRETATION_UNAVAILABLE", "severity": "info",
+                         "message": "Model interpretation is not available for video analyses yet; measurements only."})
+    payload = {
+        "analysis_id": analysis_id,
+        "analysis_type": "flame_video",
+        "status": "queued",
+        "created_at": _utc(now),
+        "updated_at": _utc(now),
+        "started_at": None,
+        "completed_at": None,
+        "input": input_payload,
+        "pipeline": None,
+        "result": None,
+        "interpretation": {"status": "unavailable" if request_interpretation else "not_requested", "provider": None, "model": None,
+                           "statements": [], "rejected_statement_count": 0, "generated_at": None},
+        "artifacts": [original_artifact],
+        "warnings": warnings,
+        "failure": None,
+        "poll_after_ms": 2000,
+    }
+    record_row = AnalysisRecord(
+        analysis_id=analysis_id, status="queued", created_at=now, updated_at=now, experiment_id=experiment_id,
+        image_sha256=checksum, original_filename=filename, idempotency_key=idempotency_key, payload=payload,
+        artifacts={"original": {**original_artifact, "object_key": original_key}},
+    )
+    return _store_and_enqueue(request, session, record_row, payload, original_key, "flame_api.worker.process_video_analysis",
+                              job_timeout=settings.video_job_timeout_s)
+
+
+def _store_and_enqueue(request: Request, session: Session, record: AnalysisRecord, payload: dict, original_key: str,
+                       job: str, *, job_timeout: int | None = None):
+    analysis_id = record.analysis_id
     try:
         session.add(record)
         session.commit()
@@ -168,7 +322,8 @@ async def create_analysis(
         return _error(request, 503, "DATABASE_UNAVAILABLE", "Analysis could not be stored.", retryable=True)
     try:
         queue = Queue("flame-analysis", connection=Redis.from_url(settings.redis_url, socket_connect_timeout=1, socket_timeout=2))
-        queue.enqueue("flame_api.worker.process_analysis", analysis_id, job_id=analysis_id, result_ttl=86400, failure_ttl=604800)
+        options = {"job_timeout": job_timeout} if job_timeout else {}
+        queue.enqueue(job, analysis_id, job_id=analysis_id, result_ttl=86400, failure_ttl=604800, **options)
     except Exception:
         record.status = "failed"
         record.updated_at = datetime.now(UTC)
@@ -218,7 +373,7 @@ def list_analyses(
         area = geometry.get("area") or {}
         items.append({
             "analysis_id": record.analysis_id,
-            "analysis_type": "flame_image",
+            "analysis_type": detail.get("analysis_type", "flame_image"),
             "status": record.status,
             "created_at": _utc(record.created_at),
             "completed_at": _utc(record.completed_at),

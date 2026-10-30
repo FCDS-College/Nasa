@@ -42,6 +42,10 @@ class Settings(BaseSettings):
     s3_bucket: str = "flame-artifacts"
     max_upload_bytes: int = Field(default=10 * 1024 * 1024, gt=0)
     max_image_pixels: int = Field(default=50_000_000, gt=0)
+    # Video analyses (analysis_type flame_video, ADR-005). The CV pipeline itself caps 500 MiB / 600 s.
+    max_video_upload_bytes: int = Field(default=200 * 1024 * 1024, gt=0, le=500 * 1024 * 1024)
+    max_video_frames: int = Field(default=600, ge=1, le=5000)
+    video_job_timeout_s: int = Field(default=3600, ge=60, le=6 * 3600)
     api_auth_enabled: bool = True
     read_api_token: SecretStr | None = None
     write_api_token: SecretStr | None = None
