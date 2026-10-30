@@ -32,7 +32,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: anasibrahimgnedy-collab/AURA-AI
-          ref: c10fd13b4a2b9e245a407a2db4a6bc1d113fe959  # AURA main with PR #166 (x-aura-exclude)
+          ref: d696fadae608f2b07ad6ae23ef1f5174eacc157b  # AURA main with PR #200 (Flame A1–A4; includes #166 x-aura-exclude)
           path: aura-source
           token: ${{ secrets.AURA_REPO_TOKEN }}
       - name: Install dry-run dependency

@@ -48,11 +48,11 @@ Verified against the intended boundary (*AURA → Flame API → scientific platf
 | # | Side | Defect | Impact | Status |
 |---|---|---|---|---|
 | I1 | Flame (Link 1) | AURA answers **422 `output_invalid`** when its model fails the `response_schema`. Flame mapped every 422 to `INVALID_REQUEST`, which the router never falls back from (`ai/providers/http.py`). | A schema miss by AURA's model stopped routing instead of falling back to the local model | **Fixed**: `output_invalid` → `INVALID_OUTPUT` (fallback-eligible). FastAPI 422s stay `INVALID_REQUEST`. Test: `test_aura_schema_failure_is_fallback_eligible`. |
-| I2 | Flame and AURA (Link 1) | AURA stores and **replays any <500 response for 24 h** per Idempotency-Key, including turn failures returned as 400/422/429, and returns 422 `idempotency_key_reused` for the same key with a different body (`api/idempotency.py:145-151`). Flame used the bare `analysis_id`/`request_id` as the key. | Re-interpreting an analysis with new evidence failed for 24 h; a cached 429 was replayed | **Fixed on Flame's side**: key = `<id>:<sha256(body)[:16]>`. Exact retries are still deduplicated; a changed body is a new request. Test: `test_idempotency_key_changes_with_the_body_and_context_is_capped`. **AURA-side change still recommended** (§5, A1). |
+| I2 | Flame and AURA (Link 1) | AURA stores and **replays any <500 response for 24 h** per Idempotency-Key, including turn failures returned as 400/422/429, and returns 422 `idempotency_key_reused` for the same key with a different body (`api/idempotency.py:145-151`). Flame used the bare `analysis_id`/`request_id` as the key. | Re-interpreting an analysis with new evidence failed for 24 h; a cached 429 was replayed | **Fixed on Flame's side**: key = `<id>:<sha256(body)[:16]>`. Exact retries are still deduplicated; a changed body is a new request. Test: `test_idempotency_key_changes_with_the_body_and_context_is_capped`. AURA side fixed in AURA-AI #200 (A1): a returned 429 or `retryable: true` answer is no longer stored. |
 | I3 | Flame (Link 1) | AURA rejects `context[].text` over 2000 chars with 422 (`ContextEntry`). Flame did not cap it in the provider. | Possible hard failure, no fallback | **Fixed**: the provider caps text at 2000 (`MAX_CONTEXT_TEXT`). The worker's measurement summary was already ≤ 2000 (existing test). |
-| I4 | Both | Three AURA error body shapes (`{error,…}`, `{"detail":{…}}`, FastAPI `{"detail":[…]}`) | Flame branches on status code, so nothing breaks; logging only parses one shape | Open. AURA A2. |
-| I5 | AURA | `/health/ready` is 200 when **any** provider is healthy, but Flame sends `require_local: true` by default. If no AURA provider is marked local, every call is a 503 `all_providers_failed` while health says "up". | Flame's health shows AURA "up", but every call falls back | Open. Mitigated: Flame falls back on 503. AURA A3, or set `FLAME_AURA_REQUIRE_LOCAL=false` where AURA's model is remote by design. |
-| I6 | AURA docs | `docs/guides/flame-integration-runbook.md:47` says "all 8 tools"; there are 10. Line 38 suggests serving Flame's read API anonymously; Flame requires a bearer token, and AURA sends credentials only over https. | Misconfiguration risk | Open. AURA A4. |
+| I4 | Both | Three AURA error body shapes (`{error,…}`, `{"detail":{…}}`, FastAPI `{"detail":[…]}`) | Flame branches on status code, so nothing breaks; logging only parses one shape | **Fixed in AURA-AI #200** (A2): dependency-raised errors carry the top-level envelope plus a `detail` copy. FastAPI body-validation 422s keep their own shape. |
+| I5 | AURA | `/health/ready` is 200 when **any** provider is healthy, but Flame sends `require_local: true` by default. If no AURA provider is marked local, every call is a 503 `all_providers_failed` while health says "up". | Flame's health shows AURA "up", but every call falls back | **Reported in AURA-AI #200** (A3): `/health/ready` has `providers.*.is_local` and `local_healthy`. Flame's AURA health probe does not read it yet. Where AURA has no local provider, set `FLAME_AURA_REQUIRE_LOCAL=false`. |
+| I6 | AURA docs | `docs/guides/flame-integration-runbook.md:47` says "all 8 tools"; there are 10. Line 38 suggests serving Flame's read API anonymously; Flame requires a bearer token, and AURA sends credentials only over https. | Misconfiguration risk | **Fixed in AURA-AI #200** (A4) |
 | I7 | Flame | `meta.api_version` said 0.1.0 while the contract was 0.2.0 | AURA could not tell which contract it was talking to | **Fixed**: 0.3.0, pinned to `info.version` by a test |
 | I8 | Flame | 405 returned `INTERNAL_ERROR` | Misleading error for a client bug | **Fixed**: `METHOD_NOT_ALLOWED` |
 
@@ -65,15 +65,17 @@ Verified by reading `v3.py:202-247,430-618` against `aura.py`:
 - **Timestamps.** No timestamps cross Link 1. Link 2 timestamps are RFC 3339 UTC with `Z` (`_timestamp`/`_utc`). One exception: `GET /api/documents/{id}` formats `ingested_at` without normalizing a naive datetime (`main.py:816`). Postgres returns aware values, so it is correct on the supported database.
 - **Timeouts.** AURA's per-call LLM timeout is 60 s; Flame waits up to `FLAME_AURA_TIMEOUT_S` (120 s). Compatible.
 
-## 5. Required AURA-side changes (not made here; AURA was inspected read-only)
+## 5. AURA-side changes
 
-| ID | Change | Why |
-|---|---|---|
-| A1 | Do not store retryable outcomes (409/429/503) or `output_invalid` in the idempotency cache | Prevents replaying transient failures for 24 h (I2). Flame's body-hash key already avoids the `idempotency_key_reused` case. |
-| A2 | One error envelope for dependency-raised errors (auth, rate limit) | Consistent client handling (I4) |
-| A3 | Readiness that reflects `require_local`: e.g. `providers.local_healthy` in `/health/ready` | Health should predict whether Flame's call can succeed (I5) |
-| A4 | Fix the runbook: 10 tools; Flame requires a bearer read token | I6 |
-| A5 | Bump the pinned revision in Flame's `aura-link2-contract.yml` from `c10fd13` once A1–A4 land, and re-run the dry run | The pin predates PR #166+; HEAD `6417c43` passes the dry run against contract 0.3.0 |
+A1–A4 merged in AURA-AI #200 (`d696fad`); A5 done 2026-10-30.
+
+| ID | Change | Why | Status |
+|---|---|---|---|
+| A1 | Do not store retryable outcomes (409/429/503) or `output_invalid` in the idempotency cache | Prevents replaying transient failures for 24 h (I2). Flame's body-hash key already avoids the `idempotency_key_reused` case. | Done. As built, only a 429 or `retryable: true` answer is released; `output_invalid` stays stored because a turn that ran tools must not run twice, and Flame falls back on it anyway (I1). |
+| A2 | One error envelope for dependency-raised errors (auth, rate limit) | Consistent client handling (I4) | Done |
+| A3 | Readiness that reflects `require_local`: e.g. `providers.local_healthy` in `/health/ready` | Health should predict whether Flame's call can succeed (I5) | Done (as top-level `local_healthy`) |
+| A4 | Fix the runbook: 10 tools; Flame requires a bearer read token | I6 | Done |
+| A5 | Bump the pinned revision in Flame's `aura-link2-contract.yml` from `c10fd13` once A1–A4 land, and re-run the dry run | The pin predates PR #166+ | Done: pinned to `d696fad`; dry run: 10 tools ACCEPTED, 3 excluded, exit 0 |
 
 ## 6. Integration test results
 
