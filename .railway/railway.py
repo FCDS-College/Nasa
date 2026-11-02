@@ -98,7 +98,8 @@ def main(ctx=None):
         replicas={"sfo": 1},
         env=existing_worker_variables,
         build={"builder": "DOCKERFILE", "dockerfilePath": "apps/api/Dockerfile"},
-        start='sh -c \'exec rq worker --url "$FLAME_REDIS_URL" flame-analysis\'',
+        # P2-4: re-queue analyses a dead worker left in `processing` before serving the queue.
+        start='sh -c \'python -m flame_api.worker recover || true; exec rq worker --url "$FLAME_REDIS_URL" flame-analysis\'',
     )
 
     return project(

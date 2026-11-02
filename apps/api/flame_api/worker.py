@@ -8,6 +8,9 @@ from pathlib import Path
 
 import numpy as np
 from PIL import Image, ImageOps
+from redis import Redis
+from rq import Queue
+from sqlalchemy import update
 
 from flame_api.config import get_settings
 from flame_api.database import SessionLocal
@@ -105,7 +108,8 @@ def process_analysis(analysis_id: str) -> None:
                 "completed_at": now.isoformat().replace("+00:00", "Z"),
                 "pipeline": {**result["pipeline"], "execution": cv_execution},
                 "result": result["result"],
-                "warnings": result["warnings"],
+                # Keep the recovery history (P2-4) so a re-run analysis says it was re-queued.
+                "warnings": [*_recovery_warnings(record.payload), *result["warnings"]],
                 "artifacts": [{key: value for key, value in item.items() if key != "object_key"} for item in artifacts.values()],
                 "poll_after_ms": None,
             }
@@ -719,3 +723,141 @@ def _adapt_result(legacy, input_data, work):
         "measurement_space": "original_oriented_px",
     }
     return {"pipeline": pipeline, "result": result, "warnings": warnings}
+
+
+# ----------------------------------------------------------------------------- stuck-job recovery (P2-4)
+# A worker killed mid-job (OOM, SIGKILL, host restart) loses its RQ job but leaves the row `processing`,
+# and `process_*` only start from `queued`. `recover` resets such rows to `queued` and re-enqueues them.
+
+QUEUE_NAME = "flame-analysis"
+RQ_DEFAULT_TIMEOUT_S = Queue.DEFAULT_TIMEOUT   # image jobs are enqueued without job_timeout (180 s)
+RECOVERY_GRACE_S = 60          # on top of the job timeout: RQ needs a moment to kill a timed-out horse
+QUEUED_GRACE_S = 60            # a row is committed just before its job is enqueued (analysis._store_and_enqueue)
+MAX_RECOVERY_ATTEMPTS = 3
+RECOVERY_WARNING = "JOB_RECOVERED"
+_LIVE_JOB_STATES = {"queued", "started", "deferred", "scheduled"}
+_JOBS = {"flame_image": "flame_api.worker.process_analysis", "flame_video": "flame_api.worker.process_video_analysis"}
+
+
+def _job_timeout(analysis_type: str) -> int | None:
+    return settings.video_job_timeout_s if analysis_type == "flame_video" else None
+
+
+def _aware(value: datetime) -> datetime:
+    return value if value.tzinfo else value.replace(tzinfo=UTC)   # SQLite returns naive UTC
+
+
+def _recovery_warnings(payload: dict) -> list[dict]:
+    return [item for item in payload.get("warnings", []) if item.get("code") == RECOVERY_WARNING]
+
+
+def _queue() -> Queue:
+    connection = Redis.from_url(settings.redis_url, socket_connect_timeout=2, socket_timeout=5)
+    connection.ping()   # fail before touching any row when Redis is down
+    return Queue(QUEUE_NAME, connection=connection)
+
+
+def _has_live_job(queue: Queue, analysis_id: str) -> bool:
+    job = queue.fetch_job(analysis_id)   # job_id == analysis_id
+    if job is None:
+        return False
+    status = job.get_status(refresh=False)
+    return getattr(status, "value", status) in _LIVE_JOB_STATES
+
+
+def recover(*, older_than: int | None = None, queue: Queue | None = None, now: datetime | None = None) -> dict:
+    """Re-queue analyses stuck in `processing` (or `queued` without an RQ job); fail them after the cap.
+
+    Safe to run concurrently and repeatedly: each row is claimed with an UPDATE conditioned on the
+    status and updated_at that were read, so only one recoverer acts on it and a re-run finds nothing.
+    """
+    queue = queue or _queue()
+    now = now or _now()
+
+    def threshold(status: str, analysis_type: str) -> int:
+        if older_than is not None:
+            return older_than
+        if status == "queued":
+            return QUEUED_GRACE_S
+        return (_job_timeout(analysis_type) or RQ_DEFAULT_TIMEOUT_S) + RECOVERY_GRACE_S
+
+    counts = {"requeued": 0, "failed": 0, "skipped": 0}
+    session = SessionLocal()
+    try:
+        oldest = min(threshold("queued", "flame_image"), threshold("processing", "flame_image"))
+        cutoff = now.timestamp() - oldest
+        candidates = [
+            (row.analysis_id, row.status, row.updated_at, dict(row.payload))
+            for row in session.query(AnalysisRecord).filter(AnalysisRecord.status.in_(("queued", "processing"))).all()
+            if _aware(row.updated_at).timestamp() <= cutoff
+        ]
+        for analysis_id, status, updated_at, payload in candidates:
+            analysis_type = payload.get("analysis_type", "flame_image")
+            age = now.timestamp() - _aware(updated_at).timestamp()
+            if analysis_type not in _JOBS or age < threshold(status, analysis_type) or (
+                status == "queued" and _has_live_job(queue, analysis_id)
+            ):
+                counts["skipped"] += 1
+                continue
+            attempts = len(_recovery_warnings(payload))
+            stamp = _iso(now)
+            if attempts >= MAX_RECOVERY_ATTEMPTS:
+                values = {"status": "failed", "updated_at": now, "completed_at": now, "payload": {
+                    **payload, "status": "failed", "updated_at": stamp, "completed_at": stamp, "poll_after_ms": None,
+                    "failure": {"code": "PIPELINE_ERROR", "retryable": False,
+                                "message": f"Analysis did not complete after {attempts} automatic re-queues."},
+                }}
+            else:
+                values = {"status": "queued", "updated_at": now, "payload": {
+                    **payload, "status": "queued", "updated_at": stamp, "started_at": None,
+                    "poll_after_ms": 2000 if analysis_type == "flame_video" else 1000,
+                    "warnings": [*payload.get("warnings", []), {
+                        "code": RECOVERY_WARNING, "severity": "info",
+                        "message": f"The job was interrupted while {status} and was re-queued automatically "
+                                   f"(attempt {attempts + 1} of {MAX_RECOVERY_ATTEMPTS}).",
+                    }],
+                }}
+            claimed = session.execute(
+                update(AnalysisRecord)
+                .where(AnalysisRecord.analysis_id == analysis_id, AnalysisRecord.status == status,
+                       AnalysisRecord.updated_at == updated_at)
+                .values(**values)
+            ).rowcount
+            session.commit()
+            if claimed != 1:   # another recoverer (or the worker) changed the row first
+                counts["skipped"] += 1
+                continue
+            if values["status"] == "failed":
+                logger.warning("analysis_id=%s recovery=failed attempts=%s", analysis_id, attempts)
+                counts["failed"] += 1
+                continue
+            timeout = _job_timeout(analysis_type)
+            # Same options as analysis._store_and_enqueue. If this raises, the row is `queued` without a
+            # job, which the next `recover` run picks up after QUEUED_GRACE_S.
+            queue.enqueue(_JOBS[analysis_type], analysis_id, job_id=analysis_id, result_ttl=86400, failure_ttl=604800,
+                          **({"job_timeout": timeout} if timeout else {}))
+            logger.warning("analysis_id=%s recovery=requeued from=%s attempt=%s", analysis_id, status, attempts + 1)
+            counts["requeued"] += 1
+    finally:
+        session.close()
+    return counts
+
+
+def main(argv: list[str]) -> int:
+    import argparse
+
+    logging.basicConfig(level=logging.INFO)
+    parser = argparse.ArgumentParser(prog="python -m flame_api.worker")
+    commands = parser.add_subparsers(dest="command", required=True)
+    recover_cmd = commands.add_parser("recover", help="Re-queue analyses left in processing by a dead worker.")
+    recover_cmd.add_argument("--older-than", type=int, metavar="SECONDS", default=None,
+                             help="Age threshold for every stuck row (default: job timeout + 60 s; 60 s for queued rows).")
+    args = parser.parse_args(argv)
+    if args.older_than is not None and args.older_than < 0:
+        parser.error("--older-than must be >= 0")
+    print(json.dumps(recover(older_than=args.older_than)))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

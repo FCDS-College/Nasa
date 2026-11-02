@@ -2296,6 +2296,8 @@
                     "summary": "ILLUSTRATIVE values.",
                     "value": {
                       "mode": "local_first",
+                      "mode_source": "env",
+                      "env_mode": "local_first",
                       "providers": [
                         {
                           "name": "ollama",
@@ -4881,7 +4883,8 @@
           "OCCLUSION",
           "QUALITY_CHECK_NOT_IMPLEMENTED",
           "INTERPRETATION_UNAVAILABLE",
-          "INTERPRETATION_STATEMENTS_REJECTED"
+          "INTERPRETATION_STATEMENTS_REJECTED",
+          "JOB_RECOVERED"
         ],
         "description": "Stable warning code."
       },
@@ -5542,6 +5545,13 @@
           "mode": {
             "$ref": "#/components/schemas/ExecutionMode"
           },
+          "mode_source": {
+            "$ref": "#/components/schemas/AiModeSource"
+          },
+          "env_mode": {
+            "$ref": "#/components/schemas/ExecutionMode",
+            "description": "FLAME_AI_EXECUTION_MODE as configured; can differ from `mode` only under an audit override."
+          },
           "providers": {
             "type": "array",
             "items": {
@@ -5562,6 +5572,13 @@
         "properties": {
           "mode": {
             "$ref": "#/components/schemas/ExecutionMode"
+          },
+          "mode_source": {
+            "$ref": "#/components/schemas/AiModeSource"
+          },
+          "env_mode": {
+            "$ref": "#/components/schemas/ExecutionMode",
+            "description": "FLAME_AI_EXECUTION_MODE as configured; can differ from `mode` only under an audit override."
           },
           "providers": {
             "type": "array",
@@ -6236,6 +6253,14 @@
           }
         },
         "description": "Result of a flame_video analysis (0.3.0). Pixel units only; no temperature."
+      },
+      "AiModeSource": {
+        "type": "string",
+        "enum": [
+          "env",
+          "audit_override"
+        ],
+        "description": "Where the effective `mode` comes from: `env` is FLAME_AI_EXECUTION_MODE; `audit_override` is the newest `ai.mode.changed` audit event (PUT /api/admin/ai/mode), which wins over env in every process until the next PUT. There is no clear operation yet."
       }
     },
     "parameters": {

@@ -33,8 +33,13 @@
 - Ingestion: quarantine and `ingestion_run` rows with `transformation_id = "quarantine"` (E2-2).
 
 ## 5. Restart behaviour (2H scenario S9)
-- **Image job:** if the worker dies mid-job, the RQ job is lost, but the row stays `processing`. The recovery is to resubmit (same idempotency key); a stale-`processing` sweeper is planned with video.
-- **Video job (planned):** checkpoint per processed segment into `analysis_result.payload.progress`, then resume from the last checkpoint.
+- **Stuck-job recovery (P2-4).** If the worker dies mid-job, the RQ job is lost but the row stays `processing`, and `process_*` only start from `queued`. `python -m flame_api.worker recover [--older-than SECONDS]` (run by the worker's start command in Compose and `.railway/railway.py`) handles this:
+  - it finds `processing` rows older than the job timeout + 60 s (image: RQ's default 180 s; video: `FLAME_VIDEO_JOB_TIMEOUT_S`), and `queued` rows older than 60 s with no live RQ job;
+  - it resets each to `queued`, appends a `JOB_RECOVERED` warning (the attempt counter is the number of these warnings), and re-enqueues the same job function with the same timeout;
+  - after 3 re-queues it marks the row `failed` with `PIPELINE_ERROR`, `retryable: false`.
+  - Each row is claimed with `UPDATE … WHERE status = :read AND updated_at = :read`, so concurrent recoverers act on it once, and a re-run is a no-op.
+  - It runs once at worker start only: a worker that restarts within the timeout leaves the row for the next run (see RUNBOOK §7).
+- **Video resume does not happen today.** The checkpoint (`frames.jsonl`) is written under a fresh `tempfile.TemporaryDirectory` per run, which is deleted on exit, so a re-queued video job starts from frame 0. Resuming would need a stable per-analysis work directory on a persistent volume.
 - **Ingestion and index build** are resumable by construction: stable IDs and `merge`, and "embed only missing".
 
 ## 6. Admin "System Operations" module (Belal, B9)
@@ -46,7 +51,8 @@ The module shows:
 - provider health and circuits: `GET /api/ai/providers`.
 
 ## Known limitations
-No cancellation, no sweeper for stale `processing` rows, no explicit RQ timeouts.
+No cancellation. Recovery runs at worker start (or by hand), not on a schedule. Video jobs restart from scratch after recovery.
 
 ## Changelog
+- Unreleased (P2-4): stuck-job recovery (`worker recover`), and a note that video jobs do not resume.
 - 1.0.0 (2026-10-12): documents the MVP job system plus the Phase 2 router integration.

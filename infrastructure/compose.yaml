@@ -152,7 +152,8 @@ services:
     depends_on:
       api:
         condition: service_healthy
-    command: ["rq", "worker", "--url", "redis://redis:6379/0", "flame-analysis"]
+    # P2-4: re-queue analyses a dead worker left in `processing` (idempotent; safe with several workers).
+    command: ["sh", "-c", "python -m flame_api.worker recover || echo 'stuck-job recovery failed; starting the worker anyway'; exec rq worker --url redis://redis:6379/0 flame-analysis"]
     restart: unless-stopped
 
   # Local LLM runtime (2H Task 4). Opt in with `COMPOSE_PROFILES=local-llm` and
