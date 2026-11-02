@@ -100,6 +100,9 @@ class ExperimentRecord(Base):
     table_file_id: Mapped[str | None] = mapped_column(ForeignKey("file_record.file_id"), nullable=True)
     searchable_text: Mapped[str] = mapped_column(Text, default="")
     payload: Mapped[dict[str, Any]] = mapped_column(JsonType, default=dict)
+    # When ingest.py last wrote this row (migration 0006). Nullable only for rows that predate it and
+    # had no ingestion run or table file to backfill from.
+    ingested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     source: Mapped[SourceRecord] = relationship()
     table_file: Mapped[FileRecord | None] = relationship(foreign_keys=[table_file_id])
     conditions: Mapped[list[ExperimentCondition]] = relationship(back_populates="experiment", cascade="all, delete-orphan")

@@ -62,8 +62,11 @@ def test_api_docs_and_openapi_metadata_are_public(client):
 
 def test_search_excludes_dsi_by_default_and_returns_contract_experiment_shape(client, session_factory):
 
+    from datetime import UTC, datetime
+
     from flame_api.models import ExperimentRecord, SourceRecord
 
+    ingested_at = datetime(2026, 10, 1, 12, 0, tzinfo=UTC)
     with session_factory() as session:
         session.add_all([
             SourceRecord(source_id="FF-PSI-25", title="BASS-II", short_name="BASS-II", repository="NASA PSI", persistent_identifier="doi:10.60555/4qc4-de67", license="CC0-1.0", access_url="https://psi.nasa.gov/", domain="combustion"),
@@ -71,8 +74,8 @@ def test_search_excludes_dsi_by_default_and_returns_contract_experiment_shape(cl
         ])
         session.flush()
         session.add_all([
-            ExperimentRecord(experiment_id="01J9Z3P7C2E4G6J8M0Q2S4V6X8", source_id="FF-PSI-25", test_id="FLEX-1", investigation="FLEX", gravity_regime="microgravity", fuel_or_material="Heptane", table_file_id=None, searchable_text="FLEX-1 heptane droplet extinction", payload={}, conditions=[]),
-            ExperimentRecord(experiment_id="01J9Z3P7C2E4G6J8M0Q2S4V6X9", source_id="FF-PSI-DSI", test_id="DSI-1", investigation="DSI", gravity_regime="microgravity", fuel_or_material="Heptane", table_file_id=None, searchable_text="DSI-1 heptane", payload={}, conditions=[]),
+            ExperimentRecord(experiment_id="01J9Z3P7C2E4G6J8M0Q2S4V6X8", source_id="FF-PSI-25", test_id="FLEX-1", investigation="FLEX", gravity_regime="microgravity", fuel_or_material="Heptane", table_file_id=None, searchable_text="FLEX-1 heptane droplet extinction", payload={}, ingested_at=ingested_at, conditions=[]),
+            ExperimentRecord(experiment_id="01J9Z3P7C2E4G6J8M0Q2S4V6X9", source_id="FF-PSI-DSI", test_id="DSI-1", investigation="DSI", gravity_regime="microgravity", fuel_or_material="Heptane", table_file_id=None, searchable_text="DSI-1 heptane", payload={}, ingested_at=ingested_at, conditions=[]),
         ])
         session.commit()
 
@@ -88,4 +91,5 @@ def test_search_excludes_dsi_by_default_and_returns_contract_experiment_shape(cl
         "gravity_regime": "microgravity",
         "fuel_or_material": "Heptane",
     }
+    assert body["results"][0]["ingested_at"] == "2026-10-01T12:00:00Z"
     assert all_domains.json()["pagination"]["total_items"] == 2

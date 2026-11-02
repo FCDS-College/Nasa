@@ -18,9 +18,9 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from redis import Redis
 from rq import Queue, Worker
-from sqlalchemy import func, select, text
+from sqlalchemy import case, func, literal, literal_column, or_, select, text
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
@@ -35,7 +35,7 @@ from flame_api.generation import CHAT_INSTRUCTIONS, answer_question
 from flame_api.knowledge_version import current_knowledge_version
 from flame_api.models import AnalysisRecord, DocumentChunk, DocumentRecord, EvidenceRecord, ExperimentCondition, ExperimentRecord, SourceRecord
 from ai.rag.retrieval.fusion import reciprocal_rank_fusion
-from flame_api.vector_index import VectorUnavailableError, index_status, search_chunks
+from flame_api.vector_index import VectorUnavailableError, index_status, indexed_chunk_count, search_chunks
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 logger = logging.getLogger("flame_api")
@@ -422,6 +422,8 @@ def dashboard_counts(request: Request, session: Session = Depends(get_session)):
         experiments = session.query(ExperimentRecord).filter(ExperimentRecord.conditions.any()).count()
         completed = session.query(AnalysisRecord).filter(AnalysisRecord.status == "completed").count()
         in_progress = session.query(AnalysisRecord).filter(AnalysisRecord.status.in_(["queued", "processing"])).count()
+        chunks = session.query(DocumentChunk).count()
+        indexed_chunks = indexed_chunk_count(session)
         knowledge_version = current_knowledge_version(session)
     except SQLAlchemyError:
         return JSONResponse(status_code=503, content=error_body(request, "DATABASE_UNAVAILABLE", "Database is unavailable.", retryable=True))
@@ -430,6 +432,8 @@ def dashboard_counts(request: Request, session: Session = Depends(get_session)):
         "experiments": experiments,
         "analyses": completed,
         "analyses_in_progress": in_progress,
+        "chunks": chunks,
+        "indexed_chunks": indexed_chunks,
         "knowledge_version": knowledge_version,
         "meta": response_meta(request),
     }
@@ -438,6 +442,40 @@ def dashboard_counts(request: Request, session: Session = Depends(get_session)):
 def _rejected_evidence_ids():
     """Evidence an administrator rejected (ADMIN_DATA_OPERATIONS.md procedure 7): never retrieved or cited."""
     return select(EvidenceRecord.evidence_id).where(EvidenceRecord.payload["review_status"].as_string() == "rejected")
+
+
+# Lexical candidates fetched before fusion (P2-3). Every result on page p ranks inside the first
+# p * page_size of the fused list, and a hit outside the first N lexical matches scores below every hit
+# inside it, so N >= 2 * p * page_size candidates page exactly; total_items comes from a separate COUNT.
+_LEXICAL_CANDIDATES = 200
+_RRF_K = 60
+
+
+def _lexical_candidates(page: int, page_size: int) -> int:
+    return max(_LEXICAL_CANDIDATES, page * page_size * 2)
+
+
+def _lexical_match(session: Session, column, query: str):
+    """(filter, score) for one text column. PostgreSQL: full-text match ranked by ts_rank_cd.
+
+    Other dialects (tests, local SQLite): substring match, scored by how many query terms occur in the
+    snippet (first 400 characters of a chunk; all of an experiment's text), the same heuristic the
+    in-memory ranking used before P2-3.
+    """
+    if session.bind.dialect.name == "postgresql":
+        vector = func.to_tsvector(literal_column("'english'"), column)
+        tsquery = func.plainto_tsquery(literal_column("'english'"), query)
+        return vector.op("@@")(tsquery), func.ts_rank_cd(vector, tsquery)
+    haystack = func.lower(func.substr(column, 1, 400)) if column is DocumentChunk.text else func.lower(column)
+    score = literal(0)
+    for term in dict.fromkeys(query.lower().split()):
+        score = score + case((func.instr(haystack, term) > 0, 1), else_=0)
+    return column.ilike(f"%{query}%"), score
+
+
+def _experiment_ingested_at(experiment: ExperimentRecord) -> datetime:
+    """The ingestion time, else the table file's retrieval time (rows predating migration 0006)."""
+    return experiment.ingested_at or experiment.table_file.retrieved_at
 
 
 @app.get("/api/search", tags=["Research"])
@@ -460,26 +498,28 @@ def search(
     results: list[dict[str, Any]] = []
     total_items = 0
     index_version: str | None = None
+    candidates = _lexical_candidates(page, page_size)
     try:
         source_filter = source_id or None
         offset = (page - 1) * page_size
+        # Resolved up front: as an IN (subquery) PostgreSQL plans a per-source index scan that re-parses every
+        # chunk's text (12 s at 10^5 chunks) instead of using the full-text GIN index (30 ms).
+        combustion_sources = session.scalars(select(SourceRecord.source_id).where(SourceRecord.domain == "combustion")).all() if domain == "combustion" else []
+        experiment_evidence = select(EvidenceRecord.evidence_id).where(EvidenceRecord.experiment_id == experiment_id)
         if type in {None, "document"}:
-            doc_query = session.query(DocumentChunk).options(joinedload(DocumentChunk.document).joinedload(DocumentRecord.source))
-            if session.bind.dialect.name == "postgresql":
-                doc_query = doc_query.filter(
-                    text("to_tsvector('english', document_chunk.text) @@ plainto_tsquery('english', :search_query)")
-                ).params(search_query=query)
-            else:
-                doc_query = doc_query.filter(DocumentChunk.text.ilike(f"%{query}%"))
+            chunk_options = joinedload(DocumentChunk.document).joinedload(DocumentRecord.source)
+            matches, lexical_score = _lexical_match(session, DocumentChunk.text, query)
+            doc_query = session.query(DocumentChunk).filter(matches)
             if domain == "combustion":
-                doc_query = doc_query.filter(DocumentChunk.source_id.in_(select(SourceRecord.source_id).where(SourceRecord.domain == "combustion")))
+                doc_query = doc_query.filter(DocumentChunk.source_id.in_(combustion_sources))
             if source_filter:
                 doc_query = doc_query.filter(DocumentChunk.source_id.in_(source_filter))
             if experiment_id:
-                doc_query = doc_query.filter(text("document_chunk.evidence_id in (select evidence_id from evidence where experiment_id = :experiment_id)")).params(experiment_id=experiment_id)
+                doc_query = doc_query.filter(DocumentChunk.evidence_id.in_(experiment_evidence))
             doc_query = doc_query.filter(DocumentChunk.evidence_id.notin_(_rejected_evidence_ids()))
             total_items += doc_query.count()
-            lexical_chunks = doc_query.all()
+            lexical_order = (lexical_score.desc(), DocumentChunk.chunk_id)
+            lexical_chunks = doc_query.options(chunk_options).order_by(*lexical_order).limit(candidates).all()
             extra_chunks: list[DocumentChunk] = []
             semantic_scores: dict[str, float] = {}
             if domain in {"combustion", "all"}:
@@ -492,22 +532,34 @@ def search(
                     logger.warning("request_id=%s vector_search=unavailable", request.state.request_id)
             seen_chunks = {chunk.chunk_id for chunk in lexical_chunks}
             extra_ids = [cid for cid in semantic_scores if cid not in seen_chunks]
+            # A dense hit that is also a lexical match below the candidate cut keeps its exact lexical rank,
+            # so its fused score (and therefore paging) does not depend on how many candidates were fetched.
+            deep_lexical_rank: dict[str, int] = {}
             if extra_ids:
+                ranked = doc_query.with_entities(
+                    DocumentChunk.chunk_id.label("chunk_id"),
+                    func.row_number().over(order_by=lexical_order).label("position"),
+                ).subquery()
+                deep_lexical_rank = {
+                    row.chunk_id: row.position
+                    for row in session.query(ranked.c.chunk_id, ranked.c.position).filter(ranked.c.chunk_id.in_(extra_ids))
+                }
                 extra = (
-                    session.query(DocumentChunk).options(joinedload(DocumentChunk.document).joinedload(DocumentRecord.source))
+                    session.query(DocumentChunk).options(chunk_options)
                     .filter(DocumentChunk.chunk_id.in_(extra_ids), DocumentChunk.evidence_id.notin_(_rejected_evidence_ids()))
                 )
                 if source_filter:
                     extra = extra.filter(DocumentChunk.source_id.in_(source_filter))
                 if experiment_id:
-                    extra = extra.filter(text("document_chunk.evidence_id in (select evidence_id from evidence where experiment_id = :experiment_id)")).params(experiment_id=experiment_id)
-                extra_chunks = extra.all()
-                total_items += len(extra_chunks)
-            terms = query.lower().split()
-            lexical_chunks.sort(key=lambda c: (-sum(term in c.text[:400].lower() for term in terms), c.chunk_id))
+                    extra = extra.filter(DocumentChunk.evidence_id.in_(experiment_evidence))
+                extra_chunks = extra.order_by(DocumentChunk.chunk_id).all()
+                # deep lexical matches are already in the COUNT above
+                total_items += sum(chunk.chunk_id not in deep_lexical_rank for chunk in extra_chunks)
             dense_ranking = sorted(semantic_scores, key=lambda cid: (-semantic_scores[cid], cid))
             # only true lexical hits enter the lexical ranking; dense-only hits are ranked by the dense list alone
-            fused = dict(reciprocal_rank_fusion([[c.chunk_id for c in lexical_chunks], dense_ranking]))
+            fused = dict(reciprocal_rank_fusion([[c.chunk_id for c in lexical_chunks], dense_ranking], k=_RRF_K))
+            for chunk_id, position in deep_lexical_rank.items():
+                fused[chunk_id] += 1.0 / (_RRF_K + position)
             for chunk in [*lexical_chunks, *extra_chunks]:
                 document = chunk.document
                 snippet = chunk.text[:400]
@@ -530,39 +582,41 @@ def search(
                     "ingested_at": _timestamp(document.ingested_at),
                 })
         if type in {None, "experiment"}:
-            exp_query = session.query(ExperimentRecord).options(joinedload(ExperimentRecord.conditions), joinedload(ExperimentRecord.source))
-            if session.bind.dialect.name == "postgresql":
-                exp_query = exp_query.filter(
-                    text("to_tsvector('english', experiment.searchable_text) @@ plainto_tsquery('english', :search_query)")
-                ).params(search_query=query)
-            else:
-                needle = f"%{query}%"
-                exp_query = exp_query.filter(ExperimentRecord.searchable_text.ilike(needle))
+            matches, experiment_score = _lexical_match(session, ExperimentRecord.searchable_text, query)
+            # SearchResult.ingested_at is required: a row with neither an ingestion time nor a table file
+            # (only possible for rows written outside ingest.py) is left out rather than given a made-up time.
+            exp_query = session.query(ExperimentRecord).filter(
+                matches, or_(ExperimentRecord.ingested_at.is_not(None), ExperimentRecord.table_file_id.is_not(None))
+            )
             if domain == "combustion":
-                exp_query = exp_query.filter(ExperimentRecord.source_id.in_(select(SourceRecord.source_id).where(SourceRecord.domain == "combustion")))
+                exp_query = exp_query.filter(ExperimentRecord.source_id.in_(combustion_sources))
             if source_filter:
                 exp_query = exp_query.filter(ExperimentRecord.source_id.in_(source_filter))
             if experiment_id:
                 exp_query = exp_query.filter(ExperimentRecord.experiment_id == experiment_id)
-            experiments = exp_query.all()
+            # An experiment whose every condition was rejected has nothing left to cite, so it is not a hit.
+            # In SQL, so the COUNT and the candidate cut agree with what is returned.
+            exp_query = exp_query.filter(or_(
+                ~ExperimentRecord.conditions.any(),
+                ExperimentRecord.conditions.any(ExperimentCondition.evidence_id.notin_(_rejected_evidence_ids())),
+            ))
+            total_items += exp_query.count()
+            experiments = (
+                exp_query.options(selectinload(ExperimentRecord.conditions), joinedload(ExperimentRecord.source), joinedload(ExperimentRecord.table_file))
+                .order_by(experiment_score.desc(), ExperimentRecord.experiment_id)
+                .limit(candidates)
+                .all()
+            )
             condition_evidence = [c.evidence_id for e in experiments for c in e.conditions]
             rejected = set(session.scalars(_rejected_evidence_ids().where(EvidenceRecord.evidence_id.in_(condition_evidence)))) if condition_evidence else set()
-            cited: dict[str, str | None] = {}
-            for experiment in experiments:
-                cited[experiment.experiment_id] = next((c.evidence_id for c in experiment.conditions if c.evidence_id not in rejected), None)
-            # An experiment whose every condition was rejected has nothing left to cite, so it is not a hit.
-            experiments = sorted(
-                (e for e in experiments if not e.conditions or cited[e.experiment_id] is not None),
-                key=lambda e: (-sum(term in e.searchable_text.lower() for term in query.lower().split()), e.experiment_id),
-            )
-            total_items += len(experiments)
+            cited = {e.experiment_id: next((c.evidence_id for c in e.conditions if c.evidence_id not in rejected), None) for e in experiments}
             for experiment_rank, experiment in enumerate(experiments, start=1):
                 snippet = experiment.fuel_or_material or experiment.test_id
                 results.append({
                     "result_id": experiment.experiment_id,
                     "result_type": "experiment",
                     "rank": len(results) + 1 + offset,
-                    "score": round(1.0 / (60 + experiment_rank), 6),
+                    "score": round(1.0 / (_RRF_K + experiment_rank), 6),
                     "title": f"{experiment.investigation or 'Experiment'} {experiment.test_id}",
                     "snippet": snippet,
                     "highlights": [],
@@ -574,7 +628,7 @@ def search(
                     "evidence_id": cited[experiment.experiment_id],
                     "has_evidence": cited[experiment.experiment_id] is not None,
                     "locator": None,
-                    "ingested_at": _timestamp(datetime.now(UTC)),
+                    "ingested_at": _timestamp(_experiment_ingested_at(experiment)),
                 })
     except SQLAlchemyError:
         return JSONResponse(status_code=503, content=error_body(request, "SEARCH_UNAVAILABLE", "Search is unavailable.", retryable=True))
@@ -902,7 +956,10 @@ def get_document(request: Request, document_id: Annotated[str, ApiPath(pattern=U
         "parser_version": document.parser_version,
         "ingested_at": document.ingested_at.isoformat().replace("+00:00", "Z"),
         "knowledge_version": document.knowledge_version,
-        "experiment_ids": [],
+        "experiment_ids": [
+            row.experiment_id
+            for row in session.query(EvidenceRecord.experiment_id).filter(EvidenceRecord.document_id == document_id, EvidenceRecord.experiment_id.is_not(None)).distinct().order_by(EvidenceRecord.experiment_id)
+        ],
         "evidence_count": session.query(EvidenceRecord).filter_by(document_id=document_id).count(),
     }
     return {"document": payload, "meta": response_meta(request)}
@@ -924,7 +981,10 @@ def get_experiment(request: Request, experiment_id: Annotated[str, ApiPath(patte
             {"variable": c.variable, "value_numeric": c.value_numeric, "value_text": c.value_text, "unit_original": c.unit_original, "value_si": c.value_si, "unit_si": c.unit_si, "origin": c.origin, "evidence_id": c.evidence_id}
             for c in experiment.conditions
         ],
-        "document_ids": [],
+        "document_ids": [
+            row.document_id
+            for row in session.query(EvidenceRecord.document_id).filter(EvidenceRecord.experiment_id == experiment_id, EvidenceRecord.document_id.is_not(None)).distinct().order_by(EvidenceRecord.document_id)
+        ],
         "table_file": _file_payload(experiment.table_file) if experiment.table_file_id else None,
     }
     return {"experiment": payload, "meta": response_meta(request)}

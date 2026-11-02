@@ -448,6 +448,7 @@ def _create_table_experiments(session: Session, file_record: FileRecord) -> dict
             "FF-PSI-98": "Sample Number",
         }.get(source.source_id, "")
         seen_rows: set[tuple[str, ...]] = set()
+        now = _utc_now()
         experiments = evidence_count = duplicates = valid_rows = 0
         for row_number, raw_row in enumerate(reader, start=1):
             row = {key.strip(): (value or "").strip() for key, value in raw_row.items() if key}
@@ -469,7 +470,7 @@ def _create_table_experiments(session: Session, file_record: FileRecord) -> dict
             session.merge(ExperimentRecord(
                 experiment_id=experiment_id, source_id=source.source_id, test_id=test_id,
                 investigation=source.short_name, gravity_regime="microgravity", fuel_or_material=fuel,
-                table_file_id=file_record.file_id, searchable_text="",
+                table_file_id=file_record.file_id, searchable_text="", ingested_at=now,
             ))
             session.flush()
             for header in headers:
@@ -531,6 +532,7 @@ def _create_table_experiments(session: Session, file_record: FileRecord) -> dict
                 fuel_or_material=fuel,
                 table_file_id=file_record.file_id,
                 searchable_text=" ".join(searchable_values),
+                ingested_at=now,
                 conditions=condition_ids,
             )
             session.merge(experiment)

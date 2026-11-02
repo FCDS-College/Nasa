@@ -22,6 +22,7 @@ knowledge_relation, memory, model, source, vector_index_manifest
 | `0002_file_size_bigint` | `file_record.size_bytes` → BIGINT |
 | `0003_vector_index` | `chunk_embedding`, `vector_index_manifest` (PostgreSQL only) |
 | `0004_phase2_tables` | `knowledge_entity`, `knowledge_relation`, `memory`, `cache_entry`, `model`, `dataset`, `image_asset`, `audit_event`, `knowledge_publication`; `file_record.status` (default `active`, indexed) and `file_record.quarantine_reason`. Create-if-missing, because on a fresh database `0001` already built them. |
+| `0006_experiment_ingested_at` | `experiment.ingested_at` (TIMESTAMPTZ, nullable), create-if-missing; backfilled from the latest non-quarantine `ingestion_run.finished_at` of the experiment's table file, else that file's `retrieved_at`. Rows with neither stay NULL. Chains after `0005_api_clients`. |
 
 **Note.** `0001` builds from the live models. A brand-new database therefore gets the newest schema at `0001`, and later migrations must be idempotent, as `0004` is. An existing database gets the columns from `0004`. Both paths were verified to produce identical schemas (L-8 §2).
 
@@ -251,6 +252,7 @@ Indexes: `ix_document_file_id` (file_id); `ix_document_source_id` (source_id).
 | `table_file_id` | VARCHAR(80) | yes | FK → `file_record.file_id` |
 | `searchable_text` | TEXT | no | default `` |
 | `payload` | JSONB | no |  |
+| `ingested_at` | TIMESTAMP WITH TIME ZONE | yes |  |
 
 Indexes: `ix_experiment_source_id` (source_id).
 

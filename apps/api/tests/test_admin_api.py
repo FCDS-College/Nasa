@@ -59,7 +59,8 @@ def corpus(session_factory):
             DocumentChunk(chunk_id="chunk-rejected", document_id=DOCUMENT_ID, source_id="FF-PSI-25", file_id=ACTIVE,
                           evidence_id=REJECTED_EVIDENCE, page=2, text="Heptane garbled OCR table.", ingested_at=now),
             ExperimentRecord(experiment_id=EXPERIMENT_ID, source_id="FF-PSI-25", test_id="FLEX-1", investigation="FLEX",
-                             gravity_regime="microgravity", fuel_or_material="Heptane", searchable_text="FLEX-1 heptane", payload={}),
+                             gravity_regime="microgravity", fuel_or_material="Heptane", searchable_text="FLEX-1 heptane", payload={},
+                             ingested_at=now),
         ])
         session.flush()
         session.add_all([

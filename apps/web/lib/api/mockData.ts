@@ -22,7 +22,7 @@ export const mockHealth: SystemHealth = {
 };
 
 export const mockDashboard: DashboardData = {
-  corpus_status: { total_documents: 14502, indexed_chunks: 1250394, version: "2026-10-03" },
+  corpus_status: { total_documents: 14502, total_chunks: 1250394, indexed_chunks: 1250394, version: "2026-10-03" },
   recent_research: [
     { query: "How does microgravity alter soot formation?", timestamp: "2 mins ago" },
     { query: "BASS-II fuel geometries", timestamp: "1 hour ago" },
