@@ -35,6 +35,20 @@ def fresh_ai_runtime(monkeypatch):
     answer_cache.reset()
 
 
+@pytest.fixture(autouse=True)
+def fresh_rate_limits():
+    """Rate-limit buckets live in an in-process fake, never in a real Redis, and are per test."""
+    from flame_api import clients, main, rate_limit
+
+    rate_limit.set_backend(rate_limit.MemoryBackend())
+    clients.reset()
+    main._chat_calls.clear()
+    yield
+    rate_limit.set_backend(None)
+    clients.reset()
+    main._chat_calls.clear()
+
+
 @pytest.fixture
 def session_factory():
     engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)

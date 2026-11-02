@@ -8,7 +8,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="FLAME_", env_file=".env", extra="ignore")
+    # hide_input_in_errors: a validation error would otherwise echo the raw settings (secrets
+    # included) into the start-up log.
+    model_config = SettingsConfigDict(env_prefix="FLAME_", env_file=".env", extra="ignore", hide_input_in_errors=True)
 
     @field_validator("database_url", mode="before")
     @classmethod
@@ -47,6 +49,8 @@ class Settings(BaseSettings):
     max_video_frames: int = Field(default=600, ge=1, le=5000)
     video_job_timeout_s: int = Field(default=3600, ge=60, le=6 * 3600)
     api_auth_enabled: bool = True
+    # Deprecated (P2-1): per-client keys from `python -m flame_api.clients` replace these. Each is
+    # optional and keeps working as before while set (identity `legacy-read` / `legacy-write`).
     read_api_token: SecretStr | None = None
     write_api_token: SecretStr | None = None
     aura_enabled: bool = False
@@ -57,6 +61,11 @@ class Settings(BaseSettings):
     # is a self-hosted GPU Space (a remote provider to AURA) must set this to false, or every
     # AURA call fails with 503 all_providers_failed.
     aura_require_local: bool = True
+    # Per client identity, in Redis (FLAME_REDIS_URL). Chat stays the strictest: every call can reach
+    # a model. If Redis is down, requests are let through and chat falls back to an in-process limit.
+    rate_limit_enabled: bool = True
+    read_rate_limit_per_minute: int = Field(default=600, ge=1, le=100_000)
+    write_rate_limit_per_minute: int = Field(default=60, ge=1, le=100_000)
     chat_rate_limit_per_minute: int = Field(default=30, ge=1, le=600)
     # Deprecated: the `llm` health entry now reflects the model router. Kept so old .env files load.
     llm_enabled: bool = False
@@ -89,14 +98,16 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def require_distinct_api_tokens(self):
         if self.api_auth_enabled:
-            if self.read_api_token is None or self.write_api_token is None:
-                raise ValueError("FLAME_READ_API_TOKEN and FLAME_WRITE_API_TOKEN are required when API authentication is enabled.")
-            read_token = self.read_api_token.get_secret_value()
-            write_token = self.write_api_token.get_secret_value()
-            if len(read_token) < 32 or len(write_token) < 32:
+            # Neither legacy token is required any more: a deployment may run on client keys alone.
+            tokens = {name: token.get_secret_value() for name, token in (
+                ("FLAME_READ_API_TOKEN", self.read_api_token), ("FLAME_WRITE_API_TOKEN", self.write_api_token),
+            ) if token is not None}
+            if any(len(token) < 32 for token in tokens.values()):
                 raise ValueError("Flame API tokens must contain at least 32 characters.")
-            if compare_digest(read_token.encode(), write_token.encode()):
+            if len(tokens) == 2 and compare_digest(*(token.encode() for token in tokens.values())):
                 raise ValueError("FLAME_READ_API_TOKEN and FLAME_WRITE_API_TOKEN must be different.")
+        if self.environment.strip().lower() == "production":
+            self._refuse_local_defaults()
 
         aura_url = urlsplit(self.aura_base_url)
         if (
@@ -142,6 +153,29 @@ class Settings(BaseSettings):
         if self.cv_provider == "hf_space" and self.cv_hf_space_url is None:
             raise ValueError("FLAME_CV_HF_SPACE_URL is required when FLAME_CV_PROVIDER=hf_space.")
         return self
+
+    def _refuse_local_defaults(self) -> None:
+        """P2-6: the local-only values in this file and in Compose must never reach production.
+
+        The error names the setting, never the value: settings errors end up in deploy logs.
+        """
+        secret = self.s3_secret_key.get_secret_value()
+        if secret in _LOCAL_S3_SECRETS or "change-me" in secret.lower():
+            raise ValueError("FLAME_S3_SECRET_KEY is a local development default; set a real secret in production.")
+        if self.s3_access_key in _LOCAL_S3_ACCESS_KEYS:
+            raise ValueError("FLAME_S3_ACCESS_KEY is a local development default; set a real access key in production.")
+        try:
+            password = urlsplit(self.database_url).password
+        except ValueError:
+            password = None
+        if password is not None and (password in _LOCAL_DB_PASSWORDS or "change-me" in password.lower()):
+            raise ValueError("FLAME_DATABASE_URL uses a local development database password; set a real one in production.")
+
+
+# The defaults above plus the Compose fallbacks in infrastructure/compose.yaml.
+_LOCAL_S3_SECRETS = frozenset({"change-me-local-only", "flame-local-only-change-me"})
+_LOCAL_S3_ACCESS_KEYS = frozenset({"flame-local"})
+_LOCAL_DB_PASSWORDS = frozenset({"flame", "flame-local-only"})
 
 
 @lru_cache

@@ -24,7 +24,7 @@ from flame_api.models import AuditEvent, EvidenceRecord, FileRecord, IngestionRu
 ULID_PATTERN = r"^[0-9A-HJKMNP-TV-Z]{26}$"
 FILE_ID_PATTERN = r"^sha256:[a-f0-9]{16}$"
 MAX_PAGE_SIZE = 100
-ACTOR = "write-token"   # until ADR-009 step 2 there is one admin credential, as for PUT /api/admin/ai/mode
+LEGACY_ACTOR = "write-token"   # the deprecated FLAME_WRITE_API_TOKEN, as for PUT /api/admin/ai/mode
 
 REPROCESS_ACTION = "file.reprocess"
 REVIEW_ACTION = "evidence.review"
@@ -119,8 +119,10 @@ def _audit(event: AuditEvent) -> dict[str, Any]:
 def _record(session: Session, request: Request, *, action: str, target_type: str, target_id: str,
             before: dict[str, Any], after: dict[str, Any]) -> AuditEvent:
     """Add the audit row to the caller's transaction; the caller commits it together with the change."""
+    client = getattr(request.state, "api_client", None)
+    actor = LEGACY_ACTOR if client in {None, "legacy-write", "anonymous"} else client
     event = AuditEvent(
-        event_id=new_ulid(), occurred_at=datetime.now(UTC), actor=ACTOR, action=action, target_type=target_type,
+        event_id=new_ulid(), occurred_at=datetime.now(UTC), actor=actor, action=action, target_type=target_type,
         target_id=target_id, before=before, after=after, request_id=request.state.request_id,
     )
     session.add(event)

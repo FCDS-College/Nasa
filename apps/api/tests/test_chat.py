@@ -195,8 +195,22 @@ def test_requests_are_rate_limited(client, corpus, monkeypatch):
     limited = client.post("/api/chat", json={"query": "n-heptane"})
 
     assert limited.status_code == 429
-    assert limited.headers["Retry-After"] == "10"
+    # A one-per-minute bucket refills its token in a minute (P2-2, per client in Redis).
+    assert 1 <= int(limited.headers["Retry-After"]) <= 60
+    assert limited.json()["error"]["code"] == "RATE_LIMITED"
     assert limited.json()["error"]["retryable"] is True
+
+
+def test_chat_keeps_the_in_process_limit_while_redis_is_down(client, corpus, monkeypatch):
+    monkeypatch.setattr(main, "settings", chat_settings(chat_rate_limit_per_minute=1))
+    monkeypatch.setattr(provider_http, "urlopen", lambda request, timeout: FakeResponse(aura_reply("ok", [EVIDENCE_ID])))
+    monkeypatch.setattr(main.rate_limit, "check", lambda *args, **kwargs: None)
+
+    assert client.post("/api/chat", json={"query": "n-heptane"}).status_code == 200
+    limited = client.post("/api/chat", json={"query": "n-heptane"})
+
+    assert limited.status_code == 429
+    assert limited.headers["Retry-After"] == "10"
 
 
 def test_invalid_bodies_are_contract_validation_errors(client):
