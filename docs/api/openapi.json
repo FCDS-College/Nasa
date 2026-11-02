@@ -5,7 +5,7 @@
     "title": "Flame in Freefall API",
     "version": "0.3.0",
     "summary": "Frontend-facing REST contract for the Flame in Freefall scientific dashboard.",
-    "description": "Contract-first specification (MVP plan §12, DAY2_TASKS Lead deliverable). The FastAPI implementation is in `apps/api` and serves this document at `/api/openapi.json`; `x-implementation-status` records implementation state. API bearer authentication is required: use the read token for GET/HEAD and a distinct upload token for mutations. AURA Track AP compatibility is checked from this contract against a pinned AURA revision by `tests/integration/aura_blueprint_dryrun.py`.\n\nConventions: snake_case JSON; RFC 3339 UTC timestamps; ULID resource IDs; nullable means 'not present or not established' (never 0 for missing); every JSON success body has `meta`; every error body is `ErrorResponse`.\n\nScientific rules encoded in the schema: no temperature field exists; pixel measurements are `measured`, scale-derived physical sizes are `estimated`; AI interpretation is separate from measurements and limited to inferred/hypothesized/unsupported claim classes; evidence is only source content or deterministic calculation.\n\nAURA boundary (ADR-004, contract 0.2.0): operations marked `x-aura-exclude: true` (chat, AI status, admin writes) are skipped by AURA's OpenAPI discovery, so AURA can never compile a tool that calls back into Flame's model path. Changes: docs/api/CHANGELOG.md.",
+    "description": "Contract-first specification (MVP plan §12, DAY2_TASKS Lead deliverable). The FastAPI implementation is in `apps/api` and serves this document at `/api/openapi.json`; `x-implementation-status` records implementation state. API bearer authentication is required: use the read token for GET/HEAD and a distinct upload token for mutations. AURA Track AP compatibility is checked from this contract against a pinned AURA revision by `tests/integration/aura_blueprint_dryrun.py`.\n\nConventions: snake_case JSON; RFC 3339 UTC timestamps; ULID resource IDs; nullable means 'not present or not established' (never 0 for missing); every JSON success body has `meta`; every error body is `ErrorResponse`.\n\nScientific rules encoded in the schema: no temperature field exists; pixel measurements are `measured`, scale-derived physical sizes are `estimated`; AI interpretation is separate from measurements and limited to inferred/hypothesized/unsupported claim classes; evidence is only source content or deterministic calculation.\n\nAURA boundary (ADR-004, contract 0.2.0): operations marked `x-aura-exclude: true` (chat, AI status, admin writes) are skipped by AURA's OpenAPI discovery, so AURA can never compile a tool that calls back into Flame's model path. Changes: docs/api/CHANGELOG.md.\n\nCredentials and rate limits (P2-1, P2-2): each caller has its own API key (`python -m flame_api.clients create NAME --scopes read|write`), stored hashed and revocable. `read` scope allows GET/HEAD and `POST /api/chat`; `write` scope allows every other method. A valid key without the needed scope gets 403 `FORBIDDEN`; while the database is unreachable a client key cannot be checked and gets 503 `DATABASE_UNAVAILABLE`. The legacy `FLAME_READ_API_TOKEN` / `FLAME_WRITE_API_TOKEN` are deprecated but still accepted with their old meaning (a token used for the wrong kind of request stays 401). Every authenticated `/api/*` operation except `/api/health` is rate-limited per client, with separate per-minute budgets for reads, writes and chat (chat is the strictest); over the budget the response is 429 `RATE_LIMITED` with `Retry-After` in seconds. One client exhausting its budget does not affect another's.",
     "license": {
       "name": "Proprietary (team internal)",
       "identifier": "LicenseRef-Proprietary"
@@ -182,11 +182,11 @@
           "401": {
             "$ref": "#/components/responses/Unauthorized"
           },
-          "429": {
-            "$ref": "#/components/responses/RateLimited"
-          },
           "500": {
             "$ref": "#/components/responses/InternalError"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
           }
         },
         "x-implementation-status": "implemented",
@@ -2366,6 +2366,24 @@
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "description": "A dependency is unavailable. Codes: DATABASE_UNAVAILABLE.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              },
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         },
         "x-implementation-status": "implemented",
@@ -6365,7 +6383,7 @@
         }
       },
       "RateLimited": {
-        "description": "Too many requests. Codes: RATE_LIMITED.",
+        "description": "Too many requests from this client for this kind of operation (reads, writes and chat each have a per-minute budget). Codes: RATE_LIMITED. `Retry-After` is the wait in seconds; `error.details` carries `limit_per_minute` and `retry_after_s`.",
         "headers": {
           "X-Request-ID": {
             "$ref": "#/components/headers/X-Request-ID"
@@ -6403,7 +6421,7 @@
         "type": "http",
         "scheme": "bearer",
         "bearerFormat": "Opaque token",
-        "description": "Required. Use FLAME_READ_API_TOKEN for GET/HEAD requests and the distinct FLAME_WRITE_API_TOKEN for mutation requests."
+        "description": "Required. A per-client API key (`flk_…`) with the `read` scope for GET/HEAD and `POST /api/chat`, or the `write` scope for other mutations. Deprecated but accepted: FLAME_READ_API_TOKEN for reads and the distinct FLAME_WRITE_API_TOKEN for mutations."
       }
     }
   }

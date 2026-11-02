@@ -21,6 +21,7 @@ from rq import Queue, Worker
 from sqlalchemy import func, select, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload
+from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from flame_api.config import get_settings
@@ -28,7 +29,7 @@ from flame_api.contracts import error_body, response_meta
 from flame_api.database import engine, get_session
 from flame_api.analysis import router as analysis_router
 from ai.routing import ExecutionMode, NoCompatibleProvider
-from flame_api import ai_runtime, answer_cache, telemetry
+from flame_api import ai_runtime, answer_cache, clients, rate_limit, telemetry
 from flame_api.generation import CHAT_INSTRUCTIONS, answer_question
 from flame_api.knowledge_version import current_knowledge_version
 from flame_api.models import AnalysisRecord, DocumentChunk, DocumentRecord, EvidenceRecord, ExperimentCondition, ExperimentRecord, SourceRecord
@@ -76,37 +77,101 @@ async def request_context(request: Request, call_next):
         response = await _authorized(request, call_next)
         telemetry.set_attributes(current, **{"http.status_code": response.status_code})
     response.headers["X-Request-ID"] = request_id
-    logger.info("request_id=%s method=%s path=%s status=%s duration_ms=%.1f", request_id, request.method, request.url.path, response.status_code, (time.perf_counter() - started) * 1000)
+    logger.info("request_id=%s client=%s method=%s path=%s status=%s duration_ms=%.1f", request_id, getattr(request.state, "api_client", None) or "-",
+                request.method, request.url.path, response.status_code, (time.perf_counter() - started) * 1000)
     return response
 
 
 async def _authorized(request: Request, call_next):
     path = request.url.path
     public_metadata = path == "/api/openapi.json" or path == "/api/docs" or path.startswith("/api/docs/")
-    if path.startswith("/api/") and not public_metadata and settings.api_auth_enabled:
-        # Chat only reads the corpus (and asks AURA), so the read token is enough for it; the web
-        # service never needs the write token.
-        reads = request.method in {"GET", "HEAD"} or (request.method == "POST" and path == "/api/chat")
-        expected = settings.read_api_token if reads else settings.write_api_token
-        authorization = request.headers.get("Authorization", "")
-        scheme, separator, supplied = authorization.partition(" ")
-        if (
-            expected is None
-            or scheme.lower() != "bearer"
-            or not separator
-            or not supplied
-            or not compare_digest(supplied.encode(), expected.get_secret_value().encode())
-        ):
-            response = JSONResponse(
-                status_code=401,
-                content=error_body(request, "AUTHENTICATION_REQUIRED", "A valid API bearer token is required."),
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        else:
-            response = await call_next(request)
+    request.state.api_client = None
+    if not path.startswith("/api/") or public_metadata:
+        return await call_next(request)
+    # Chat only reads the corpus (and asks AURA), so read scope is enough for it; the web service
+    # never needs write scope.
+    chat = request.method == "POST" and path == "/api/chat"
+    reads = request.method in {"GET", "HEAD"} or chat
+    if settings.api_auth_enabled:
+        identity = await _identify(request, "read" if reads else "write")
+        if isinstance(identity, JSONResponse):
+            return identity
     else:
-        response = await call_next(request)
-    return response
+        identity = "anonymous"
+    request.state.api_client = identity
+    if settings.rate_limit_enabled and path != "/api/health":
+        limited = await run_in_threadpool(_rate_limited, request, identity, "chat" if chat else "read" if reads else "write")
+        if limited is not None:
+            return limited
+    return await call_next(request)
+
+
+async def _identify(request: Request, scope: str) -> str | JSONResponse:
+    """The caller's identity, or the 401/403/503 to send instead (P2-1).
+
+    A client key from `api_client` with the scope, or (deprecated) the env token for the scope.
+    """
+    authorization = request.headers.get("Authorization", "")
+    scheme, separator, supplied = authorization.partition(" ")
+    if scheme.lower() == "bearer" and separator and supplied:
+        legacy = settings.read_api_token if scope == "read" else settings.write_api_token
+        if legacy is not None and compare_digest(supplied.encode(), legacy.get_secret_value().encode()):
+            return f"legacy-{scope}"
+        if clients.looks_like_client_key(supplied):
+            try:
+                found = await run_in_threadpool(_lookup_client, supplied)
+            except SQLAlchemyError as exc:
+                logger.warning("request_id=%s client_lookup_error=%s", request.state.request_id, type(exc).__name__)
+                return JSONResponse(
+                    status_code=503,
+                    content=error_body(request, "DATABASE_UNAVAILABLE", "Database is unavailable.", retryable=True),
+                    headers={"Retry-After": "1"},
+                )
+            if found is not None:
+                if scope in found.scopes:
+                    return found.name
+                return JSONResponse(
+                    status_code=403,
+                    content=error_body(request, "FORBIDDEN", f"This API client does not have the {scope} scope."),
+                )
+    return JSONResponse(
+        status_code=401,
+        content=error_body(request, "AUTHENTICATION_REQUIRED", "A valid API bearer token is required."),
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+
+def _lookup_client(key: str) -> clients.Authenticated | None:
+    # Through the same session provider the routes use, so test overrides apply here too.
+    sessions = app.dependency_overrides.get(get_session, get_session)()
+    session = next(sessions)
+    try:
+        return clients.authenticate(session, key)
+    finally:
+        sessions.close()
+
+
+def _rate_limited(request: Request, identity: str, bucket: str) -> JSONResponse | None:
+    """The 429 to send, or None (P2-2). Fails open when Redis is down, except for chat."""
+    per_minute = {
+        "read": settings.read_rate_limit_per_minute,
+        "write": settings.write_rate_limit_per_minute,
+        "chat": settings.chat_rate_limit_per_minute,
+    }[bucket]
+    retry_after = rate_limit.check(identity, bucket, per_minute, redis_url=settings.redis_url)
+    if retry_after is None:
+        # No shared limiter: chat still reaches a model, so keep the old per-process ceiling on it.
+        retry_after = 10 if bucket == "chat" and _chat_rate_limited() else 0
+    if not retry_after:
+        return None
+    logger.info("request_id=%s rate_limited client=%s bucket=%s retry_after=%s", request.state.request_id, identity, bucket, retry_after)
+    message = "Too many chat requests. Try again shortly." if bucket == "chat" else "Too many requests. Try again shortly."
+    return JSONResponse(
+        status_code=429,
+        content=error_body(request, "RATE_LIMITED", message, retryable=True,
+                           details={"limit_per_minute": per_minute, "retry_after_s": retry_after}),
+        headers={"Retry-After": str(retry_after)},
+    )
 
 
 @app.exception_handler(RequestValidationError)
@@ -518,6 +583,7 @@ _chat_lock = Lock()
 
 
 def _chat_rate_limited() -> bool:
+    """Process-wide chat ceiling, used only while the Redis limiter is unavailable."""
     now = time.monotonic()
     with _chat_lock:
         while _chat_calls and now - _chat_calls[0] > 60:
@@ -595,12 +661,6 @@ def chat(request: Request, body: ChatBody, session: Session = Depends(get_sessio
                 f"No language model is configured or permitted in {router.mode.value} mode.",
                 details={"mode": router.mode.value},
             ),
-        )
-    if _chat_rate_limited():
-        return JSONResponse(
-            status_code=429,
-            content=error_body(request, "RATE_LIMITED", "Too many chat requests. Try again shortly.", retryable=True),
-            headers={"Retry-After": "10"},
         )
     started = time.perf_counter()
     cache_version = current_knowledge_version(session) or "unversioned"
@@ -706,9 +766,12 @@ class ModeBody(BaseModel):
 
 @app.put("/api/admin/ai/mode", tags=["Admin"])
 def set_ai_mode(request: Request, body: ModeBody, session: Session = Depends(get_session)):
-    """Switch cloud_preferred / local_first / offline_only. Write token; every change is audited."""
+    """Switch cloud_preferred / local_first / offline_only. Write scope; every change is audited."""
+    # The legacy write token keeps its historical actor name so existing audit queries still match.
+    client = request.state.api_client
+    actor = "write-token" if client in {None, "legacy-write"} else client
     change = ai_runtime.set_mode(
-        session, body.mode, router=ai_runtime.get_router(settings), actor="write-token", request_id=request.state.request_id
+        session, body.mode, router=ai_runtime.get_router(settings), actor=actor, request_id=request.state.request_id
     )
     return {**change, "meta": response_meta(request)}
 
