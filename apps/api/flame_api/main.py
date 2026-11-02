@@ -463,7 +463,12 @@ def _lexical_match(session: Session, column, query: str):
     in-memory ranking used before P2-3.
     """
     if session.bind.dialect.name == "postgresql":
-        vector = func.to_tsvector(literal_column("'english'"), column)
+        # Chunks carry a stored, GIN-indexed tsvector (migration 0007), so neither the COUNT nor the
+        # ranking re-parses text; experiments are few enough to parse on the fly.
+        if column is DocumentChunk.text:
+            vector = literal_column("document_chunk.search_tsv")
+        else:
+            vector = func.to_tsvector(literal_column("'english'"), column)
         tsquery = func.plainto_tsquery(literal_column("'english'"), query)
         return vector.op("@@")(tsquery), func.ts_rank_cd(vector, tsquery)
     haystack = func.lower(func.substr(column, 1, 400)) if column is DocumentChunk.text else func.lower(column)
