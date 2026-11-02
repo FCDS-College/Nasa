@@ -26,6 +26,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from flame_api.config import get_settings
 from flame_api.contracts import error_body, response_meta
 from flame_api.database import engine, get_session
+from flame_api.admin import WriteTokenRequired, router as admin_router, write_token_required_handler
 from flame_api.analysis import router as analysis_router
 from ai.routing import ExecutionMode, NoCompatibleProvider
 from flame_api import ai_runtime, answer_cache, telemetry
@@ -47,6 +48,8 @@ app = FastAPI(
     redoc_url=None,
 )
 app.include_router(analysis_router)
+app.include_router(admin_router)
+app.add_exception_handler(WriteTokenRequired, write_token_required_handler)
 telemetry.setup(settings.otel_service_name, enabled=settings.otel_enabled)
 
 _CONTRACT_PATH = Path(__file__).resolve().parents[3] / "docs" / "api" / "openapi.json"
@@ -85,8 +88,10 @@ async def _authorized(request: Request, call_next):
     public_metadata = path == "/api/openapi.json" or path == "/api/docs" or path.startswith("/api/docs/")
     if path.startswith("/api/") and not public_metadata and settings.api_auth_enabled:
         # Chat only reads the corpus (and asks AURA), so the read token is enough for it; the web
-        # service never needs the write token.
-        reads = request.method in {"GET", "HEAD"} or (request.method == "POST" and path == "/api/chat")
+        # service never needs the write token. Admin data is not for the read tier: every
+        # /api/admin/ route, GETs included, needs the write token.
+        admin = path.startswith("/api/admin/")
+        reads = (request.method in {"GET", "HEAD"} and not admin) or (request.method == "POST" and path == "/api/chat")
         expected = settings.read_api_token if reads else settings.write_api_token
         authorization = request.headers.get("Authorization", "")
         scheme, separator, supplied = authorization.partition(" ")
@@ -103,8 +108,10 @@ async def _authorized(request: Request, call_next):
                 headers={"WWW-Authenticate": "Bearer"},
             )
         else:
+            request.state.token_scope = "read" if reads else "write"
             response = await call_next(request)
     else:
+        request.state.token_scope = "unchecked"
         response = await call_next(request)
     return response
 
@@ -362,6 +369,11 @@ def dashboard_counts(request: Request, session: Session = Depends(get_session)):
     }
 
 
+def _rejected_evidence_ids():
+    """Evidence an administrator rejected (ADMIN_DATA_OPERATIONS.md procedure 7): never retrieved or cited."""
+    return select(EvidenceRecord.evidence_id).where(EvidenceRecord.payload["review_status"].as_string() == "rejected")
+
+
 @app.get("/api/search", tags=["Research"])
 def search(
     request: Request,
@@ -399,6 +411,7 @@ def search(
                 doc_query = doc_query.filter(DocumentChunk.source_id.in_(source_filter))
             if experiment_id:
                 doc_query = doc_query.filter(text("document_chunk.evidence_id in (select evidence_id from evidence where experiment_id = :experiment_id)")).params(experiment_id=experiment_id)
+            doc_query = doc_query.filter(DocumentChunk.evidence_id.notin_(_rejected_evidence_ids()))
             total_items += doc_query.count()
             lexical_chunks = doc_query.all()
             extra_chunks: list[DocumentChunk] = []
@@ -414,7 +427,10 @@ def search(
             seen_chunks = {chunk.chunk_id for chunk in lexical_chunks}
             extra_ids = [cid for cid in semantic_scores if cid not in seen_chunks]
             if extra_ids:
-                extra = session.query(DocumentChunk).options(joinedload(DocumentChunk.document).joinedload(DocumentRecord.source)).filter(DocumentChunk.chunk_id.in_(extra_ids))
+                extra = (
+                    session.query(DocumentChunk).options(joinedload(DocumentChunk.document).joinedload(DocumentRecord.source))
+                    .filter(DocumentChunk.chunk_id.in_(extra_ids), DocumentChunk.evidence_id.notin_(_rejected_evidence_ids()))
+                )
                 if source_filter:
                     extra = extra.filter(DocumentChunk.source_id.in_(source_filter))
                 if experiment_id:
@@ -462,11 +478,18 @@ def search(
                 exp_query = exp_query.filter(ExperimentRecord.source_id.in_(source_filter))
             if experiment_id:
                 exp_query = exp_query.filter(ExperimentRecord.experiment_id == experiment_id)
-            total_items += exp_query.count()
+            experiments = exp_query.all()
+            condition_evidence = [c.evidence_id for e in experiments for c in e.conditions]
+            rejected = set(session.scalars(_rejected_evidence_ids().where(EvidenceRecord.evidence_id.in_(condition_evidence)))) if condition_evidence else set()
+            cited: dict[str, str | None] = {}
+            for experiment in experiments:
+                cited[experiment.experiment_id] = next((c.evidence_id for c in experiment.conditions if c.evidence_id not in rejected), None)
+            # An experiment whose every condition was rejected has nothing left to cite, so it is not a hit.
             experiments = sorted(
-                exp_query.all(),
+                (e for e in experiments if not e.conditions or cited[e.experiment_id] is not None),
                 key=lambda e: (-sum(term in e.searchable_text.lower() for term in query.lower().split()), e.experiment_id),
             )
+            total_items += len(experiments)
             for experiment_rank, experiment in enumerate(experiments, start=1):
                 snippet = experiment.fuel_or_material or experiment.test_id
                 results.append({
@@ -482,8 +505,8 @@ def search(
                     "document_type": None,
                     "experiment_id": experiment.experiment_id,
                     "experiment": {"test_id": experiment.test_id, "gravity_regime": experiment.gravity_regime, "fuel_or_material": experiment.fuel_or_material},
-                    "evidence_id": experiment.conditions[0].evidence_id if experiment.conditions else None,
-                    "has_evidence": bool(experiment.conditions),
+                    "evidence_id": cited[experiment.experiment_id],
+                    "has_evidence": cited[experiment.experiment_id] is not None,
                     "locator": None,
                     "ingested_at": _timestamp(datetime.now(UTC)),
                 })
