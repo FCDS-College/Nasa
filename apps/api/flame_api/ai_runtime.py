@@ -131,6 +131,16 @@ def current_mode_override() -> ExecutionMode | None:
     return _mode_override
 
 
+def mode_provenance(settings: Settings) -> dict:
+    """Why the effective mode is what it is (P2-5): the newest `ai.mode.changed` audit row wins over env.
+
+    There is no "clear": once a mode has been set through the API, FLAME_AI_EXECUTION_MODE is ignored
+    until someone PUTs the env value again (which keeps `mode_source` at `audit_override`).
+    """
+    return {"mode_source": "audit_override" if current_mode_override() is not None else "env",
+            "env_mode": settings.ai_execution_mode}
+
+
 def set_mode(session, mode: ExecutionMode, *, router: Router, actor: str, request_id: str | None) -> dict:
     """Switch the execution mode for this process now and, via the audit row, for every process."""
     global _mode_override, _override_checked_at

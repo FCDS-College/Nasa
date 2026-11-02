@@ -253,7 +253,7 @@ def _ai_status() -> dict[str, Any]:
     """Refresh provider probes (bounded, parallel, cached) and return the router's view."""
     router = ai_runtime.get_router(settings)
     router.refresh_health(force=False)
-    return router.status()
+    return {**router.status(), **ai_runtime.mode_provenance(settings)}
 
 
 def _model_services(ai_status: dict[str, Any], checked_at: str) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -355,7 +355,8 @@ def health(request: Request):
         "version": {"api_version": settings.api_version, "build_id": settings.build_id, "git_sha": settings.git_sha},
         "knowledge_version": knowledge_version,
         "services": services,
-        "ai": {"mode": ai_status["mode"], "providers": ai_status["providers"]},
+        "ai": {"mode": ai_status["mode"], "mode_source": ai_status["mode_source"], "env_mode": ai_status["env_mode"],
+               "providers": ai_status["providers"]},
         "meta": response_meta(request),
     }
     return JSONResponse(status_code=503 if required_down else 200, content=body)

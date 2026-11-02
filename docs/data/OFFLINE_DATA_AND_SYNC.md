@@ -47,6 +47,10 @@ See [E2-2 §4 and §7](INGESTION_PIPELINE.md). In short:
 
 ## 5. Local backup and restore
 
+**Scripted (P2-11):** `infrastructure/backup/backup.sh` writes `$BACKUP_DIR/<UTC timestamp>/` with a custom-format `pg_dump` of `FLAME_DATABASE_URL`, exact per-table row counts, a mirror of `FLAME_S3_BUCKET` (`aws s3 sync`, or `mc mirror` when only `mc` is installed) and a `MANIFEST` with checksums, then deletes timestamped backups older than `BACKUP_RETENTION_DAYS` (default 14). `infrastructure/backup/restore.sh <dir>` checks the checksums, runs `pg_restore --no-owner --no-privileges` into `RESTORE_DATABASE_URL` (refused when it equals `FLAME_DATABASE_URL` unless `RESTORE_ALLOW_SAME=1`), fails if any table's row count differs from the backup, and syncs the objects into `RESTORE_S3_BUCKET` (default `FLAME_S3_BUCKET`). Credentials come only from the environment (`FLAME_S3_ACCESS_KEY`/`FLAME_S3_SECRET_KEY` or `AWS_*`); the scripts need `pg_dump`/`psql` of the server's major version, `python3`, and `aws` or `mc`. Usage and every variable are in the scripts' headers and [RUNBOOK §3](../operations/RUNBOOK.md#3-backup-and-restore).
+
+The manual equivalents inside Compose:
+
 ```bash
 # PostgreSQL (metadata, evidence, vectors, audit, publications)
 docker compose -f infrastructure/compose.yaml exec -T postgres pg_dump -U flame -Fc flame > flame-$(date -u +%F).dump
@@ -68,7 +72,8 @@ docker run --rm -v flame-in-freefall_ollama-models:/m -v "$PWD:/b" alpine tar cf
 | Date | Who | What | Result |
 |---|---|---|---|
 | 2026-10-13 20:15 UTC | Anas (Lead/E2), dev container, PostgreSQL 16 + pgvector 0.6.0 (apt), not Compose | `pg_dump -Fc` of `flame` (226,560 B, 1.1 s) → `pg_restore` into a new database `flame_restore` (0.4 s) | **Pass.** Counts identical before and after: 11 sources, 124 files, 37 chunks, 37 embeddings, 37 evidence, 182 image assets, 2 publications, manifest `bge-small-en-v1.5-37-20261011`. An HNSW nearest-neighbour query works on the restored copy. |
-| Pending | another engineer | the full Compose stack incl. MinIO and model volumes | — |
+| 2026-11-02 19:34 UTC | P2-11 (agent session, worktree branch), dev container: PostgreSQL 16.15 + pgvector 0.6.0 (apt), Redis 7 db 2, `moto_server` as the S3 stand-in (no MinIO), not Compose | Fresh `flame_ops`: `alembic upgrade head` (to `0004_phase2_tables`), `python -m flame_api.seed`, `python -m flame_api.ingest`; uvicorn + `rq worker --burst` produced 2 completed image analyses (8 objects) and 2 `ai.mode.changed` audit rows. `BACKUP_DIR=… infrastructure/backup/backup.sh` (2.1 s: 173,688 B dump, 8 objects) → `su postgres -c "createdb -O flame flame_ops_restore"` → `RESTORE_DATABASE_URL=…/flame_ops_restore RESTORE_S3_BUCKET=flame-artifacts-restore infrastructure/backup/restore.sh <dir>` (2.3 s) | **Pass.** Row counts identical for all 21 tables: alembic_version 1, analysis_result 2, audit_event 2, cache_entry 0, chunk_embedding 0, dataset 0, document 3, document_chunk 37, evidence 39, experiment 0, experiment_condition 0, file_record 124, image_asset 182, ingestion_run 3, knowledge_entity 0, knowledge_publication 1, knowledge_relation 0, memory 0, model 8, source 11, vector_index_manifest 0. Restored copy at `0004_phase2_tables` with pgvector 0.6.0; the S3 listing (key and size) of the restored bucket matches the source, 8 of 8. Retention pruned a 2-month-old timestamped directory and left a non-backup directory alone; restoring onto `FLAME_DATABASE_URL` was refused. No embeddings were built (no model download in the container), so pgvector data was not exercised this time; the 2026-10-13 drill covered it. |
+| Pending | another engineer | the full Compose stack incl. MinIO (`mc mirror` path, untested) and model volumes | — |
 
 ## 5a. What never syncs automatically
 
@@ -89,8 +94,9 @@ Local videos, uploaded images, documents, prompts, chat content and research dat
 
 ## Known limitations
 - The sync steps are manual today; no sync job exists.
-- The drill above covers PostgreSQL only, on a dev host.
+- Both drills ran on a dev host, not the Compose stack; the 2026-11-02 drill covered S3 through `aws s3 sync` against `moto_server`, not MinIO, and nothing schedules `backup.sh` yet (a host cron or Railway cron job is still to be set up).
 - The per-source last-sync API field is not built.
 
 ## Changelog
+- Unreleased (P2-11): `infrastructure/backup/backup.sh` and `restore.sh`; second restore drill (database and object storage) recorded.
 - 0.8.0 (2026-10-13): inventory, disclosure rules, backup commands, first restore drill, proposed sync policy.

@@ -2345,7 +2345,9 @@
                         "request_id": "req_01J9Z3K8V5Q2N7X4M6R1T0W8YB",
                         "generated_at": "2026-10-11T09:30:00Z",
                         "api_version": "0.2.0"
-                      }
+                      },
+                      "mode_source": "env",
+                      "env_mode": "local_first"
                     }
                   }
                 }
@@ -5598,7 +5600,8 @@
           "OCCLUSION",
           "QUALITY_CHECK_NOT_IMPLEMENTED",
           "INTERPRETATION_UNAVAILABLE",
-          "INTERPRETATION_STATEMENTS_REJECTED"
+          "INTERPRETATION_STATEMENTS_REJECTED",
+          "JOB_RECOVERED"
         ],
         "description": "Stable warning code."
       },
@@ -6264,6 +6267,13 @@
             "items": {
               "$ref": "#/components/schemas/AiProvider"
             }
+          },
+          "mode_source": {
+            "$ref": "#/components/schemas/AiModeSource"
+          },
+          "env_mode": {
+            "$ref": "#/components/schemas/ExecutionMode",
+            "description": "FLAME_AI_EXECUTION_MODE as configured; can differ from `mode` only under an audit override."
           }
         }
       },
@@ -6296,6 +6306,13 @@
           },
           "meta": {
             "$ref": "#/components/schemas/ResponseMeta"
+          },
+          "mode_source": {
+            "$ref": "#/components/schemas/AiModeSource"
+          },
+          "env_mode": {
+            "$ref": "#/components/schemas/ExecutionMode",
+            "description": "FLAME_AI_EXECUTION_MODE as configured; can differ from `mode` only under an audit override."
           }
         }
       },
@@ -7320,6 +7337,14 @@
             "$ref": "#/components/schemas/ResponseMeta"
           }
         }
+      },
+      "AiModeSource": {
+        "type": "string",
+        "enum": [
+          "env",
+          "audit_override"
+        ],
+        "description": "Where the effective `mode` comes from: `env` is FLAME_AI_EXECUTION_MODE; `audit_override` is the newest `ai.mode.changed` audit event (PUT /api/admin/ai/mode), which wins over env in every process until the next PUT. There is no clear operation yet."
       }
     },
     "parameters": {
