@@ -56,11 +56,17 @@ export async function fetchHealth(): Promise<SystemHealth> {
 export async function fetchDashboardData(): Promise<DashboardData> {
   const counts = await getJson("dashboard/counts");
   return {
-    corpus_status: { total_documents: counts.documents, indexed_chunks: 0, version: counts.knowledge_version ?? "unversioned" },
-    recent_research: [],
-    source_coverage: [],
-    evaluation_snapshot: [],
-    ingestion_alerts: [],
+    corpus_status: {
+      total_documents: counts.documents,
+      total_chunks: counts.chunks,
+      indexed_chunks: counts.indexed_chunks,
+      version: counts.knowledge_version ?? "unversioned",
+    },
+    // No API serves these yet (query history, per-source coverage, evaluation runs, ingestion alerts).
+    recent_research: null,
+    source_coverage: null,
+    evaluation_snapshot: null,
+    ingestion_alerts: null,
   };
 }
 

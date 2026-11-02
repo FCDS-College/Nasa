@@ -79,6 +79,24 @@ def index_status(session: Session) -> dict[str, Any]:
     return {**base, "state": "up", "message": None}
 
 
+def indexed_chunk_count(session: Session) -> int:
+    """Chunks with a vector in the published index (model of the manifest). Raises SQLAlchemyError.
+
+    0 means there is truly no published index: not PostgreSQL, tables absent, or no manifest row.
+    """
+    if session.bind.dialect.name != "postgresql":
+        return 0
+    if not session.execute(text("select to_regclass('vector_index_manifest') is not null and to_regclass('chunk_embedding') is not null")).scalar_one():
+        return 0
+    model = session.execute(text("select model from vector_index_manifest where id = 1")).scalar_one_or_none()
+    if model is None:
+        return 0
+    return session.execute(
+        text("select count(*) from chunk_embedding e join document_chunk c on c.chunk_id = e.chunk_id where e.model = :model"),
+        {"model": model},
+    ).scalar_one()
+
+
 def search_chunks(session: Session, query: str, *, limit: int = 20, min_similarity: float = MIN_SIMILARITY) -> list[tuple[str, float]]:
     """(chunk_id, cosine similarity) for the nearest chunks, best first. Raises VectorUnavailableError."""
     from ai.routing.tracing import span

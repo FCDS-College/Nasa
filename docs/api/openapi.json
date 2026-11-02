@@ -225,12 +225,14 @@
                 },
                 "examples": {
                   "counts": {
-                    "summary": "Illustrative counts (3 NTRS PDFs, 129 BASS-II tests)",
+                    "summary": "Illustrative counts (3 NTRS PDFs with 37 indexed chunks, 129 BASS-II tests)",
                     "value": {
                       "documents": 3,
                       "experiments": 129,
                       "analyses": 0,
                       "analyses_in_progress": 0,
+                      "chunks": 37,
+                      "indexed_chunks": 37,
                       "knowledge_version": null,
                       "meta": {
                         "request_id": "req_01J9Z3K8V5Q2N7X4M6R1T0W8YB",
@@ -3115,6 +3117,16 @@
             "minimum": 0,
             "description": "Flame analyses in status `queued` or `processing`."
           },
+          "chunks": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "All `document_chunk` rows (searchable passages), embedded or not."
+          },
+          "indexed_chunks": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Chunks with a vector in the published vector index (`chunk_embedding` rows of the model named by `vector_index_manifest`). 0 only when no index is published (no manifest row, or not PostgreSQL). Fewer than `chunks` means the index is stale and search runs lexical-only."
+          },
           "knowledge_version": {
             "type": [
               "string",
@@ -3132,6 +3144,8 @@
           "experiments",
           "analyses",
           "analyses_in_progress",
+          "chunks",
+          "indexed_chunks",
           "knowledge_version",
           "meta"
         ],
