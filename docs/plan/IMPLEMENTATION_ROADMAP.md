@@ -43,6 +43,22 @@ Evidence for every task is in the [system status audit](../reviews/SYSTEM_STATUS
 | P2-10 | Dashboard placeholders (`indexed_chunks: 0`, empty panels) | Add `indexed_chunks` to counts, or hide the panels | `client.ts`, `main.py` | No hard-coded numbers on the dashboard |
 | P2-11 | Backups and restore drill Pending | `pg_dump` + MinIO mirror schedule; drill | infra | Restore drill recorded |
 
+### P2 status (2026-11-02)
+
+| ID | Status | Evidence | Left open |
+|---|---|---|---|
+| P2-1 | **Done** | `flame_api/clients.py`, migration `0005_api_clients`, `test_api_clients.py`; create/list/revoke and scope 403 checked on PostgreSQL | No `rotate` command (create new, deploy, revoke old); no separate `admin` scope, so any `write` key is an admin; legacy env tokens still accepted (deprecated) |
+| P2-2 | **Done** | `flame_api/rate_limit.py` (Redis token bucket), per-client isolation tested; live check: client A 200, 200, 429 while client B and the legacy token stayed 200 | Requests that fail authentication (401) are not rate-limited |
+| P2-3 | **Done** | SQL-ranked, capped candidates (`fa81ad6`) and stored `search_tsv` (migration `0007`). 100,037 chunks, p95: 0.26–0.49 s for selective queries (was 25–27 s, then ~1.4 s), 0.91 s for a query matching 97 % of chunks (was 31 s, then 12.4 s); totals and top hits unchanged | Migration 0007 rewrites `document_chunk` (26 s at 10^5 rows) |
+| P2-4 | **Done** | `python -m flame_api.worker recover`, run at worker start (compose, Railway); 9 tests; real-stack check on PostgreSQL + Redis + S3 stand-in | Runs only at worker start (no periodic sweep). A recovered **video** job restarts at frame 0: its work dir is a temp dir, so the checkpoint never survives. Railway needs `railway config apply` for the new start command |
+| P2-5 | **Done** | `mode_source` / `env_mode` on `/api/ai/providers` and `/api/health`; RUNBOOK section | No "clear override" operation; PUT the env value |
+| P2-6 | **Done** | Production start-up refuses local default secrets; error names the setting only (`hide_input_in_errors`) | — |
+| P2-7 | **Open (decision)** | ADR-006 is Proposed; its owner decides, and acceptance needs the P1-6 benchmark | Blocked on P1-6 |
+| P2-8 | **Done** | `flame_api/admin.py`, 5 endpoints, `test_admin_api.py`; rejected evidence excluded from search and chat; re-ingest keeps reviews | No admin UI (the web tier never holds a write key). Procedure 5's manual evidence row stays SQL |
+| P2-9 | **Done** | Migration `0006_experiment_ingested_at` with backfill, `test_experiment_provenance.py` | `experiment_ids` / `document_ids` stay empty until ingest writes evidence that links a document and an experiment |
+| P2-10 | **Done** | `chunks` / `indexed_chunks` in counts; client panels without a source return `null` | No dashboard page renders these yet (`/` redirects to `/chat`) |
+| P2-11 | **Done (local drill)** | `infrastructure/backup/{backup,restore}.sh`; drill 2026-11-02: 21/21 tables and 8/8 S3 objects matched (`OFFLINE_DATA_AND_SYNC.md` §5) | No schedule; `mc mirror` path untested; embeddings not exercised; the Compose/MinIO drill stays Pending |
+
 ## P3: Optional
 
 | ID | Item | Why it is deferred |

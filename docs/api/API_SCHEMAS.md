@@ -1,6 +1,6 @@
 # Flame in Freefall: API Response Schemas
 
-**Generated from [`openapi.json`](openapi.json)** (OpenAPI 3.1.0, API 0.3.0) by `docs/tools/render_api_schemas.py`. Do not edit by hand.
+**Generated from [`openapi.json`](openapi.json)** (OpenAPI 3.1.0, API 0.4.0) by `docs/tools/render_api_schemas.py`. Do not edit by hand.
 Endpoint behaviour, examples and display rules: [`FRONTEND_API_CONTRACT.md`](FRONTEND_API_CONTRACT.md).
 
 Reading the tables: *Required = yes* means the key is always present. A nullable field (`| null`) is still present, with value `null`, which means "not present or not established" and is never a stand-in for `0`. The only optional keys in responses are those of [`ErrorDetails`](#errordetails).
@@ -62,6 +62,8 @@ All counts are exact `COUNT(*)` reads at `meta.generated_at`. On failure the end
 | `experiments` | integer (minimum=0) | yes | `experiment` records (one per test, e.g. a BASS-II test ID) that have at least one ExperimentCondition. |
 | `analyses` | integer (minimum=0) | yes | Flame analyses in status `completed`. |
 | `analyses_in_progress` | integer (minimum=0) | yes | Flame analyses in status `queued` or `processing`. |
+| `chunks` | integer (minimum=0) | yes | All `document_chunk` rows (searchable passages), embedded or not. |
+| `indexed_chunks` | integer (minimum=0) | yes | Chunks with a vector in the published vector index (`chunk_embedding` rows of the model named by `vector_index_manifest`). 0 only when no index is published (no manifest row, or not PostgreSQL). Fewer than `chunks` means the index is stale and search runs lexical-only. |
 | `knowledge_version` | string \| `null` | yes | Corpus version the document count refers to. |
 | `meta` | [`ResponseMeta`](#responsemeta) | yes |  |
 
