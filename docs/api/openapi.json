@@ -2468,6 +2468,703 @@
           }
         ]
       }
+    },
+    "/api/admin/files": {
+      "get": {
+        "operationId": "listAdminFiles",
+        "summary": "List files with their ingestion status",
+        "description": "Write token (admin data is not served to the read tier or AURA). ADMIN_DATA_OPERATIONS.md procedure 3: every file_record with `status` and `quarantine_reason`, ordered by source and file ID.",
+        "tags": [
+          "Admin"
+        ],
+        "x-aura-exclude": true,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestIdHeader"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "description": "Only files with this status (omit for all).",
+            "schema": {
+              "$ref": "#/components/schemas/FileStatus"
+            }
+          },
+          {
+            "name": "source_id",
+            "in": "query",
+            "required": false,
+            "description": "Only files of this source.",
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of files.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminFileListResponse"
+                },
+                "examples": {
+                  "quarantined": {
+                    "summary": "ILLUSTRATIVE values.",
+                    "value": {
+                      "items": [
+                        {
+                          "file_id": "sha256:71e792bf6b5fb5ea",
+                          "source_id": "FF-NTRS-20000034017",
+                          "sha256": "71e792bf6b5fb5ea000000000000000000000000000000000000000000000000",
+                          "original_filename": "20000034017.pdf",
+                          "media_type": "application/pdf",
+                          "size_bytes": 1048576,
+                          "retrieved_at": "2026-10-11T08:00:00Z",
+                          "canonical_source_url": "https://ntrs.nasa.gov/api/citations/20000034017/downloads/20000034017.pdf",
+                          "is_original": true,
+                          "parent_file_id": null,
+                          "status": "quarantined",
+                          "quarantine_reason": "checksum_mismatch"
+                        }
+                      ],
+                      "pagination": {
+                        "page": 1,
+                        "page_size": 20,
+                        "total_items": 1,
+                        "total_pages": 1
+                      },
+                      "meta": {
+                        "request_id": "req_01J9Z3K8V5Q2N7X4M6R1T0W8YB",
+                        "generated_at": "2026-11-02T09:30:00Z",
+                        "api_version": "0.3.0"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "description": "A dependency is unavailable. Codes: DATABASE_UNAVAILABLE.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-implementation-status": "implemented",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/ingestion-runs": {
+      "get": {
+        "operationId": "listIngestionRuns",
+        "summary": "List ingestion runs",
+        "description": "Write token (admin data is not served to the read tier or AURA). ADMIN_DATA_OPERATIONS.md procedure 3: ingestion_run rows, newest first. `transformation_id=quarantine` lists the failed runs.",
+        "tags": [
+          "Admin"
+        ],
+        "x-aura-exclude": true,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestIdHeader"
+          },
+          {
+            "name": "transformation_id",
+            "in": "query",
+            "required": false,
+            "description": "Exact transformation (parser version, or `quarantine`).",
+            "schema": {
+              "type": "string",
+              "maxLength": 80
+            }
+          },
+          {
+            "name": "file_id",
+            "in": "query",
+            "required": false,
+            "description": "Only runs over this file.",
+            "schema": {
+              "type": "string",
+              "maxLength": 80
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of ingestion runs.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestionRunListResponse"
+                },
+                "examples": {
+                  "failedRuns": {
+                    "summary": "ILLUSTRATIVE values.",
+                    "value": {
+                      "items": [
+                        {
+                          "run_id": "01JBAD1K4J6P8R0T2W4Y6A8C0E",
+                          "source_id": "FF-NTRS-20000034017",
+                          "file_id": "sha256:71e792bf6b5fb5ea",
+                          "transformation_id": "quarantine",
+                          "input_sha256": "71e792bf6b5fb5ea000000000000000000000000000000000000000000000000",
+                          "started_at": "2026-10-11T08:00:00Z",
+                          "finished_at": "2026-10-11T08:00:00Z",
+                          "counts": {
+                            "reason": "checksum_mismatch"
+                          }
+                        }
+                      ],
+                      "pagination": {
+                        "page": 1,
+                        "page_size": 20,
+                        "total_items": 1,
+                        "total_pages": 1
+                      },
+                      "meta": {
+                        "request_id": "req_01J9Z3K8V5Q2N7X4M6R1T0W8YB",
+                        "generated_at": "2026-11-02T09:30:00Z",
+                        "api_version": "0.3.0"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "description": "A dependency is unavailable. Codes: DATABASE_UNAVAILABLE.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-implementation-status": "implemented",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/files/{file_id}/reprocess": {
+      "post": {
+        "operationId": "reprocessFile",
+        "summary": "Release a quarantined file for re-ingestion",
+        "description": "Write token (admin data is not served to the read tier or AURA). ADMIN_DATA_OPERATIONS.md procedure 4: sets `status` to `active` and clears `quarantine_reason`, so the next `python -m flame_api.ingest` retries the file. Ingestion is not run by this request. Records `audit_event` (action `file.reprocess`, before/after) in the same transaction. Fix or re-mirror the bytes first: a file whose checksum still does not match is quarantined again.",
+        "tags": [
+          "Admin"
+        ],
+        "x-aura-exclude": true,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestIdHeader"
+          },
+          {
+            "name": "file_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^sha256:[a-f0-9]{16}$",
+              "description": "File identifier as recorded in datasets/metadata/files.jsonl (`sha256:` + first 16 hex chars).",
+              "examples": [
+                "sha256:71e792bf6b5fb5ea"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FileReprocessRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The file is active again and the change is audited.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileReprocessResponse"
+                },
+                "examples": {
+                  "released": {
+                    "summary": "ILLUSTRATIVE values.",
+                    "value": {
+                      "file": {
+                        "file_id": "sha256:71e792bf6b5fb5ea",
+                        "source_id": "FF-NTRS-20000034017",
+                        "sha256": "71e792bf6b5fb5ea000000000000000000000000000000000000000000000000",
+                        "original_filename": "20000034017.pdf",
+                        "media_type": "application/pdf",
+                        "size_bytes": 1048576,
+                        "retrieved_at": "2026-10-11T08:00:00Z",
+                        "canonical_source_url": "https://ntrs.nasa.gov/api/citations/20000034017/downloads/20000034017.pdf",
+                        "is_original": true,
+                        "parent_file_id": null,
+                        "status": "active",
+                        "quarantine_reason": null
+                      },
+                      "audit_event": {
+                        "event_id": "01JBAD2M5K7Q9S1V3X5Z7B9D1F",
+                        "occurred_at": "2026-11-02T09:30:00Z",
+                        "actor": "write-token",
+                        "action": "file.reprocess",
+                        "target_type": "file_record",
+                        "target_id": "sha256:71e792bf6b5fb5ea",
+                        "before": {
+                          "status": "quarantined",
+                          "quarantine_reason": "checksum_mismatch"
+                        },
+                        "after": {
+                          "status": "active",
+                          "quarantine_reason": null,
+                          "note": "Re-mirrored from NTRS; checksum now matches."
+                        },
+                        "request_id": "req_01J9Z3K8V5Q2N7X4M6R1T0W8YB"
+                      },
+                      "meta": {
+                        "request_id": "req_01J9Z3K8V5Q2N7X4M6R1T0W8YB",
+                        "generated_at": "2026-11-02T09:30:00Z",
+                        "api_version": "0.3.0"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "Resource not found. Codes: FILE_NOT_FOUND.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The file is not quarantined. Codes: FILE_NOT_QUARANTINED.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "description": "A dependency is unavailable. Codes: DATABASE_UNAVAILABLE.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-implementation-status": "implemented",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/evidence/{evidence_id}/review": {
+      "put": {
+        "operationId": "reviewEvidence",
+        "summary": "Set an evidence row's review status",
+        "description": "Write token (admin data is not served to the read tier or AURA). ADMIN_DATA_OPERATIONS.md procedure 7: sets `payload.review_status`. `rejected` evidence is excluded from `/api/search` and so never reaches `/api/chat`; a re-ingest keeps the review. Nothing is deleted. Records `audit_event` (action `evidence.review`, before/after) in the same transaction.",
+        "tags": [
+          "Admin"
+        ],
+        "x-aura-exclude": true,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestIdHeader"
+          },
+          {
+            "name": "evidence_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "description": "ULID (MVP plan §9 / DAY2_TASKS: ULID primary keys)."
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvidenceReviewRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The review status changed and the change is audited.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvidenceReviewResponse"
+                },
+                "examples": {
+                  "rejected": {
+                    "summary": "ILLUSTRATIVE values.",
+                    "value": {
+                      "evidence_id": "01J9Z3N5B8C1E3G5J7M9P1R3T5",
+                      "previous_review_status": "machine_extracted",
+                      "review_status": "rejected",
+                      "audit_event": {
+                        "event_id": "01JBAD3N6M8R0T2W4Y6A8C0E2G",
+                        "occurred_at": "2026-11-02T09:31:00Z",
+                        "actor": "write-token",
+                        "action": "evidence.review",
+                        "target_type": "evidence",
+                        "target_id": "01J9Z3N5B8C1E3G5J7M9P1R3T5",
+                        "before": {
+                          "review_status": "machine_extracted"
+                        },
+                        "after": {
+                          "review_status": "rejected",
+                          "note": "OCR garbled the table on this page."
+                        },
+                        "request_id": "req_01J9Z3K8V5Q2N7X4M6R1T0W8YC"
+                      },
+                      "meta": {
+                        "request_id": "req_01J9Z3K8V5Q2N7X4M6R1T0W8YB",
+                        "generated_at": "2026-11-02T09:30:00Z",
+                        "api_version": "0.3.0"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "Resource not found. Codes: EVIDENCE_NOT_FOUND.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "description": "A dependency is unavailable. Codes: DATABASE_UNAVAILABLE.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-implementation-status": "implemented",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/audit": {
+      "get": {
+        "operationId": "listAuditEvents",
+        "summary": "Read the audit log",
+        "description": "Write token (admin data is not served to the read tier or AURA). audit_event rows, newest first, filtered by action, target type and target ID.",
+        "tags": [
+          "Admin"
+        ],
+        "x-aura-exclude": true,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestIdHeader"
+          },
+          {
+            "name": "action",
+            "in": "query",
+            "required": false,
+            "description": "Exact action, e.g. `evidence.review`.",
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "target_type",
+            "in": "query",
+            "required": false,
+            "description": "Exact target type, e.g. `file_record`.",
+            "schema": {
+              "type": "string",
+              "maxLength": 48
+            }
+          },
+          {
+            "name": "target_id",
+            "in": "query",
+            "required": false,
+            "description": "Exact target ID.",
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of audit events.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditEventListResponse"
+                },
+                "examples": {
+                  "reviews": {
+                    "summary": "ILLUSTRATIVE values.",
+                    "value": {
+                      "items": [
+                        {
+                          "event_id": "01JBAD3N6M8R0T2W4Y6A8C0E2G",
+                          "occurred_at": "2026-11-02T09:31:00Z",
+                          "actor": "write-token",
+                          "action": "evidence.review",
+                          "target_type": "evidence",
+                          "target_id": "01J9Z3N5B8C1E3G5J7M9P1R3T5",
+                          "before": {
+                            "review_status": "machine_extracted"
+                          },
+                          "after": {
+                            "review_status": "rejected",
+                            "note": "OCR garbled the table on this page."
+                          },
+                          "request_id": "req_01J9Z3K8V5Q2N7X4M6R1T0W8YC"
+                        }
+                      ],
+                      "pagination": {
+                        "page": 1,
+                        "page_size": 20,
+                        "total_items": 1,
+                        "total_pages": 1
+                      },
+                      "meta": {
+                        "request_id": "req_01J9Z3K8V5Q2N7X4M6R1T0W8YB",
+                        "generated_at": "2026-11-02T09:30:00Z",
+                        "api_version": "0.3.0"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "description": "A dependency is unavailable. Codes: DATABASE_UNAVAILABLE.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-implementation-status": "implemented",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -2561,7 +3258,9 @@
           "AUTHENTICATION_REQUIRED",
           "CHAT_UNAVAILABLE",
           "METHOD_NOT_ALLOWED",
-          "VIDEO_INVALID"
+          "VIDEO_INVALID",
+          "FILE_NOT_FOUND",
+          "FILE_NOT_QUARANTINED"
         ],
         "description": "Stable machine-readable error code. The frontend switches on this, never on `message`. AURA_UNAVAILABLE is deprecated since 0.2.0: chat now degrades to an evidence-only answer instead."
       },
@@ -6236,6 +6935,373 @@
           }
         },
         "description": "Result of a flame_video analysis (0.3.0). Pixel units only; no temperature."
+      },
+      "FileStatus": {
+        "type": "string",
+        "enum": [
+          "active",
+          "quarantined"
+        ],
+        "description": "file_record.status (M9). A quarantined file is kept for review but never parsed or indexed."
+      },
+      "AdminFile": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "file_id",
+          "source_id",
+          "sha256",
+          "original_filename",
+          "media_type",
+          "size_bytes",
+          "retrieved_at",
+          "canonical_source_url",
+          "is_original",
+          "parent_file_id",
+          "status",
+          "quarantine_reason"
+        ],
+        "properties": {
+          "file_id": {
+            "type": "string",
+            "pattern": "^sha256:[a-f0-9]{16}$",
+            "description": "File identifier as recorded in datasets/metadata/files.jsonl (`sha256:` + first 16 hex chars).",
+            "examples": [
+              "sha256:71e792bf6b5fb5ea"
+            ]
+          },
+          "source_id": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "description": "Lowercase hex SHA-256 of the exact bytes."
+          },
+          "original_filename": {
+            "type": "string"
+          },
+          "media_type": {
+            "type": "string",
+            "description": "Content type recorded at ingestion."
+          },
+          "size_bytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "retrieved_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the original was mirrored (retrieval_timestamp_utc)."
+          },
+          "canonical_source_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri",
+            "description": "Where the original was fetched from (s3:// or PSI API URL)."
+          },
+          "is_original": {
+            "type": "boolean",
+            "description": "True for an immutable upstream original; false for a derived artefact."
+          },
+          "parent_file_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "file_id of the original this artefact was derived from."
+          },
+          "status": {
+            "$ref": "#/components/schemas/FileStatus"
+          },
+          "quarantine_reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why ingestion quarantined the file (e.g. checksum_mismatch, unreadable_pdf, encrypted_pdf); null when active."
+          }
+        },
+        "description": "A file_record as administrators see it: FileRef plus its source, status and quarantine reason. Admin only."
+      },
+      "AdminFileListResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "items",
+          "pagination",
+          "meta"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminFile"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Pagination"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        }
+      },
+      "IngestionRun": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "run_id",
+          "source_id",
+          "file_id",
+          "transformation_id",
+          "input_sha256",
+          "started_at",
+          "finished_at",
+          "counts"
+        ],
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "source_id": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "file_id": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "transformation_id": {
+            "type": "string",
+            "maxLength": 80,
+            "description": "Parser version that produced the rows, or `quarantine` for a failed run."
+          },
+          "input_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "finished_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "counts": {
+            "type": "object",
+            "description": "Per-run counts, or `{reason}` for a quarantine run."
+          }
+        },
+        "description": "One ingestion_run row (lineage of what parsed which file bytes)."
+      },
+      "IngestionRunListResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "items",
+          "pagination",
+          "meta"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IngestionRun"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Pagination"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        }
+      },
+      "AuditEvent": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "event_id",
+          "occurred_at",
+          "actor",
+          "action",
+          "target_type",
+          "target_id",
+          "before",
+          "after",
+          "request_id"
+        ],
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "actor": {
+            "type": "string",
+            "description": "`write-token` until per-user admin identities exist (ADR-009 step 2)."
+          },
+          "action": {
+            "type": "string",
+            "description": "e.g. `file.reprocess`, `evidence.review`, `ai.mode.changed`."
+          },
+          "target_type": {
+            "type": "string"
+          },
+          "target_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "before": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Values before the change; applying them is the rollback."
+          },
+          "after": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Values after the change, plus the administrator's `note` if one was given."
+          },
+          "request_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "description": "One append-only audit_event row (B6)."
+      },
+      "AuditEventListResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "items",
+          "pagination",
+          "meta"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuditEvent"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Pagination"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        }
+      },
+      "FileReprocessRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "note": {
+            "type": "string",
+            "maxLength": 2000,
+            "description": "Free-text reason, kept in the audit event's `after.note`."
+          }
+        }
+      },
+      "FileReprocessResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "file",
+          "audit_event",
+          "meta"
+        ],
+        "properties": {
+          "file": {
+            "$ref": "#/components/schemas/AdminFile"
+          },
+          "audit_event": {
+            "$ref": "#/components/schemas/AuditEvent"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        }
+      },
+      "AdminReviewStatus": {
+        "type": "string",
+        "enum": [
+          "machine_extracted",
+          "human_verified",
+          "rejected"
+        ],
+        "description": "The ReviewStatus values an administrator may set (`raw` is never a review outcome)."
+      },
+      "EvidenceReviewRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "review_status"
+        ],
+        "properties": {
+          "review_status": {
+            "$ref": "#/components/schemas/AdminReviewStatus"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 2000,
+            "description": "Free-text reason, kept in the audit event's `after.note`."
+          }
+        }
+      },
+      "EvidenceReviewResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "evidence_id",
+          "previous_review_status",
+          "review_status",
+          "audit_event",
+          "meta"
+        ],
+        "properties": {
+          "evidence_id": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "previous_review_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReviewStatus"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null when the row never had a review_status."
+          },
+          "review_status": {
+            "$ref": "#/components/schemas/AdminReviewStatus"
+          },
+          "audit_event": {
+            "$ref": "#/components/schemas/AuditEvent"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        }
       }
     },
     "parameters": {
