@@ -20,6 +20,7 @@ ADRs are immutable. A changed decision gets a new ADR that supersedes the old on
 | [009](ADR-009-auth-and-rbac.md) | Authentication and RBAC | Proposed | Belal (E4) |
 | [010](ADR-010-contract-first-openapi.md) | Contract-first OpenAPI with a route-parity test | Accepted | Belal (E4) |
 | [011](ADR-011-scenario-relevance-ranking.md) | Rank investigations by evidence relevance to a cabin atmosphere | Proposed (implemented in PR #24) | Ziad (E5), Anas (E2) |
+| [012](ADR-012-commit-psi-tables.md) | Commit the PSI experimental tables and ISA-Tab metadata to Git | Proposed (implemented in PR #24) | Princess (E3), Ziad (E5) |
 
 "Accepted" here means it describes what is built on branch `ccr-c6a5a263-498la9` (PR #14). Each still needs the named engineer's sign-off, recorded in the table above, before the Week 1 gate counts it.
 
@@ -31,4 +32,4 @@ ADRs are immutable. A changed decision gets a new ADR that supersedes the old on
 ## Changelog
 
 - 1.0.0 (2026-10-12): ADR-001 to ADR-010.
-- 1.1.0 (2026-11-07): ADR-011 (scenario relevance ranking), Proposed.
+- 1.1.0 (2026-11-07): ADR-011 (scenario relevance ranking) and ADR-012 (committed PSI tables), Proposed.
