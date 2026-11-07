@@ -15,6 +15,8 @@ with every result:
 * pressure_match  1 if inside the tested pressure range, else exp(-|ln(P/P_nearest)|/0.25); 0 if not recorded
 * evidence_density  min(1, ln(1+n)/ln(31)), n = tests within +/-0.03 O2 (and +/-25% pressure when recorded)
 * outcome_data    1 if each test records its end state, 0.5 if only a duration is recorded, 0 if none
+
+Why this definition, these weights and scales, and what it cannot say: docs/architecture/adr/ADR-011-scenario-relevance-ranking.md.
 """
 from __future__ import annotations
 

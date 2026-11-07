@@ -12,7 +12,7 @@
 
 | ID | Document | Status | Last updated |
 |---|---|---|---|
-| L-1 | [ADRs 001–010](architecture/adr/README.md) | 001–005 and 010 Accepted (awaiting sign-off); 006–009 Proposed | 2026-10-12 |
+| L-1 | [ADRs 001–011](architecture/adr/README.md) | 001–005 and 010 Accepted (awaiting sign-off); 006–009 and 011 Proposed | 2026-11-07 |
 | L-2 | [Architecture overview](architecture/overview.md) | In review | 2026-10-12 |
 | L-3 | delivered as H-2 + H-4 | In review | 2026-10-12 |
 | L-4 | [openapi.json](api/openapi.json) 0.3.0, [API_SCHEMAS.md](api/API_SCHEMAS.md), [CHANGELOG](api/CHANGELOG.md) | Current | 2026-10-30 |
