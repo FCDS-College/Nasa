@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { ChatRequest, ChatResponse } from "@/lib/api/types";
-import { submitChat } from "@/lib/api/client";
+import { searchResearch, submitChat } from "@/lib/api/client";
 
 export interface ChatTurn {
   id: string;
@@ -228,7 +228,33 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       setIsSending(true);
 
       try {
-        const res = await submitChat(req);
+        let res: ChatResponse;
+        try {
+          res = await submitChat(req);
+        } catch (err) {
+          // No language model on this deployment (503 CHAT_UNAVAILABLE): still give the user what works,
+          // the evidence hybrid retrieval finds for the question, clearly marked as not generated.
+          if (!(err instanceof Error) || err.name !== "CHAT_UNAVAILABLE") throw err;
+          const found = await searchResearch(cleanQuery, { domain: "all" });
+          const top = found.results.filter((r) => r.evidence_id).slice(0, 6);
+          res = {
+            request_id: found.request_id,
+            answer: top.length
+              ? "No language model is running on this deployment, so nothing below was generated. These are the passages Flame's hybrid retrieval found for your question; open a source to read it in full."
+              : "No language model is running on this deployment, and retrieval found no matching passages for this question.",
+            sources: top.map((r) => ({
+              evidence_id: r.evidence_id as string,
+              document_id: r.result_id,
+              title: r.title,
+              location: r.locator?.label ?? r.source.short_name ?? r.result_type,
+            })),
+            memory_used: false,
+            cache_hit: false,
+            model: { provider: "flame", name: "retrieval-only", version: "n/a" },
+            knowledge_version: found.retrieval.corpus_version,
+            warnings: ["generation_unavailable"],
+          };
+        }
         setSessions((prev) =>
           prev.map((s) => {
             if (s.id === currentId) {
