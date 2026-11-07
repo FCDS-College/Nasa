@@ -23,7 +23,7 @@
 | L-9 | [Observability](operations/OBSERVABILITY.md) | In review | 2026-10-12 |
 | L-10 | [Security and access control](operations/SECURITY.md) | Draft (final in W7) | 2026-10-12 |
 | L-11 | [Release v0.1.0-mvp](releases/v0.1.0-mvp.md) | Tag approved, push pending; sign-offs pending | 2026-10-12 |
-| L-12 | [AURA integration audit](integration/AURA_INTEGRATION_AUDIT.md) (current), [API integration reference](integration/API_INTEGRATION_REFERENCE.md); [status report](integration/AURA_INTEGRATION_STATUS.md) §0 is history | Current | 2026-10-30 |
+| L-12 | [AURA integration README](integration/README.md) (entry point, contract 0.5.0), [audit](integration/AURA_INTEGRATION_AUDIT.md), [API integration reference](integration/API_INTEGRATION_REFERENCE.md); [status report](integration/AURA_INTEGRATION_STATUS.md) §0 is history | Current | 2026-11-07 |
 | H-1 | [Dependency audit](hybrid-ai/PHASE_2_HYBRID_AI_DEPENDENCY_AUDIT.md) | In review | 2026-10-12 |
 | H-2 | [Hybrid AI architecture](hybrid-ai/PHASE_2_HYBRID_AI_ARCHITECTURE.md) | In review | 2026-10-12 |
 | H-3 | [Local model registry](hybrid-ai/PHASE_2_LOCAL_MODEL_REGISTRY.md) | In review (checksums partly Pending) | 2026-10-12 |
