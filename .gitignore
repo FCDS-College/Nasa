@@ -24,3 +24,6 @@ data/processed/
 cv/output/
 cv/weights/
 *.egg-info/
+
+# Redis snapshot written by a local redis-server started from the repo root
+dump.rdb
