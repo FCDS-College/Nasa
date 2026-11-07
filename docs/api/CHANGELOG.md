@@ -2,9 +2,30 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Lead (Anas) | Current | — | 2026-10-12 | L-4, M6 | `docs/api/openapi.json`, `apps/api/flame_api/` |
+| Lead (Anas) | Current | — | 2026-11-02 | L-4, M6 | `docs/api/openapi.json`, `apps/api/flame_api/` |
 
 Semver applies to `docs/api/openapi.json` `info.version`. Breaking changes need a minor bump while we are pre-1.0, an entry here, and one release of deprecation where practical.
+
+## 0.4.0 (2026-11-02)
+
+Additive for clients that send a valid token; read the **Changed** items before upgrading a deployment.
+
+**Added**
+- Per-client API keys (P2-1, migration `0005_api_clients`): `python -m flame_api.clients {create,list,revoke}` issues `flk_…` keys with `read` and/or `write` scope, stored only as a SHA-256 hash. A key without the needed scope gets **403 `FORBIDDEN`**; an unknown or revoked key gets 401. `FLAME_READ_API_TOKEN` / `FLAME_WRITE_API_TOKEN` still work and are deprecated.
+- Admin data operations (P2-8), all write scope, all `x-aura-exclude: true`, every change audited: `GET /api/admin/files`, `GET /api/admin/ingestion-runs`, `POST /api/admin/files/{file_id}/reprocess`, `PUT /api/admin/evidence/{evidence_id}/review`, `GET /api/admin/audit`. New schemas `AdminFile*`, `IngestionRun*`, `AuditEvent*`, `FileReprocess*`, `EvidenceReview*`, `AdminReviewStatus`, `FileStatus`; `ErrorCode` gains `FILE_NOT_FOUND`, `FILE_NOT_QUARANTINED`.
+- `DashboardCountsResponse.chunks` and `.indexed_chunks` (P2-10).
+- `AiStatus` / `AiProvidersResponse`: optional `mode_source` (`env` | `audit_override`) and `env_mode` (P2-5); schema `AiModeSource`.
+- `WarningCode.JOB_RECOVERED` (P2-4): an analysis re-queued by `python -m flame_api.worker recover` after a worker crash.
+
+**Changed**
+- Rate limits on every authenticated `/api/*` route, per client (P2-2): `FLAME_READ_RATE_LIMIT_PER_MINUTE` (600), `FLAME_WRITE_RATE_LIMIT_PER_MINUTE` (60), `FLAME_CHAT_RATE_LIMIT_PER_MINUTE` (30, now per client). 429 `RATE_LIMITED` carries `Retry-After` and `details.limit_per_minute` / `retry_after_s`. A rate-limited chat request now gets 429 before any 503 `CHAT_UNAVAILABLE`. Redis down → fail open (chat keeps its in-process ceiling).
+- `/api/health` is never rate-limited: its 429 response is removed from the contract; it can return 403 for a key without read scope.
+- Every `/api/admin/*` route, **including GETs**, now needs write scope. Before, an admin GET passed with the read token.
+- Evidence an administrator rejects is no longer returned by `/api/search` or cited by `/api/chat`; `GET /api/evidence/{id}` still shows it with `review_status: rejected`. Re-ingest keeps `human_verified` / `rejected`.
+- Experiment search hits report the real `ingested_at` (migration `0006`; before, the response time). An experiment row with neither an ingestion time nor a table file is left out of search rather than given an invented time.
+- `Document.experiment_ids` / `Experiment.document_ids` are filled from evidence that links both; still empty on today's corpus, where no such evidence exists.
+- Search ranks lexical candidates in SQL and fetches at most `max(200, 2·page·page_size)` before fusion (P2-3); on PostgreSQL it uses the stored `document_chunk.search_tsv` (migration `0007`). `total_items` and ordering are unchanged.
+- Production refuses known local default secrets (S3 `change-me-*`, `flame-local` access key, the `flame` database password) at start-up (P2-6).
 
 ## 0.3.0 (2026-10-30)
 

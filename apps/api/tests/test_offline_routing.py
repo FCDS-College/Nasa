@@ -253,3 +253,40 @@ def test_switching_to_offline_only_makes_embeddings_cache_only(tmp_path, monkeyp
     with pytest.raises(ProviderError) as caught:
         fastembed.embed(EmbeddingRequest(texts=("flame",)))
     assert caught.value.code.value == "model_missing"
+
+
+def _unavailable(*_args, **_kwargs):
+    raise ConnectionError("not running in this test")
+
+
+def test_providers_and_health_say_whether_the_mode_comes_from_env_or_an_audit_override(client, monkeypatch):
+    from api_contract import assert_contract_component
+    from sqlalchemy.exc import OperationalError
+
+    def database_down():
+        raise OperationalError("select 1", {}, Exception("down"))
+
+    monkeypatch.setattr(provider_http, "urlopen", FakeNet())
+    monkeypatch.setattr(main, "settings", settings_for("cloud_preferred"))
+    monkeypatch.setattr(main.engine, "connect", database_down)
+    monkeypatch.setattr(main.Redis, "from_url", _unavailable)
+    monkeypatch.setattr(main.boto3, "client", _unavailable)
+    write = {"Authorization": f"Bearer {WRITE_TOKEN}"}
+
+    before = client.get("/api/ai/providers").json()
+    assert (before["mode"], before["mode_source"], before["env_mode"]) == ("cloud_preferred", "env", "cloud_preferred")
+    assert_contract_component(before, "AiProvidersResponse")
+
+    assert client.put("/api/admin/ai/mode", json={"mode": "offline_only"}, headers=write).status_code == 200
+
+    after = client.get("/api/ai/providers").json()
+    assert (after["mode"], after["mode_source"], after["env_mode"]) == ("offline_only", "audit_override", "cloud_preferred")
+    assert_contract_component(after, "AiProvidersResponse")
+    health_ai = client.get("/api/health").json()["ai"]
+    assert (health_ai["mode"], health_ai["mode_source"], health_ai["env_mode"]) == ("offline_only", "audit_override", "cloud_preferred")
+    assert_contract_component(health_ai, "AiStatus")
+
+    # Returning to the env value is another audited PUT; the source stays an override (there is no clear).
+    assert client.put("/api/admin/ai/mode", json={"mode": "cloud_preferred"}, headers=write).status_code == 200
+    restored = client.get("/api/ai/providers").json()
+    assert (restored["mode"], restored["mode_source"]) == ("cloud_preferred", "audit_override")

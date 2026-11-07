@@ -71,3 +71,19 @@ Final results: see the [readiness report §7](FINAL_SYSTEM_READINESS_REPORT.md#7
 ## Remaining work
 
 The open roadmap items are P1-6, P1-7, P1-8 and all of P2 and P3. Each one names its blocker in the roadmap.
+
+## 2026-11-02: roadmap P2
+
+Contract 0.3.0 → 0.4.0 ([docs/api/CHANGELOG.md](../api/CHANGELOG.md)). Migrations `0005_api_clients`, `0006_experiment_ingested_at`, `0007_chunk_search_tsv` (all reversible; upgrade → downgrade → upgrade checked on PostgreSQL 16 + pgvector). Per-item status and what stays open: [roadmap, P2 status](../plan/IMPLEMENTATION_ROADMAP.md#p2-status-2026-11-02).
+
+| Items | Change | Main files |
+|---|---|---|
+| P2-1, P2-2, P2-6 | Per-client hashed API keys with scopes and a CLI; per-client Redis rate limits on every authenticated route; production refuses local default secrets | `flame_api/clients.py`, `flame_api/rate_limit.py`, `flame_api/main.py`, `flame_api/config.py`, `docs/operations/SECURITY.md` |
+| P2-3 | Search ranks and caps lexical candidates in SQL; PostgreSQL uses a stored, GIN-indexed `search_tsv` | `flame_api/main.py`, `migrations/versions/0007_chunk_search_tsv.py` |
+| P2-4, P2-5 | Stuck-job recovery command, run at worker start; `mode_source` / `env_mode` | `flame_api/worker.py`, `flame_api/ai_runtime.py`, `infrastructure/compose.yaml`, `.railway/railway.py` |
+| P2-8 | Audited admin endpoints; rejected evidence excluded from search and chat; re-ingest keeps reviews | `flame_api/admin.py`, `flame_api/ingest.py`, `docs/data/ADMIN_DATA_OPERATIONS.md` |
+| P2-9, P2-10 | Real experiment `ingested_at`; evidence-based document/experiment links; `chunks` / `indexed_chunks` | `flame_api/models.py`, `migrations/versions/0006_experiment_ingested_at.py`, `apps/web/lib/api/client.ts` |
+| P2-11 | Backup and restore scripts; local restore drill | `infrastructure/backup/`, `docs/operations/RUNBOOK.md`, `docs/data/OFFLINE_DATA_AND_SYNC.md` |
+
+Tests: `python -m pytest` 368 passed, 7 skipped (one opt-in real-Redis test); `ruff check .` clean; `render_api_schemas.py --check` current; web lint (0 errors), typecheck and build pass; AURA dry run against `d696fad`: 10 tools ACCEPTED, 8 operations excluded (the 3 before plus the 5 admin routes).
+

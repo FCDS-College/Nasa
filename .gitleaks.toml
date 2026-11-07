@@ -1,6 +1,7 @@
 # Secret scanning config (M12, L-10). Extends gitleaks' default rules.
-# The only allowlisted values are CV cache keys: a 64-hex SHA-256 digest stored as "key"/"_key" in
-# CV result contracts and the CV cache manifest. They are content hashes, not credentials.
+# Allowlisted: CV cache keys (a 64-hex SHA-256 digest stored as "key"/"_key" in CV result contracts
+# and the CV cache manifest: content hashes, not credentials), and four fixed fake credentials in
+# apps/api/tests, matched exactly, so any other secret in those files is still reported.
 [extend]
 useDefault = true
 
@@ -10,3 +11,9 @@ paths = ['''^cv/contracts/.*\.json$''', '''^datasets/cache_manifest\.jsonl$''']
 regexTarget = "line"
 condition = "AND"
 regexes = ['''"_?key":\s*"[0-9a-f]{64}"''']
+
+[[allowlists]]
+description = "Fixed fake credentials in API tests (settings validation and auth fixtures); never valid anywhere"
+paths = ['''^apps/api/tests/.*\.py$''']
+condition = "AND"
+regexes = ['''^(test-(read|write)-token-0123456789abcdef0123456789|prod-secret-0123456789abcdef|change-me-later-0123456789)$''']

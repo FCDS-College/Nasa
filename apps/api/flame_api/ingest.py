@@ -146,6 +146,14 @@ def _ocr_page(page) -> tuple[str, float, str] | None:
     return text, round(sum(c for _, c in words) / len(words), 1), version
 
 
+def _keep_review(session, evidence_id: str, payload: dict) -> None:
+    """Re-ingesting rebuilds evidence rows; an administrator's review (PUT /api/admin/evidence/{id}/review) survives it."""
+    existing = session.get(EvidenceRecord, evidence_id)
+    status = (existing.payload or {}).get("review_status") if existing is not None else None
+    if status in {"human_verified", "rejected"}:
+        payload["review_status"] = status
+
+
 def _store_passage(session, *, source, file_record, document_id, label, locator, text, method, confidence, parser, now, flags=None):
     """One evidence row plus its chunk. IDs depend only on the file hash and the locator."""
     content_hash = file_record.sha256
@@ -165,6 +173,7 @@ def _store_passage(session, *, source, file_record, document_id, label, locator,
         "knowledge_version": None,
         **(flags or {}),
     }
+    _keep_review(session, evidence_id, evidence_payload)
     session.merge(EvidenceRecord(
         evidence_id=evidence_id, source_id=source.source_id, file_id=file_record.file_id, document_id=document_id,
         experiment_id=None, analysis_id=None, kind="document_passage", origin="source_evidence", excerpt=text,
@@ -439,6 +448,7 @@ def _create_table_experiments(session: Session, file_record: FileRecord) -> dict
             "FF-PSI-98": "Sample Number",
         }.get(source.source_id, "")
         seen_rows: set[tuple[str, ...]] = set()
+        now = _utc_now()
         experiments = evidence_count = duplicates = valid_rows = 0
         for row_number, raw_row in enumerate(reader, start=1):
             row = {key.strip(): (value or "").strip() for key, value in raw_row.items() if key}
@@ -460,7 +470,7 @@ def _create_table_experiments(session: Session, file_record: FileRecord) -> dict
             session.merge(ExperimentRecord(
                 experiment_id=experiment_id, source_id=source.source_id, test_id=test_id,
                 investigation=source.short_name, gravity_regime="microgravity", fuel_or_material=fuel,
-                table_file_id=file_record.file_id, searchable_text="",
+                table_file_id=file_record.file_id, searchable_text="", ingested_at=now,
             ))
             session.flush()
             for header in headers:
@@ -496,6 +506,7 @@ def _create_table_experiments(session: Session, file_record: FileRecord) -> dict
                     },
                     created_at=_utc_now(),
                 )
+                _keep_review(session, evidence_id, evidence.payload)
                 session.merge(evidence)
                 condition_id = stable_ulid(f"condition:{evidence_id}")
                 condition_ids.append(ExperimentCondition(
@@ -521,6 +532,7 @@ def _create_table_experiments(session: Session, file_record: FileRecord) -> dict
                 fuel_or_material=fuel,
                 table_file_id=file_record.file_id,
                 searchable_text=" ".join(searchable_values),
+                ingested_at=now,
                 conditions=condition_ids,
             )
             session.merge(experiment)

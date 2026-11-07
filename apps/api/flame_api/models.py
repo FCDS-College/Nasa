@@ -100,6 +100,9 @@ class ExperimentRecord(Base):
     table_file_id: Mapped[str | None] = mapped_column(ForeignKey("file_record.file_id"), nullable=True)
     searchable_text: Mapped[str] = mapped_column(Text, default="")
     payload: Mapped[dict[str, Any]] = mapped_column(JsonType, default=dict)
+    # When ingest.py last wrote this row (migration 0006). Nullable only for rows that predate it and
+    # had no ingestion run or table file to backfill from.
+    ingested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     source: Mapped[SourceRecord] = relationship()
     table_file: Mapped[FileRecord | None] = relationship(foreign_keys=[table_file_id])
     conditions: Mapped[list[ExperimentCondition]] = relationship(back_populates="experiment", cascade="all, delete-orphan")
@@ -342,3 +345,21 @@ class KnowledgePublication(Base):
     trigger: Mapped[str] = mapped_column(String(32))
     published_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     payload: Mapped[dict[str, Any]] = mapped_column(JsonType, default=dict)
+
+
+class ApiClient(Base):
+    """One row per API caller (P2-1, ADR-009 step 2): `web`, `aura`, an operator's script.
+
+    Only the SHA-256 of the key is stored; the key itself is printed once by
+    `python -m flame_api.clients create`. Scopes are `read` and/or `write`.
+    """
+
+    __tablename__ = "api_client"
+
+    client_id: Mapped[str] = mapped_column(String(26), primary_key=True)
+    name: Mapped[str] = mapped_column(String(64), unique=True)
+    key_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    scopes: Mapped[list[str]] = mapped_column(JsonType, default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

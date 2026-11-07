@@ -118,12 +118,14 @@ export interface KnowledgeEntity {
   }[];
 }
 
+// A panel whose data has no API source yet is `null`: render "not available yet", never an empty list
+// that reads as a measurement of zero.
 export interface DashboardData {
-  corpus_status: { total_documents: number; indexed_chunks: number; version: string };
-  recent_research: { query: string; timestamp: string }[];
-  source_coverage: { source: string; percentage: number }[];
-  evaluation_snapshot: { metric: string; value: number; threshold: number }[];
-  ingestion_alerts: { id: string; message: string; severity: "info" | "warning" | "error" }[];
+  corpus_status: { total_documents: number; total_chunks: number; indexed_chunks: number; version: string };
+  recent_research: { query: string; timestamp: string }[] | null;
+  source_coverage: { source: string; percentage: number }[] | null;
+  evaluation_snapshot: { metric: string; value: number; threshold: number }[] | null;
+  ingestion_alerts: { id: string; message: string; severity: "info" | "warning" | "error" }[] | null;
 }
 
 export interface AnalysisSummary {

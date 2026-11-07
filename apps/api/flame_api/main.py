@@ -18,22 +18,24 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from redis import Redis
 from rq import Queue, Worker
-from sqlalchemy import func, select, text
+from sqlalchemy import case, func, literal, literal_column, or_, select, text
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
+from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from flame_api.config import get_settings
 from flame_api.contracts import error_body, response_meta
 from flame_api.database import engine, get_session
+from flame_api.admin import WriteTokenRequired, router as admin_router, write_token_required_handler
 from flame_api.analysis import router as analysis_router
 from ai.routing import ExecutionMode, NoCompatibleProvider
-from flame_api import ai_runtime, answer_cache, telemetry
+from flame_api import ai_runtime, answer_cache, clients, rate_limit, telemetry
 from flame_api.generation import CHAT_INSTRUCTIONS, answer_question
 from flame_api.knowledge_version import current_knowledge_version
 from flame_api.models import AnalysisRecord, DocumentChunk, DocumentRecord, EvidenceRecord, ExperimentCondition, ExperimentRecord, SourceRecord
 from ai.rag.retrieval.fusion import reciprocal_rank_fusion
-from flame_api.vector_index import VectorUnavailableError, index_status, search_chunks
+from flame_api.vector_index import VectorUnavailableError, index_status, indexed_chunk_count, search_chunks
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 logger = logging.getLogger("flame_api")
@@ -47,6 +49,8 @@ app = FastAPI(
     redoc_url=None,
 )
 app.include_router(analysis_router)
+app.include_router(admin_router)
+app.add_exception_handler(WriteTokenRequired, write_token_required_handler)
 telemetry.setup(settings.otel_service_name, enabled=settings.otel_enabled)
 
 _CONTRACT_PATH = Path(__file__).resolve().parents[3] / "docs" / "api" / "openapi.json"
@@ -76,37 +80,105 @@ async def request_context(request: Request, call_next):
         response = await _authorized(request, call_next)
         telemetry.set_attributes(current, **{"http.status_code": response.status_code})
     response.headers["X-Request-ID"] = request_id
-    logger.info("request_id=%s method=%s path=%s status=%s duration_ms=%.1f", request_id, request.method, request.url.path, response.status_code, (time.perf_counter() - started) * 1000)
+    logger.info("request_id=%s client=%s method=%s path=%s status=%s duration_ms=%.1f", request_id, getattr(request.state, "api_client", None) or "-",
+                request.method, request.url.path, response.status_code, (time.perf_counter() - started) * 1000)
     return response
 
 
 async def _authorized(request: Request, call_next):
     path = request.url.path
     public_metadata = path == "/api/openapi.json" or path == "/api/docs" or path.startswith("/api/docs/")
-    if path.startswith("/api/") and not public_metadata and settings.api_auth_enabled:
-        # Chat only reads the corpus (and asks AURA), so the read token is enough for it; the web
-        # service never needs the write token.
-        reads = request.method in {"GET", "HEAD"} or (request.method == "POST" and path == "/api/chat")
-        expected = settings.read_api_token if reads else settings.write_api_token
-        authorization = request.headers.get("Authorization", "")
-        scheme, separator, supplied = authorization.partition(" ")
-        if (
-            expected is None
-            or scheme.lower() != "bearer"
-            or not separator
-            or not supplied
-            or not compare_digest(supplied.encode(), expected.get_secret_value().encode())
-        ):
-            response = JSONResponse(
-                status_code=401,
-                content=error_body(request, "AUTHENTICATION_REQUIRED", "A valid API bearer token is required."),
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        else:
-            response = await call_next(request)
+    request.state.api_client = None
+    if not path.startswith("/api/") or public_metadata:
+        return await call_next(request)
+    # Chat only reads the corpus (and asks AURA), so read scope is enough for it; the web service
+    # never needs write scope. Admin data is not for the read tier: every /api/admin/ route, GETs
+    # included, needs write scope.
+    chat = request.method == "POST" and path == "/api/chat"
+    admin = path.startswith("/api/admin/")
+    reads = (request.method in {"GET", "HEAD"} and not admin) or chat
+    if settings.api_auth_enabled:
+        identity = await _identify(request, "read" if reads else "write")
+        if isinstance(identity, JSONResponse):
+            return identity
+        request.state.token_scope = "read" if reads else "write"
     else:
-        response = await call_next(request)
-    return response
+        identity = "anonymous"
+        request.state.token_scope = "unchecked"
+    request.state.api_client = identity
+    if settings.rate_limit_enabled and path != "/api/health":
+        limited = await run_in_threadpool(_rate_limited, request, identity, "chat" if chat else "read" if reads else "write")
+        if limited is not None:
+            return limited
+    return await call_next(request)
+
+
+async def _identify(request: Request, scope: str) -> str | JSONResponse:
+    """The caller's identity, or the 401/403/503 to send instead (P2-1).
+
+    A client key from `api_client` with the scope, or (deprecated) the env token for the scope.
+    """
+    authorization = request.headers.get("Authorization", "")
+    scheme, separator, supplied = authorization.partition(" ")
+    if scheme.lower() == "bearer" and separator and supplied:
+        legacy = settings.read_api_token if scope == "read" else settings.write_api_token
+        if legacy is not None and compare_digest(supplied.encode(), legacy.get_secret_value().encode()):
+            return f"legacy-{scope}"
+        if clients.looks_like_client_key(supplied):
+            try:
+                found = await run_in_threadpool(_lookup_client, supplied)
+            except SQLAlchemyError as exc:
+                logger.warning("request_id=%s client_lookup_error=%s", request.state.request_id, type(exc).__name__)
+                return JSONResponse(
+                    status_code=503,
+                    content=error_body(request, "DATABASE_UNAVAILABLE", "Database is unavailable.", retryable=True),
+                    headers={"Retry-After": "1"},
+                )
+            if found is not None:
+                if scope in found.scopes:
+                    return found.name
+                return JSONResponse(
+                    status_code=403,
+                    content=error_body(request, "FORBIDDEN", f"This API client does not have the {scope} scope."),
+                )
+    return JSONResponse(
+        status_code=401,
+        content=error_body(request, "AUTHENTICATION_REQUIRED", "A valid API bearer token is required."),
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+
+def _lookup_client(key: str) -> clients.Authenticated | None:
+    # Through the same session provider the routes use, so test overrides apply here too.
+    sessions = app.dependency_overrides.get(get_session, get_session)()
+    session = next(sessions)
+    try:
+        return clients.authenticate(session, key)
+    finally:
+        sessions.close()
+
+
+def _rate_limited(request: Request, identity: str, bucket: str) -> JSONResponse | None:
+    """The 429 to send, or None (P2-2). Fails open when Redis is down, except for chat."""
+    per_minute = {
+        "read": settings.read_rate_limit_per_minute,
+        "write": settings.write_rate_limit_per_minute,
+        "chat": settings.chat_rate_limit_per_minute,
+    }[bucket]
+    retry_after = rate_limit.check(identity, bucket, per_minute, redis_url=settings.redis_url)
+    if retry_after is None:
+        # No shared limiter: chat still reaches a model, so keep the old per-process ceiling on it.
+        retry_after = 10 if bucket == "chat" and _chat_rate_limited() else 0
+    if not retry_after:
+        return None
+    logger.info("request_id=%s rate_limited client=%s bucket=%s retry_after=%s", request.state.request_id, identity, bucket, retry_after)
+    message = "Too many chat requests. Try again shortly." if bucket == "chat" else "Too many requests. Try again shortly."
+    return JSONResponse(
+        status_code=429,
+        content=error_body(request, "RATE_LIMITED", message, retryable=True,
+                           details={"limit_per_minute": per_minute, "retry_after_s": retry_after}),
+        headers={"Retry-After": str(retry_after)},
+    )
 
 
 @app.exception_handler(RequestValidationError)
@@ -181,7 +253,7 @@ def _ai_status() -> dict[str, Any]:
     """Refresh provider probes (bounded, parallel, cached) and return the router's view."""
     router = ai_runtime.get_router(settings)
     router.refresh_health(force=False)
-    return router.status()
+    return {**router.status(), **ai_runtime.mode_provenance(settings)}
 
 
 def _model_services(ai_status: dict[str, Any], checked_at: str) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -283,7 +355,8 @@ def health(request: Request):
         "version": {"api_version": settings.api_version, "build_id": settings.build_id, "git_sha": settings.git_sha},
         "knowledge_version": knowledge_version,
         "services": services,
-        "ai": {"mode": ai_status["mode"], "providers": ai_status["providers"]},
+        "ai": {"mode": ai_status["mode"], "mode_source": ai_status["mode_source"], "env_mode": ai_status["env_mode"],
+               "providers": ai_status["providers"]},
         "meta": response_meta(request),
     }
     return JSONResponse(status_code=503 if required_down else 200, content=body)
@@ -349,6 +422,8 @@ def dashboard_counts(request: Request, session: Session = Depends(get_session)):
         experiments = session.query(ExperimentRecord).filter(ExperimentRecord.conditions.any()).count()
         completed = session.query(AnalysisRecord).filter(AnalysisRecord.status == "completed").count()
         in_progress = session.query(AnalysisRecord).filter(AnalysisRecord.status.in_(["queued", "processing"])).count()
+        chunks = session.query(DocumentChunk).count()
+        indexed_chunks = indexed_chunk_count(session)
         knowledge_version = current_knowledge_version(session)
     except SQLAlchemyError:
         return JSONResponse(status_code=503, content=error_body(request, "DATABASE_UNAVAILABLE", "Database is unavailable.", retryable=True))
@@ -357,9 +432,55 @@ def dashboard_counts(request: Request, session: Session = Depends(get_session)):
         "experiments": experiments,
         "analyses": completed,
         "analyses_in_progress": in_progress,
+        "chunks": chunks,
+        "indexed_chunks": indexed_chunks,
         "knowledge_version": knowledge_version,
         "meta": response_meta(request),
     }
+
+
+def _rejected_evidence_ids():
+    """Evidence an administrator rejected (ADMIN_DATA_OPERATIONS.md procedure 7): never retrieved or cited."""
+    return select(EvidenceRecord.evidence_id).where(EvidenceRecord.payload["review_status"].as_string() == "rejected")
+
+
+# Lexical candidates fetched before fusion (P2-3). Every result on page p ranks inside the first
+# p * page_size of the fused list, and a hit outside the first N lexical matches scores below every hit
+# inside it, so N >= 2 * p * page_size candidates page exactly; total_items comes from a separate COUNT.
+_LEXICAL_CANDIDATES = 200
+_RRF_K = 60
+
+
+def _lexical_candidates(page: int, page_size: int) -> int:
+    return max(_LEXICAL_CANDIDATES, page * page_size * 2)
+
+
+def _lexical_match(session: Session, column, query: str):
+    """(filter, score) for one text column. PostgreSQL: full-text match ranked by ts_rank_cd.
+
+    Other dialects (tests, local SQLite): substring match, scored by how many query terms occur in the
+    snippet (first 400 characters of a chunk; all of an experiment's text), the same heuristic the
+    in-memory ranking used before P2-3.
+    """
+    if session.bind.dialect.name == "postgresql":
+        # Chunks carry a stored, GIN-indexed tsvector (migration 0007), so neither the COUNT nor the
+        # ranking re-parses text; experiments are few enough to parse on the fly.
+        if column is DocumentChunk.text:
+            vector = literal_column("document_chunk.search_tsv")
+        else:
+            vector = func.to_tsvector(literal_column("'english'"), column)
+        tsquery = func.plainto_tsquery(literal_column("'english'"), query)
+        return vector.op("@@")(tsquery), func.ts_rank_cd(vector, tsquery)
+    haystack = func.lower(func.substr(column, 1, 400)) if column is DocumentChunk.text else func.lower(column)
+    score = literal(0)
+    for term in dict.fromkeys(query.lower().split()):
+        score = score + case((func.instr(haystack, term) > 0, 1), else_=0)
+    return column.ilike(f"%{query}%"), score
+
+
+def _experiment_ingested_at(experiment: ExperimentRecord) -> datetime:
+    """The ingestion time, else the table file's retrieval time (rows predating migration 0006)."""
+    return experiment.ingested_at or experiment.table_file.retrieved_at
 
 
 @app.get("/api/search", tags=["Research"])
@@ -382,25 +503,28 @@ def search(
     results: list[dict[str, Any]] = []
     total_items = 0
     index_version: str | None = None
+    candidates = _lexical_candidates(page, page_size)
     try:
         source_filter = source_id or None
         offset = (page - 1) * page_size
+        # Resolved up front: as an IN (subquery) PostgreSQL plans a per-source index scan that re-parses every
+        # chunk's text (12 s at 10^5 chunks) instead of using the full-text GIN index (30 ms).
+        combustion_sources = session.scalars(select(SourceRecord.source_id).where(SourceRecord.domain == "combustion")).all() if domain == "combustion" else []
+        experiment_evidence = select(EvidenceRecord.evidence_id).where(EvidenceRecord.experiment_id == experiment_id)
         if type in {None, "document"}:
-            doc_query = session.query(DocumentChunk).options(joinedload(DocumentChunk.document).joinedload(DocumentRecord.source))
-            if session.bind.dialect.name == "postgresql":
-                doc_query = doc_query.filter(
-                    text("to_tsvector('english', document_chunk.text) @@ plainto_tsquery('english', :search_query)")
-                ).params(search_query=query)
-            else:
-                doc_query = doc_query.filter(DocumentChunk.text.ilike(f"%{query}%"))
+            chunk_options = joinedload(DocumentChunk.document).joinedload(DocumentRecord.source)
+            matches, lexical_score = _lexical_match(session, DocumentChunk.text, query)
+            doc_query = session.query(DocumentChunk).filter(matches)
             if domain == "combustion":
-                doc_query = doc_query.filter(DocumentChunk.source_id.in_(select(SourceRecord.source_id).where(SourceRecord.domain == "combustion")))
+                doc_query = doc_query.filter(DocumentChunk.source_id.in_(combustion_sources))
             if source_filter:
                 doc_query = doc_query.filter(DocumentChunk.source_id.in_(source_filter))
             if experiment_id:
-                doc_query = doc_query.filter(text("document_chunk.evidence_id in (select evidence_id from evidence where experiment_id = :experiment_id)")).params(experiment_id=experiment_id)
+                doc_query = doc_query.filter(DocumentChunk.evidence_id.in_(experiment_evidence))
+            doc_query = doc_query.filter(DocumentChunk.evidence_id.notin_(_rejected_evidence_ids()))
             total_items += doc_query.count()
-            lexical_chunks = doc_query.all()
+            lexical_order = (lexical_score.desc(), DocumentChunk.chunk_id)
+            lexical_chunks = doc_query.options(chunk_options).order_by(*lexical_order).limit(candidates).all()
             extra_chunks: list[DocumentChunk] = []
             semantic_scores: dict[str, float] = {}
             if domain in {"combustion", "all"}:
@@ -413,19 +537,34 @@ def search(
                     logger.warning("request_id=%s vector_search=unavailable", request.state.request_id)
             seen_chunks = {chunk.chunk_id for chunk in lexical_chunks}
             extra_ids = [cid for cid in semantic_scores if cid not in seen_chunks]
+            # A dense hit that is also a lexical match below the candidate cut keeps its exact lexical rank,
+            # so its fused score (and therefore paging) does not depend on how many candidates were fetched.
+            deep_lexical_rank: dict[str, int] = {}
             if extra_ids:
-                extra = session.query(DocumentChunk).options(joinedload(DocumentChunk.document).joinedload(DocumentRecord.source)).filter(DocumentChunk.chunk_id.in_(extra_ids))
+                ranked = doc_query.with_entities(
+                    DocumentChunk.chunk_id.label("chunk_id"),
+                    func.row_number().over(order_by=lexical_order).label("position"),
+                ).subquery()
+                deep_lexical_rank = {
+                    row.chunk_id: row.position
+                    for row in session.query(ranked.c.chunk_id, ranked.c.position).filter(ranked.c.chunk_id.in_(extra_ids))
+                }
+                extra = (
+                    session.query(DocumentChunk).options(chunk_options)
+                    .filter(DocumentChunk.chunk_id.in_(extra_ids), DocumentChunk.evidence_id.notin_(_rejected_evidence_ids()))
+                )
                 if source_filter:
                     extra = extra.filter(DocumentChunk.source_id.in_(source_filter))
                 if experiment_id:
-                    extra = extra.filter(text("document_chunk.evidence_id in (select evidence_id from evidence where experiment_id = :experiment_id)")).params(experiment_id=experiment_id)
-                extra_chunks = extra.all()
-                total_items += len(extra_chunks)
-            terms = query.lower().split()
-            lexical_chunks.sort(key=lambda c: (-sum(term in c.text[:400].lower() for term in terms), c.chunk_id))
+                    extra = extra.filter(DocumentChunk.evidence_id.in_(experiment_evidence))
+                extra_chunks = extra.order_by(DocumentChunk.chunk_id).all()
+                # deep lexical matches are already in the COUNT above
+                total_items += sum(chunk.chunk_id not in deep_lexical_rank for chunk in extra_chunks)
             dense_ranking = sorted(semantic_scores, key=lambda cid: (-semantic_scores[cid], cid))
             # only true lexical hits enter the lexical ranking; dense-only hits are ranked by the dense list alone
-            fused = dict(reciprocal_rank_fusion([[c.chunk_id for c in lexical_chunks], dense_ranking]))
+            fused = dict(reciprocal_rank_fusion([[c.chunk_id for c in lexical_chunks], dense_ranking], k=_RRF_K))
+            for chunk_id, position in deep_lexical_rank.items():
+                fused[chunk_id] += 1.0 / (_RRF_K + position)
             for chunk in [*lexical_chunks, *extra_chunks]:
                 document = chunk.document
                 snippet = chunk.text[:400]
@@ -448,32 +587,41 @@ def search(
                     "ingested_at": _timestamp(document.ingested_at),
                 })
         if type in {None, "experiment"}:
-            exp_query = session.query(ExperimentRecord).options(joinedload(ExperimentRecord.conditions), joinedload(ExperimentRecord.source))
-            if session.bind.dialect.name == "postgresql":
-                exp_query = exp_query.filter(
-                    text("to_tsvector('english', experiment.searchable_text) @@ plainto_tsquery('english', :search_query)")
-                ).params(search_query=query)
-            else:
-                needle = f"%{query}%"
-                exp_query = exp_query.filter(ExperimentRecord.searchable_text.ilike(needle))
+            matches, experiment_score = _lexical_match(session, ExperimentRecord.searchable_text, query)
+            # SearchResult.ingested_at is required: a row with neither an ingestion time nor a table file
+            # (only possible for rows written outside ingest.py) is left out rather than given a made-up time.
+            exp_query = session.query(ExperimentRecord).filter(
+                matches, or_(ExperimentRecord.ingested_at.is_not(None), ExperimentRecord.table_file_id.is_not(None))
+            )
             if domain == "combustion":
-                exp_query = exp_query.filter(ExperimentRecord.source_id.in_(select(SourceRecord.source_id).where(SourceRecord.domain == "combustion")))
+                exp_query = exp_query.filter(ExperimentRecord.source_id.in_(combustion_sources))
             if source_filter:
                 exp_query = exp_query.filter(ExperimentRecord.source_id.in_(source_filter))
             if experiment_id:
                 exp_query = exp_query.filter(ExperimentRecord.experiment_id == experiment_id)
+            # An experiment whose every condition was rejected has nothing left to cite, so it is not a hit.
+            # In SQL, so the COUNT and the candidate cut agree with what is returned.
+            exp_query = exp_query.filter(or_(
+                ~ExperimentRecord.conditions.any(),
+                ExperimentRecord.conditions.any(ExperimentCondition.evidence_id.notin_(_rejected_evidence_ids())),
+            ))
             total_items += exp_query.count()
-            experiments = sorted(
-                exp_query.all(),
-                key=lambda e: (-sum(term in e.searchable_text.lower() for term in query.lower().split()), e.experiment_id),
+            experiments = (
+                exp_query.options(selectinload(ExperimentRecord.conditions), joinedload(ExperimentRecord.source), joinedload(ExperimentRecord.table_file))
+                .order_by(experiment_score.desc(), ExperimentRecord.experiment_id)
+                .limit(candidates)
+                .all()
             )
+            condition_evidence = [c.evidence_id for e in experiments for c in e.conditions]
+            rejected = set(session.scalars(_rejected_evidence_ids().where(EvidenceRecord.evidence_id.in_(condition_evidence)))) if condition_evidence else set()
+            cited = {e.experiment_id: next((c.evidence_id for c in e.conditions if c.evidence_id not in rejected), None) for e in experiments}
             for experiment_rank, experiment in enumerate(experiments, start=1):
                 snippet = experiment.fuel_or_material or experiment.test_id
                 results.append({
                     "result_id": experiment.experiment_id,
                     "result_type": "experiment",
                     "rank": len(results) + 1 + offset,
-                    "score": round(1.0 / (60 + experiment_rank), 6),
+                    "score": round(1.0 / (_RRF_K + experiment_rank), 6),
                     "title": f"{experiment.investigation or 'Experiment'} {experiment.test_id}",
                     "snippet": snippet,
                     "highlights": [],
@@ -482,10 +630,10 @@ def search(
                     "document_type": None,
                     "experiment_id": experiment.experiment_id,
                     "experiment": {"test_id": experiment.test_id, "gravity_regime": experiment.gravity_regime, "fuel_or_material": experiment.fuel_or_material},
-                    "evidence_id": experiment.conditions[0].evidence_id if experiment.conditions else None,
-                    "has_evidence": bool(experiment.conditions),
+                    "evidence_id": cited[experiment.experiment_id],
+                    "has_evidence": cited[experiment.experiment_id] is not None,
                     "locator": None,
-                    "ingested_at": _timestamp(datetime.now(UTC)),
+                    "ingested_at": _timestamp(_experiment_ingested_at(experiment)),
                 })
     except SQLAlchemyError:
         return JSONResponse(status_code=503, content=error_body(request, "SEARCH_UNAVAILABLE", "Search is unavailable.", retryable=True))
@@ -518,6 +666,7 @@ _chat_lock = Lock()
 
 
 def _chat_rate_limited() -> bool:
+    """Process-wide chat ceiling, used only while the Redis limiter is unavailable."""
     now = time.monotonic()
     with _chat_lock:
         while _chat_calls and now - _chat_calls[0] > 60:
@@ -595,12 +744,6 @@ def chat(request: Request, body: ChatBody, session: Session = Depends(get_sessio
                 f"No language model is configured or permitted in {router.mode.value} mode.",
                 details={"mode": router.mode.value},
             ),
-        )
-    if _chat_rate_limited():
-        return JSONResponse(
-            status_code=429,
-            content=error_body(request, "RATE_LIMITED", "Too many chat requests. Try again shortly.", retryable=True),
-            headers={"Retry-After": "10"},
         )
     started = time.perf_counter()
     cache_version = current_knowledge_version(session) or "unversioned"
@@ -706,9 +849,12 @@ class ModeBody(BaseModel):
 
 @app.put("/api/admin/ai/mode", tags=["Admin"])
 def set_ai_mode(request: Request, body: ModeBody, session: Session = Depends(get_session)):
-    """Switch cloud_preferred / local_first / offline_only. Write token; every change is audited."""
+    """Switch cloud_preferred / local_first / offline_only. Write scope; every change is audited."""
+    # The legacy write token keeps its historical actor name so existing audit queries still match.
+    client = request.state.api_client
+    actor = "write-token" if client in {None, "legacy-write"} else client
     change = ai_runtime.set_mode(
-        session, body.mode, router=ai_runtime.get_router(settings), actor="write-token", request_id=request.state.request_id
+        session, body.mode, router=ai_runtime.get_router(settings), actor=actor, request_id=request.state.request_id
     )
     return {**change, "meta": response_meta(request)}
 
@@ -815,7 +961,10 @@ def get_document(request: Request, document_id: Annotated[str, ApiPath(pattern=U
         "parser_version": document.parser_version,
         "ingested_at": document.ingested_at.isoformat().replace("+00:00", "Z"),
         "knowledge_version": document.knowledge_version,
-        "experiment_ids": [],
+        "experiment_ids": [
+            row.experiment_id
+            for row in session.query(EvidenceRecord.experiment_id).filter(EvidenceRecord.document_id == document_id, EvidenceRecord.experiment_id.is_not(None)).distinct().order_by(EvidenceRecord.experiment_id)
+        ],
         "evidence_count": session.query(EvidenceRecord).filter_by(document_id=document_id).count(),
     }
     return {"document": payload, "meta": response_meta(request)}
@@ -837,7 +986,10 @@ def get_experiment(request: Request, experiment_id: Annotated[str, ApiPath(patte
             {"variable": c.variable, "value_numeric": c.value_numeric, "value_text": c.value_text, "unit_original": c.unit_original, "value_si": c.value_si, "unit_si": c.unit_si, "origin": c.origin, "evidence_id": c.evidence_id}
             for c in experiment.conditions
         ],
-        "document_ids": [],
+        "document_ids": [
+            row.document_id
+            for row in session.query(EvidenceRecord.document_id).filter(EvidenceRecord.experiment_id == experiment_id, EvidenceRecord.document_id.is_not(None)).distinct().order_by(EvidenceRecord.document_id)
+        ],
         "table_file": _file_payload(experiment.table_file) if experiment.table_file_id else None,
     }
     return {"experiment": payload, "meta": response_meta(request)}

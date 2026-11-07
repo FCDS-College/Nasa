@@ -49,6 +49,25 @@ The commands are in [E2-10 §5](../data/OFFLINE_DATA_AND_SYNC.md#5-local-backup-
 
 **Production migration, 2026-10-14:** after the drill and a full backup, `flame-api` and `flame-worker` were deployed from `main` with `railway up`. The pre-deploy step applied `0004_phase2_tables` (12 to 21 tables); row counts were unchanged and `/api/health` lists the `flame_cv_video` provider. Overall status stays `degraded` while the optional AURA provider is down.
 
+### Backups (P2-11)
+
+```bash
+# backup: custom-format pg_dump + per-table row counts + bucket mirror, timestamped; prunes old backups
+FLAME_DATABASE_URL=… FLAME_S3_BUCKET=flame-artifacts FLAME_S3_ENDPOINT_URL=http://minio:9000 \
+FLAME_S3_ACCESS_KEY=… FLAME_S3_SECRET_KEY=… BACKUP_DIR=/srv/flame-backups BACKUP_RETENTION_DAYS=14 \
+  infrastructure/backup/backup.sh            # prints the backup directory
+# restore: into a NEW empty database (and optionally another bucket); fails on any row-count mismatch
+createdb -O flame flame_restore
+RESTORE_DATABASE_URL=postgresql://flame:…@host:5432/flame_restore RESTORE_S3_BUCKET=flame-artifacts \
+  infrastructure/backup/restore.sh /srv/flame-backups/20261102T193429Z
+```
+
+- Values are never written to the repository: set the variables in the shell, the host's secret store or the cron environment. `BACKUP_SKIP_S3=1` / `RESTORE_SKIP_S3=1` handle the database only.
+- The scripts need `pg_dump`/`psql` matching the server's major version (16 in Compose, 18 on Railway), `python3`, and `aws` or `mc`.
+- **Schedule:** daily, and before every migration (§2). Nothing runs it automatically yet; use a host cron entry, for example `17 3 * * * … infrastructure/backup/backup.sh >> /var/log/flame-backup.log 2>&1`, and copy `BACKUP_DIR` off the host.
+- **After a restore:** point `FLAME_DATABASE_URL` at the restored database, run `alembic upgrade head` (a no-op if the backup was current), then `python -m flame_api.worker recover` so analyses that were `processing` at backup time are re-queued.
+- ✅ 2026-11-02: drill on a dev host (PostgreSQL 16, `moto_server` for S3): 21 tables and 8 objects restored with identical counts; details in [E2-10 §5](../data/OFFLINE_DATA_AND_SYNC.md#5-local-backup-and-restore).
+
 ## 4. Secret rotation
 1. Generate new values. Tokens are ≥ 32 characters, and the read and write tokens must differ.
 2. Railway: `railway variables set FLAME_READ_API_TOKEN=…` on `flame-api`, and the same for the worker where it applies. Compose: edit `infrastructure/.env`, then `docker compose up -d api worker`.
@@ -60,6 +79,13 @@ The commands are in [E2-10 §5](../data/OFFLINE_DATA_AND_SYNC.md#5-local-backup-
 - **vLLM.** Start with `vllm serve Qwen/Qwen2.5-7B-Instruct-AWQ --port 8001`, set `FLAME_VLLM_BASE_URL=http://<host>:8001`, then check that `GET /api/ai/providers` shows `vllm` as `up` with `model_present: true`.
 - **Ollama.** `GET /api/ai/providers` should show `ollama` as `up`. ✅ 2026-10-11, Ollama 0.5.7 with `qwen2.5:3b-instruct-q4_K_M`.
 - **Embeddings.** `python -m ai.providers.local.fastembed_embeddings verify --cache-dir …` must print the manifest sha256 (`51f1bd0a…`). ✅ 2026-10-11.
+
+### AI execution mode: env vs. audit override (P2-5)
+
+The effective mode is `FLAME_AI_EXECUTION_MODE` **until anyone calls `PUT /api/admin/ai/mode`**. That call writes an `ai.mode.changed` audit row, and from then on every process (API replicas and the worker, re-read every 10 s) uses the newest such row and ignores the env variable, including after restarts and redeploys.
+
+- **See it:** `GET /api/ai/providers` (and the `ai` block of `GET /api/health`) report `mode`, `mode_source` (`env` or `audit_override`) and `env_mode` (what the env says). `mode_source: audit_override` with `mode` ≠ `env_mode` is why a changed env variable "did nothing". History: `select occurred_at, actor, before, after from audit_event where action = 'ai.mode.changed' order by occurred_at desc;`
+- **Return to the env value:** `PUT /api/admin/ai/mode` with `{"mode": "<env_mode>"}` (write token). There is no "clear" operation yet, so `mode_source` stays `audit_override`; a later env change still needs another PUT. Deleting the audit rows would also return to env, but the audit trail is meant to be kept, so don't.
 
 ## 6. Railway (`.railway/railway.py`, committed in `780d89b`)
 
@@ -92,6 +118,7 @@ railway config apply
 | Search is lexical-only | Index missing or embedder unavailable | `vector_index build`; check the `fastembed` health |
 | `aura` circuit `open` | AURA failed 3× | Waits 30 s by itself; check AURA's `/health/ready` |
 | Analysis `MODEL_UNAVAILABLE` | Both CV providers failed (HF Space down and OpenCV missing) | Check the worker image has the `cv` extra |
+| Analysis stuck in `processing` (or `queued` with an empty queue) | The worker died mid-job (OOM, kill, redeploy); RQ lost the job | The worker runs `python -m flame_api.worker recover` on start. It re-queues rows older than the job timeout + 60 s (image 180 s, video `FLAME_VIDEO_JOB_TIMEOUT_S`) and `queued` rows with no RQ job after 60 s, adding a `JOB_RECOVERED` warning. After 3 re-queues the analysis is `failed` with `PIPELINE_ERROR`. A worker restarted sooner than the timeout won't catch the row, so run `recover` again later, or `recover --older-than 0` once no job is running |
 | A file is `quarantined` | Unreadable, encrypted, checksum mismatch, invalid JSON | E2-8 §"inspect failed files" |
 | First `seed` loads 0 files | Fixed in PR #14 (sources weren't flushed before the file lookup) | Upgrade |
 
@@ -113,5 +140,6 @@ docker compose -f infrastructure/compose.yaml up --build
 The Compose path, backup/restore and Railway steps have not been executed in this form. The acceptance criterion "executed from a clean machine by someone other than the Lead" is open.
 
 ## Changelog
+- Unreleased (P2-4, P2-5, P2-11): stuck-job recovery incident, AI mode override behaviour, backup scripts and the 2026-11-02 restore drill.
 - 0.9.1 (2026-10-14): restore drill and the production `0004` migration recorded.
 - 0.9.0 (2026-10-12): first runbook; operational steps moved here from `infrastructure/README.md` and `apps/api/README.md`.
