@@ -1,6 +1,6 @@
 # Flame in Freefall: API Response Schemas
 
-**Generated from [`openapi.json`](openapi.json)** (OpenAPI 3.1.0, API 0.4.0) by `docs/tools/render_api_schemas.py`. Do not edit by hand.
+**Generated from [`openapi.json`](openapi.json)** (OpenAPI 3.1.0, API 0.5.0) by `docs/tools/render_api_schemas.py`. Do not edit by hand.
 Endpoint behaviour, examples and display rules: [`FRONTEND_API_CONTRACT.md`](FRONTEND_API_CONTRACT.md).
 
 Reading the tables: *Required = yes* means the key is always present. A nullable field (`| null`) is still present, with value `null`, which means "not present or not established" and is never a stand-in for `0`. The only optional keys in responses are those of [`ErrorDetails`](#errordetails).
@@ -29,6 +29,10 @@ Reading the tables: *Required = yes* means the key is always present. A nullable
 | POST | `/api/admin/files/{file_id}/reprocess` | 200 [`FileReprocessResponse`](#filereprocessresponse) | 400, 401, 403, 404, 409, 429, 500, 503 |
 | PUT | `/api/admin/evidence/{evidence_id}/review` | 200 [`EvidenceReviewResponse`](#evidencereviewresponse) | 400, 401, 403, 404, 429, 500, 503 |
 | GET | `/api/admin/audit` | 200 [`AuditEventListResponse`](#auditeventlistresponse) | 400, 401, 403, 429, 500, 503 |
+| GET | `/api/investigations` | 200 [`InvestigationListResponse`](#investigationlistresponse) | 400, 401, 403, 429, 500, 503 |
+| GET | `/api/investigations/{investigation_id}` | 200 [`InvestigationResponse`](#investigationresponse) | 400, 401, 403, 404, 429, 500, 503 |
+| GET | `/api/insights` | 200 [`InsightListResponse`](#insightlistresponse) | 400, 401, 403, 429, 500, 503 |
+| GET | `/api/insights/flex-outcome` | 200 [`FlexOutcomeResponse`](#flexoutcomeresponse) | 400, 401, 403, 429, 500, 503 |
 
 ## 2. Object schemas
 
@@ -203,6 +207,52 @@ All counts are exact `COUNT(*)` reads at `meta.generated_at`. On failure the end
 |---|---|---|---|
 | `items` | [`AuditEvent`](#auditevent)[] | yes |  |
 | `pagination` | [`Pagination`](#pagination) | yes |  |
+| `meta` | [`ResponseMeta`](#responsemeta) | yes |  |
+
+### InvestigationListResponse
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `scenario` | [`Scenario`](#scenario) | yes |  |
+| `scenarios` | [`Scenario`](#scenario)[] | yes |  |
+| `ranking_method` | string | yes |  |
+| `items` | [`InvestigationSummary`](#investigationsummary)[] | yes |  |
+| `not_acquired` | [`NotAcquiredInvestigation`](#notacquiredinvestigation)[] | yes |  |
+| `totals` | object | yes |  |
+| `meta` | [`ResponseMeta`](#responsemeta) | yes |  |
+
+### InvestigationResponse
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `investigation` | [`InvestigationDetail`](#investigationdetail) | yes |  |
+| `scenario` | [`Scenario`](#scenario) | yes |  |
+| `meta` | [`ResponseMeta`](#responsemeta) | yes |  |
+
+### InsightListResponse
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `scenario` | [`Scenario`](#scenario) | yes |  |
+| `items` | [`Insight`](#insight)[] | yes |  |
+| `meta` | [`ResponseMeta`](#responsemeta) | yes |  |
+
+### FlexOutcomeResponse
+
+FLEX outcome model estimate (claim class `estimated`). `probabilities` is null outside the applicability domain.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `input` | object | yes |  |
+| `probabilities` | object \| `null` | yes |  |
+| `predicted_end_state` | `"Completion"` \| `"Disruption"` \| `"Extinction"` \| `null` | yes |  |
+| `applicability` | object | yes |  |
+| `similar_tests` | [`FlightTestRef`](#flighttestref)[] | yes |  |
+| `similar_tests_end_states` | object | yes |  |
+| `o2_sweep` | object[] | yes |  |
+| `model` | object | yes |  |
+| `claim_class` | string | yes |  |
+| `scope` | string | yes |  |
 | `meta` | [`ResponseMeta`](#responsemeta) | yes |  |
 
 ### VersionInfo
@@ -540,6 +590,85 @@ One append-only audit_event row (B6).
 | `after` | object \| `null` | yes | Values after the change, plus the administrator's `note` if one was given. |
 | `request_id` | string \| `null` | yes |  |
 
+### Scenario
+
+A cabin atmosphere. Quoted or derived values cite NASA/TM-2008-215260 p. 5; `user` is a custom query.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `scenario_id` | string | yes |  |
+| `name` | string | yes |  |
+| `o2_fraction` | number | yes |  |
+| `pressure_kpa` | number | yes |  |
+| `ppo2_kpa` | number | yes |  |
+| `basis` | `"quoted"` \| `"derived"` \| `"user"` | yes |  |
+| `note` | string | yes |  |
+| `citation` | string \| `null` | yes |  |
+
+### InvestigationSummary
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `investigation_id` | string | yes |  |
+| `acronym` | string \| `null` | yes |  |
+| `title` | string | yes |  |
+| `status` | `"ingested"` \| `"metadata_only"` | yes |  |
+| `flight_platform` | string \| `null` | no |  |
+| `hardware` | string \| `null` | no |  |
+| `dates` | string \| `null` | no |  |
+| `persistent_identifier` | string \| `null` | no |  |
+| `license` | string \| `null` | no |  |
+| `access_url` | string \| `null` | no |  |
+| `source` | [`SourceRef`](#sourceref) \| `null` | no |  |
+| `fire_safety_use` | string[] | yes |  |
+| `key_variables` | string[] | no |  |
+| `key_outputs` | string[] | no |  |
+| `objective` | [`CitedText`](#citedtext) \| `null` | no |  |
+| `data` | [`InvestigationData`](#investigationdata) | yes |  |
+| `coverage_note` | string \| `null` | no |  |
+| `relevance` | [`Relevance`](#relevance) \| `null` | yes |  |
+| `rank` | integer \| `null` (minimum=1) | no | Position in the scenario ranking (list endpoint only); null when the investigation has no ingested data. |
+
+### NotAcquiredInvestigation
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `investigation_id` | string | yes |  |
+| `acronym` | string | yes |  |
+| `title` | string | yes |  |
+| `note` | string | yes |  |
+
+### Insight
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `insight_id` | string | yes |  |
+| `title` | string | yes |  |
+| `kind` | [`InsightKind`](#insightkind) | yes |  |
+| `investigations` | string[] | yes |  |
+| `statement` | string | yes |  |
+| `numbers` | object | yes |  |
+| `evidence` | object[] | yes |  |
+| `caveats` | string[] | yes |  |
+
+### FlightTestRef
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `experiment_id` | string | yes |  |
+| `test_id` | string | yes |  |
+| `fuel_or_material` | string \| `null` | no |  |
+| `o2_fraction` | number \| `null` | no |  |
+| `pressure_kpa` | number \| `null` | no |  |
+| `flow_velocity_m_s` | number \| `null` | no |  |
+| `end_state` | string \| `null` | no |  |
+| `duration_s` | number \| `null` | no |  |
+| `end_state_evidence_id` | string \| `null` | no |  |
+| `distance` | number | no |  |
+| `droplet_diameter_mm` | number | no |  |
+| `co2_fraction` | number | no |  |
+| `he_fraction` | number | no |  |
+
 ### ServiceHealth
 
 | Field | Type | Required | Description |
@@ -755,6 +884,56 @@ Optional AI interpretation. Never alters measurements; displayed separately from
 | `detail` | string \| `null` (maxLength=64) | yes |  |
 | `model_present` | boolean \| `null` | yes |  |
 
+### CitedText
+
+NASA ISA-Tab metadata text, verbatim, with the evidence row it came from.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `text` | string | yes |  |
+| `evidence_id` | string | yes |  |
+
+### InvestigationData
+
+What the investigation's published table covers. A null range means the variable is not recorded in the table (never 0).
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `tests` | integer (minimum=0) | yes |  |
+| `o2_fraction` | [`ConditionRange`](#conditionrange) \| `null` | yes |  |
+| `o2_approximate` | boolean | no |  |
+| `pressure_kpa` | [`ConditionRange`](#conditionrange) \| `null` | yes |  |
+| `flow_velocity_m_s` | [`ConditionRange`](#conditionrange) \| `null` | yes |  |
+| `fuels_or_materials` | object[] | yes |  |
+| `distinct_fuels_or_materials` | integer | no |  |
+| `end_states` | object \| `null` | no |  |
+| `end_state_recorded` | boolean | yes |  |
+| `duration_recorded` | boolean | yes |  |
+| `quality_flags` | object | no |  |
+
+### Relevance
+
+Evidence relevance of an investigation to a scenario (not a risk score); formula in `ranking_method`.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `score` | number (minimum=0, maximum=1) | yes |  |
+| `components` | object | yes |  |
+| `weights` | object | yes |  |
+| `neighbourhood_tests` | integer | yes |  |
+| `not_recorded` | string[] | yes |  |
+| `explanation` | string[] | yes |  |
+
+### SummarySection
+
+One ISA-Tab section (Objective, Hypothesis, Approach, Research impacts), verbatim, with its evidence row.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `heading` | string | yes |  |
+| `text` | string | yes |  |
+| `evidence_id` | string | yes |  |
+
 ### Calibration
 
 | Field | Type | Required | Description |
@@ -868,6 +1047,14 @@ Thresholds and configuration are in docs/cv/temporal-analysis.md.
 | `classification` | `"measured"` | yes | Deterministic statistics over per-frame pixel measurements; no physical units. |
 | `method` | string | yes |  |
 | `tracking_note` | string \| `null` | yes | Why tracking metrics are null, e.g. sampled frames are further apart than the 0.5 s tracking gap. |
+
+### ConditionRange
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `min` | number | yes |  |
+| `max` | number | yes |  |
+| `n` | integer (minimum=1) | yes |  |
 
 ### BoundingBox
 
@@ -1004,7 +1191,7 @@ multipart/form-data body for POST /api/analyses.
 | <a id="aimodesource"></a>`AiModeSource` | `env`, `audit_override` | Where the effective `mode` comes from: `env` is FLAME_AI_EXECUTION_MODE; `audit_override` is the newest `ai.mode.changed` audit event (PUT /api/admin/ai/mode), which wins over env in every process until the next PUT. There is no clear operation yet. |
 | <a id="reviewstatus"></a>`ReviewStatus` | `raw`, `machine_extracted`, `human_verified`, `rejected` | Review state (data dictionary: review_status). The UI must visibly distinguish human_verified and must not render rejected evidence as support. |
 | <a id="adminreviewstatus"></a>`AdminReviewStatus` | `machine_extracted`, `human_verified`, `rejected` | The ReviewStatus values an administrator may set (`raw` is never a review outcome). |
-| <a id="errorcode"></a>`ErrorCode` | `VALIDATION_ERROR`, `UNAUTHORIZED`, `FORBIDDEN`, `ROUTE_NOT_FOUND`, `DOCUMENT_NOT_FOUND`, `EXPERIMENT_NOT_FOUND`, `EVIDENCE_NOT_FOUND`, `ANALYSIS_NOT_FOUND`, `ARTIFACT_NOT_FOUND`, `ARTIFACT_NOT_READY`, `PAYLOAD_TOO_LARGE`, `UNSUPPORTED_MEDIA_TYPE`, `IMAGE_INVALID`, `UNKNOWN_EXPERIMENT`, `RATE_LIMITED`, `DATABASE_UNAVAILABLE`, `STORAGE_UNAVAILABLE`, `SEARCH_UNAVAILABLE`, `MODEL_UNAVAILABLE`, `QUEUE_UNAVAILABLE`, `AURA_UNAVAILABLE`, `INTERNAL_ERROR`, `AUTHENTICATION_REQUIRED`, `CHAT_UNAVAILABLE`, `METHOD_NOT_ALLOWED`, `VIDEO_INVALID`, `FILE_NOT_FOUND`, `FILE_NOT_QUARANTINED` | Stable machine-readable error code. The frontend switches on this, never on `message`. AURA_UNAVAILABLE is deprecated since 0.2.0: chat now degrades to an evidence-only answer instead. |
+| <a id="errorcode"></a>`ErrorCode` | `VALIDATION_ERROR`, `UNAUTHORIZED`, `FORBIDDEN`, `ROUTE_NOT_FOUND`, `DOCUMENT_NOT_FOUND`, `EXPERIMENT_NOT_FOUND`, `EVIDENCE_NOT_FOUND`, `ANALYSIS_NOT_FOUND`, `ARTIFACT_NOT_FOUND`, `ARTIFACT_NOT_READY`, `PAYLOAD_TOO_LARGE`, `UNSUPPORTED_MEDIA_TYPE`, `IMAGE_INVALID`, `UNKNOWN_EXPERIMENT`, `RATE_LIMITED`, `DATABASE_UNAVAILABLE`, `STORAGE_UNAVAILABLE`, `SEARCH_UNAVAILABLE`, `MODEL_UNAVAILABLE`, `QUEUE_UNAVAILABLE`, `AURA_UNAVAILABLE`, `INTERNAL_ERROR`, `AUTHENTICATION_REQUIRED`, `CHAT_UNAVAILABLE`, `METHOD_NOT_ALLOWED`, `VIDEO_INVALID`, `FILE_NOT_FOUND`, `FILE_NOT_QUARANTINED`, `INVESTIGATION_NOT_FOUND` | Stable machine-readable error code. The frontend switches on this, never on `message`. AURA_UNAVAILABLE is deprecated since 0.2.0: chat now degrades to an evidence-only answer instead. |
 | <a id="searchresulttype"></a>`SearchResultType` | `document`, `experiment` | document: a matched passage inside a parsed document (carries a page/section locator). experiment: a matched experiment/test record. |
 | <a id="documenttype"></a>`DocumentType` | `technical_report`, `publication`, `test_plan`, `requirements`, `final_report`, `thesis`, `dataset_documentation`, `other` | Document classification assigned at ingestion. |
 | <a id="searchdomain"></a>`SearchDomain` | `combustion`, `all` | combustion (default) excludes non-combustion sources such as FF-PSI-DSI (DAY2_TASKS domain filter rule). all disables that filter. |
@@ -1019,6 +1206,7 @@ multipart/form-data body for POST /api/analyses.
 | <a id="detectionstatus"></a>`DetectionStatus` | `present`, `absent`, `uncertain` | Whether a flame was detected. |
 | <a id="calibrationstate"></a>`CalibrationState` | `absent`, `spatial_scale_provided` | absent: measurements are pixels only. spatial_scale_provided: caller supplied px-per-mm, enabling ESTIMATED physical lengths/areas. No radiometric calibration state exists in v0.1, so temperature is never produced. |
 | <a id="filestatus"></a>`FileStatus` | `active`, `quarantined` | file_record.status (M9). A quarantined file is kept for review but never parsed or indexed. |
+| <a id="insightkind"></a>`InsightKind` | `measured_statistic`, `model_estimate`, `coverage_gap` | measured_statistic: computed from flight-test rows. model_estimate: from the FLEX outcome model (claim class estimated). coverage_gap: what the data does not cover. |
 | <a id="servicestatus"></a>`ServiceStatus` | `up`, `degraded`, `down`, `disabled`, `unknown` | disabled: intentionally not configured in this deployment (e.g. AURA in the MVP). unknown: the probe has not run or timed out. |
 | <a id="repository"></a>`Repository` | `NASA PSI`, `NASA NTRS`, `NASA Science`, `NASA Open Data`, `NASA GRC FCF`, `Other` | Canonical repository family. Identical to `repository` in datasets/registry/source_registry.schema.json. |
 | <a id="locatortype"></a>`LocatorType` | `page`, `section`, `table_row`, `frame`, `file` | What kind of position `Locator` points at (data dictionary: location_type). |

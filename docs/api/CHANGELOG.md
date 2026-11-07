@@ -2,9 +2,23 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Lead (Anas) | Current | — | 2026-11-02 | L-4, M6 | `docs/api/openapi.json`, `apps/api/flame_api/` |
+| Lead (Anas) | Current | — | 2026-11-07 | L-4, M6 | `docs/api/openapi.json`, `apps/api/flame_api/` |
 
 Semver applies to `docs/api/openapi.json` `info.version`. Breaking changes need a minor bump while we are pre-1.0, an entry here, and one release of deprecation where practical.
+
+## 0.5.0 (2026-11-07)
+
+Additive. Four read-only operations for the fire-safety dashboard (tag **Fire safety**); all use the read scope and AURA's Link 2 dry run compiles them into tools (14 accepted at the pinned AURA revision).
+
+**Added**
+- `GET /api/investigations`: every registered combustion investigation with NASA's ISA-Tab objective (cited), the condition envelope of its flight-test table, and an evidence-relevance score for a cabin atmosphere (`scenario` = `iss_nominal` | `pre_eva` | `orion_max_o2` | `lunar_lander_max_o2`, or custom `o2_fraction` + `pressure_kpa`). The scoring formula is returned in `ranking_method`. Investigations named by the challenge but not acquired (SAME) are listed in `not_acquired`.
+- `GET /api/investigations/{investigation_id}`: summary sections (objective, hypothesis, approach, research impacts) verbatim with evidence IDs, publications, data envelope, investigation insights, sample tests. 404 `INVESTIGATION_NOT_FOUND`.
+- `GET /api/insights`: statements computed from flight-test rows (`measured_statistic`), the FLEX outcome model (`model_estimate`) or coverage checks (`coverage_gap`), each with the evidence IDs it was computed from.
+- `GET /api/insights/flex-outcome`: FLEX droplet flame end-state model (claim class `estimated`) with a strict applicability domain (`probabilities: null` plus reasons outside it), the nearest real flight tests with their recorded end state, and an O₂ sweep. Evaluation: `docs/evaluation/reports/flex-outcome-model.md`.
+- Schemas `Scenario`, `ConditionRange`, `InvestigationData`, `Relevance`, `CitedText`, `SummarySection`, `InvestigationSummary`, `InvestigationDetail`, `InvestigationListResponse`, `InvestigationResponse`, `NotAcquiredInvestigation`, `InsightKind`, `Insight`, `InsightListResponse`, `FlightTestRef`, `FlexOutcomeResponse`; `ErrorCode.INVESTIGATION_NOT_FOUND`.
+
+**Data**
+- The four PSI experimental tables and ISA-Tab metadata are committed, so a fresh clone ingests 840 flight tests and 4 investigation-metadata documents (parser `isatab-investigation-0.1.0`, `document_type: dataset_documentation`).
 
 ## 0.4.0 (2026-11-02)
 
