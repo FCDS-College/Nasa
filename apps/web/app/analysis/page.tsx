@@ -4,15 +4,20 @@ import { useState, useEffect } from "react";
 import { fetchAnalysis, artifactUrl } from "@/lib/api/client";
 import { AnalysisResult } from "@/lib/api/types";
 import { Badge } from "@/components/ui/Badge";
+import { VideoAnalysisPanel } from "@/components/fire/VideoAnalysisPanel";
 import { Flame, Upload, Eye, EyeOff, AlertTriangle, Crosshair, BarChart2, Cpu } from "lucide-react";
 
 export default function AnalysisPage() {
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [showMask, setShowMask] = useState(true);
+  const [videoId, setVideoId] = useState<string | null | undefined>(undefined);
 
   useEffect(() => {
-    fetchAnalysis().then((a) => {
+    // ?id=<image analysis> opens that analysis (from History); ?video=<id> selects the video shown below.
+    const params = new URLSearchParams(window.location.search);
+    queueMicrotask(() => setVideoId(params.get("video")));
+    fetchAnalysis(params.get("id") ?? undefined).then((a) => {
       setAnalysis(a);
       setLoaded(true);
     });
@@ -38,8 +43,8 @@ export default function AnalysisPage() {
         <button
           id="upload-btn"
           disabled
-          title="Uploads require a write token and are not enabled in the dashboard yet"
-          className="flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold"
+          title="Uploads need a write-scoped key, which the dashboard deliberately never holds; analyses are submitted through the API (see DEMO_RUNBOOK.md)"
+          className="flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold cursor-not-allowed opacity-50"
           style={{
             background: 'linear-gradient(135deg, var(--accent-flame), var(--accent-ember))',
             color: '#000',
@@ -48,7 +53,7 @@ export default function AnalysisPage() {
           }}
         >
           <Upload className="h-4 w-4" />
-          Upload Image
+          Upload (API only)
         </button>
       </div>
 
@@ -204,6 +209,7 @@ export default function AnalysisPage() {
           </div>
         </div>
       )}
+      {videoId !== undefined && <VideoAnalysisPanel analysisId={videoId} />}
     </div>
   );
 }

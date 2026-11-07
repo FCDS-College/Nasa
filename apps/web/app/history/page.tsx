@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { fetchAnalysesHistory } from "@/lib/api/client";
 import { AnalysisSummary } from "@/lib/api/types";
-import { History, ArrowRight, CheckCircle2, Clock, Database } from "lucide-react";
+import { History, ArrowRight, CheckCircle2, Clock } from "lucide-react";
 import Link from "next/link";
 
 export default function HistoryPage() {
@@ -99,7 +99,7 @@ export default function HistoryPage() {
                   </td>
                   <td className="px-5 py-4 text-right">
                     <Link
-                      href="/analysis"
+                      href={item.analysis_type === "flame_video" ? `/analysis?video=${item.analysis_id}` : `/analysis?id=${item.analysis_id}`}
                       className="inline-flex items-center gap-1 text-xs font-medium"
                       style={{ color: 'var(--accent-flame)', transition: 'opacity var(--transition-fast)' }}
                     >

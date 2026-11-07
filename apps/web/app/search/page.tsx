@@ -6,7 +6,6 @@ import { SearchResponse } from "@/lib/api/types";
 import { Badge } from "@/components/ui/Badge";
 import {
   Search as SearchIcon,
-  FileText,
   ExternalLink,
   Filter,
   Fingerprint,

@@ -1,6 +1,6 @@
 // Same-origin, read-only proxy to the Flame API. The browser never sees the
 // bearer token: it is attached here, on the server.
-const ALLOWED = /^(health|dashboard\/counts|search|(documents|experiments|evidence|analyses)(\/[A-Za-z0-9_-]+(\/artifacts\/(original|preprocessed|mask|overlay))?)?)$/;
+const ALLOWED = /^(health|dashboard\/counts|search|(documents|experiments|evidence|analyses)(\/[A-Za-z0-9_-]+(\/artifacts\/(original|preprocessed|mask|overlay))?)?|investigations(\/FF-[A-Z0-9-]{2,41})?|insights(\/flex-outcome)?)$/;
 
 export const dynamic = "force-dynamic";
 

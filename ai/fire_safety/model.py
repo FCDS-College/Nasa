@@ -103,13 +103,23 @@ class FlexOutcomeModel:
         limit = self.domain["max_nearest_neighbour_distance"]
         combo_ok = nearest_distance is not None and nearest_distance <= limit
         in_domain = all(c["inside"] for c in checks) and combo_ok
-        reasons = [f"{c['label']} {c['value']:g} is outside the flight-tested range {c['trained_min']:g}–{c['trained_max']:g}"
-                   for c in checks if not c["inside"]]
+        reasons = [_outside(c) for c in checks if not c["inside"]]
         if not combo_ok:
             reasons.append("this combination of conditions is farther from every flight test than 95% of tests are from their "
                            "nearest neighbour")
         return {"in_domain": in_domain, "checks": checks, "nearest_test_distance": None if nearest_distance is None else round(nearest_distance, 4),
                 "max_distance": limit, "reasons": reasons}
+
+
+def _outside(check: dict) -> str:
+    """Readable refusal reason; pressures are shown in kPa, which is how the dashboard asks for them."""
+    if check["feature"] in {"pressure_atm", "ppo2_atm"}:
+        f = 101.325
+        name = "pressure" if check["feature"] == "pressure_atm" else "O₂ partial pressure"
+        return (f"{name} {check['value'] * f:.1f} kPa is outside the flight-tested range "
+                f"{check['trained_min'] * f:.1f}–{check['trained_max'] * f:.1f} kPa")
+    return (f"{check['label']} {check['value']:.3g} is outside the flight-tested range "
+            f"{check['trained_min']:.3g}–{check['trained_max']:.3g}")
 
 
 @lru_cache(maxsize=1)

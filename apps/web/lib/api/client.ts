@@ -192,6 +192,7 @@ export async function fetchAnalysesHistory(): Promise<AnalysisSummary[]> {
     const body = await getJson("analyses?page_size=50");
     return body.items.map((i: Json) => ({
       analysis_id: i.analysis_id,
+      analysis_type: i.analysis_type ?? "flame_image",
       original_filename: i.original_filename,
       status: i.status === "completed" || i.status === "failed" ? i.status : "processing",
       flame_area_px: i.flame_area_px ?? undefined,

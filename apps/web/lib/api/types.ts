@@ -130,6 +130,7 @@ export interface DashboardData {
 
 export interface AnalysisSummary {
   analysis_id: string;
+  analysis_type?: "flame_image" | "flame_video";
   original_filename: string;
   status: "completed" | "processing" | "failed";
   flame_area_px?: number;
