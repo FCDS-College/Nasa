@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Lead (Anas) | Current; kept current on every PR (PR template checkbox) | 1.0.0 | 2026-10-12 | G-1, G-3 | — |
+| Lead (Anas) | Current; kept current on every PR (PR template checkbox) | 1.1.1 | 2026-11-07 | G-1, G-3 | — |
 
 **Status key:** Draft → In review → Approved. "Due Wn" means the document doesn't exist yet and is due in Phase 2 week n. "On branch X" means it exists only on that engineer's branch. Requirements per engineer:
 - `docs/reports/DOC_REQUIREMENTS_Lead.md` and `DOC_REQUIREMENTS_Anas.md` on `main`;
@@ -12,7 +12,7 @@
 
 | ID | Document | Status | Last updated |
 |---|---|---|---|
-| L-1 | [ADRs 001–012](architecture/adr/README.md) | 001–005 and 010–012 Accepted; 006–009 Proposed; all signed off 2026-11-07 (Lead's confirmation) | 2026-11-07 |
+| L-1 | [ADRs 001–012](architecture/adr/README.md) | 001–012 Accepted (006–009 partly implemented); all signed off 2026-11-07 (Lead's confirmation) | 2026-11-07 |
 | L-2 | [Architecture overview](architecture/overview.md) | In review | 2026-10-12 |
 | L-3 | delivered as H-2 + H-4 | In review | 2026-10-12 |
 | L-4 | [openapi.json](api/openapi.json) 0.3.0, [API_SCHEMAS.md](api/API_SCHEMAS.md), [CHANGELOG](api/CHANGELOG.md) | Current | 2026-10-30 |
@@ -108,3 +108,4 @@ Taken from each engineer's requirements file. Every document also gets the Lead'
 ## Changelog
 - 1.0.0 (2026-10-12): first index.
 - 1.1.0 (2026-11-07): final challenge deliverables and evaluation reports.
+- 1.1.1 (2026-11-07): L-1 row: ADR-006 to 009 Accepted, partly implemented. The header version, which still read 1.0.0, is corrected.

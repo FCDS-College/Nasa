@@ -1,6 +1,6 @@
 # ADR-009: Authentication and RBAC
 
-- **Status:** Proposed. Decision owner: Lead, with Belal (E4).
+- **Status:** Accepted (2026-11-07). Decision owner: Lead, with Belal (E4). Accepted by the Lead; Belal's approval is recorded in ADR index 1.2.0. Partly implemented: see ADR index 1.3.0.
 - **Date:** 2026-10-12
 
 ## Context
