@@ -13,6 +13,10 @@ Usage:
     python knowledge/ingestion/install_datasets.py                  # everything (~6 GB)
     python knowledge/ingestion/install_datasets.py --skip-large     # skip files > 1 GB (DSI "S1 activity 4.zip")
     python knowledge/ingestion/install_datasets.py --only dsi       # or: --only combustion
+    python knowledge/ingestion/install_datasets.py --only tables    # just the PSI experimental tables + metadata (~140 KB)
+
+The experimental tables and investigation metadata are also committed (CC0, ~140 KB), so a fresh
+clone can ingest every flight test without downloading anything; --only tables re-fetches them.
     python knowledge/ingestion/install_datasets.py --verify-only    # no downloads, just check hashes
 """
 import argparse
@@ -99,9 +103,17 @@ def install_dsi(skip_large, workers):
     return run_pool("dsi", recs, fetch_s3, lambda r: r["remote_object_key"], workers)
 
 
-def install_combustion(skip_large, workers):
+def is_table_or_metadata(row):
+    """The small, committed PSI files: experimental tables (CSV) and ISA-Tab metadata zips."""
+    key = row["object_key"]
+    return "/Experimental table/" in key or "/metadata/" in key
+
+
+def install_combustion(skip_large, workers, tables_only=False):
     with PILOT.open(encoding="utf-8", newline="") as fh:
         rows = list(csv.DictReader(fh))
+    if tables_only:
+        rows = [r for r in rows if is_table_or_metadata(r)]
     if skip_large:
         rows = [r for r in rows if int(r["size_bytes"]) < LARGE]
     print(f"Combustion: {len(rows)} files, {sum(int(r['size_bytes']) for r in rows) / 1e9:.2f} GB", flush=True)
@@ -137,7 +149,7 @@ def verify():
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--only", choices=["dsi", "combustion"], help="install just one dataset group")
+    ap.add_argument("--only", choices=["dsi", "combustion", "tables"], help="install just one dataset group")
     ap.add_argument("--skip-large", action="store_true", help="skip files over 1 GB")
     ap.add_argument("--verify-only", action="store_true", help="check hashes, download nothing")
     ap.add_argument("--workers", type=int, default=4)
@@ -149,6 +161,8 @@ def main():
             failures += install_dsi(args.skip_large, args.workers)
         if args.only in (None, "combustion"):
             failures += install_combustion(args.skip_large, args.workers)
+        if args.only == "tables":
+            failures += install_combustion(args.skip_large, args.workers, tables_only=True)
     bad = verify()
 
     if failures:
