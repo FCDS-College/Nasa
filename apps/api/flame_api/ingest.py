@@ -27,7 +27,8 @@ from flame_api.seed import seed
 
 # 0.2.0: OCR fallback for pages without a text layer; quarantine; NTRS titles. Chunk and evidence IDs
 # are unchanged from 0.1.0 (they depend on file hash and page only), so re-ingestion is idempotent.
-PARSER_VERSION = "pymupdf-pages-0.2.0"
+# 0.3.0: a page whose text layer is unreadable (broken font encoding) is OCRed like a page without text.
+PARSER_VERSION = "pymupdf-pages-0.3.0"
 HTML_PARSER_VERSION = "html-sections-0.1.0"
 JSON_PARSER_VERSION = "json-paths-0.1.0"
 TABLE_PARSER_VERSION = "psi-tables-0.1.0"
@@ -126,6 +127,24 @@ class QuarantineError(Exception):
         self.reason = reason
 
 
+_FUNCTION_WORDS = frozenset({"the", "of", "and", "in", "to", "a", "is", "for", "with", "on", "at", "by", "was", "that",
+                             "are", "from", "as", "be", "this", "were"})
+GARBLED_MIN_TOKENS = 40
+GARBLED_MAX_FUNCTION_WORD_SHARE = 0.03
+
+
+def text_layer_is_garbled(text: str) -> bool:
+    """True for an English page whose extracted text is not language (e.g. a PDF font with a broken ToUnicode map).
+
+    Real English prose has 15-30% function words; two FLEX papers in the corpus extract at 0-1%. Short pages
+    (tables, captions) are never judged.
+    """
+    tokens = re.findall(r"[A-Za-z]+", text.lower())
+    if len(tokens) < GARBLED_MIN_TOKENS:
+        return False
+    return sum(t in _FUNCTION_WORDS for t in tokens) / len(tokens) < GARBLED_MAX_FUNCTION_WORD_SHARE
+
+
 def _ocr_page(page) -> tuple[str, float, str] | None:
     """(text, mean confidence 0-100, engine version) for one PDF page, or None when OCR is unavailable.
 
@@ -191,6 +210,24 @@ def _store_passage(session, *, source, file_record, document_id, label, locator,
     ))
 
 
+def _drop_stale_page_chunks(session: Session, document_id: str, new_text: dict[int, str]) -> None:
+    """Re-ingest hygiene: remove chunks for pages that no longer yield text, and the embeddings of chunks whose
+    text changed (e.g. a garbled text layer replaced by OCR), so `vector_index build` re-embeds them."""
+    stale: list[str] = []
+    for chunk in session.query(DocumentChunk).filter(DocumentChunk.document_id == document_id):
+        if chunk.page not in new_text:
+            stale.append(chunk.chunk_id)
+            session.delete(chunk)
+        elif chunk.text != new_text[chunk.page]:
+            stale.append(chunk.chunk_id)
+    if stale and session.bind.dialect.name == "postgresql":
+        from sqlalchemy import text as sql
+
+        if session.execute(sql("select to_regclass('chunk_embedding') is not null")).scalar_one():
+            session.execute(sql("delete from chunk_embedding where chunk_id = any(:ids)"), {"ids": stale})
+    session.flush()
+
+
 def _document_identity(source: SourceRecord, path: Path) -> tuple[str, str, str | None]:
     """(title, document_type, identifier). NTRS sources are single reports named by their registry row."""
     if source.repository == "NASA NTRS":
@@ -221,12 +258,16 @@ def _create_document(session: Session, file_record: FileRecord) -> dict[str, int
     ocr_pages: dict[str, float] = {}
     ocr_engine: str | None = None
     ocr_status = "not_needed"
+    garbled_pages: list[int] = []
     for index, page in enumerate(document, start=1):
         text = page.get_text("text").replace("\x00", "").strip()
-        if len(text) >= MIN_PAGE_CHARS:
+        if len(text) >= MIN_PAGE_CHARS and not text_layer_is_garbled(text):
             passages.append((index, text, "verbatim_text", None, False))
             continue
-        blank_pages.append(index)
+        if len(text) >= MIN_PAGE_CHARS:
+            garbled_pages.append(index)   # unreadable text layer: never index it; OCR the rendered page instead
+        else:
+            blank_pages.append(index)
         ocr = _ocr_page(page)
         if ocr is None:
             # "applied" wins once any page was OCRed; "unavailable" only if none could be.
@@ -249,12 +290,13 @@ def _create_document(session: Session, file_record: FileRecord) -> dict[str, int
         persistent_identifier=source.persistent_identifier,
         page_count=page_count,
         # text_layer describes the PDF itself; OCR text is recorded separately with its confidence.
-        text_layer="none" if len(blank_pages) == page_count else "full" if not blank_pages else "partial",
-        pages_without_text=blank_pages,
+        text_layer="none" if len(blank_pages) + len(garbled_pages) == page_count
+        else "full" if not blank_pages and not garbled_pages else "partial",
+        pages_without_text=sorted(blank_pages + garbled_pages),
         parser_version=PARSER_VERSION,
         ingested_at=now,
-        payload={"ocr": {
-            "status": ocr_status if blank_pages else "not_needed",
+        payload={"garbled_text_pages": garbled_pages, "ocr": {
+            "status": ocr_status if blank_pages or garbled_pages else "not_needed",
             "engine": ocr_engine,
             "dpi": OCR_DPI if ocr_pages else None,
             "page_confidence": ocr_pages,
@@ -262,6 +304,7 @@ def _create_document(session: Session, file_record: FileRecord) -> dict[str, int
             "min_confidence": OCR_MIN_CONFIDENCE,
         }},
     ))
+    _drop_stale_page_chunks(session, document_id, {p: t for p, t, *_ in passages})
     for page_number, page_text, method, confidence, low in passages:
         locator = {"type": "page", "page": page_number, "section": None, "row": None, "frame_index": None, "label": f"p. {page_number}"}
         _store_passage(session, source=source, file_record=file_record, document_id=document_id, label=f"p. {page_number}",
