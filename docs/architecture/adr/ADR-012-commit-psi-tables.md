@@ -1,6 +1,6 @@
 # ADR-012: Commit the PSI experimental tables and ISA-Tab metadata to Git
 
-- **Status:** Proposed. Decision owner: Anas (E2, data / knowledge base), with the Lead. Sign-off needed: Princess (E3, the CV team also relies on `datasets/raw/`) and Ziad (E5, reproducible evaluation).
+- **Status:** Accepted (2026-11-07). Decision owner: Anas (E2, data / knowledge base), with the Lead. Signed off by Princess (E3, the CV team also relies on `datasets/raw/`) and Ziad (E5, reproducible evaluation) on 2026-11-07, as confirmed by the Lead (ADR index 1.2.0).
 - **Date:** 2026-11-07
 - **Implemented in:** commits `a187292` and `bade1f2` (PR #24): `.gitignore`, `.gitattributes`, `.dockerignore`, `apps/api/Dockerfile`, `knowledge/ingestion/install_datasets.py` (`--only tables`).
 
