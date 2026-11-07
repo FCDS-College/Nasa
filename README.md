@@ -1,116 +1,89 @@
-# 🚀 NASA RAG Evaluation Pipeline
+# 🔥 Flame in Freefall
 
-A comprehensive evaluation system for **Retrieval-Augmented Generation (RAG)** quality assessment, designed for NASA's microgravity combustion research data.
+**NASA Space Apps 2026: fire-safety insights from NASA microgravity combustion data.**
 
-## Overview
+Pick a spacecraft cabin atmosphere (ISS air, pre-EVA, Orion, a lunar lander, or your own). Flame in Freefall then:
+- **ranks** NASA's flight investigations by how directly their data covers it;
+- **summarizes** each one in NASA's own words;
+- **explains** what the flight tests measured there, every number linked to its NASA source cell;
+- **estimates** droplet-flame outcomes with a validated model that refuses to extrapolate;
+- says plainly what the data **cannot** tell you.
 
-This pipeline evaluates the quality, reliability, and safety of AI-generated responses in NASA's research intelligence system. It covers:
-
-- **RAG Metrics**: Relevancy, faithfulness, context precision, completeness
-- **LLM-as-Judge**: Gemini-powered answer quality assessment
-- **Multimodal Evaluation**: Text, image, and table response assessment
-- **Citation Verification**: Source reference validation against NASA/NIST documents
-- **Cross-Modal Consistency**: Text–visual agreement detection
-- **PII Masking**: Automatic redaction of sensitive information
-- **Drift Monitoring**: Quality degradation detection over time
-- **Self-Correction**: Auto-correction for low-quality responses
-- **XAI Reporting**: Explainable evaluation reports
-- **Provenance Tracking**: §18-compliant metadata (git commit, dataset SHA256, model version)
-
-## Setup
-
-```bash
-pip install -r requirements.txt
-```
-
-Set your Gemini API key:
-```bash
-export GEMINI_API_KEY="your-key-here"       # Linux/Mac
-set GEMINI_API_KEY=your-key-here             # Windows CMD
-$env:GEMINI_API_KEY="your-key-here"          # PowerShell
-```
-
-## Installing the Datasets
-
-Raw NASA data is git-ignored. On a fresh clone, rebuild it (DSI from the public `nasa-psi` bucket, combustion pilot from the psi.nasa.gov API) and verify every file against `datasets/checksums/sha256.txt`:
-
-```bash
-python knowledge/ingestion/install_datasets.py               # everything, ~6 GB
-python knowledge/ingestion/install_datasets.py --skip-large  # skip the 3 GB DSI zip
-python knowledge/ingestion/install_datasets.py --verify-only # just check hashes
-```
-
-It is resumable and skips files that are already complete.
-
-## Running Tests
-
-```bash
-# Run all evaluation tests
-pytest tests/eval/ -v
-
-# Run provenance/data quality tests only
-pytest tests/eval/test_provenance.py -v
-
-# Run RAG metric tests
-pytest tests/eval/test_rag_metrics.py -v
-```
-
-## Running the Pipeline
-
-```bash
-python tests/eval/master_pipeline.py
-```
-
-## Project Structure
-
-```
-NASA/
-├── README.md
-├── requirements.txt
-├── .gitignore
-├── datasets/
-│   └── evaluation/
-│       ├── gold_schema.json          # JSON Schema for gold test cases
-│       └── rag_gold.jsonl            # 38 gold test cases (NASA domain)
-├── docs/
-│   └── evaluation/
-│       └── provenance_checklist.md   # §18 data provenance checklist
-├── tests/
-│   ├── __init__.py
-│   └── eval/
-│       ├── __init__.py
-│       ├── test_provenance.py        # Data quality pytest gates
-│       ├── test_rag_metrics.py       # RAG evaluation pytest gates
-│       ├── test_api_contracts.py     # API contract test stubs
-│       ├── evaluator.py             # Baseline evaluator
-│       ├── audit_logger.py          # Audit logging system
-│       └── master_pipeline.py       # Master evaluation pipeline
-├── evaluation_report.json           # Latest evaluation report
-├── audit_log.json                   # Audit event log
-├── experiment_history.json          # Experiment tracking
-└── archive/                         # Archived scratch files
-    └── day3_scratch/
-```
-
-## Technology Stack
-
-| Technology | Usage |
+| Start here | |
 |---|---|
-| Python 3.13 | Core language |
-| scikit-learn | TF-IDF, Cosine Similarity |
-| google-generativeai | Gemini API (LLM Judge, Self-Correction) |
-| pytest | Test framework |
-| jsonschema | Gold data validation |
-| pandas | Data manipulation |
+| What it is and why | [FINAL_CHALLENGE_PRESENTATION.md](FINAL_CHALLENGE_PRESENTATION.md) |
+| Run the demo | [DEMO_RUNBOOK.md](DEMO_RUNBOOK.md) |
+| What works, what doesn't | [FINAL_PROJECT_STATUS.md](FINAL_PROJECT_STATUS.md) |
+| How it is built | [FINAL_ARCHITECTURE.md](FINAL_ARCHITECTURE.md) |
+| What was tested | [FINAL_TEST_REPORT.md](FINAL_TEST_REPORT.md) |
+| Model card | [docs/evaluation/reports/flex-outcome-model.md](docs/evaluation/reports/flex-outcome-model.md) |
+| API contract | [docs/api/openapi.json](docs/api/openapi.json) (0.5.0) · [changelog](docs/api/CHANGELOG.md) |
+| All documentation | [docs/README.md](docs/README.md) |
 
-## Gold Dataset
+## Data (all committed, all public)
 
-The evaluation gold set contains **38 test cases** (35 curated plus 3 adversarial) about NASA microgravity combustion research:
-- **Splits**: dev (14), validation (14), holdout (10) — no document leakage
-- **Difficulty**: easy (12), medium (12), hard (14)
-- **Modality**: text (22), image (8), table (8)
-- **Special cases**: 4 unanswerable + 3 adversarial/prompt-injection
+- **840 flight tests** from four NASA PSI investigations, CC0:
+  - FLEX (droplets), 274;
+  - BASS-II (solids), 129;
+  - SPICE (gas co-flow), 435;
+  - SAFFIRE-I (large-scale fabric), 2.
+- **NASA ISA-Tab metadata** for the same four investigations.
+- **24 NASA NTRS reports** with `PUBLIC_USE_PERMITTED` status.
+- **Flight media:** a BASS-II flight video and SPICE ISS photographs, for computer vision.
+
+Provenance and SHA-256 for every file are in `datasets/metadata/files.jsonl` and `datasets/checksums/sha256.txt`. The large raw mirrors (~6 GB of video and frames) are optional:
+
+```bash
+python knowledge/ingestion/install_datasets.py --only tables   # re-fetch the committed tables and metadata
+```
+
+```bash
+python knowledge/ingestion/install_datasets.py --verify-only   # check every installed file against its hash
+```
+
+## Quick start (developers)
+
+```bash
+pip install -e "apps/api[dev,cv,ingestion,ocr,vector]" -r ai/requirements.txt
+```
+
+```bash
+python -m pytest
+```
+
+```bash
+ruff check .
+```
+
+```bash
+cd apps/web && npm ci && npm run lint && npm run typecheck && npm run build
+```
+
+```bash
+python -m ai.fire_safety.train_flex_outcome --check   # the committed model reproduces from the committed data
+```
+
+The full stack (API, worker, PostgreSQL + pgvector, Redis, S3, web, optional Ollama) is described in [DEMO_RUNBOOK.md](DEMO_RUNBOOK.md).
+
+## Repository layout
+
+```
+apps/api        FastAPI service, ingestion, RQ worker (contract docs/api/openapi.json)
+apps/web        Next.js dashboard (server-side read-only proxy to the API)
+ai/fire_safety  investigations ranking, insights, FLEX outcome model (+ artefact and evaluation)
+ai/routing      provider-neutral model router (local / cloud, offline modes)
+ai/rag          retrieval library and the retrieval benchmark
+cv/             flame image and video analysis (OpenCV)
+datasets/       registry, provenance, committed PSI tables, CV samples, evaluation gold sets
+docs/           architecture, ADRs, API, data, evaluation reports, operations
+infrastructure/ docker compose, backups, demo data script
+tests/          repository-level tests (the API tests live in apps/api/tests)
+```
+
+## Legacy evaluation pipeline
+
+`run_evaluation.py`, `render_report.py`, `evaluation_report.json` and `tests/eval/` are an earlier RAG-evaluation prototype. **Its numbers score a mock system and must not be quoted** ([docs/reviews/SYSTEM_STATUS_AUDIT.md](docs/reviews/SYSTEM_STATUS_AUDIT.md) §2). Measured results for Flame are in `docs/evaluation/reports/` (2026-11-07).
 
 ## License
 
-Internal NASA research project — not for public distribution.
+NASA data: CC0 (PSI) and public use permitted (NTRS), as recorded per source in `datasets/registry/source_registry.csv`. The project code is internal to the team.
