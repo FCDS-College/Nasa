@@ -48,6 +48,7 @@
 | Lexical-only search is weak for full questions (16/26 return nothing) | Medium (only without embeddings) | Vector index built at start-up |
 | Gold set and labels authored with AI assistance | Medium | Human review (Ziad, Eman) |
 | `next start` warns about `output: standalone` | Low | Works; or `node .next/standalone/server.js` |
+| Garbled-PDF detector is a function-word heuristic tuned on English reports | Low | Flags only the 35 broken-font pages today; review flagged pages in `document.payload.garbled_text_pages` |
 
 ## 4. Decisions taken (approved plan, 2026-11-07)
 

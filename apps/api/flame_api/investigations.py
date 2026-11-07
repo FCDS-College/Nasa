@@ -79,7 +79,8 @@ def _load(session: Session) -> tuple[dict, dict, dict, dict, set[str]]:
         for e in session.query(EvidenceRecord).filter(EvidenceRecord.document_id == document.document_id):
             label = (e.locator or {}).get("label")
             text = e.excerpt or ""
-            prefix = f"{(sources.get(document.source_id).short_name if sources.get(document.source_id) else '')} {str(label).lower()}: "
+            source = sources.get(document.source_id)
+            prefix = f"{(source.short_name or source.title) if source else ''} {str(label).lower()}: "
             sections[label] = {"text": text[len(prefix):] if text.startswith(prefix) else text, "evidence_id": e.evidence_id}
         isatab[document.source_id] = {"document_id": document.document_id, "fields": (document.payload or {}).get("isatab", {}),
                                       "sections": sections}
@@ -268,7 +269,7 @@ def _flex_training(tests: list[analytics.Canonical], model: outcome_model.FlexOu
     for t in tests:
         conditions = {v: (c.numeric, c.text) for v, c in t.row.conditions.items()}
         ft = flex.from_conditions(t.row.test_id, t.row.fuel, conditions)
-        if ft.features is not None and ft.outcome is not None:
+        if ft.features is not None and ft.outcome is not None and ft.test_date:   # the training set's rows exactly
             out.append((t, ft.features, model.standardized(model.vector(ft.features))))
     return out
 

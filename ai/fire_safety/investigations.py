@@ -169,9 +169,14 @@ def _match_log(value: float, rng: dict | None, scale: float) -> float:
 
 
 def neighbours(tests: list[Canonical], scenario: Scenario) -> list[Canonical]:
+    # When an investigation records pressure, a test without a valid pressure (e.g. FLEX C11M201, 0 mmHg) cannot
+    # be shown to lie within +/-25% of the scenario, so it is not a neighbour.
+    pressure_recorded = any(t.pressure_kpa is not None for t in tests)
     out = []
     for t in tests:
         if t.o2 is None or abs(t.o2 - scenario.o2_fraction) > O2_NEIGHBOURHOOD:
+            continue
+        if pressure_recorded and t.pressure_kpa is None:
             continue
         if t.pressure_kpa is not None:
             ratio = t.pressure_kpa / scenario.pressure_kpa
@@ -267,7 +272,8 @@ def insights(by_source: dict[str, list[Canonical]], scenario: Scenario, names: d
                         "high_o2": {"n": len(high), "extinction_share": _share(high, "Extinction")}},
             "evidence": _evidence(low, "test_end", 4) + _evidence(high, "test_end", 4),
             "caveats": ["Raw shares: pressure, diluent and droplet size also differ between these groups; the outcome "
-                        "model separates their effects."],
+                        "model separates their effects.",
+                        "Evidence lists a sample of the tests' recorded end states (4 per group)."],
         })
         reduced = [t for t in flexs if t.pressure_kpa is not None and t.pressure_kpa <= 76]
         ambient = [t for t in flexs if t.pressure_kpa is not None and 95 <= t.pressure_kpa <= 106]
@@ -282,8 +288,9 @@ def insights(by_source: dict[str, list[Canonical]], scenario: Scenario, names: d
                               f"{_pct(_share(ambient, 'Extinction'))} of {len(ambient)} tests near 1 atm."),
                 "numbers": {"reduced": {"n": len(reduced), "extinction_share": _share(reduced, "Extinction")},
                             "ambient": {"n": len(ambient), "extinction_share": _share(ambient, "Extinction")}},
-                "evidence": _evidence(reduced, "ambient_pressure_mmhg", 4) + _evidence(ambient, "ambient_pressure_mmhg", 4),
-                "caveats": ["Oxygen fraction was not held constant between these groups."],
+                "evidence": _evidence(reduced, "test_end", 4) + _evidence(ambient, "test_end", 4),
+                "caveats": ["Oxygen fraction was not held constant between these groups.",
+                            "Evidence lists a sample of the tests' recorded end states (4 per group)."],
             })
         near = neighbours(flexs, scenario)
         ends = Counter(t.end_state for t in near)
@@ -306,7 +313,8 @@ def insights(by_source: dict[str, list[Canonical]], scenario: Scenario, names: d
     bass = [t for t in by_source.get("FF-PSI-25", []) if t.o2 is not None]
     if bass:
         top = max(t.o2 for t in bass)
-        covered = scenario.o2_fraction <= top + 1e-9
+        bottom = min(t.o2 for t in bass)
+        covered = bottom - 1e-9 <= scenario.o2_fraction <= top + 1e-9
         out.append({
             "insight_id": "bass_solid_oxygen_coverage",
             "title": "Solid-material burns and enriched oxygen",

@@ -84,14 +84,17 @@ def features_from_values(values: Mapping[str, object], fuel: str | None) -> tupl
     o2 = number(values.get("o2"))
     pressure = number(values.get("pressure_mmhg"))
     d0 = number(values.get("d0_mm"))
-    co2 = number(values.get("co2")) or 0.0
-    he = number(values.get("he")) or 0.0
+    # FLEX records every diluent fraction (0 when none was added); a missing cell is unrecorded, not zero.
+    co2 = number(values.get("co2"))
+    he = number(values.get("he"))
+    if co2 is None or he is None:
+        flags.append("diluent_not_recorded")
     if pressure is not None and pressure <= 0:
         flags.append("pressure_not_physical")
         pressure = None
     if fuel not in FUELS:
         flags.append("fuel_unknown")
-    if o2 is None or pressure is None or d0 is None or fuel not in FUELS:
+    if o2 is None or pressure is None or d0 is None or co2 is None or he is None or fuel not in FUELS:
         flags.append("missing_required_condition")
         return None, tuple(flags)
     p_atm = pressure / MMHG_PER_ATM

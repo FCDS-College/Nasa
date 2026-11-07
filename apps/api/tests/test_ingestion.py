@@ -189,3 +189,20 @@ def test_the_two_flex_papers_with_broken_fonts_are_flagged_not_indexed_as_gibber
         for chunk in session.query(DocumentChunk).filter(DocumentChunk.document_id == document.document_id):
             assert not ingest.text_layer_is_garbled(chunk.text)   # only OCR text (when Tesseract exists) is indexed
     engine.dispose()
+
+
+def test_a_corrupt_metadata_zip_is_quarantined_not_fatal():
+    import io
+    import zipfile as zf
+
+    from flame_api.ingest import QuarantineError, parse_isatab
+
+    buffer = io.BytesIO()
+    with zf.ZipFile(buffer, "w", compression=zf.ZIP_DEFLATED) as archive:
+        archive.writestr("i_Investigation.txt", "Study Title\tX\n" + "Comment[Objective]\t" + "word " * 2000)
+    raw = bytearray(buffer.getvalue())
+    start = raw.index(b"i_Investigation.txt") + len("i_Investigation.txt")
+    for i in range(start + 10, start + 60):     # damage the deflate stream of the member
+        raw[i] ^= 0xFF
+    with pytest.raises(QuarantineError):
+        parse_isatab(bytes(raw))

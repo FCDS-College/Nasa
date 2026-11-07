@@ -144,3 +144,33 @@ def test_committed_artefact_matches_its_evaluation_report_and_training_table():
     probabilities = model.probabilities({"o2": 0.21, "pressure_atm": 1.0, "ppo2_atm": 0.21, "co2": 0.0, "he": 0.0, "d0_mm": 3.0,
                                          "heptane": 1.0})
     assert np.isclose(probabilities.sum(), 1.0)
+
+
+def test_review_fixes_low_oxygen_scenario_and_evidence_semantics(client, ingested):
+    """Code-review regressions (2026-11-07)."""
+    # A scenario below BASS-II's lowest O2 is a coverage gap, not "inside the range".
+    low = {i["insight_id"]: i for i in client.get("/api/insights", params={"o2_fraction": 0.10, "pressure_kpa": 101.3}).json()["items"]}
+    assert low["bass_solid_oxygen_coverage"]["kind"] == "coverage_gap"
+    # Shares of outcomes cite outcome cells, not the pressure cells.
+    reduced = {i["insight_id"]: i for i in client.get("/api/insights").json()["items"]}["flex_reduced_pressure"]
+    for item in reduced["evidence"]:
+        assert client.get(f"/api/evidence/{item['evidence_id']}").json()["evidence"]["excerpt"].startswith("Test end: ")
+
+
+def test_a_test_without_valid_pressure_is_never_a_pressure_neighbour():
+    from ai.fire_safety import investigations as analytics
+    from ai.fire_safety.scenarios import BY_ID
+
+    def flex_test(test_id, o2, mmhg):
+        conditions = {"o_initial_ambient_composition_mole_fraction": analytics.Condition(o2, None, o2, "e1"),
+                      "ambient_pressure_mmhg": analytics.Condition(mmhg, None, None, "e2")}
+        return analytics.canonical(analytics.TestRow("FF-PSI-69", test_id, test_id, "Heptane", conditions))
+
+    tests = [flex_test("ok", 0.21, 760.0), flex_test("C11M201", 0.21, 0.0)]
+    assert tests[1].pressure_kpa is None and "pressure_not_physical" in tests[1].flags
+    assert [t.row.test_id for t in analytics.neighbours(tests, BY_ID["iss_nominal"])] == ["ok"]
+
+
+def test_an_unrecorded_diluent_is_missing_not_zero():
+    features, flags = flex.features_from_values({"o2": 0.21, "pressure_mmhg": 760, "d0_mm": 3.0, "co2": None, "he": 0.0}, "Heptane")
+    assert features is None and "diluent_not_recorded" in flags

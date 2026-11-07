@@ -3,6 +3,7 @@ import hashlib
 import json
 import re
 import zipfile
+import zlib
 from html.parser import HTMLParser
 from datetime import UTC, datetime
 from pathlib import Path
@@ -197,7 +198,11 @@ def _store_passage(session, *, source, file_record, document_id, label, locator,
         "knowledge_version": None,
         **(flags or {}),
     }
-    _keep_review(session, evidence_id, evidence_payload)
+    existing = session.get(EvidenceRecord, evidence_id)
+    if existing is None or existing.excerpt == text:
+        # An administrator's review applies to the text they reviewed; changed text (e.g. OCR replacing a garbled
+        # layer) goes back to machine_extracted.
+        _keep_review(session, evidence_id, evidence_payload)
     session.merge(EvidenceRecord(
         evidence_id=evidence_id, source_id=source.source_id, file_id=file_record.file_id, document_id=document_id,
         experiment_id=None, analysis_id=None, kind="document_passage", origin="source_evidence", excerpt=text,
@@ -217,7 +222,10 @@ def _drop_stale_page_chunks(session: Session, document_id: str, new_text: dict[i
     for chunk in session.query(DocumentChunk).filter(DocumentChunk.document_id == document_id):
         if chunk.page not in new_text:
             stale.append(chunk.chunk_id)
+            evidence = session.get(EvidenceRecord, chunk.evidence_id)
             session.delete(chunk)
+            if evidence is not None:
+                session.delete(evidence)   # the page no longer yields text, so its old excerpt must not stay citable
         elif chunk.text != new_text[chunk.page]:
             stale.append(chunk.chunk_id)
     if stale and session.bind.dialect.name == "postgresql":
@@ -453,7 +461,8 @@ def parse_isatab(raw: bytes) -> tuple[dict, list[tuple[str, str]]]:
         if info.file_size > ISATAB_MAX_BYTES:
             raise QuarantineError("isatab_too_large")
         text = archive.read(info).decode("utf-8", errors="replace")
-    except zipfile.BadZipFile as exc:
+    except (zipfile.BadZipFile, zlib.error, NotImplementedError, RuntimeError, EOFError, OSError) as exc:
+        # corrupt, encrypted or unsupported-compression archives quarantine one file, never abort the ingest run
         raise QuarantineError("invalid_zip") from exc
     rows: dict[str, list[str]] = {}
     for line in text.splitlines():
@@ -494,7 +503,7 @@ def _create_isatab_document(session: Session, file_record: FileRecord) -> dict[s
     for number, (heading, body) in enumerate(sections, start=1):
         locator = {"type": "section", "page": None, "section": number, "row": None, "frame_index": None, "label": heading}
         _store_passage(session, source=source, file_record=file_record, document_id=document_id, label=f"§ {heading}",
-                       locator=locator, text=f"{source.short_name} {heading.lower()}: {body}", method="verbatim_text",
+                       locator=locator, text=f"{source.short_name or source.title} {heading.lower()}: {body}", method="verbatim_text",
                        confidence=None, parser=ISATAB_PARSER_VERSION, now=now)
     return {"pages": 0, "chunks": len(sections), "skipped": 0}
 

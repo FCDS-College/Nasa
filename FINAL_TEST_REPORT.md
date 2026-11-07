@@ -18,7 +18,7 @@ Every result below was produced by a command run on 2026-11-07 on branch `anas/v
 | Check | Command | Result |
 |---|---|---|
 | Python lint | `ruff check .` | All checks passed |
-| Full test suite (repo root) | `python -m pytest` | **381 passed, 5 skipped, 0 failed** (baseline before this work: 365 passed, 7 skipped) |
+| Full test suite (repo root) | `python -m pytest` | **385 passed, 5 skipped, 0 failed** (baseline before this work: 365 passed, 7 skipped) |
 | Skips | `python -m pytest -rs` | OpenTelemetry SDK not installed locally (CI installs it); 4 eval contract stubs that predate this work ("API backend implementation is pending"); 1 Redis Lua test needing `FLAME_TEST_REDIS_URL` |
 | Registry | `python knowledge/ingestion/validate_registry.py` | 32 sources checked, 0 problems |
 | Contract docs fresh | `python docs/tools/render_api_schemas.py --check` | exit 0 |
@@ -77,7 +77,23 @@ Every response of the new operations is validated against its contract schema (`
 | `/api/health` reported API version 0.1.0 | Low | Single-sourced from the contract |
 | UI: no navigation to 6 of 8 pages; dead buttons; hard-coded "14 Linked Docs"; History always opened the newest analysis; "Grounded" badge driven by `memory_used`; chat suggested a temperature question the system refuses | Medium | Fixed |
 
+## 7. Independent code review (2026-11-07)
+
+A separate reviewer agent read the new backend code. It found no crash-level defects. Findings and outcomes:
+
+| Finding | Outcome |
+|---|---|
+| BASS-II coverage insight ignored the lower O₂ bound (a 10 % O₂ custom scenario was called "inside the range") | Fixed + test |
+| A missing CO₂/He cell would be treated as "no diluent" | Fixed: treated as missing (no FLEX row is affected; the model artefact is unchanged) + test |
+| The reduced-pressure insight cited pressure cells for outcome shares | Fixed: cites `Test end` cells and says the list is a sample + test |
+| A test with a non-physical pressure counted as a pressure neighbour | Fixed + test |
+| A corrupt metadata zip could abort the whole ingest | Fixed: quarantined + test |
+| Re-ingest left evidence rows for pages that no longer yield text; a human review carried over to changed text | Fixed |
+| The garbled-text heuristic could misfire on reference lists or non-English pages, and drops a page if OCR is unavailable | Kept, and listed under Unresolved: it flags no legitimate page in the current English corpus; Tesseract is installed in the image and CI |
+
 ## Unresolved
+
+- The garbled-text heuristic is tuned on this English corpus; a reference-list or non-English page could be mis-flagged in future documents (see §7).
 
 - Docker Compose dry run and Railway redeploy: **not run** (no Docker daemon; no Railway access).
 - Generated-answer evaluation: **not run** (no language model in this environment).
