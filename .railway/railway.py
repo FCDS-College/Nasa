@@ -89,7 +89,7 @@ def main(ctx=None):
         replicas={"sfo": 1},
         env=existing_api_variables,
         build={"builder": "DOCKERFILE", "dockerfilePath": "apps/api/Dockerfile"},
-        preDeploy="alembic upgrade head && python -m flame_api.seed && python -m flame_api.ingest",
+        preDeploy="alembic upgrade head && python -m flame_api.seed && python -m flame_api.ingest && (python -m flame_api.vector_index build || echo 'vector index build failed; search stays lexical-only')",
         healthcheck="/health/live",
         healthcheckTimeout=30,
     )
