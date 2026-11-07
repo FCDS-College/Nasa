@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Lead (Anas) | Current (as built on `anas/vibrant-sagan-fsnckf`) | 1.0.0 | 2026-11-07 | T7 | whole repository |
+| Lead (Anas) | Current (as built on `anas/vibrant-sagan-fsnckf`) | 1.0.1 | 2026-11-07 | T7 | whole repository |
 
 Detailed, older material: [docs/architecture/overview.md](docs/architecture/overview.md) (Phase 2, Part A), [ADRs](docs/architecture/adr/README.md), [hybrid AI](docs/hybrid-ai/PHASE_2_HYBRID_AI_ARCHITECTURE.md). This file describes the system that answers the Space Apps challenge.
 
@@ -94,3 +94,4 @@ Local models (optional) ── Ollama / llama.cpp / vLLM behind ai/routing (mode
 
 ## Changelog
 - 1.0.0 (2026-11-07): first version.
+- 1.0.1 (2026-11-07): ADR-006 is Accepted and only partly implemented (ADR index 1.3.0).

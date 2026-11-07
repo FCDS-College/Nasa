@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Lead (Anas) | Current; kept current on every PR (PR template checkbox) | 1.0.0 | 2026-10-12 | G-1, G-3 | — |
+| Lead (Anas) | Current; kept current on every PR (PR template checkbox) | 1.1.1 | 2026-11-07 | G-1, G-3 | — |
 
 **Status key:** Draft → In review → Approved. "Due Wn" means the document doesn't exist yet and is due in Phase 2 week n. "On branch X" means it exists only on that engineer's branch. Requirements per engineer:
 - `docs/reports/DOC_REQUIREMENTS_Lead.md` and `DOC_REQUIREMENTS_Anas.md` on `main`;
@@ -108,3 +108,4 @@ Taken from each engineer's requirements file. Every document also gets the Lead'
 ## Changelog
 - 1.0.0 (2026-10-12): first index.
 - 1.1.0 (2026-11-07): final challenge deliverables and evaluation reports.
+- 1.1.1 (2026-11-07): L-1 row: ADR-006 to 009 Accepted, partly implemented. The header version, which still read 1.0.0, is corrected.
