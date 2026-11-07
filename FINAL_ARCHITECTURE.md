@@ -90,7 +90,7 @@ Local models (optional) ── Ollama / llama.cpp / vLLM behind ai/routing (mode
 ## Known limitations
 - Single API replica: the answer cache and the investigations cache are in-process.
 - The relevance formula's weights are a documented design choice, not fitted to outcomes ([ADR-011](docs/architecture/adr/ADR-011-scenario-relevance-ranking.md); the ranking order is unchanged under ±50 % weight changes).
-- Two retrieval stacks remain (`ai/rag` vs the API's search; ADR-006 Proposed).
+- Two retrieval stacks remain (`ai/rag` vs the API's search). ADR-006 is Accepted but only partly implemented: the search uses `ai/rag`'s RRF, but the reranker and query rewrite are not wired in.
 
 ## Changelog
 - 1.0.0 (2026-11-07): first version.
