@@ -66,6 +66,8 @@
 
 | Document | Status | Owner |
 |---|---|---|
+| **Final challenge deliverables (2026-11-07):** [status](../FINAL_PROJECT_STATUS.md), [architecture](../FINAL_ARCHITECTURE.md), [test report](../FINAL_TEST_REPORT.md), [demo runbook](../DEMO_RUNBOOK.md), [presentation](../FINAL_CHALLENGE_PRESENTATION.md) | Current | Lead |
+| [FLEX outcome model card and evaluation](evaluation/reports/flex-outcome-model.md), [retrieval evaluation](evaluation/reports/retrieval-2026-11-07.md) | Current (human review pending: Ziad, Eman) | Lead |
 | 2026-10-30 system audit: [status audit](reviews/SYSTEM_STATUS_AUDIT.md), [roadmap](plan/IMPLEMENTATION_ROADMAP.md), [implementation changelog](reviews/IMPLEMENTATION_CHANGELOG.md), [readiness report](reviews/FINAL_SYSTEM_READINESS_REPORT.md) | Current | Lead |
 | [Phase 2 plan](plan/PHASE2_PLAN.md) | Current | Lead |
 | [Frontend API contract](api/FRONTEND_API_CONTRACT.md), [service contracts](api/service-contracts.md) | MVP-era (contract 0.1.0) | Lead / Belal |
@@ -105,3 +107,4 @@ Taken from each engineer's requirements file. Every document also gets the Lead'
 
 ## Changelog
 - 1.0.0 (2026-10-12): first index.
+- 1.1.0 (2026-11-07): final challenge deliverables and evaluation reports.

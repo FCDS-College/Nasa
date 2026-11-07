@@ -16,3 +16,5 @@ datasets/metadata/*.jsonl text eol=lf
 *.tif  binary
 *.mp4  binary
 *.ico  binary
+# Checksummed NASA originals: never convert line endings (sha256 must match datasets/checksums/sha256.txt)
+datasets/raw/** -text

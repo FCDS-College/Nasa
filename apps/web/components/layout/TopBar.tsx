@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { fetchHealth } from "@/lib/api/client";
 import { SystemHealth } from "@/lib/api/types";
 import {
@@ -16,6 +17,15 @@ export function TopBar() {
   const [health, setHealth] = useState<SystemHealth | null>(null);
   const [loading, setLoading] = useState(true);
   const { toggleSidebar, isSidebarOpen, activeSession, createNewSession } = useChat();
+  const pathname = usePathname() ?? "/";
+  const PAGE_TITLES: [string, string][] = [
+    ["/explorer", "Flame Outcome Explorer"], ["/investigations", "Investigation"], ["/experiments", "Flight Test Browser"],
+    ["/search", "Search Evidence"], ["/analysis", "Image & Video Analysis"], ["/history", "Analysis History"],
+    ["/evidence", "Evidence"], ["/status", "System Status"], ["/knowledge", "Knowledge"],
+  ];
+  const title = pathname === "/" ? "Fire Safety Dashboard"
+    : pathname.startsWith("/chat") ? (activeSession?.title || "Ask the NASA Corpus")
+    : PAGE_TITLES.find(([prefix]) => pathname.startsWith(prefix))?.[1] ?? "Flame in Freefall";
 
   useEffect(() => {
     let mounted = true;
@@ -71,7 +81,7 @@ export function TopBar() {
           id="toggle-sidebar-btn"
           type="button"
           onClick={toggleSidebar}
-          aria-label="Toggle history sidebar"
+          aria-label="Toggle navigation"
           className="flex h-9 w-9 items-center justify-center rounded-lg active:scale-95"
           title={isSidebarOpen ? "Collapse history" : "Open history"}
           style={{
@@ -118,7 +128,7 @@ export function TopBar() {
           <div className="flex flex-col min-w-0">
             <h1 className="text-xs sm:text-sm font-semibold flex items-center gap-1.5 truncate max-w-[200px] sm:max-w-md"
                 style={{ color: 'var(--text-primary)' }}>
-              <span className="truncate">{activeSession?.title || "Scientific Research Chat"}</span>
+              <span className="truncate">{title}</span>
             </h1>
             <span className="text-[9px] sm:text-[10px] hidden sm:inline truncate"
                   style={{ color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>

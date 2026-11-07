@@ -1,0 +1,164 @@
+# Demo runbook: Flame in Freefall
+
+| Owner | Status | Version | Last updated | Plan items | Code paths |
+|---|---|---|---|---|---|
+| Lead (Anas) | Current: path B verified end to end on 2026-11-07; path A (Docker) not run, no Docker daemon was available | 1.0.0 | 2026-11-07 | T7 | `infrastructure/`, `apps/api/`, `apps/web/` |
+
+The demo is a 6-minute walk through the Fire Safety Dashboard. It needs:
+- the API with PostgreSQL + pgvector, Redis and S3/MinIO;
+- the RQ worker;
+- the Next.js web app;
+- optionally Ollama, for generated answers. Without a model, chat shows the retrieved evidence instead (see §5).
+
+## 1. Prerequisites
+
+| Need | Why |
+|---|---|
+| Git checkout of this branch | All demo data is committed: 840 flight tests, 4 NASA metadata records, 24 NTRS reports, BASS-II video and SPICE images |
+| Python 3.12+, Node 22 | API/worker, web |
+| PostgreSQL 16 with pgvector, Redis 7, S3-compatible storage | path B only (path A runs them in containers) |
+| ~3 GB disk, 8 GB RAM; +4 GB RAM for the 3B local model | CPU-only is fine |
+| Internet **once** | embedding model (`bge-small-en-v1.5`) download; Ollama model pull |
+
+Create two random keys of 32+ characters that differ: `python -c "import secrets;print(secrets.token_urlsafe(36))"`, twice. Use them as `FLAME_READ_API_TOKEN` and `FLAME_WRITE_API_TOKEN`. Never paste them into slides or chat.
+
+## 2. Path A: Docker Compose (recommended on the demo laptop; not dry-run yet)
+
+```bash
+cd infrastructure && cp .env.example .env
+```
+
+Edit `.env` and set `FLAME_READ_API_TOKEN` and `FLAME_WRITE_API_TOKEN`. For generated answers, also add:
+
+```text
+COMPOSE_PROFILES=local-llm
+FLAME_OLLAMA_BASE_URL=http://ollama:11434
+```
+
+```bash
+docker compose up -d --build
+```
+
+```bash
+docker compose --profile local-llm-setup run --rm ollama-pull
+```
+
+The API container runs migrations, seed, ingest (840 flight tests, 28 documents, OCR included) and the vector-index build on start. The first start takes a few minutes. Watch it with:
+
+```bash
+docker compose logs -f api
+```
+
+Then continue with §4.
+
+## 3. Path B: without Docker (verified 2026-11-07)
+
+These are the commands of the verified run. Ports are examples. Start PostgreSQL 16 (with pgvector) and Redis, plus an S3 stand-in such as MinIO, or `moto_server -p 59000` for a demo; create bucket `flame-artifacts`.
+
+```bash
+python -m venv .venv && . .venv/bin/activate
+```
+
+```bash
+pip install -e "apps/api[cv,ingestion,ocr,vector]"
+```
+
+`apt-get install tesseract-ocr` is needed for OCR of scanned or garbled pages.
+
+```bash
+export FLAME_DATABASE_URL=postgresql+psycopg://flame:flame@127.0.0.1:5432/flame
+export FLAME_REDIS_URL=redis://127.0.0.1:6379/0
+export FLAME_S3_ENDPOINT_URL=http://127.0.0.1:9000 FLAME_S3_ACCESS_KEY=... FLAME_S3_SECRET_KEY=...
+export FLAME_READ_API_TOKEN=... FLAME_WRITE_API_TOKEN=...
+export PYTHONPATH=$PWD:$PWD/apps/api
+```
+
+```bash
+cd apps/api && alembic upgrade head && python -m flame_api.seed && python -m flame_api.ingest
+```
+
+```bash
+python -m flame_api.vector_index build
+```
+
+```bash
+uvicorn flame_api.main:app --host 127.0.0.1 --port 8000 &
+```
+
+```bash
+(python -m flame_api.worker recover; rq worker --url "$FLAME_REDIS_URL" flame-analysis) &
+```
+
+Expected ingest summary: `"experiments": 840, "pdf_documents": 24, "pdf_chunks": 280, "text_documents": 4, "quarantined": 0`. The vector index embeds 315 chunks.
+
+Optional local model (Ollama 0.5+):
+
+```bash
+ollama pull qwen2.5:3b-instruct-q4_K_M
+```
+
+Then start the API with `FLAME_OLLAMA_BASE_URL=http://127.0.0.1:11434`.
+
+## 4. Web app and demo data (both paths)
+
+```bash
+cd apps/web && npm ci && npm run build
+```
+
+```bash
+FLAME_API_ORIGIN=http://127.0.0.1:8000 FLAME_READ_API_TOKEN=<read key> npx next start -p 3000
+```
+
+`next start` prints a warning about `output: standalone`; it works. For the container-style server, use `node .next/standalone/server.js`.
+
+Submit the demo analyses: the committed BASS-II flight video and two SPICE ISS photos. The command is idempotent:
+
+```bash
+FLAME_API_ORIGIN=http://127.0.0.1:8000 FLAME_WRITE_API_TOKEN=<write key> FLAME_READ_API_TOKEN=<read key> python infrastructure/demo/submit_demo_analyses.py
+```
+
+Expected: three `completed` lines within about a minute.
+
+Pre-flight check (needs Playwright + Chromium; `npx playwright install chromium` once):
+
+```bash
+node apps/web/scripts/demo-smoke.mjs http://127.0.0.1:3000
+```
+
+Expected: `PASS` on 8 steps and `Demo journey passed.`
+
+## 5. Demo sequence (~6 minutes)
+
+| # | Screen | Do | Say / point at |
+|---|---|---|---|
+| 1 | `/` Fire Safety Dashboard | Open it. | The question in the headline. Moon and Mars cabins run lower pressure and higher O₂ than the ISS (NASA/TM-2008-215260). 840 real flight tests from 4 NASA PSI tables. |
+| 2 | Scenario picker | Click **ISS cabin**, then **Lunar lander (34 % O₂, 62.7 kPa)**. | The ranking re-orders. BASS-II drops from #2 to #3, at relevance 3/100: no solid-material test went above 22.2 % O₂. Open "How is this scored?": a transparent formula, not a black box. |
+| 3 | "What the flight data says here" | Read the first card. | **94 % of 48 droplet flames below 0.16 O₂ self-extinguished, against 8 % of 24 at ≥ 0.30.** Click a test ID → the exact NASA table cell. |
+| 4 | Coverage-gap cards | Point at the amber cards. | The system says what it cannot tell you: solids at 34 % O₂, partial gravity, tables without outcomes. |
+| 5 | FLEX row → investigation page | Click FLEX. | NASA's own objective, hypothesis and approach, verbatim, each with a source link. 51 publications. |
+| 6 | `/explorer` | Presets **ISS air** → **Pre-EVA** → **Lunar lander**. | The probabilities, the O₂ sweep, and the 8 most similar real ISS tests with what actually happened. Lunar lander → **"No estimate: these conditions were never flown"**: the model refuses to extrapolate. Model quality: macro-F1 0.54 vs 0.27 baseline, ROC-AUC 0.86, split by test day. |
+| 7 | "Explain with cited sources" on any insight | Click it, then press send. | With a model: a grounded answer whose citations must be in the retrieved set. Without one: the retrieved NTRS passages, labelled "nothing below was generated". |
+| 8 | `/analysis` | Scroll to **Video flame analysis**. | The BASS-II flight video: flame area over time, measured in pixels. Flicker is "not estimable" below the Nyquist rate. No temperature from RGB. |
+| 9 | `/status` | — | Every dependency's health, the AI mode and the local-only providers. |
+
+## 6. Troubleshooting
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| Dashboard: "not connected to a Flame API" | `FLAME_API_ORIGIN` unset for the web server | Restart `next start` with it set |
+| Every call 401 | Read key wrong or missing on the web server | Same key as the API's `FLAME_READ_API_TOKEN` |
+| "No investigation has ingested data yet" | Ingest not run, or not from this checkout | Run `python -m flame_api.ingest`; expect `"experiments": 840` |
+| Search finds little for full questions | No vector index (lexical only) | `python -m flame_api.vector_index build` (needs the embedding model once) |
+| Chat shows evidence only | No language model configured (`/api/health` → `llm: disabled`) | Expected fallback; configure Ollama for generated answers |
+| Explorer: "No estimate" | Conditions outside the flight-tested domain | By design; use a preset inside it (ISS air, Pre-EVA) |
+| Video panel empty | Demo analyses not submitted, or the worker is not running | Run `submit_demo_analyses.py`; check the worker log |
+| Pages blank after a rebuild | An old `next-server` process is still serving | Kill every `next-server` process and start again |
+
+**Fallback if the network or Docker fails on stage:** run path B on the presenter's laptop (all data is in git). If even that fails, use the screenshots in `docs/presentations/screenshots/`, which come from the verified run.
+
+## Known limitations
+- Path A (Compose) has not been run end to end in this environment (no Docker daemon). The image layout was checked by reproducing its `COPY` lines and serving the app from them.
+- The Railway deployment has not been redeployed with this branch; it needs someone with Railway access.
+
+## Changelog
+- 1.0.0 (2026-11-07): first runbook for the final demo.

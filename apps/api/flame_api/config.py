@@ -4,6 +4,8 @@ from typing import Literal
 from urllib.parse import urlsplit
 
 from pydantic import Field, SecretStr, field_validator, model_validator
+
+from flame_api.contracts import API_VERSION
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -32,7 +34,7 @@ class Settings(BaseSettings):
         return None if value == "" else value
 
     environment: str = "development"
-    api_version: str = "0.1.0"
+    api_version: str = API_VERSION   # the contract version (docs/api/openapi.json info.version)
     build_id: str | None = None
     git_sha: str | None = None
     database_url: str = "postgresql+psycopg://flame:flame@localhost:5432/flame"

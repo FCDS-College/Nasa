@@ -12,7 +12,25 @@ import {
   Clock,
   X,
   Sparkles,
+  ShieldCheck,
+  FlaskConical,
+  Microscope,
+  Activity,
+  FileSearch,
+  History,
 } from "lucide-react";
+
+// Primary navigation: every page a judge needs is one click away.
+const NAV = [
+  { href: "/", label: "Fire Safety Dashboard", icon: ShieldCheck },
+  { href: "/explorer", label: "Flame Outcome Explorer", icon: FlaskConical },
+  { href: "/experiments", label: "Flight Test Browser", icon: Sparkles },
+  { href: "/chat", label: "Ask the NASA Corpus", icon: MessageSquare },
+  { href: "/search", label: "Search Evidence", icon: FileSearch },
+  { href: "/analysis", label: "Image & Video Analysis", icon: Microscope },
+  { href: "/history", label: "Analysis History", icon: History },
+  { href: "/status", label: "System Status", icon: Activity },
+];
 import { useChat } from "@/lib/context/ChatContext";
 
 function formatRelativeTime(timestamp: number) {
@@ -90,7 +108,7 @@ export function Sidebar() {
         {/* Branding Header */}
         <div className="flex h-16 shrink-0 items-center justify-between px-5"
              style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-          <Link href="/chat" className="group flex items-center gap-3">
+          <Link href="/" className="group flex items-center gap-3">
             <div className="relative flex h-9 w-9 items-center justify-center rounded-xl"
                  style={{
                    background: 'linear-gradient(135deg, rgba(59,130,246,0.15), rgba(96,165,250,0.1))',
@@ -110,7 +128,7 @@ export function Sidebar() {
               </span>
               <span className="text-[10px] font-medium tracking-wide"
                     style={{ color: 'var(--accent-flame)', fontFamily: 'var(--font-mono)', opacity: 0.8 }}>
-                AI Research Lab
+                Fire-Safety Insights
               </span>
             </div>
           </Link>
@@ -136,6 +154,31 @@ export function Sidebar() {
             <X className="h-4 w-4" />
           </button>
         </div>
+
+        {/* Primary navigation */}
+        <nav aria-label="Main" className="px-3 pt-3">
+          <ul className="flex flex-col gap-0.5">
+            {NAV.map(({ href, label, icon: Icon }) => {
+              const active = href === "/" ? pathname === "/" : pathname?.startsWith(href);
+              return (
+                <li key={href}>
+                  <Link href={href} onClick={() => { if (typeof window !== "undefined" && window.innerWidth < 1024) closeSidebar(); }}
+                        aria-current={active ? "page" : undefined}
+                        className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium"
+                        style={{
+                          background: active ? "rgba(59,130,246,0.12)" : "transparent",
+                          border: `1px solid ${active ? "rgba(59,130,246,0.25)" : "transparent"}`,
+                          color: active ? "var(--text-primary)" : "var(--text-secondary)",
+                        }}>
+                    <Icon className="h-4 w-4" style={{ color: active ? "var(--accent-flame)" : "var(--text-dim)" }} aria-hidden="true" />
+                    {label}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+        <div className="mx-4 mt-3" style={{ borderTop: "1px solid var(--border-subtle)" }} />
 
         {/* New Chat Button */}
         <div className="p-4 pb-2">
@@ -346,11 +389,11 @@ export function Sidebar() {
                       background: 'rgba(59,130,246,0.08)',
                       border: '1px solid rgba(59,130,246,0.15)',
                     }}>
-                v1.0-MVP
+                2026
               </span>
             </div>
             <p className="text-[10px] mt-1.5" style={{ color: 'var(--text-dim)' }}>
-              Grounding: Curated Corpus
+              NASA PSI flight data · NTRS reports
             </p>
           </div>
         </div>

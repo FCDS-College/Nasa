@@ -108,3 +108,101 @@ def test_pdf_ingestion_records_page_evidence_and_non_text_pages(tmp_path, monkey
         assert evidence.payload["extraction_method"] == "verbatim_text"
         assert evidence.payload["review_status"] == "machine_extracted"
     engine.dispose()
+
+def test_committed_psi_tables_are_present_so_a_fresh_clone_has_experiments():
+    """The 4 CC0 experimental tables and 4 ISA-Tab zips are committed (.gitignore exception)."""
+    root = Path(__file__).resolve().parents[3] / "datasets" / "raw" / "psi_api"
+    tables = sorted(root.glob("PSI-*/Experimental table/*.csv"))
+    metadata = sorted(root.glob("PSI-*/metadata/*.zip"))
+    assert [p.parent.parent.name for p in tables] == ["PSI-107", "PSI-25", "PSI-69", "PSI-98"]
+    assert len(metadata) == 4
+
+
+def test_isatab_metadata_becomes_a_citable_investigation_document():
+    from flame_api.ingest import ISATAB_PARSER_VERSION, ingest_file
+
+    engine = create_engine("sqlite://")
+    Base.metadata.create_all(engine)
+    with Session(engine) as session:
+        seed_sources(session)
+        seed_files(session)
+        session.commit()
+        record = session.query(FileRecord).filter(FileRecord.original_filename.like("PSI-69_metadata%")).one()
+        outcome, counts = ingest_file(session, record)
+        session.commit()
+        assert outcome == "ingested" and counts["chunks"] >= 6
+        document = session.query(DocumentRecord).filter(DocumentRecord.file_id == record.file_id).one()
+        assert document.parser_version == ISATAB_PARSER_VERSION
+        assert document.document_type == "dataset_documentation"
+        assert document.payload["isatab"]["acronym"] == "FLEX"
+        assert document.payload["isatab"]["doi"] == "10.60555/mbq8-0451"
+        assert any("ntrs.nasa.gov" in link for link in document.payload["isatab"]["publications"])
+        sections = {e.locator["label"]: e for e in session.query(EvidenceRecord).filter(EvidenceRecord.document_id == document.document_id)}
+        assert {"Objective", "Hypothesis", "Approach"} <= set(sections)
+        assert "flammability limits" in sections["Objective"].excerpt
+        # Stable IDs: a second ingest creates nothing new.
+        before = session.query(func.count(EvidenceRecord.evidence_id)).scalar()
+        ingest_file(session, record)
+        session.commit()
+        assert session.query(func.count(EvidenceRecord.evidence_id)).scalar() == before
+    engine.dispose()
+
+
+def test_flex_en_dash_is_missing_and_sccm_is_not_a_length():
+    from flame_api.ingest import convert_to_si, parse_cell
+
+    assert parse_cell("–") == (None, None)       # FLEX cp1252 0x96 "not available"
+    assert parse_cell("—") == (None, None)
+    assert convert_to_si("Fuel Rate (sccm)", "fuel_rate_sccm", 12.0) == (None, None)
+    assert convert_to_si("Air Rate (cm/s)", "air_rate_cm_s", 10.0) == (0.1, "m/s")
+    assert convert_to_si("Ambient pressure; mmHg", "ambient_pressure_mmhg", 760.0)[1] == "Pa"
+
+
+def test_a_garbled_text_layer_is_detected_but_ordinary_pages_are_not():
+    from flame_api.ingest import text_layer_is_garbled
+
+    garbled = "*0)<%()'-7-:)78)4*36;%6(-22%7% 7'31&978-32 6)7)%6',463+6%1 " * 6 + " ".join(["XLI QMGVSKVEZMX] GSQFYWXMSR"] * 20)
+    english = ("The FLEX experiment burned droplets of methanol and heptane in the Combustion Integrated Rack to map the "
+               "flammability limits of liquid fuels as a function of pressure and of the oxygen in the chamber. ") * 3
+    assert text_layer_is_garbled(garbled)
+    assert not text_layer_is_garbled(english)
+    assert not text_layer_is_garbled("Table 2  O2 0.21  P 101.3 kPa")   # too short to judge
+
+
+def test_the_two_flex_papers_with_broken_fonts_are_flagged_not_indexed_as_gibberish():
+    from flame_api import ingest
+    from flame_api.models import DocumentRecord
+
+    engine = create_engine("sqlite://")
+    Base.metadata.create_all(engine)
+    with Session(engine) as session:
+        seed_sources(session)
+        session.commit()
+        seed_files(session)
+        session.commit()
+        record = session.query(FileRecord).filter(FileRecord.source_id == "FF-NTRS-20120016855").one()
+        outcome, counts = ingest.ingest_file(session, record)
+        session.commit()
+        assert outcome == "ingested"
+        document = session.query(DocumentRecord).filter(DocumentRecord.file_id == record.file_id).one()
+        assert document.payload["garbled_text_pages"] == [1, 2, 3, 4, 5, 6]
+        for chunk in session.query(DocumentChunk).filter(DocumentChunk.document_id == document.document_id):
+            assert not ingest.text_layer_is_garbled(chunk.text)   # only OCR text (when Tesseract exists) is indexed
+    engine.dispose()
+
+
+def test_a_corrupt_metadata_zip_is_quarantined_not_fatal():
+    import io
+    import zipfile as zf
+
+    from flame_api.ingest import QuarantineError, parse_isatab
+
+    buffer = io.BytesIO()
+    with zf.ZipFile(buffer, "w", compression=zf.ZIP_DEFLATED) as archive:
+        archive.writestr("i_Investigation.txt", "Study Title\tX\n" + "Comment[Objective]\t" + "word " * 2000)
+    raw = bytearray(buffer.getvalue())
+    start = raw.index(b"i_Investigation.txt") + len("i_Investigation.txt")
+    for i in range(start + 10, start + 60):     # damage the deflate stream of the member
+        raw[i] ^= 0xFF
+    with pytest.raises(QuarantineError):
+        parse_isatab(bytes(raw))

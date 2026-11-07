@@ -7,7 +7,7 @@ interface CardProps {
   glow?: boolean;
 }
 
-export function Card({ children, className = "", hover = false, glow = false }: CardProps) {
+export function Card({ children, className = "", glow = false }: CardProps) {
   return (
     <section
       className={`rounded-2xl ${className}`}

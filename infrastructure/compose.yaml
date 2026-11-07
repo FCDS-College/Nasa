@@ -106,7 +106,9 @@ services:
         condition: service_healthy
       minio-init:
         condition: service_completed_successfully
-    command: ["sh", "-c", "alembic upgrade head && python -m flame_api.seed && python -m flame_api.ingest && uvicorn flame_api.main:app --host 0.0.0.0 --port 8000"]
+    # The vector index makes search hybrid (hit@1 0.81 vs 0.31 lexical-only: docs/evaluation/reports/retrieval-2026-11-07.md).
+    # A failed build (e.g. offline without the embedding cache) leaves search lexical instead of blocking start-up.
+    command: ["sh", "-c", "alembic upgrade head && python -m flame_api.seed && python -m flame_api.ingest && (python -m flame_api.vector_index build || echo 'vector index build failed; search stays lexical-only') && uvicorn flame_api.main:app --host 0.0.0.0 --port 8000"]
     healthcheck:
       test:
         - CMD

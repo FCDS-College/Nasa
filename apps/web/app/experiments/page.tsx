@@ -1,142 +1,110 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
-import { fetchExperiments } from "@/lib/api/client";
-import { ExperimentRecord } from "@/lib/api/types";
-import { Badge } from "@/components/ui/Badge";
-import { FlaskConical, GitMerge, FileText, Globe2, Activity, Microscope } from "lucide-react";
+import { FlaskConical } from "lucide-react";
+import { Card } from "@/components/ui/Card";
+import { Empty, ErrorNote, Loading } from "@/components/fire/FireUi";
 
-export default function ExperimentsPage() {
-  const [experiments, setExperiments] = useState<ExperimentRecord[]>([]);
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
+const SOURCES = [
+  { id: "FF-PSI-69", label: "FLEX (droplets)" },
+  { id: "FF-PSI-25", label: "BASS-II (solids)" },
+  { id: "FF-PSI-107", label: "SPICE (gas co-flow)" },
+  { id: "FF-PSI-98", label: "SAFFIRE-I (large-scale fabric)" },
+];
+const PAGE_SIZE = 12;
+
+interface Condition { variable: string; value_numeric: number | null; value_text: string | null; unit_original: string | null; evidence_id: string }
+interface Experiment { experiment_id: string; test_id: string; investigation: string | null; fuel_or_material: string | null; gravity_regime: string; conditions?: Condition[] }
+
+async function getJson(path: string) {
+  const res = await fetch(`${API_BASE}/api/${path}`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`The Flame API answered ${res.status}.`);
+  return res.json();
+}
+
+export default function FlightTestBrowser() {
+  const [source, setSource] = useState(SOURCES[0].id);
+  const [page, setPage] = useState(1);
+  const [attempt, setAttempt] = useState(0);
+  const key = `${source}:${page}:${attempt}`;
+  const [loaded, setLoaded] = useState<{ key: string; items: Experiment[]; total: number } | null>(null);
+  const [failure, setFailure] = useState<{ key: string; message: string } | null>(null);
 
   useEffect(() => {
-    fetchExperiments().then(setExperiments);
-  }, []);
+    let live = true;
+    (async () => {
+      try {
+        const list = await getJson(`experiments?source_id=${source}&page=${page}&page_size=${PAGE_SIZE}`);
+        const details = await Promise.all(list.items.map((e: Experiment) => getJson(`experiments/${e.experiment_id}`)));
+        if (live) setLoaded({ key, items: details.map((d) => d.experiment), total: list.pagination.total_items });
+      } catch (e) {
+        if (live) setFailure({ key, message: e instanceof Error ? e.message : "Could not load flight tests." });
+      }
+    })();
+    return () => { live = false; };
+  }, [source, page, key]);
+
+  const items = loaded?.key === key ? loaded.items : null;
+  const total = loaded?.total ?? 0;
+  const error = failure?.key === key ? failure.message : null;
+  const load = () => setAttempt((n) => n + 1);
+  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
-    <div className="flex flex-col w-full p-4 sm:p-6 lg:p-8 space-y-6">
-      {/* Header */}
-      <div className="animate-fade-in-up">
-        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2.5"
-            style={{ color: 'var(--text-primary)' }}>
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg"
-               style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)' }}>
-            <FlaskConical className="h-4 w-4" style={{ color: 'var(--accent-flame)' }} />
-          </div>
-          Experiment Explorer
-        </h1>
-        <p className="mt-2 text-sm" style={{ color: 'var(--text-muted)' }}>
-          Compare microgravity and terrestrial flame experiments side-by-side with full evidence graphs.
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-4 py-6 sm:px-6 sm:py-8">
+      <header>
+        <h1 className="flex items-center gap-2 text-2xl font-bold"><FlaskConical className="h-5 w-5" style={{ color: "var(--accent-flame)" }} aria-hidden="true" /> Flight Test Browser</h1>
+        <p className="mt-1 text-sm" style={{ color: "var(--text-muted)" }}>
+          Every row of NASA&apos;s published experimental tables, as ingested: values exactly as published, each linked to its source cell.
         </p>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex gap-1 animate-fade-in-up" style={{ animationDelay: '80ms' }}>
-        {["All Experiments", "Microgravity", "Terrestrial"].map((tab, i) => (
-          <button
-            key={tab}
-            className="rounded-lg px-4 py-2 text-sm font-medium"
-            style={{
-              background: i === 0 ? 'rgba(59,130,246,0.1)' : 'transparent',
-              border: i === 0 ? '1px solid rgba(59,130,246,0.2)' : '1px solid transparent',
-              color: i === 0 ? 'var(--accent-flame)' : 'var(--text-dim)',
-              transition: 'all var(--transition-fast)',
-            }}
-          >
-            {tab}
+      </header>
+      <div className="flex flex-wrap gap-2" role="tablist" aria-label="Investigation">
+        {SOURCES.map((s) => (
+          <button key={s.id} role="tab" aria-selected={source === s.id} onClick={() => { setSource(s.id); setPage(1); }}
+                  className="rounded-lg px-3 py-1.5 text-xs font-medium"
+                  style={{ background: source === s.id ? "rgba(59,130,246,0.14)" : "var(--bg-elevated)",
+                           border: `1px solid ${source === s.id ? "rgba(59,130,246,0.4)" : "var(--border-default)"}`, color: "var(--text-primary)" }}>
+            {s.label}
           </button>
         ))}
+        <Link href={`/investigations/${source}`} className="ml-auto self-center text-xs" style={{ color: "var(--accent-ember)" }}>Investigation summary →</Link>
       </div>
-
-      {/* Experiments Grid */}
-      <div className="grid gap-5 xl:grid-cols-2">
-        {experiments.map((exp, i) => (
-          <div
-            key={exp.experiment_id}
-            className="rounded-2xl p-5 space-y-4 animate-fade-in-up"
-            style={{
-              animationDelay: `${150 + i * 80}ms`,
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border-default)',
-              boxShadow: 'var(--shadow-card)',
-              transition: 'all var(--transition-default)',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = 'rgba(59,130,246,0.2)';
-              e.currentTarget.style.transform = 'translateY(-2px)';
-              e.currentTarget.style.boxShadow = 'var(--shadow-glow-sm)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = 'var(--border-default)';
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = 'var(--shadow-card)';
-            }}
-          >
-            <div className="flex justify-between items-start">
-              <div>
-                <h2 className="text-lg font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
-                  {exp.name}
-                </h2>
-                <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{exp.objective}</div>
-              </div>
-              <Badge variant={exp.gravity_regime === "microgravity" ? "flame" : "default"}>
-                {exp.gravity_regime === "microgravity"
-                  ? <Globe2 className="h-3 w-3 mr-1" />
-                  : <Activity className="h-3 w-3 mr-1" />}
-                {exp.gravity_regime.toUpperCase()}
-              </Badge>
-            </div>
-
-            <div className="text-sm py-2 pl-3"
-                 style={{
-                   borderLeft: '2px solid rgba(59,130,246,0.3)',
-                   color: 'var(--text-muted)',
-                 }}>
-              Platform:{" "}
-              <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>
-                {exp.platform}
-              </span>
-            </div>
-
-            <div>
-              <h3 className="text-[10px] font-bold uppercase tracking-[0.15em] mb-3"
-                  style={{ color: 'var(--accent-flame)', opacity: 0.8 }}>
-                <Microscope className="h-3 w-3 inline mr-1" />
-                Controlled Conditions
-              </h3>
-              <div className="grid grid-cols-2 gap-2">
-                {exp.conditions.map((cond, idx) => (
-                  <div key={idx} className="rounded-lg p-2.5"
-                       style={{
-                         background: 'var(--border-subtle)',
-                         border: '1px solid var(--border-subtle)',
-                       }}>
-                    <div className="text-[10px] uppercase"
-                         style={{ color: 'var(--text-dim)' }}>{cond.variable}</div>
-                    <div className="text-sm mt-0.5"
-                         style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
-                      {cond.value} {cond.unit}
-                    </div>
-                    <div className="text-[10px] mt-0.5" style={{ color: 'var(--text-dim)' }}>{cond.method}</div>
+      {error && <ErrorNote message={error} onRetry={load} />}
+      {!items && !error && <Loading label="Loading flight tests…" />}
+      {items && items.length === 0 && <Empty message="No flight tests ingested for this investigation. Run the ingest (DEMO_RUNBOOK.md)." />}
+      {items && items.length > 0 && (
+        <>
+          <div className="grid gap-4 lg:grid-cols-2">
+            {items.map((e) => (
+              <Card key={e.experiment_id}>
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h2 className="text-sm font-semibold">{e.investigation} test {e.test_id}</h2>
+                    <p className="text-xs" style={{ color: "var(--text-muted)" }}>{e.fuel_or_material ?? "fuel not recorded"} · {e.gravity_regime}</p>
                   </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4 pt-4"
-                 style={{ borderTop: '1px solid var(--border-subtle)' }}>
-              <button className="text-xs font-medium flex items-center gap-1.5"
-                      style={{ color: 'var(--accent-flame)', transition: 'opacity var(--transition-fast)' }}>
-                <GitMerge className="h-4 w-4" /> Compare with terrestrial
-              </button>
-              <button className="text-xs flex items-center gap-1.5"
-                      style={{ color: 'var(--text-muted)', transition: 'color var(--transition-fast)' }}>
-                <FileText className="h-4 w-4" /> 14 Linked Docs
-              </button>
-            </div>
+                </div>
+                <dl className="mt-3 grid grid-cols-2 gap-1.5 text-[11px]">
+                  {(e.conditions ?? []).filter((c) => c.value_numeric !== null || c.value_text).slice(0, 10).map((c) => (
+                    <div key={c.evidence_id} className="rounded-md px-2 py-1" style={{ background: "var(--bg-elevated)" }}>
+                      <dt style={{ color: "var(--text-dim)" }}>{c.variable.replaceAll("_", " ")}</dt>
+                      <dd style={{ fontFamily: "var(--font-mono)" }}>
+                        <Link href={`/evidence?id=${c.evidence_id}`} className="hover:underline">{c.value_numeric ?? c.value_text}</Link>
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              </Card>
+            ))}
           </div>
-        ))}
-      </div>
+          <nav className="flex items-center justify-center gap-3 text-xs" aria-label="Pages">
+            <button disabled={page <= 1} onClick={() => setPage(page - 1)} className="rounded-lg px-3 py-1.5 disabled:opacity-40" style={{ border: "1px solid var(--border-default)" }}>Previous</button>
+            <span style={{ color: "var(--text-muted)" }}>Page {page} of {pages} · {total} tests</span>
+            <button disabled={page >= pages} onClick={() => setPage(page + 1)} className="rounded-lg px-3 py-1.5 disabled:opacity-40" style={{ border: "1px solid var(--border-default)" }}>Next</button>
+          </nav>
+        </>
+      )}
     </div>
   );
 }

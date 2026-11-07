@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useChat } from "@/lib/context/ChatContext";
 import {
   Send,
   Server,
   CheckCircle,
-  AlertTriangle,
   Fingerprint,
   Sparkles,
   Flame,
@@ -20,28 +19,28 @@ import Link from "next/link";
 const QUICK_QUESTIONS = [
   {
     icon: Flame,
-    label: "How does microgravity alter soot formation?",
+    label: "How do oxygen and pressure affect flame spread in exploration atmospheres?",
     color: "var(--accent-flame)",
     bg: "rgba(59,130,246,0.08)",
     border: "rgba(59,130,246,0.15)",
   },
   {
     icon: Beaker,
-    label: "What are the temperature profiles of BASS-II flames?",
+    label: "What did the Saffire experiments learn about large-scale fire spread in spacecraft?",
     color: "var(--accent-ember)",
     bg: "rgba(251,146,60,0.08)",
     border: "rgba(251,146,60,0.15)",
   },
   {
     icon: Atom,
-    label: "Cool flame behavior in droplet combustion?",
+    label: "How do CO2 and helium diluents affect droplet flame extinction in FLEX?",
     color: "var(--accent-aurora)",
     bg: "rgba(6,182,212,0.08)",
     border: "rgba(6,182,212,0.15)",
   },
   {
     icon: Zap,
-    label: "Explain radiative extinction limits in microgravity",
+    label: "What is the maximum oxygen concentration (MOC) and why does it matter for spacecraft materials?",
     color: "var(--accent-nebula)",
     bg: "rgba(129,140,248,0.08)",
     border: "rgba(129,140,248,0.15)",
@@ -60,6 +59,12 @@ export default function ChatPage() {
     setQuery("");
     await sendMessage(currentQuery);
   };
+
+  // "Explain with cited sources" on the dashboard links here with ?q=…; the question is prefilled, not sent.
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get("q");
+    if (q) queueMicrotask(() => setQuery(q.slice(0, 1000)));
+  }, []);
 
   const handleQuickQuestion = (text: string) => {
     setQuery(text);
@@ -301,7 +306,7 @@ export default function ChatPage() {
                               className="flex items-center gap-1"
                               style={{ color: "var(--accent-plasma)" }}
                             >
-                              <AlertTriangle className="h-3.5 w-3.5" /> Grounded
+                              <CheckCircle className="h-3.5 w-3.5" /> Session memory used
                             </span>
                           )}
                           <span className="hidden sm:inline">

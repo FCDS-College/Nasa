@@ -3,7 +3,7 @@
   "jsonSchemaDialect": "https://spec.openapis.org/oas/3.1/dialect/base",
   "info": {
     "title": "Flame in Freefall API",
-    "version": "0.4.0",
+    "version": "0.5.0",
     "summary": "Frontend-facing REST contract for the Flame in Freefall scientific dashboard.",
     "description": "Contract-first specification (MVP plan §12, DAY2_TASKS Lead deliverable). The FastAPI implementation is in `apps/api` and serves this document at `/api/openapi.json`; `x-implementation-status` records implementation state. API bearer authentication is required: use the read token for GET/HEAD and a distinct upload token for mutations. AURA Track AP compatibility is checked from this contract against a pinned AURA revision by `tests/integration/aura_blueprint_dryrun.py`.\n\nConventions: snake_case JSON; RFC 3339 UTC timestamps; ULID resource IDs; nullable means 'not present or not established' (never 0 for missing); every JSON success body has `meta`; every error body is `ErrorResponse`.\n\nScientific rules encoded in the schema: no temperature field exists; pixel measurements are `measured`, scale-derived physical sizes are `estimated`; AI interpretation is separate from measurements and limited to inferred/hypothesized/unsupported claim classes; evidence is only source content or deterministic calculation.\n\nAURA boundary (ADR-004, contract 0.2.0): operations marked `x-aura-exclude: true` (chat, AI status, admin writes) are skipped by AURA's OpenAPI discovery, so AURA can never compile a tool that calls back into Flame's model path. Changes: docs/api/CHANGELOG.md.\n\nCredentials and rate limits (P2-1, P2-2): each caller has its own API key (`python -m flame_api.clients create NAME --scopes read|write`), stored hashed and revocable. `read` scope allows GET/HEAD and `POST /api/chat`; `write` scope allows every other method. A valid key without the needed scope gets 403 `FORBIDDEN`; while the database is unreachable a client key cannot be checked and gets 503 `DATABASE_UNAVAILABLE`. The legacy `FLAME_READ_API_TOKEN` / `FLAME_WRITE_API_TOKEN` are deprecated but still accepted with their old meaning (a token used for the wrong kind of request stays 401). Every authenticated `/api/*` operation except `/api/health` is rate-limited per client, with separate per-minute budgets for reads, writes and chat (chat is the strictest); over the budget the response is 429 `RATE_LIMITED` with `Retry-After` in seconds. One client exhausting its budget does not affect another's.",
     "license": {
@@ -41,6 +41,10 @@
     {
       "name": "Admin",
       "description": "Authenticated configuration changes (write token, audited)."
+    },
+    {
+      "name": "Fire safety",
+      "description": "Investigation summaries, scenario ranking, insights and the FLEX outcome model."
     }
   ],
   "security": [
@@ -3187,6 +3191,1371 @@
           }
         ]
       }
+    },
+    "/api/investigations": {
+      "get": {
+        "operationId": "listInvestigations",
+        "summary": "Rank NASA combustion investigations for a cabin atmosphere",
+        "description": "Every registered combustion investigation with its NASA objective, the condition envelope of its published flight-test table, and an evidence-relevance score for the scenario. Deterministic; no model call.",
+        "tags": [
+          "Fire safety"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestIdHeader"
+          },
+          {
+            "name": "scenario",
+            "in": "query",
+            "required": false,
+            "description": "Scenario ID (default `iss_nominal`): iss_nominal, pre_eva, orion_max_o2, lunar_lander_max_o2.",
+            "schema": {
+              "type": "string",
+              "maxLength": 40
+            }
+          },
+          {
+            "name": "o2_fraction",
+            "in": "query",
+            "required": false,
+            "description": "Custom atmosphere O2 mole fraction (with pressure_kpa); overrides `scenario`.",
+            "schema": {
+              "type": "number",
+              "minimum": 0.05,
+              "maximum": 1
+            }
+          },
+          {
+            "name": "pressure_kpa",
+            "in": "query",
+            "required": false,
+            "description": "Custom atmosphere total pressure in kPa (with o2_fraction).",
+            "schema": {
+              "type": "number",
+              "minimum": 5,
+              "maximum": 400
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Investigations, ranked.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvestigationListResponse"
+                },
+                "examples": {
+                  "live": {
+                    "summary": "Real response from the 2026-11-07 local stack (committed PSI tables); lists trimmed.",
+                    "value": {
+                      "scenario": {
+                        "scenario_id": "lunar_lander_max_o2",
+                        "name": "Lunar lander, Altair class (max O₂)",
+                        "o2_fraction": 0.34,
+                        "pressure_kpa": 62.66,
+                        "basis": "derived",
+                        "note": "Altair maximum 34% O₂; total pressure from the normoxic curve. Gravity in the cabin on the lunar surface is 1/6 g, which no flight test here covers.",
+                        "citation": "NASA/TM-2008-215260 (FF-NTRS-20080034883), p. 5",
+                        "ppo2_kpa": 21.3
+                      },
+                      "scenarios": [
+                        {
+                          "scenario_id": "iss_nominal",
+                          "name": "ISS cabin (nominal)",
+                          "o2_fraction": 0.21,
+                          "pressure_kpa": 101.35,
+                          "basis": "quoted",
+                          "note": "Sea-level air at 14.7 psia, as flown on Skylab, Shuttle and ISS.",
+                          "citation": "NASA/TM-2008-215260 (FF-NTRS-20080034883), p. 5",
+                          "ppo2_kpa": 21.28
+                        },
+                        {
+                          "scenario_id": "pre_eva",
+                          "name": "Pre-EVA campout",
+                          "o2_fraction": 0.3,
+                          "pressure_kpa": 70.33,
+                          "basis": "quoted",
+                          "note": "Brief pre-EVA atmosphere; many ISS materials are only rated to it.",
+                          "citation": "NASA/TM-2008-215260 (FF-NTRS-20080034883), p. 5",
+                          "ppo2_kpa": 21.1
+                        },
+                        {
+                          "scenario_id": "orion_max_o2",
+                          "name": "Orion crew vehicle (max O₂)",
+                          "o2_fraction": 0.3,
+                          "pressure_kpa": 71.02,
+                          "basis": "derived",
+                          "note": "Orion maximum 30% O₂; total pressure from the normoxic curve (ppO₂ 3.09 psia).",
+                          "citation": "NASA/TM-2008-215260 (FF-NTRS-20080034883), p. 5",
+                          "ppo2_kpa": 21.3
+                        },
+                        {
+                          "scenario_id": "lunar_lander_max_o2",
+                          "name": "Lunar lander, Altair class (max O₂)",
+                          "o2_fraction": 0.34,
+                          "pressure_kpa": 62.66,
+                          "basis": "derived",
+                          "note": "Altair maximum 34% O₂; total pressure from the normoxic curve. Gravity in the cabin on the lunar surface is 1/6 g, which no flight test here covers.",
+                          "citation": "NASA/TM-2008-215260 (FF-NTRS-20080034883), p. 5",
+                          "ppo2_kpa": 21.3
+                        }
+                      ],
+                      "ranking_method": "relevance = 0.35*oxygen_match + 0.25*pressure_match + 0.25*evidence_density + 0.15*outcome_data; oxygen_match = 1 inside the tested O2 range else exp(-gap/0.05); pressure_match = 1 inside the tested pressure range else exp(-|ln(P/P_nearest)|/0.25); evidence_density = min(1, ln(1+n)/ln(31)) for n tests within +/-0.03 O2 (and +/-25% pressure when recorded); outcome_data = 1 end state recorded, 0.5 duration only, 0 none; unrecorded variables score 0 and are listed in 'not_recorded'.",
+                      "items": [
+                        {
+                          "investigation_id": "FF-PSI-69",
+                          "acronym": "FLEX",
+                          "title": "Flame Extinguishment Experiment",
+                          "status": "ingested",
+                          "flight_platform": "ISS",
+                          "hardware": "Combustion Integrated Rack (CIR)-Fluids and Combustion Facility (FCF), Multi-user Droplet Combustion Appartatus (MDCA)",
+                          "dates": "2007-08-01 to 2016-07-31",
+                          "persistent_identifier": "doi:10.60555/mbq8-0451",
+                          "license": "CC0-1.0",
+                          "access_url": "https://psi.nasa.gov/physci/repo/data/investigations/PSI-69",
+                          "source": {
+                            "source_id": "FF-PSI-69",
+                            "title": "Flame Extinguishment Experiment",
+                            "short_name": "FLEX",
+                            "repository": "NASA PSI",
+                            "persistent_identifier": "doi:10.60555/mbq8-0451",
+                            "license": "CC0-1.0",
+                            "access_url": "https://psi.nasa.gov/physci/repo/data/investigations/PSI-69"
+                          },
+                          "fire_safety_use": [
+                            "liquid-fuel ignition",
+                            "droplet burning",
+                            "flammability limits",
+                            "extinction",
+                            "suppressant effects"
+                          ],
+                          "key_variables": [
+                            "ambient pressure",
+                            "O2 mole fraction",
+                            "droplet size",
+                            "fuel",
+                            "inert/suppressant composition",
+                            "drift/sub-buoyant flow"
+                          ],
+                          "key_outputs": [
+                            "burning rate",
+                            "extinction diameter",
+                            "LOI",
+                            "flame radiation",
+                            "soot",
+                            "temperature"
+                          ],
+                          "objective": {
+                            "text": "The FLEX (Flame Extinguishment Experiment) investigation aims to map the flammability limits of liquid fuels in microgravity environments, measure the effectiveness of various gaseous fire suppressants such as CO2, He, and SF6, and develop reliable predictive models for combustion limits under reduced gravity conditions. The mission seeks to validate and improve simplified models by incorporating detailed chemical reactions, heat transfer, and material movement, using both space-based data and extensive ground-based tests. Key flight experiment goals include obtaining high-resolution measurements of droplet burning rates, flame extinction behavior, heat radiation, soot levels, and temperature profiles, while systematically analyzing the effects of different ambient conditions and suppressant concentrations. These investigations are essential for advancing the fundamental understanding of combustion processes in microgravity and enhancing fire safety protocols for future space missions.",
+                            "evidence_id": "6BQHDTNFSR5T6TTTM9HD360EVR"
+                          },
+                          "data": {
+                            "tests": 274,
+                            "o2_fraction": {
+                              "min": 0.12,
+                              "max": 0.34,
+                              "n": 274
+                            },
+                            "o2_approximate": false,
+                            "pressure_kpa": {
+                              "min": 70.167572,
+                              "max": 309.294607,
+                              "n": 273
+                            },
+                            "flow_velocity_m_s": null,
+                            "fuels_or_materials": [
+                              {
+                                "name": "Methanol",
+                                "tests": 157
+                              },
+                              {
+                                "name": "Heptane",
+                                "tests": 117
+                              }
+                            ],
+                            "distinct_fuels_or_materials": 2,
+                            "end_states": {
+                              "Completion": 27,
+                              "Disruption": 61,
+                              "Extinction": 186
+                            },
+                            "end_state_recorded": true,
+                            "duration_recorded": true,
+                            "quality_flags": {
+                              "pressure_not_physical": 1
+                            }
+                          },
+                          "coverage_note": "Flame holds this investigation's published experimental table and metadata; the full NASA PSI release has 6555 files (923.83 GB). Results describe the table, not every raw file.",
+                          "relevance": {
+                            "score": 0.827,
+                            "components": {
+                              "oxygen_match": 1.0,
+                              "pressure_match": 0.636,
+                              "evidence_density": 0.671,
+                              "outcome_data": 1.0
+                            },
+                            "weights": {
+                              "oxygen_match": 0.35,
+                              "pressure_match": 0.25,
+                              "evidence_density": 0.25,
+                              "outcome_data": 0.15
+                            },
+                            "neighbourhood_tests": 9,
+                            "not_recorded": [],
+                            "explanation": [
+                              "scenario O₂ 0.34 is inside the tested range 0.120–0.340",
+                              "scenario pressure 62.7 kPa is outside the tested range 70.2–309.3 kPa",
+                              "9 flight test(s) within ±0.03 O₂ and ±25% pressure of the scenario"
+                            ]
+                          },
+                          "rank": 1
+                        },
+                        {
+                          "investigation_id": "FF-PSI-98",
+                          "acronym": "SAFFIRE-I",
+                          "title": "Spacecraft Fire Safety Experiment-I",
+                          "status": "ingested",
+                          "flight_platform": "Free-flying Cygnus",
+                          "hardware": "Saffire 1 enclosure in Cygnus",
+                          "dates": "03-02-2001 to 02-28-2008",
+                          "persistent_identifier": "doi:10.60555/0t15-1z43",
+                          "license": "CC0-1.0",
+                          "access_url": "https://psi.nasa.gov/physci/repo/data/investigations/PSI-98",
+                          "source": {
+                            "source_id": "FF-PSI-98",
+                            "title": "Spacecraft Fire Safety Experiment-I",
+                            "short_name": "SAFFIRE-I",
+                            "repository": "NASA PSI",
+                            "persistent_identifier": "doi:10.60555/0t15-1z43",
+                            "license": "CC0-1.0",
+                            "access_url": "https://psi.nasa.gov/physci/repo/data/investigations/PSI-98"
+                          },
+                          "fire_safety_use": [
+                            "large-scale flame growth",
+                            "material flammability",
+                            "fire environment sensing"
+                          ],
+                          "key_variables": [
+                            "airflow velocity",
+                            "fabric type",
+                            "sample geometry",
+                            "O2",
+                            "CO2",
+                            "temperature",
+                            "pressure"
+                          ],
+                          "key_outputs": [
+                            "flame growth",
+                            "flame imagery",
+                            "flow/plume temperature",
+                            "radiation",
+                            "gas composition"
+                          ],
+                          "objective": {
+                            "text": "The objectives of this investigation were to:",
+                            "evidence_id": "5XD9F3XQNY5W6VTRZZZBYEC4N0"
+                          },
+                          "data": {
+                            "tests": 2,
+                            "o2_fraction": {
+                              "min": 0.215,
+                              "max": 0.216,
+                              "n": 2
+                            },
+                            "o2_approximate": true,
+                            "pressure_kpa": null,
+                            "flow_velocity_m_s": {
+                              "min": 0.2,
+                              "max": 0.2,
+                              "n": 2
+                            },
+                            "fuels_or_materials": [
+                              {
+                                "name": "SIBAL Fabric",
+                                "tests": 2
+                              }
+                            ],
+                            "distinct_fuels_or_materials": 1,
+                            "end_states": null,
+                            "end_state_recorded": false,
+                            "duration_recorded": true,
+                            "quality_flags": {}
+                          },
+                          "coverage_note": "Flame holds this investigation's published experimental table and metadata; the full NASA PSI release has 76 files (12.25 GB). Results describe the table, not every raw file.",
+                          "relevance": {
+                            "score": 0.104,
+                            "components": {
+                              "oxygen_match": 0.084,
+                              "pressure_match": 0.0,
+                              "evidence_density": 0.0,
+                              "outcome_data": 0.5
+                            },
+                            "weights": {
+                              "oxygen_match": 0.35,
+                              "pressure_match": 0.25,
+                              "evidence_density": 0.25,
+                              "outcome_data": 0.15
+                            },
+                            "neighbourhood_tests": 0,
+                            "not_recorded": [
+                              "pressure"
+                            ],
+                            "explanation": [
+                              "scenario O₂ 0.34 is outside the tested range 0.215–0.216",
+                              "pressure is not recorded in this table",
+                              "0 flight test(s) within ±0.03 O₂ of the scenario"
+                            ]
+                          },
+                          "rank": 2
+                        }
+                      ],
+                      "not_acquired": [
+                        {
+                          "investigation_id": "SAME",
+                          "acronym": "SAME",
+                          "title": "Smoke Aerosol Measurement Experiment",
+                          "note": "Named in the Space Apps challenge statement; not yet acquired from NASA PSI, so no data is shown."
+                        }
+                      ],
+                      "totals": {
+                        "investigations": 6,
+                        "with_data": 4,
+                        "flight_tests": 840
+                      },
+                      "meta": {
+                        "request_id": "req_a8f9d10a16844d5c9b6ec90655f9dcbc",
+                        "generated_at": "2026-11-07T18:57:36.022929Z",
+                        "api_version": "0.5.0"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "description": "A dependency is unavailable. Codes: DATABASE_UNAVAILABLE.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-implementation-status": "implemented"
+      }
+    },
+    "/api/investigations/{investigation_id}": {
+      "get": {
+        "operationId": "getInvestigation",
+        "summary": "One investigation: NASA summary sections, data envelope, insights",
+        "tags": [
+          "Fire safety"
+        ],
+        "parameters": [
+          {
+            "name": "investigation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^FF-[A-Z0-9][A-Z0-9-]{1,40}$"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/RequestIdHeader"
+          },
+          {
+            "name": "scenario",
+            "in": "query",
+            "required": false,
+            "description": "Scenario ID (default `iss_nominal`): iss_nominal, pre_eva, orion_max_o2, lunar_lander_max_o2.",
+            "schema": {
+              "type": "string",
+              "maxLength": 40
+            }
+          },
+          {
+            "name": "o2_fraction",
+            "in": "query",
+            "required": false,
+            "description": "Custom atmosphere O2 mole fraction (with pressure_kpa); overrides `scenario`.",
+            "schema": {
+              "type": "number",
+              "minimum": 0.05,
+              "maximum": 1
+            }
+          },
+          {
+            "name": "pressure_kpa",
+            "in": "query",
+            "required": false,
+            "description": "Custom atmosphere total pressure in kPa (with o2_fraction).",
+            "schema": {
+              "type": "number",
+              "minimum": 5,
+              "maximum": 400
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The investigation.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvestigationResponse"
+                },
+                "examples": {
+                  "live": {
+                    "summary": "Real response from the 2026-11-07 local stack (committed PSI tables); lists trimmed.",
+                    "value": {
+                      "investigation": {
+                        "investigation_id": "FF-PSI-69",
+                        "acronym": "FLEX",
+                        "title": "Flame Extinguishment Experiment",
+                        "status": "ingested",
+                        "flight_platform": "ISS",
+                        "hardware": "Combustion Integrated Rack (CIR)-Fluids and Combustion Facility (FCF), Multi-user Droplet Combustion Appartatus (MDCA)",
+                        "dates": "2007-08-01 to 2016-07-31",
+                        "persistent_identifier": "doi:10.60555/mbq8-0451",
+                        "license": "CC0-1.0",
+                        "access_url": "https://psi.nasa.gov/physci/repo/data/investigations/PSI-69",
+                        "source": {
+                          "source_id": "FF-PSI-69",
+                          "title": "Flame Extinguishment Experiment",
+                          "short_name": "FLEX",
+                          "repository": "NASA PSI",
+                          "persistent_identifier": "doi:10.60555/mbq8-0451",
+                          "license": "CC0-1.0",
+                          "access_url": "https://psi.nasa.gov/physci/repo/data/investigations/PSI-69"
+                        },
+                        "fire_safety_use": [
+                          "liquid-fuel ignition",
+                          "droplet burning",
+                          "flammability limits",
+                          "extinction",
+                          "suppressant effects"
+                        ],
+                        "key_variables": [
+                          "ambient pressure",
+                          "O2 mole fraction",
+                          "droplet size",
+                          "fuel",
+                          "inert/suppressant composition",
+                          "drift/sub-buoyant flow"
+                        ],
+                        "key_outputs": [
+                          "burning rate",
+                          "extinction diameter",
+                          "LOI",
+                          "flame radiation",
+                          "soot",
+                          "temperature"
+                        ],
+                        "objective": {
+                          "text": "The FLEX (Flame Extinguishment Experiment) investigation aims to map the flammability limits of liquid fuels in microgravity environments, measure the effectiveness of various gaseous fire suppressants such as CO2, He, and SF6, and develop reliable predictive models for combustion limits under reduced gravity conditions. The mission seeks to validate and improve simplified models by incorporating detailed chemical reactions, heat transfer, and material movement, using both space-based data and extensive ground-based tests. Key flight experiment goals include obtaining high-resolution measurements of droplet burning rates, flame extinction behavior, heat radiation, soot levels, and temperature profiles, while systematically analyzing the effects of different ambient conditions and suppressant concentrations. These investigations are essential for advancing the fundamental understanding of combustion processes in microgravity and enhancing fire safety protocols for future space missions.",
+                          "evidence_id": "6BQHDTNFSR5T6TTTM9HD360EVR"
+                        },
+                        "data": {
+                          "tests": 274,
+                          "o2_fraction": {
+                            "min": 0.12,
+                            "max": 0.34,
+                            "n": 274
+                          },
+                          "o2_approximate": false,
+                          "pressure_kpa": {
+                            "min": 70.167572,
+                            "max": 309.294607,
+                            "n": 273
+                          },
+                          "flow_velocity_m_s": null,
+                          "fuels_or_materials": [
+                            {
+                              "name": "Methanol",
+                              "tests": 157
+                            },
+                            {
+                              "name": "Heptane",
+                              "tests": 117
+                            }
+                          ],
+                          "distinct_fuels_or_materials": 2,
+                          "end_states": {
+                            "Completion": 27,
+                            "Disruption": 61,
+                            "Extinction": 186
+                          },
+                          "end_state_recorded": true,
+                          "duration_recorded": true,
+                          "quality_flags": {
+                            "pressure_not_physical": 1
+                          }
+                        },
+                        "coverage_note": "Flame holds this investigation's published experimental table and metadata; the full NASA PSI release has 6555 files (923.83 GB). Results describe the table, not every raw file.",
+                        "relevance": {
+                          "score": 0.91,
+                          "components": {
+                            "oxygen_match": 1.0,
+                            "pressure_match": 1.0,
+                            "evidence_density": 0.64,
+                            "outcome_data": 1.0
+                          },
+                          "weights": {
+                            "oxygen_match": 0.35,
+                            "pressure_match": 0.25,
+                            "evidence_density": 0.25,
+                            "outcome_data": 0.15
+                          },
+                          "neighbourhood_tests": 8,
+                          "not_recorded": [],
+                          "explanation": [
+                            "scenario O₂ 0.30 is inside the tested range 0.120–0.340",
+                            "scenario pressure 70.3 kPa is inside the tested range 70.2–309.3 kPa",
+                            "8 flight test(s) within ±0.03 O₂ and ±25% pressure of the scenario"
+                          ]
+                        },
+                        "summary_sections": [
+                          {
+                            "heading": "Objective",
+                            "text": "The FLEX (Flame Extinguishment Experiment) investigation aims to map the flammability limits of liquid fuels in microgravity environments, measure the effectiveness of various gaseous fire suppressants such as CO2, He, and SF6, and develop reliable predictive models for combustion limits under reduced gravity conditions. The mission seeks to validate and improve simplified models by incorporating ",
+                            "evidence_id": "6BQHDTNFSR5T6TTTM9HD360EVR"
+                          },
+                          {
+                            "heading": "Hypothesis",
+                            "text": "The primary hypothesis of the FLEX mission is that microgravity conditions fundamentally alter the combustion and extinction characteristics of liquid fuel droplets due to changes in species and energy transport dynamics, radiative heat loss, and chemical kinetics. Specifically, the hypothesis posits that the lack of buoyant convection in microgravity will lead to significant differences in the fl",
+                            "evidence_id": "5FKWW4XNMVTXNY1T3499QRZC9A"
+                          }
+                        ],
+                        "publications": [
+                          "http://ntrs.nasa.gov/search.jsp?R=20130014061",
+                          "https://ntrs.nasa.gov/citations/20120016855",
+                          "http://dx.doi.org/10.2514/6.2012-1252"
+                        ],
+                        "metadata_document_id": "534Z7VKN5AGXAXVG3WYRM1W4CN",
+                        "insights": [
+                          {
+                            "insight_id": "flex_oxygen_vs_extinction",
+                            "title": "Lower oxygen, more self-extinguishing droplet flames",
+                            "kind": "measured_statistic",
+                            "investigations": [
+                              "FF-PSI-69"
+                            ],
+                            "statement": "In FLEX, 94% of 48 droplet flames at O₂ below 0.16 ended in extinction, versus 8% of 24 at O₂ of 0.30 or more.",
+                            "numbers": {
+                              "low_o2": {
+                                "n": 48,
+                                "extinction_share": 0.9375
+                              },
+                              "high_o2": {
+                                "n": 24,
+                                "extinction_share": 0.08333333333333333
+                              }
+                            },
+                            "evidence": [
+                              {
+                                "evidence_id": "4CTFP62GKFTWBSEGRVW793EAME",
+                                "experiment_id": "4KWFFTNBE0H3Z9TGE6WBC55RAQ",
+                                "test_id": "175F001"
+                              },
+                              {
+                                "evidence_id": "2N1Z9VZPP9KTYZGMH3B9779M1H",
+                                "experiment_id": "77AQDAJZN22DA0VAE1S9JENDS8",
+                                "test_id": "175R001"
+                              },
+                              {
+                                "evidence_id": "296ZDKW25CVNJADJC2971RQ46G",
+                                "experiment_id": "3MMGSCM2WD92K3BD81CDQYT0BE",
+                                "test_id": "179F001"
+                              },
+                              {
+                                "evidence_id": "460SCE2AYXNP7F6YKY4C083XZ2",
+                                "experiment_id": "545TW6GR5RWGPTF9S53WT6EWME",
+                                "test_id": "189F001"
+                              },
+                              {
+                                "evidence_id": "6DY2VZTFZ0002KVSRDXTNWV5WV",
+                                "experiment_id": "4FJMC9X7QET27FX149RRBHCY4Q",
+                                "test_id": "178F001"
+                              },
+                              {
+                                "evidence_id": "3JW7CDFTTSM56GVD3SMHM7KNVS",
+                                "experiment_id": "4FDPPASQRS3VS8REMSW8S4EBEA",
+                                "test_id": "178R001"
+                              },
+                              {
+                                "evidence_id": "1YCBYRY63XEQNGSMNJ2ZSWMB74",
+                                "experiment_id": "3EQZMVRFNBSRFH0P10GVPFXC1Z",
+                                "test_id": "182F001"
+                              },
+                              {
+                                "evidence_id": "36Z2SZRNQYWDKXT8EHB3YBZPYR",
+                                "experiment_id": "4H0HKQM1PQZ0GQ3V1M7P36XTPV",
+                                "test_id": "182F002"
+                              }
+                            ],
+                            "caveats": [
+                              "Raw shares: pressure, diluent and droplet size also differ between these groups; the outcome model separates their effects."
+                            ]
+                          }
+                        ],
+                        "sample_tests": [
+                          {
+                            "experiment_id": "5HMC65EJ8PM14VVANBN8GJ1E31",
+                            "test_id": "053F001",
+                            "fuel_or_material": "Methanol",
+                            "o2_fraction": 0.25,
+                            "pressure_kpa": 71.65,
+                            "flow_velocity_m_s": null,
+                            "end_state": "Disruption",
+                            "duration_s": 24.0,
+                            "end_state_evidence_id": "4ETEE13ZHS110JKSTRCGA7NCG9"
+                          },
+                          {
+                            "experiment_id": "74DHNN0HD95M2DKJ4EBCQF1T34",
+                            "test_id": "053R001",
+                            "fuel_or_material": "Methanol",
+                            "o2_fraction": 0.25,
+                            "pressure_kpa": 71.66,
+                            "flow_velocity_m_s": null,
+                            "end_state": "Disruption",
+                            "duration_s": 14.8,
+                            "end_state_evidence_id": "42R01HR3BDSM2MZKYVQ8CJM0J1"
+                          }
+                        ]
+                      },
+                      "scenario": {
+                        "scenario_id": "pre_eva",
+                        "name": "Pre-EVA campout",
+                        "o2_fraction": 0.3,
+                        "pressure_kpa": 70.33,
+                        "basis": "quoted",
+                        "note": "Brief pre-EVA atmosphere; many ISS materials are only rated to it.",
+                        "citation": "NASA/TM-2008-215260 (FF-NTRS-20080034883), p. 5",
+                        "ppo2_kpa": 21.1
+                      },
+                      "meta": {
+                        "request_id": "req_cca3b1ea850f4c4781663a319acfdaa9",
+                        "generated_at": "2026-11-07T18:57:36.033305Z",
+                        "api_version": "0.5.0"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "description": "A dependency is unavailable. Codes: DATABASE_UNAVAILABLE.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown investigation. Code: INVESTIGATION_NOT_FOUND.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-implementation-status": "implemented"
+      }
+    },
+    "/api/insights": {
+      "get": {
+        "operationId": "listInsights",
+        "summary": "Fire-safety insights for a cabin atmosphere",
+        "description": "Statements computed from flight-test rows (measured_statistic), the FLEX outcome model (model_estimate) or coverage checks (coverage_gap). Each carries the evidence IDs it was computed from.",
+        "tags": [
+          "Fire safety"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestIdHeader"
+          },
+          {
+            "name": "scenario",
+            "in": "query",
+            "required": false,
+            "description": "Scenario ID (default `iss_nominal`): iss_nominal, pre_eva, orion_max_o2, lunar_lander_max_o2.",
+            "schema": {
+              "type": "string",
+              "maxLength": 40
+            }
+          },
+          {
+            "name": "o2_fraction",
+            "in": "query",
+            "required": false,
+            "description": "Custom atmosphere O2 mole fraction (with pressure_kpa); overrides `scenario`.",
+            "schema": {
+              "type": "number",
+              "minimum": 0.05,
+              "maximum": 1
+            }
+          },
+          {
+            "name": "pressure_kpa",
+            "in": "query",
+            "required": false,
+            "description": "Custom atmosphere total pressure in kPa (with o2_fraction).",
+            "schema": {
+              "type": "number",
+              "minimum": 5,
+              "maximum": 400
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Insights.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InsightListResponse"
+                },
+                "examples": {
+                  "live": {
+                    "summary": "Real response from the 2026-11-07 local stack (committed PSI tables); lists trimmed.",
+                    "value": {
+                      "scenario": {
+                        "scenario_id": "pre_eva",
+                        "name": "Pre-EVA campout",
+                        "o2_fraction": 0.3,
+                        "pressure_kpa": 70.33,
+                        "basis": "quoted",
+                        "note": "Brief pre-EVA atmosphere; many ISS materials are only rated to it.",
+                        "citation": "NASA/TM-2008-215260 (FF-NTRS-20080034883), p. 5",
+                        "ppo2_kpa": 21.1
+                      },
+                      "items": [
+                        {
+                          "insight_id": "flex_oxygen_vs_extinction",
+                          "title": "Lower oxygen, more self-extinguishing droplet flames",
+                          "kind": "measured_statistic",
+                          "investigations": [
+                            "FF-PSI-69"
+                          ],
+                          "statement": "In FLEX, 94% of 48 droplet flames at O₂ below 0.16 ended in extinction, versus 8% of 24 at O₂ of 0.30 or more.",
+                          "numbers": {
+                            "low_o2": {
+                              "n": 48,
+                              "extinction_share": 0.9375
+                            },
+                            "high_o2": {
+                              "n": 24,
+                              "extinction_share": 0.08333333333333333
+                            }
+                          },
+                          "evidence": [
+                            {
+                              "evidence_id": "4CTFP62GKFTWBSEGRVW793EAME",
+                              "experiment_id": "4KWFFTNBE0H3Z9TGE6WBC55RAQ",
+                              "test_id": "175F001"
+                            },
+                            {
+                              "evidence_id": "2N1Z9VZPP9KTYZGMH3B9779M1H",
+                              "experiment_id": "77AQDAJZN22DA0VAE1S9JENDS8",
+                              "test_id": "175R001"
+                            },
+                            {
+                              "evidence_id": "296ZDKW25CVNJADJC2971RQ46G",
+                              "experiment_id": "3MMGSCM2WD92K3BD81CDQYT0BE",
+                              "test_id": "179F001"
+                            },
+                            {
+                              "evidence_id": "460SCE2AYXNP7F6YKY4C083XZ2",
+                              "experiment_id": "545TW6GR5RWGPTF9S53WT6EWME",
+                              "test_id": "189F001"
+                            },
+                            {
+                              "evidence_id": "6DY2VZTFZ0002KVSRDXTNWV5WV",
+                              "experiment_id": "4FJMC9X7QET27FX149RRBHCY4Q",
+                              "test_id": "178F001"
+                            },
+                            {
+                              "evidence_id": "3JW7CDFTTSM56GVD3SMHM7KNVS",
+                              "experiment_id": "4FDPPASQRS3VS8REMSW8S4EBEA",
+                              "test_id": "178R001"
+                            },
+                            {
+                              "evidence_id": "1YCBYRY63XEQNGSMNJ2ZSWMB74",
+                              "experiment_id": "3EQZMVRFNBSRFH0P10GVPFXC1Z",
+                              "test_id": "182F001"
+                            },
+                            {
+                              "evidence_id": "36Z2SZRNQYWDKXT8EHB3YBZPYR",
+                              "experiment_id": "4H0HKQM1PQZ0GQ3V1M7P36XTPV",
+                              "test_id": "182F002"
+                            }
+                          ],
+                          "caveats": [
+                            "Raw shares: pressure, diluent and droplet size also differ between these groups; the outcome model separates their effects."
+                          ]
+                        },
+                        {
+                          "insight_id": "flex_reduced_pressure",
+                          "title": "Reduced-pressure droplet tests",
+                          "kind": "measured_statistic",
+                          "investigations": [
+                            "FF-PSI-69"
+                          ],
+                          "statement": "103 FLEX tests ran at or below 76 kPa (exploration-like pressure); 61% ended in extinction, versus 71% of 161 tests near 1 atm.",
+                          "numbers": {
+                            "reduced": {
+                              "n": 103,
+                              "extinction_share": 0.6116504854368932
+                            },
+                            "ambient": {
+                              "n": 161,
+                              "extinction_share": 0.7142857142857143
+                            }
+                          },
+                          "evidence": [
+                            {
+                              "evidence_id": "3VMS0Q6TC152QWH3ERJ4JGQ3BT",
+                              "experiment_id": "5HMC65EJ8PM14VVANBN8GJ1E31",
+                              "test_id": "053F001"
+                            },
+                            {
+                              "evidence_id": "4XTAJJTSS3AW84GDJVQK4T37MD",
+                              "experiment_id": "74DHNN0HD95M2DKJ4EBCQF1T34",
+                              "test_id": "053R001"
+                            },
+                            {
+                              "evidence_id": "5ZXCAH07P2EJCBP84WDSE80BMQ",
+                              "experiment_id": "5HG14WGKZK7VMBG8R5X18A6EAH",
+                              "test_id": "061F002"
+                            },
+                            {
+                              "evidence_id": "4SSD287SYZ0MXRZ2W3Y0X64SE5",
+                              "experiment_id": "1BP6FVNA03X58ZN0GZ23V3S6SX",
+                              "test_id": "141F001"
+                            },
+                            {
+                              "evidence_id": "1WWKJWNHA9W9GN0BP03SJ1R220",
+                              "experiment_id": "4KWFFTNBE0H3Z9TGE6WBC55RAQ",
+                              "test_id": "175F001"
+                            },
+                            {
+                              "evidence_id": "5HBE72P6SSEXHTD86HX6QAC47A",
+                              "experiment_id": "77AQDAJZN22DA0VAE1S9JENDS8",
+                              "test_id": "175R001"
+                            },
+                            {
+                              "evidence_id": "1PZ1QPHQPHF441DGTV91B91HR5",
+                              "experiment_id": "0PVEX2QRCSTC83R8816FVPJ8AZ",
+                              "test_id": "176F001"
+                            },
+                            {
+                              "evidence_id": "39TQFJX6JSM2MAF319PNV7J9F8",
+                              "experiment_id": "2870PF7A5ABVPCAMPRR05A84M9",
+                              "test_id": "176R001"
+                            }
+                          ],
+                          "caveats": [
+                            "Oxygen fraction was not held constant between these groups."
+                          ]
+                        },
+                        {
+                          "insight_id": "scenario_flex_neighbours",
+                          "title": "Flight tests closest to: Pre-EVA campout",
+                          "kind": "measured_statistic",
+                          "investigations": [
+                            "FF-PSI-69"
+                          ],
+                          "statement": "8 FLEX droplet tests were flown within ±0.03 O₂ and ±25% pressure of this atmosphere (0.30 O₂, 70.3 kPa): 1 completion, 7 disruption.",
+                          "numbers": {
+                            "n": 8,
+                            "end_states": {
+                              "Disruption": 7,
+                              "Completion": 1
+                            }
+                          },
+                          "evidence": [
+                            {
+                              "evidence_id": "6RJ3SS8YQFZWQYJKVCB09GG0G2",
+                              "experiment_id": "6R3269H5QQFH1BTH0BQ2D7E95K",
+                              "test_id": "191F001"
+                            },
+                            {
+                              "evidence_id": "76NB1STQK39DHGXBA57QXCFE0Q",
+                              "experiment_id": "74YZS08ZJJKDBNZ75MKRQM722J",
+                              "test_id": "191R001"
+                            },
+                            {
+                              "evidence_id": "4RN62QF9RNXFV7GPX8TQ5P1XA6",
+                              "experiment_id": "2N9DSXZWWSD6WHQX58QHVYFARK",
+                              "test_id": "195F001"
+                            },
+                            {
+                              "evidence_id": "5R3D2DGD9W1GVXHFBQNJ1S47VQ",
+                              "experiment_id": "5G56TT0VJTRYTGZ04FXRH4863E",
+                              "test_id": "195F002"
+                            },
+                            {
+                              "evidence_id": "3N67ZQ4TQ6D26S7XJ2CXRSX4N2",
+                              "experiment_id": "20QJQ7PXM2KSWFD497ZSZSHGBC",
+                              "test_id": "219F001"
+                            },
+                            {
+                              "evidence_id": "6XQXQ51ZXV9ZFAXR4ZK504FYKF",
+                              "experiment_id": "5Y9CD26RVBQQCJRXBZJDMYY33W",
+                              "test_id": "219R001"
+                            },
+                            {
+                              "evidence_id": "320G688BZDSSYRVHA367FKQZB1",
+                              "experiment_id": "5JF3W921HYK9YNJ48MHSK1G3GF",
+                              "test_id": "223F001"
+                            },
+                            {
+                              "evidence_id": "745M9AQHNARYPVN0MRYAHZNSDT",
+                              "experiment_id": "4C1SHJY6ZN06EFSJWA2HAY8V70",
+                              "test_id": "223F002"
+                            }
+                          ],
+                          "caveats": [
+                            "Droplet combustion only; spacecraft materials are mostly solids."
+                          ]
+                        }
+                      ],
+                      "meta": {
+                        "request_id": "req_e9b20b85fcef4bf39354cee71f6a4119",
+                        "generated_at": "2026-11-07T18:57:36.054082Z",
+                        "api_version": "0.5.0"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "description": "A dependency is unavailable. Codes: DATABASE_UNAVAILABLE.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-implementation-status": "implemented"
+      }
+    },
+    "/api/insights/flex-outcome": {
+      "get": {
+        "operationId": "estimateFlexOutcome",
+        "summary": "FLEX droplet flame outcome model",
+        "description": "Probability that a FLEX-like droplet flame self-extinguishes, ends by disruption or burns to completion, from pre-ignition conditions. Strict applicability domain: outside the flight-tested ranges, `probabilities` is null with reasons. Always returns the nearest real flight tests and their recorded end state as evidence. Evaluation: docs/evaluation/reports/flex-outcome-model.md.",
+        "tags": [
+          "Fire safety"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestIdHeader"
+          },
+          {
+            "name": "fuel",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Heptane",
+                "Methanol"
+              ],
+              "default": "Heptane"
+            }
+          },
+          {
+            "name": "o2_fraction",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "minimum": 0.05,
+              "maximum": 1,
+              "default": 0.21
+            }
+          },
+          {
+            "name": "pressure_kpa",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "minimum": 5,
+              "maximum": 400,
+              "default": 101.3
+            }
+          },
+          {
+            "name": "co2_fraction",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 0.9,
+              "default": 0
+            }
+          },
+          {
+            "name": "he_fraction",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 0.9,
+              "default": 0
+            }
+          },
+          {
+            "name": "droplet_diameter_mm",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 20,
+              "default": 3
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The estimate.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FlexOutcomeResponse"
+                },
+                "examples": {
+                  "live": {
+                    "summary": "Real response from the 2026-11-07 local stack (committed PSI tables); lists trimmed.",
+                    "value": {
+                      "input": {
+                        "fuel": "Heptane",
+                        "o2_fraction": 0.21,
+                        "pressure_kpa": 101.3,
+                        "co2_fraction": 0.0,
+                        "he_fraction": 0.0,
+                        "droplet_diameter_mm": 3.0
+                      },
+                      "probabilities": {
+                        "Completion": 0.5051,
+                        "Disruption": 0.3399,
+                        "Extinction": 0.155
+                      },
+                      "predicted_end_state": "Completion",
+                      "applicability": {
+                        "in_domain": true,
+                        "checks": [
+                          {
+                            "feature": "o2",
+                            "label": "O₂ mole fraction",
+                            "value": 0.21,
+                            "trained_min": 0.12,
+                            "trained_max": 0.34,
+                            "inside": true
+                          },
+                          {
+                            "feature": "pressure_atm",
+                            "label": "ambient pressure (atm)",
+                            "value": 0.999753,
+                            "trained_min": 0.6925,
+                            "trained_max": 3.0525,
+                            "inside": true
+                          }
+                        ],
+                        "nearest_test_distance": 0.0576,
+                        "max_distance": 1.037073,
+                        "reasons": []
+                      },
+                      "similar_tests": [
+                        {
+                          "experiment_id": "6SKWDE5N0V1G75DWNAEDCFCSAY",
+                          "test_id": "N01H201",
+                          "fuel_or_material": "Heptane",
+                          "o2_fraction": 0.21,
+                          "pressure_kpa": 101.35,
+                          "flow_velocity_m_s": null,
+                          "end_state": "Disruption",
+                          "duration_s": 17.1,
+                          "end_state_evidence_id": "0590QT3FZB4QN5VFDVK7PS68WA",
+                          "distance": 0.058,
+                          "droplet_diameter_mm": 2.96,
+                          "co2_fraction": 0.0,
+                          "he_fraction": 0.0
+                        },
+                        {
+                          "experiment_id": "3GCR1ZSR307ESPN89ZNM8564CR",
+                          "test_id": "30CAL06",
+                          "fuel_or_material": "Heptane",
+                          "o2_fraction": 0.21,
+                          "pressure_kpa": 101.64,
+                          "flow_velocity_m_s": null,
+                          "end_state": "Disruption",
+                          "duration_s": 14.8,
+                          "end_state_evidence_id": "1HT3FH12KXXY37G7SKDCJRAAGJ",
+                          "distance": 0.073,
+                          "droplet_diameter_mm": 2.95,
+                          "co2_fraction": 0.0,
+                          "he_fraction": 0.0
+                        }
+                      ],
+                      "similar_tests_end_states": {
+                        "Completion": 2,
+                        "Disruption": 2,
+                        "Extinction": 4
+                      },
+                      "o2_sweep": [
+                        {
+                          "o2_fraction": 0.12,
+                          "in_domain": true,
+                          "probabilities": {
+                            "Completion": 0.1265,
+                            "Disruption": 0.022,
+                            "Extinction": 0.8516
+                          }
+                        },
+                        {
+                          "o2_fraction": 0.14,
+                          "in_domain": true,
+                          "probabilities": {
+                            "Completion": 0.2162,
+                            "Disruption": 0.0508,
+                            "Extinction": 0.733
+                          }
+                        },
+                        {
+                          "o2_fraction": 0.16,
+                          "in_domain": true,
+                          "probabilities": {
+                            "Completion": 0.3307,
+                            "Disruption": 0.1049,
+                            "Extinction": 0.5643
+                          }
+                        }
+                      ],
+                      "model": {
+                        "model_version": "flex-outcome-logreg-1.0.0",
+                        "model_kind": "logistic_regression",
+                        "training_rows": 261,
+                        "test_days": 80,
+                        "class_counts": {
+                          "Completion": 27,
+                          "Disruption": 55,
+                          "Extinction": 179
+                        },
+                        "primary_estimate": {
+                          "method": "5x repeated 5-fold CV grouped by test day, all usable rows",
+                          "macro_f1": {
+                            "mean": 0.5398,
+                            "sd": 0.018
+                          },
+                          "balanced_accuracy": {
+                            "mean": 0.5755,
+                            "sd": 0.0321
+                          },
+                          "extinction_roc_auc": {
+                            "mean": 0.8572,
+                            "sd": 0.0096
+                          },
+                          "majority_baseline_macro_f1": {
+                            "mean": 0.2712,
+                            "sd": 0.0
+                          }
+                        },
+                        "holdout": {
+                          "macro_f1": 0.6398,
+                          "balanced_accuracy": 0.7001,
+                          "extinction_roc_auc": 0.9265,
+                          "accuracy": 0.7347
+                        },
+                        "holdout_note": "v1 (this report): a single 5-fold split was judged too noisy to select on, so selection now uses 5x repeated grouped CV on the development days and prefers the simpler model within one SD. This change was made AFTER the v0 hold-out was viewed, so the hold-out is no longer untouched; treat the repeated grouped CV over all rows as the primary estimate and the hold-out as supporting evidence.",
+                        "feature_importance": [
+                          {
+                            "feature": "o2",
+                            "label": "O₂ mole fraction",
+                            "mean_drop_in_macro_f1": 0.2173,
+                            "sd": 0.0594
+                          },
+                          {
+                            "feature": "he",
+                            "label": "He mole fraction (diluent)",
+                            "mean_drop_in_macro_f1": 0.0546,
+                            "sd": 0.0384
+                          }
+                        ],
+                        "report": "docs/evaluation/reports/flex-outcome-model.md"
+                      },
+                      "claim_class": "estimated",
+                      "scope": "Estimated from 261 FLEX droplet tests (methanol, heptane) in microgravity. It does not describe solid materials, other fuels, partial gravity or flame temperature.",
+                      "meta": {
+                        "request_id": "req_20699d076e7f4ed8b23f6523fd4a27b8",
+                        "generated_at": "2026-11-07T18:57:36.070977Z",
+                        "api_version": "0.5.0"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "description": "A dependency is unavailable. Codes: DATABASE_UNAVAILABLE.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-implementation-status": "implemented"
+      }
     }
   },
   "components": {
@@ -3282,7 +4651,8 @@
           "METHOD_NOT_ALLOWED",
           "VIDEO_INVALID",
           "FILE_NOT_FOUND",
-          "FILE_NOT_QUARANTINED"
+          "FILE_NOT_QUARANTINED",
+          "INVESTIGATION_NOT_FOUND"
         ],
         "description": "Stable machine-readable error code. The frontend switches on this, never on `message`. AURA_UNAVAILABLE is deprecated since 0.2.0: chat now degrades to an evidence-only answer instead."
       },
@@ -7359,6 +8729,869 @@
           "audit_override"
         ],
         "description": "Where the effective `mode` comes from: `env` is FLAME_AI_EXECUTION_MODE; `audit_override` is the newest `ai.mode.changed` audit event (PUT /api/admin/ai/mode), which wins over env in every process until the next PUT. There is no clear operation yet."
+      },
+      "Scenario": {
+        "type": "object",
+        "description": "A cabin atmosphere. Quoted or derived values cite NASA/TM-2008-215260 p. 5; `user` is a custom query.",
+        "required": [
+          "scenario_id",
+          "name",
+          "o2_fraction",
+          "pressure_kpa",
+          "ppo2_kpa",
+          "basis",
+          "note",
+          "citation"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "scenario_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "o2_fraction": {
+            "type": "number"
+          },
+          "pressure_kpa": {
+            "type": "number"
+          },
+          "ppo2_kpa": {
+            "type": "number"
+          },
+          "basis": {
+            "type": "string",
+            "enum": [
+              "quoted",
+              "derived",
+              "user"
+            ]
+          },
+          "note": {
+            "type": "string"
+          },
+          "citation": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "ConditionRange": {
+        "type": "object",
+        "required": [
+          "min",
+          "max",
+          "n"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "min": {
+            "type": "number"
+          },
+          "max": {
+            "type": "number"
+          },
+          "n": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "InvestigationData": {
+        "type": "object",
+        "description": "What the investigation's published table covers. A null range means the variable is not recorded in the table (never 0).",
+        "required": [
+          "tests",
+          "o2_fraction",
+          "pressure_kpa",
+          "flow_velocity_m_s",
+          "fuels_or_materials",
+          "end_state_recorded",
+          "duration_recorded"
+        ],
+        "properties": {
+          "tests": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "o2_fraction": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConditionRange"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "o2_approximate": {
+            "type": "boolean"
+          },
+          "pressure_kpa": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConditionRange"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "flow_velocity_m_s": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConditionRange"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fuels_or_materials": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "name",
+                "tests"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "tests": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "distinct_fuels_or_materials": {
+            "type": "integer"
+          },
+          "end_states": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {
+              "type": "integer"
+            }
+          },
+          "end_state_recorded": {
+            "type": "boolean"
+          },
+          "duration_recorded": {
+            "type": "boolean"
+          },
+          "quality_flags": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer"
+            }
+          }
+        }
+      },
+      "Relevance": {
+        "type": "object",
+        "description": "Evidence relevance of an investigation to a scenario (not a risk score); formula in `ranking_method`.",
+        "required": [
+          "score",
+          "components",
+          "weights",
+          "neighbourhood_tests",
+          "not_recorded",
+          "explanation"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "score": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "components": {
+            "type": "object",
+            "required": [
+              "oxygen_match",
+              "pressure_match",
+              "evidence_density",
+              "outcome_data"
+            ],
+            "additionalProperties": {
+              "type": "number"
+            }
+          },
+          "weights": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
+            }
+          },
+          "neighbourhood_tests": {
+            "type": "integer"
+          },
+          "not_recorded": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "explanation": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "CitedText": {
+        "type": "object",
+        "description": "NASA ISA-Tab metadata text, verbatim, with the evidence row it came from.",
+        "required": [
+          "text",
+          "evidence_id"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "evidence_id": {
+            "type": "string"
+          }
+        }
+      },
+      "InvestigationSummary": {
+        "type": "object",
+        "required": [
+          "investigation_id",
+          "acronym",
+          "title",
+          "status",
+          "data",
+          "relevance",
+          "fire_safety_use"
+        ],
+        "properties": {
+          "investigation_id": {
+            "type": "string"
+          },
+          "acronym": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ingested",
+              "metadata_only"
+            ]
+          },
+          "flight_platform": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "hardware": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "dates": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "persistent_identifier": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "license": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "access_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SourceRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fire_safety_use": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "key_variables": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "key_outputs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "objective": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CitedText"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "data": {
+            "$ref": "#/components/schemas/InvestigationData"
+          },
+          "coverage_note": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "relevance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Relevance"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rank": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "description": "Position in the scenario ranking (list endpoint only); null when the investigation has no ingested data."
+          }
+        }
+      },
+      "NotAcquiredInvestigation": {
+        "type": "object",
+        "required": [
+          "investigation_id",
+          "acronym",
+          "title",
+          "note"
+        ],
+        "properties": {
+          "investigation_id": {
+            "type": "string"
+          },
+          "acronym": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          }
+        }
+      },
+      "InvestigationListResponse": {
+        "type": "object",
+        "required": [
+          "scenario",
+          "scenarios",
+          "ranking_method",
+          "items",
+          "not_acquired",
+          "totals",
+          "meta"
+        ],
+        "properties": {
+          "scenario": {
+            "$ref": "#/components/schemas/Scenario"
+          },
+          "scenarios": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Scenario"
+            }
+          },
+          "ranking_method": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InvestigationSummary"
+            }
+          },
+          "not_acquired": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NotAcquiredInvestigation"
+            }
+          },
+          "totals": {
+            "type": "object",
+            "required": [
+              "investigations",
+              "with_data",
+              "flight_tests"
+            ],
+            "additionalProperties": {
+              "type": "integer"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        }
+      },
+      "InsightKind": {
+        "type": "string",
+        "enum": [
+          "measured_statistic",
+          "model_estimate",
+          "coverage_gap"
+        ],
+        "description": "measured_statistic: computed from flight-test rows. model_estimate: from the FLEX outcome model (claim class estimated). coverage_gap: what the data does not cover."
+      },
+      "Insight": {
+        "type": "object",
+        "required": [
+          "insight_id",
+          "title",
+          "kind",
+          "investigations",
+          "statement",
+          "numbers",
+          "evidence",
+          "caveats"
+        ],
+        "properties": {
+          "insight_id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/InsightKind"
+          },
+          "investigations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "statement": {
+            "type": "string"
+          },
+          "numbers": {
+            "type": "object"
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "evidence_id"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "evidence_id": {
+                  "type": "string"
+                },
+                "experiment_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "test_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            }
+          },
+          "caveats": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "FlightTestRef": {
+        "type": "object",
+        "required": [
+          "experiment_id",
+          "test_id"
+        ],
+        "properties": {
+          "experiment_id": {
+            "type": "string"
+          },
+          "test_id": {
+            "type": "string"
+          },
+          "fuel_or_material": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "o2_fraction": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "pressure_kpa": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "flow_velocity_m_s": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "end_state": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "duration_s": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "end_state_evidence_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "distance": {
+            "type": "number"
+          },
+          "droplet_diameter_mm": {
+            "type": "number"
+          },
+          "co2_fraction": {
+            "type": "number"
+          },
+          "he_fraction": {
+            "type": "number"
+          }
+        }
+      },
+      "InvestigationDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/InvestigationSummary"
+          },
+          {
+            "type": "object",
+            "required": [
+              "summary_sections",
+              "publications",
+              "metadata_document_id",
+              "insights",
+              "sample_tests"
+            ],
+            "properties": {
+              "summary_sections": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/SummarySection"
+                }
+              },
+              "publications": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "metadata_document_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "insights": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Insight"
+                }
+              },
+              "sample_tests": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/FlightTestRef"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "InvestigationResponse": {
+        "type": "object",
+        "required": [
+          "investigation",
+          "scenario",
+          "meta"
+        ],
+        "properties": {
+          "investigation": {
+            "$ref": "#/components/schemas/InvestigationDetail"
+          },
+          "scenario": {
+            "$ref": "#/components/schemas/Scenario"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        }
+      },
+      "InsightListResponse": {
+        "type": "object",
+        "required": [
+          "scenario",
+          "items",
+          "meta"
+        ],
+        "properties": {
+          "scenario": {
+            "$ref": "#/components/schemas/Scenario"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Insight"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        }
+      },
+      "FlexOutcomeResponse": {
+        "type": "object",
+        "description": "FLEX outcome model estimate (claim class `estimated`). `probabilities` is null outside the applicability domain.",
+        "required": [
+          "input",
+          "probabilities",
+          "predicted_end_state",
+          "applicability",
+          "similar_tests",
+          "similar_tests_end_states",
+          "o2_sweep",
+          "model",
+          "claim_class",
+          "scope",
+          "meta"
+        ],
+        "properties": {
+          "input": {
+            "type": "object"
+          },
+          "probabilities": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "required": [
+              "Completion",
+              "Disruption",
+              "Extinction"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "Completion": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "Disruption": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "Extinction": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            }
+          },
+          "predicted_end_state": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "Completion",
+              "Disruption",
+              "Extinction",
+              null
+            ]
+          },
+          "applicability": {
+            "type": "object",
+            "required": [
+              "in_domain",
+              "checks",
+              "reasons"
+            ],
+            "properties": {
+              "in_domain": {
+                "type": "boolean"
+              },
+              "checks": {
+                "type": "array"
+              },
+              "reasons": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "similar_tests": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FlightTestRef"
+            }
+          },
+          "similar_tests_end_states": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer"
+            }
+          },
+          "o2_sweep": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "o2_fraction",
+                "in_domain",
+                "probabilities"
+              ],
+              "properties": {
+                "o2_fraction": {
+                  "type": "number"
+                },
+                "in_domain": {
+                  "type": "boolean"
+                },
+                "probabilities": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "required": [
+                    "Completion",
+                    "Disruption",
+                    "Extinction"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "Completion": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "Disruption": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "Extinction": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "model": {
+            "type": "object",
+            "required": [
+              "model_version",
+              "primary_estimate"
+            ]
+          },
+          "claim_class": {
+            "type": "string",
+            "const": "estimated"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        }
+      },
+      "SummarySection": {
+        "type": "object",
+        "required": [
+          "heading",
+          "text",
+          "evidence_id"
+        ],
+        "additionalProperties": false,
+        "description": "One ISA-Tab section (Objective, Hypothesis, Approach, Research impacts), verbatim, with its evidence row.",
+        "properties": {
+          "heading": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "evidence_id": {
+            "type": "string"
+          }
+        }
       }
     },
     "parameters": {

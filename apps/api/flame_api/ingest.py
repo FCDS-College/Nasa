@@ -2,6 +2,8 @@ import csv
 import hashlib
 import json
 import re
+import zipfile
+import zlib
 from html.parser import HTMLParser
 from datetime import UTC, datetime
 from pathlib import Path
@@ -26,16 +28,19 @@ from flame_api.seed import seed
 
 # 0.2.0: OCR fallback for pages without a text layer; quarantine; NTRS titles. Chunk and evidence IDs
 # are unchanged from 0.1.0 (they depend on file hash and page only), so re-ingestion is idempotent.
-PARSER_VERSION = "pymupdf-pages-0.2.0"
+# 0.3.0: a page whose text layer is unreadable (broken font encoding) is OCRed like a page without text.
+PARSER_VERSION = "pymupdf-pages-0.3.0"
 HTML_PARSER_VERSION = "html-sections-0.1.0"
 JSON_PARSER_VERSION = "json-paths-0.1.0"
 TABLE_PARSER_VERSION = "psi-tables-0.1.0"
+ISATAB_PARSER_VERSION = "isatab-investigation-0.1.0"
 OCR_MIN_CONFIDENCE = 60.0        # mean word confidence (0-100) below which an OCR page is flagged
 OCR_DPI = 300
 MIN_PAGE_CHARS = 12
 NOT_INGESTED_SOURCES = frozenset({"FF-PSI-DSI"})   # DSI is non-combustion; its frames are image assets
 ROOT = Path(__file__).resolve().parents[3]
-MISSING = {"", "-", "â€“", "â€”", "n/a", "na", "none", "null"}
+# "\u2013"/"\u2014" are the real en/em dash (FLEX, cp1252 byte 0x96); the "â€" forms are their mojibake.
+MISSING = {"", "-", "\u2013", "\u2014", "â€“", "â€”", "n/a", "na", "none", "null"}
 
 
 def _utc_now() -> datetime:
@@ -63,9 +68,11 @@ def parse_cell(raw: str | None) -> tuple[float | None, str | None]:
 def convert_to_si(header: str, variable: str, value: float | None) -> tuple[float | None, str | None]:
     if value is None:
         return None, None
-    normalized = header.lower().replace("Âµ", "u").replace("â‚‚", "2")
+    normalized = header.lower().replace("\u00b5", "u").replace("\u2082", "2").replace("Âµ", "u").replace("â‚‚", "2")
     if "mmhg" in normalized:
         return value * 133.322387415, "Pa"
+    if "sccm" in normalized:
+        return None, None   # a volumetric flow at standard conditions; it contains "cm" but is not a length
     if "cm/s" in normalized:
         return value * 0.01, "m/s"
     if "mg/s" in normalized:
@@ -121,6 +128,24 @@ class QuarantineError(Exception):
         self.reason = reason
 
 
+_FUNCTION_WORDS = frozenset({"the", "of", "and", "in", "to", "a", "is", "for", "with", "on", "at", "by", "was", "that",
+                             "are", "from", "as", "be", "this", "were"})
+GARBLED_MIN_TOKENS = 40
+GARBLED_MAX_FUNCTION_WORD_SHARE = 0.03
+
+
+def text_layer_is_garbled(text: str) -> bool:
+    """True for an English page whose extracted text is not language (e.g. a PDF font with a broken ToUnicode map).
+
+    Real English prose has 15-30% function words; two FLEX papers in the corpus extract at 0-1%. Short pages
+    (tables, captions) are never judged.
+    """
+    tokens = re.findall(r"[A-Za-z]+", text.lower())
+    if len(tokens) < GARBLED_MIN_TOKENS:
+        return False
+    return sum(t in _FUNCTION_WORDS for t in tokens) / len(tokens) < GARBLED_MAX_FUNCTION_WORD_SHARE
+
+
 def _ocr_page(page) -> tuple[str, float, str] | None:
     """(text, mean confidence 0-100, engine version) for one PDF page, or None when OCR is unavailable.
 
@@ -173,7 +198,11 @@ def _store_passage(session, *, source, file_record, document_id, label, locator,
         "knowledge_version": None,
         **(flags or {}),
     }
-    _keep_review(session, evidence_id, evidence_payload)
+    existing = session.get(EvidenceRecord, evidence_id)
+    if existing is None or existing.excerpt == text:
+        # An administrator's review applies to the text they reviewed; changed text (e.g. OCR replacing a garbled
+        # layer) goes back to machine_extracted.
+        _keep_review(session, evidence_id, evidence_payload)
     session.merge(EvidenceRecord(
         evidence_id=evidence_id, source_id=source.source_id, file_id=file_record.file_id, document_id=document_id,
         experiment_id=None, analysis_id=None, kind="document_passage", origin="source_evidence", excerpt=text,
@@ -184,6 +213,27 @@ def _store_passage(session, *, source, file_record, document_id, label, locator,
         evidence_id=evidence_id, page=locator.get("page"), section=locator.get("label") if locator["type"] == "section" else None,
         text=text, ingested_at=now,
     ))
+
+
+def _drop_stale_page_chunks(session: Session, document_id: str, new_text: dict[int, str]) -> None:
+    """Re-ingest hygiene: remove chunks for pages that no longer yield text, and the embeddings of chunks whose
+    text changed (e.g. a garbled text layer replaced by OCR), so `vector_index build` re-embeds them."""
+    stale: list[str] = []
+    for chunk in session.query(DocumentChunk).filter(DocumentChunk.document_id == document_id):
+        if chunk.page not in new_text:
+            stale.append(chunk.chunk_id)
+            evidence = session.get(EvidenceRecord, chunk.evidence_id)
+            session.delete(chunk)
+            if evidence is not None:
+                session.delete(evidence)   # the page no longer yields text, so its old excerpt must not stay citable
+        elif chunk.text != new_text[chunk.page]:
+            stale.append(chunk.chunk_id)
+    if stale and session.bind.dialect.name == "postgresql":
+        from sqlalchemy import text as sql
+
+        if session.execute(sql("select to_regclass('chunk_embedding') is not null")).scalar_one():
+            session.execute(sql("delete from chunk_embedding where chunk_id = any(:ids)"), {"ids": stale})
+    session.flush()
 
 
 def _document_identity(source: SourceRecord, path: Path) -> tuple[str, str, str | None]:
@@ -216,12 +266,16 @@ def _create_document(session: Session, file_record: FileRecord) -> dict[str, int
     ocr_pages: dict[str, float] = {}
     ocr_engine: str | None = None
     ocr_status = "not_needed"
+    garbled_pages: list[int] = []
     for index, page in enumerate(document, start=1):
         text = page.get_text("text").replace("\x00", "").strip()
-        if len(text) >= MIN_PAGE_CHARS:
+        if len(text) >= MIN_PAGE_CHARS and not text_layer_is_garbled(text):
             passages.append((index, text, "verbatim_text", None, False))
             continue
-        blank_pages.append(index)
+        if len(text) >= MIN_PAGE_CHARS:
+            garbled_pages.append(index)   # unreadable text layer: never index it; OCR the rendered page instead
+        else:
+            blank_pages.append(index)
         ocr = _ocr_page(page)
         if ocr is None:
             # "applied" wins once any page was OCRed; "unavailable" only if none could be.
@@ -244,12 +298,13 @@ def _create_document(session: Session, file_record: FileRecord) -> dict[str, int
         persistent_identifier=source.persistent_identifier,
         page_count=page_count,
         # text_layer describes the PDF itself; OCR text is recorded separately with its confidence.
-        text_layer="none" if len(blank_pages) == page_count else "full" if not blank_pages else "partial",
-        pages_without_text=blank_pages,
+        text_layer="none" if len(blank_pages) + len(garbled_pages) == page_count
+        else "full" if not blank_pages and not garbled_pages else "partial",
+        pages_without_text=sorted(blank_pages + garbled_pages),
         parser_version=PARSER_VERSION,
         ingested_at=now,
-        payload={"ocr": {
-            "status": ocr_status if blank_pages else "not_needed",
+        payload={"garbled_text_pages": garbled_pages, "ocr": {
+            "status": ocr_status if blank_pages or garbled_pages else "not_needed",
             "engine": ocr_engine,
             "dpi": OCR_DPI if ocr_pages else None,
             "page_confidence": ocr_pages,
@@ -257,6 +312,7 @@ def _create_document(session: Session, file_record: FileRecord) -> dict[str, int
             "min_confidence": OCR_MIN_CONFIDENCE,
         }},
     ))
+    _drop_stale_page_chunks(session, document_id, {p: t for p, t, *_ in passages})
     for page_number, page_text, method, confidence, low in passages:
         locator = {"type": "page", "page": page_number, "section": None, "row": None, "frame_index": None, "label": f"p. {page_number}"}
         _store_passage(session, source=source, file_record=file_record, document_id=document_id, label=f"p. {page_number}",
@@ -368,6 +424,90 @@ def _create_text_document(session: Session, file_record: FileRecord, *, kind: st
     return {"pages": 0, "chunks": len(sections), "skipped": 0}
 
 
+# ISA-Tab investigation fields shown as citable sections, in display order (docs/data/COMBUSTION_DATASET_ANALYSIS.md §3.5).
+ISATAB_SECTIONS = (
+    ("Objective", "Comment[Objective]"),
+    ("Hypothesis", "Comment[Hypothesis]"),
+    ("Approach", "Comment[Approach]"),
+    ("Research impacts", "Comment[Research Impacts]"),
+    ("Experiment hardware", "Comment[Experiment Hardware]"),
+    ("Flight platform", "Comment[Flight Platform]"),
+    ("Research area", "Comment[SubResearch Area]"),
+    ("Keywords", "Study Design Type"),
+    ("Publications", "Comment[Study Publication Link]"),
+)
+ISATAB_FIELDS = {
+    "title": "Study Title", "acronym": "Comment[Investigation Acronym]", "doi": "Comment[DOI]",
+    "start_date": "Comment[Investigation Start Date]", "end_date": "Comment[Investigation End Date]",
+    "release_date": "Study Public Release Date", "center": "Comment[Managing NASA Center]",
+}
+ISATAB_MAX_BYTES = 2_000_000
+
+
+def parse_isatab(raw: bytes) -> tuple[dict, list[tuple[str, str]]]:
+    """(fields, sections) from a PSI metadata zip holding an ISA-Tab i_Investigation.txt.
+
+    NASA's own text, kept verbatim. It is untrusted input for any model (requirements SR-1),
+    so it only ever reaches a prompt as quoted evidence.
+    """
+    import io
+
+    try:
+        archive = zipfile.ZipFile(io.BytesIO(raw))
+        names = [n for n in archive.namelist() if Path(n).name.lower().startswith("i_") and n.lower().endswith(".txt")]
+        if not names:
+            raise QuarantineError("isatab_missing_investigation_file")
+        info = archive.getinfo(names[0])
+        if info.file_size > ISATAB_MAX_BYTES:
+            raise QuarantineError("isatab_too_large")
+        text = archive.read(info).decode("utf-8", errors="replace")
+    except (zipfile.BadZipFile, zlib.error, NotImplementedError, RuntimeError, EOFError, OSError) as exc:
+        # corrupt, encrypted or unsupported-compression archives quarantine one file, never abort the ingest run
+        raise QuarantineError("invalid_zip") from exc
+    rows: dict[str, list[str]] = {}
+    for line in text.splitlines():
+        cells = [cell.strip().strip('"').strip() for cell in line.split("\t")]
+        if cells and cells[0] and cells[0] not in rows:
+            rows[cells[0]] = [c for c in cells[1:] if c]
+    fields = {key: (rows.get(label) or [None])[0] for key, label in ISATAB_FIELDS.items()}
+    fields["publications"] = rows.get("Comment[Study Publication Link]", [])
+    fields["keywords"] = rows.get("Study Design Type", [])
+    sections = []
+    for heading, label in ISATAB_SECTIONS:
+        values = rows.get(label) or []
+        body = ("\n".join(values) if label in {"Comment[Study Publication Link]"} else "; ".join(values) if label == "Study Design Type" else " ".join(values)).strip()
+        if len(body) >= MIN_PAGE_CHARS:
+            sections.append((heading, body[:20000]))
+    return fields, sections
+
+
+def _create_isatab_document(session: Session, file_record: FileRecord) -> dict[str, int]:
+    """PSI investigation metadata: one document, one citable section per ISA-Tab field."""
+    path = Path(file_record.local_path or "")
+    source = session.get(SourceRecord, file_record.source_id)
+    if not path.is_file() or not source:
+        return {"pages": 0, "chunks": 0, "skipped": 1}
+    fields, sections = parse_isatab(path.read_bytes())
+    if not sections:
+        raise QuarantineError("no_text_in_isatab")
+    now = _utc_now()
+    document_id = stable_ulid(f"document:{file_record.file_id}")
+    title = f"{fields.get('title') or source.title}: investigation metadata"
+    session.merge(DocumentRecord(
+        document_id=document_id, source_id=source.source_id, file_id=file_record.file_id, title=title,
+        document_type="dataset_documentation", identifier=fields.get("acronym") or source.short_name,
+        persistent_identifier=source.persistent_identifier, page_count=None, text_layer="full", pages_without_text=[],
+        parser_version=ISATAB_PARSER_VERSION, ingested_at=now,
+        payload={"sections": len(sections), "isatab": fields},
+    ))
+    for number, (heading, body) in enumerate(sections, start=1):
+        locator = {"type": "section", "page": None, "section": number, "row": None, "frame_index": None, "label": heading}
+        _store_passage(session, source=source, file_record=file_record, document_id=document_id, label=f"§ {heading}",
+                       locator=locator, text=f"{source.short_name or source.title} {heading.lower()}: {body}", method="verbatim_text",
+                       confidence=None, parser=ISATAB_PARSER_VERSION, now=now)
+    return {"pages": 0, "chunks": len(sections), "skipped": 0}
+
+
 def _document_type(path: Path) -> str:
     parent = path.parent.name.lower()
     name = path.name.lower()
@@ -410,7 +550,7 @@ def _unit(header: str) -> str | None:
         return match.group(1).strip()
     if ";" in header:
         return header.rsplit(";", 1)[1].strip()
-    normalized = header.lower().replace("â‚‚", "2")
+    normalized = header.lower().replace("\u2082", "2").replace("â‚‚", "2")
     if "mole fraction" in normalized:
         return "mole fraction"
     if "%" in normalized:
@@ -582,7 +722,8 @@ def ingest_file(session: Session, file_record: FileRecord) -> tuple[str, dict]:
     path = Path(file_record.local_path)
     suffix = path.suffix.lower()
     is_table = suffix == ".csv" and "experimental table" in str(path).lower()
-    if suffix not in {".pdf", ".html", ".htm", ".json"} and not is_table:
+    is_isatab = suffix == ".zip" and path.parent.name.lower() == "metadata"
+    if suffix not in {".pdf", ".html", ".htm", ".json"} and not is_table and not is_isatab:
         return "skipped", {"reason": "no_parser"}
     if _sha256(path) != file_record.sha256:
         quarantine(session, file_record, "checksum_mismatch")
@@ -596,6 +737,8 @@ def ingest_file(session: Session, file_record: FileRecord) -> tuple[str, dict]:
                 counts, transformation = _create_text_document(session, file_record, kind="html"), HTML_PARSER_VERSION
             elif suffix == ".json":
                 counts, transformation = _create_text_document(session, file_record, kind="json"), JSON_PARSER_VERSION
+            elif is_isatab:
+                counts, transformation = _create_isatab_document(session, file_record), ISATAB_PARSER_VERSION
             else:
                 counts, transformation = _create_table_experiments(session, file_record), TABLE_PARSER_VERSION
     except QuarantineError as exc:
@@ -631,7 +774,7 @@ def ingest() -> dict[str, int]:
                 totals["pdf_chunks"] += counts["chunks"]
                 totals["ocr_pages"] += counts.get("ocr_pages", 0)
                 totals["ocr_low_confidence"] += counts.get("ocr_low_confidence", 0)
-            elif suffix in {".html", ".htm", ".json"}:
+            elif suffix in {".html", ".htm", ".json", ".zip"}:
                 totals["text_documents"] += 1
                 totals["text_chunks"] += counts["chunks"]
             else:

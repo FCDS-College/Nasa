@@ -1,0 +1,301 @@
+{
+  "label": "lexical",
+  "generated_at": "2026-11-07T19:28:26Z",
+  "git_commit": "ee02d86",
+  "gold_set": "datasets/evaluation/retrieval_gold_v1.jsonl",
+  "retrieval_modes_reported": [
+    "lexical"
+  ],
+  "latency_s": {
+    "p50": 0.009,
+    "max": 0.096
+  },
+  "questions": 26,
+  "hit@1": 0.3077,
+  "hit@3": 0.3077,
+  "hit@5": 0.3077,
+  "mrr@10": 0.3077,
+  "recall@5": 0.2115,
+  "per_question": [
+    {
+      "id": "RG-01",
+      "top5": [],
+      "first_relevant_rank": null,
+      "hit@1": 0,
+      "hit@3": 0,
+      "hit@5": 0,
+      "rr@10": 0.0,
+      "recall@5": 0.0
+    },
+    {
+      "id": "RG-02",
+      "top5": [],
+      "first_relevant_rank": null,
+      "hit@1": 0,
+      "hit@3": 0,
+      "hit@5": 0,
+      "rr@10": 0.0,
+      "recall@5": 0.0
+    },
+    {
+      "id": "RG-03",
+      "top5": [],
+      "first_relevant_rank": null,
+      "hit@1": 0,
+      "hit@3": 0,
+      "hit@5": 0,
+      "rr@10": 0.0,
+      "recall@5": 0.0
+    },
+    {
+      "id": "RG-04",
+      "top5": [],
+      "first_relevant_rank": null,
+      "hit@1": 0,
+      "hit@3": 0,
+      "hit@5": 0,
+      "rr@10": 0.0,
+      "recall@5": 0.0
+    },
+    {
+      "id": "RG-05",
+      "top5": [
+        "FF-NTRS-20040161216"
+      ],
+      "first_relevant_rank": 1,
+      "hit@1": 1,
+      "hit@3": 1,
+      "hit@5": 1,
+      "rr@10": 1.0,
+      "recall@5": 0.5
+    },
+    {
+      "id": "RG-06",
+      "top5": [],
+      "first_relevant_rank": null,
+      "hit@1": 0,
+      "hit@3": 0,
+      "hit@5": 0,
+      "rr@10": 0.0,
+      "recall@5": 0.0
+    },
+    {
+      "id": "RG-07",
+      "top5": [],
+      "first_relevant_rank": null,
+      "hit@1": 0,
+      "hit@3": 0,
+      "hit@5": 0,
+      "rr@10": 0.0,
+      "recall@5": 0.0
+    },
+    {
+      "id": "RG-08",
+      "top5": [],
+      "first_relevant_rank": null,
+      "hit@1": 0,
+      "hit@3": 0,
+      "hit@5": 0,
+      "rr@10": 0.0,
+      "recall@5": 0.0
+    },
+    {
+      "id": "RG-09",
+      "top5": [],
+      "first_relevant_rank": null,
+      "hit@1": 0,
+      "hit@3": 0,
+      "hit@5": 0,
+      "rr@10": 0.0,
+      "recall@5": 0.0
+    },
+    {
+      "id": "RG-10",
+      "top5": [],
+      "first_relevant_rank": null,
+      "hit@1": 0,
+      "hit@3": 0,
+      "hit@5": 0,
+      "rr@10": 0.0,
+      "recall@5": 0.0
+    },
+    {
+      "id": "RG-11",
+      "top5": [],
+      "first_relevant_rank": null,
+      "hit@1": 0,
+      "hit@3": 0,
+      "hit@5": 0,
+      "rr@10": 0.0,
+      "recall@5": 0.0
+    },
+    {
+      "id": "RG-12",
+      "top5": [
+        "FF-NTRS-20160012691"
+      ],
+      "first_relevant_rank": 1,
+      "hit@1": 1,
+      "hit@3": 1,
+      "hit@5": 1,
+      "rr@10": 1.0,
+      "recall@5": 1.0
+    },
+    {
+      "id": "RG-13",
+      "top5": [],
+      "first_relevant_rank": null,
+      "hit@1": 0,
+      "hit@3": 0,
+      "hit@5": 0,
+      "rr@10": 0.0,
+      "recall@5": 0.0
+    },
+    {
+      "id": "RG-14",
+      "top5": [
+        "FF-NTRS-20140009169"
+      ],
+      "first_relevant_rank": null,
+      "hit@1": 0,
+      "hit@3": 0,
+      "hit@5": 0,
+      "rr@10": 0.0,
+      "recall@5": 0.0
+    },
+    {
+      "id": "RG-15",
+      "top5": [
+        "FF-NTRS-20210021781"
+      ],
+      "first_relevant_rank": 1,
+      "hit@1": 1,
+      "hit@3": 1,
+      "hit@5": 1,
+      "rr@10": 1.0,
+      "recall@5": 0.5
+    },
+    {
+      "id": "RG-16",
+      "top5": [
+        "FF-NTRS-20040053557"
+      ],
+      "first_relevant_rank": 1,
+      "hit@1": 1,
+      "hit@3": 1,
+      "hit@5": 1,
+      "rr@10": 1.0,
+      "recall@5": 1.0
+    },
+    {
+      "id": "RG-17",
+      "top5": [
+        "FF-NTRS-20080034883"
+      ],
+      "first_relevant_rank": 1,
+      "hit@1": 1,
+      "hit@3": 1,
+      "hit@5": 1,
+      "rr@10": 1.0,
+      "recall@5": 0.5
+    },
+    {
+      "id": "RG-18",
+      "top5": [
+        "FF-NTRS-20070010766"
+      ],
+      "first_relevant_rank": 1,
+      "hit@1": 1,
+      "hit@3": 1,
+      "hit@5": 1,
+      "rr@10": 1.0,
+      "recall@5": 0.5
+    },
+    {
+      "id": "RG-19",
+      "top5": [],
+      "first_relevant_rank": null,
+      "hit@1": 0,
+      "hit@3": 0,
+      "hit@5": 0,
+      "rr@10": 0.0,
+      "recall@5": 0.0
+    },
+    {
+      "id": "RG-20",
+      "top5": [],
+      "first_relevant_rank": null,
+      "hit@1": 0,
+      "hit@3": 0,
+      "hit@5": 0,
+      "rr@10": 0.0,
+      "recall@5": 0.0
+    },
+    {
+      "id": "RG-21",
+      "top5": [
+        "FF-PSI-69"
+      ],
+      "first_relevant_rank": 1,
+      "hit@1": 1,
+      "hit@3": 1,
+      "hit@5": 1,
+      "rr@10": 1.0,
+      "recall@5": 0.5
+    },
+    {
+      "id": "RG-22",
+      "top5": [],
+      "first_relevant_rank": null,
+      "hit@1": 0,
+      "hit@3": 0,
+      "hit@5": 0,
+      "rr@10": 0.0,
+      "recall@5": 0.0
+    },
+    {
+      "id": "RG-23",
+      "top5": [
+        "FF-NTRS-20150023467"
+      ],
+      "first_relevant_rank": 1,
+      "hit@1": 1,
+      "hit@3": 1,
+      "hit@5": 1,
+      "rr@10": 1.0,
+      "recall@5": 1.0
+    },
+    {
+      "id": "RG-24",
+      "top5": [
+        "FF-NTRS-20080034883"
+      ],
+      "first_relevant_rank": null,
+      "hit@1": 0,
+      "hit@3": 0,
+      "hit@5": 0,
+      "rr@10": 0.0,
+      "recall@5": 0.0
+    },
+    {
+      "id": "RG-25",
+      "top5": [],
+      "first_relevant_rank": null,
+      "hit@1": 0,
+      "hit@3": 0,
+      "hit@5": 0,
+      "rr@10": 0.0,
+      "recall@5": 0.0
+    },
+    {
+      "id": "RG-26",
+      "top5": [],
+      "first_relevant_rank": null,
+      "hit@1": 0,
+      "hit@3": 0,
+      "hit@5": 0,
+      "rr@10": 0.0,
+      "recall@5": 0.0
+    }
+  ]
+}

@@ -155,11 +155,12 @@ def test_the_three_ntrs_reports_and_nist_are_registered_and_the_pdfs_ingest(monk
         assert {"FF-NTRS-20000034017", "FF-NTRS-20040053557", "FF-NTRS-20080034883", "FF-NIST-WEBBOOK"} <= set(sources)
         assert sources["FF-NIST-WEBBOOK"].license is None, "the literal 'null' is decoded, not stored as text"
         ntrs_files = session.query(FileRecord).filter(FileRecord.source_id.like("FF-NTRS-%")).all()
-        assert len(ntrs_files) == 3
+        # 3 original reports + 21 public-use reports added 2026-11-07 (docs/data/NTRS_DATASET_REPORT.md §5)
+        assert len(ntrs_files) == 24
         results = [ingest.ingest_file(session, f) for f in ntrs_files]
         session.commit()
-        assert [outcome for outcome, _ in results] == ["ingested"] * 3
-        assert sum(c["pages"] for _, c in results) == 39
+        assert [outcome for outcome, _ in results] == ["ingested"] * 24
+        assert sum(c["pages"] for _, c in results) == 284
         titles = {d.title for d in session.query(DocumentRecord)}
         assert "Testing and Selection of Fire-Resistant Materials for Spacecraft Use" in titles
     engine.dispose()
