@@ -1,6 +1,6 @@
 # Mirrored source data: immutable originals live outside Git (see docs/data/DAY1_DATA_ACQUISITION.md)
 datasets/raw/**
-# ...except the small CC0 PSI experimental tables and ISA-Tab metadata (~140 KB): the experiment
+# ...except the small CC0 PSI experimental tables and ISA-Tab metadata (~130 KB; ADR-012): the experiment
 # workflow, the investigation dashboard and the FLEX outcome model need them on every clone.
 !datasets/raw/**/
 !datasets/raw/psi_api/*/Experimental table/*.csv

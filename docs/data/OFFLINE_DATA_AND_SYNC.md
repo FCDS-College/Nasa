@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Anas (E2) | Draft: availability (W3) done; sync policy (W7) proposed | 0.8.0 | 2026-10-13 | 2H Task 7 | `infrastructure/compose.yaml`, `knowledge_version.py`, `ingest.py`, `vector_index.py` |
+| Anas (E2) | Draft: availability (W3) done; sync policy (W7) proposed | 0.9.0 | 2026-11-07 | 2H Task 7 | `infrastructure/compose.yaml`, `knowledge_version.py`, `ingest.py`, `vector_index.py` |
 
 Shared with the Lead's [L-8 runbook](../operations/RUNBOOK.md) and [H-6](../hybrid-ai/PHASE_2_OFFLINE_DEPLOYMENT_GUIDE.md).
 
@@ -11,9 +11,10 @@ Shared with the Lead's [L-8 runbook](../operations/RUNBOOK.md) and [H-6](../hybr
 | Data | Location | Size | In git? | Re-acquire |
 |---|---|---|---|---|
 | Source registry, file manifest, checksums, CV sample manifest | `datasets/registry/`, `datasets/metadata/`, `datasets/checksums/`, `datasets/samples/cv/manifest.jsonl` | small | yes | git |
-| NTRS reports (3) | `docs/research/` | 2,448,076 B | yes | git |
+| NTRS reports (24) | `docs/research/` | 19,212,213 B | yes | git |
 | CV samples (185) | `datasets/samples/cv/` | in git (3 MP4 + images) | yes | git |
-| PSI mirrors (BASS-II, FLEX, SAFFIRE-I, SPICE) | `datasets/raw/psi_api/…` | local only; see `datasets/manifests/psi_pilot_selection.csv` | **no** (git-ignored) | `python knowledge/ingestion/psi_download.py datasets/manifests/psi_pilot_selection.csv` (psi.nasa.gov) |
+| PSI experimental tables + ISA-Tab metadata (4 + 4 files) | `datasets/raw/psi_api/*/Experimental table/`, `…/metadata/` | 130,603 B | **yes** ([ADR-012](../architecture/adr/ADR-012-commit-psi-tables.md)) | git; or `python knowledge/ingestion/install_datasets.py --only tables` |
+| PSI mirrors, everything else (BASS-II, FLEX, SAFFIRE-I, SPICE media and documents) | `datasets/raw/psi_api/…` | local only; see `datasets/manifests/psi_pilot_selection.csv` | **no** (git-ignored) | `python knowledge/ingestion/psi_download.py datasets/manifests/psi_pilot_selection.csv` (psi.nasa.gov) |
 | DSI subset | `datasets/raw/nasa_psi/DSI/` | local only | **no** | `aws s3 cp --no-sign-request …` (README "Data quick start") |
 | Database (metadata, evidence, vectors, audit) | `postgres-data` volume | 226,560 B as `pg_dump -Fc` for the committed corpus (2026-10-13) | no | backup (§5) |
 | Uploads and CV artifacts | `minio-data` volume | per use | no | backup (§5) |
@@ -98,5 +99,6 @@ Local videos, uploaded images, documents, prompts, chat content and research dat
 - The per-source last-sync API field is not built.
 
 ## Changelog
+- 0.9.0 (2026-11-07): the PSI experimental tables and ISA-Tab metadata are committed (ADR-012); NTRS corpus is 24 reports.
 - Unreleased (P2-11): `infrastructure/backup/backup.sh` and `restore.sh`; second restore drill (database and object storage) recorded.
 - 0.8.0 (2026-10-13): inventory, disclosure rules, backup commands, first restore drill, proposed sync policy.

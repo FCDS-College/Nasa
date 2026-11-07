@@ -69,7 +69,7 @@ Every response of the new operations is validated against its contract schema (`
 
 | Defect | Severity | Fix |
 |---|---|---|
-| A fresh clone had **0 experiments**: the PSI tables were git-ignored | Critical | Committed (CC0, ~140 KB) with checksums |
+| A fresh clone had **0 experiments**: the PSI tables were git-ignored | Critical | Committed (CC0, ~130 KB) with checksums |
 | API image would crash: `ai/fire_safety` not copied; PSI tables excluded from the build | Critical | Dockerfile + `.dockerignore` |
 | 35 PDF pages indexed as gibberish (broken font maps) | High | Garbled-text detection → OCR; stale chunk/embedding cleanup |
 | Deployed search lexical-only (index never built at start) | High | Index build at start in compose and Railway |

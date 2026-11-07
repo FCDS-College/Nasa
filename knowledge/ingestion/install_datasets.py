@@ -13,9 +13,9 @@ Usage:
     python knowledge/ingestion/install_datasets.py                  # everything (~6 GB)
     python knowledge/ingestion/install_datasets.py --skip-large     # skip files > 1 GB (DSI "S1 activity 4.zip")
     python knowledge/ingestion/install_datasets.py --only dsi       # or: --only combustion
-    python knowledge/ingestion/install_datasets.py --only tables    # just the PSI experimental tables + metadata (~140 KB)
+    python knowledge/ingestion/install_datasets.py --only tables    # just the PSI experimental tables + metadata (~130 KB)
 
-The experimental tables and investigation metadata are also committed (CC0, ~140 KB), so a fresh
+The experimental tables and investigation metadata are also committed (CC0, ~130 KB), so a fresh
 clone can ingest every flight test without downloading anything; --only tables re-fetches them.
     python knowledge/ingestion/install_datasets.py --verify-only    # no downloads, just check hashes
 """
