@@ -18,6 +18,9 @@ datasets/samples/cv/*
 !datasets/samples/cv/manifest.jsonl
 datasets/raw/
 datasets/derived/
+# ...except the committed CC0 PSI tables and ISA-Tab metadata (~140 KB); never a full raw mirror.
+!datasets/raw/psi_api/*/Experimental table/*.csv
+!datasets/raw/psi_api/*/metadata/*.zip
 tests
 docs/**
 !docs/

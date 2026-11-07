@@ -36,11 +36,18 @@ Frontend environment variables belong in a local `.env.local` file.
 
 Do not commit secrets or credentials.
 
-The API base URL will be added here once the backend API contract is finalized.
+The browser never talks to the Flame API directly. Every call goes through the same-origin, read-only
+proxy `app/api/[...path]/route.ts`, which runs on the server and attaches the read key there:
 
-Example:
+    FLAME_API_ORIGIN=http://localhost:8000          # server-side; required (503 API_NOT_CONFIGURED without it)
+    FLAME_READ_API_TOKEN=<read-scoped key>          # server-side; never sent to the browser
+    # NEXT_PUBLIC_API_URL                           # optional browser prefix; leave unset to use the proxy
 
-    NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+The proxy allows GET on health, dashboard counts, search, documents, experiments, evidence, analyses,
+investigations and insights, and POST on chat only. It never holds a write key, so uploads and admin
+operations are not possible from the dashboard.
+
+Demo smoke test (needs Playwright + Chromium): `node scripts/demo-smoke.mjs http://localhost:3000`.
 
 ## Folder Conventions
 

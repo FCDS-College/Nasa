@@ -21,8 +21,12 @@ COPY ai/rag/__init__.py /app/ai/rag/__init__.py
 COPY ai/rag/cache /app/ai/rag/cache
 COPY ai/rag/retrieval/__init__.py /app/ai/rag/retrieval/__init__.py
 COPY ai/rag/retrieval/fusion.py /app/ai/rag/retrieval/fusion.py
-# The 3 registered NTRS reports (FF-NTRS-*) are small and committed, so they ship with the image.
+# Fire-safety analytics and the FLEX outcome model artefact (numpy only at runtime; contract 0.5.0).
+COPY ai/fire_safety /app/ai/fire_safety
+# The registered NTRS reports (FF-NTRS-*, 24 PDFs, ~20 MB) are committed, so they ship with the image.
 COPY docs/research /app/docs/research
+# The four CC0 PSI experimental tables and ISA-Tab metadata zips (~140 KB): flight tests and summaries.
+COPY datasets/raw/psi_api /app/datasets/raw/psi_api
 COPY docs/api/openapi.json /app/docs/api/openapi.json
 COPY datasets/registry/source_registry.csv datasets/registry/source_registry.schema.json /app/datasets/registry/
 COPY datasets/metadata/files.jsonl /app/datasets/metadata/files.jsonl
