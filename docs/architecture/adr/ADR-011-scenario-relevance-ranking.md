@@ -1,6 +1,6 @@
 # ADR-011: Rank investigations by evidence relevance to a cabin atmosphere
 
-- **Status:** Proposed. Decision owner: Lead (Anas). Sign-off needed: Ziad (E5, ranking and evaluation methodology) and Anas (E2, data semantics).
+- **Status:** Accepted (2026-11-07). Decision owner: Lead (Anas). Signed off by Ziad (E5, ranking and evaluation methodology) and Anas (E2, data semantics) on 2026-11-07, as confirmed by the Lead (ADR index 1.2.0).
 - **Date:** 2026-11-07
 - **Implemented in:** `ai/fire_safety/investigations.py` (`relevance`, `neighbours`, `rank`, `WEIGHTS`, `FORMULA`) and `ai/fire_safety/scenarios.py`, served by `GET /api/investigations` (contract 0.5.0, merged in PR #24).
 
