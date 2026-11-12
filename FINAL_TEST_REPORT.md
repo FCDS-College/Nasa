@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Lead (Anas), run by Claude Code | Current | 1.2.0 | 2026-11-12 | T7, ADR-006–009 | whole repository |
+| Lead (Anas), run by Claude Code | Current | 1.3.0 | 2026-11-12 | T7, ADR-006–009 | whole repository |
 
 Every result below was produced by a command run on 2026-11-07 on branch `anas/vibrant-sagan-fsnckf`. "Not run" means it was not run.
 
@@ -144,6 +144,15 @@ Not run: the browser smoke test against the reranked search, Docker Compose, Rai
 - the 27 hygiene tests;
 - actionlint 1.7.12.
 
+## 10. Knowledge Graph page (2026-11-12)
+
+| Check | Command | Result |
+|---|---|---|
+| Web typecheck, lint, build | `npm run typecheck`, `npm run lint`, `npm run build` | clean; 0 warnings; `/knowledge` built |
+| Proxy | `GET /api/graph/entities?type=investigation` through the web app; `GET /api/admin/graph/consistency` through it; the API without a key | 4 investigations (BASS-II, FLEX, SAFFIRE-I, SPICE); 404 (not forwarded); 401 |
+| Browser journey, API with auth on, PostgreSQL graph, reranker on | `node apps/web/scripts/demo-smoke.mjs` (9 steps; new step 08 opens FLEX, then walks Extinction 2 hops over "ended in" and "burned") | **9/9 PASS**. Not clean: no S3 stand-in ran, so `/api/health` answered 503 seven times and one image overlay artifact once (`object_storage_health=down`); none involves `/knowledge` |
+| Phone (iPhone 13 emulation) | Playwright | 0 px horizontal overflow; after a tap the details scroll into view (top at 181 px, was 631 px before the fix) |
+
 ## Unresolved
 
 - The garbled-text heuristic is tuned on this English corpus; a reference-list or non-English page could be mis-flagged in future documents (see §7).
@@ -151,10 +160,10 @@ Not run: the browser smoke test against the reranked search, Docker Compose, Rai
 - Docker Compose dry run and Railway redeploy: **not run** (no Docker daemon; no Railway access).
 - Generated-answer evaluation: **not run** (no language model in this environment).
 - Gold set and model labels: human review pending.
-- The web Knowledge page is not wired to the knowledge-graph API (it still says the graph is unavailable).
 - AURA's GitHub Actions were not assigning runners on 2026-11-12 (account-level); AURA-AI #232 merged on locally run checks.
 
 ## Changelog
 - 1.0.0 (2026-11-07): first version.
 - 1.1.0 (2026-11-12): §8, verification of the ADR-006 to 009 builds.
+- 1.3.0 (2026-11-12): §10, the Knowledge Graph page.
 - 1.2.0 (2026-11-12): §8 CI results; §9, verification of PR #30 and AURA-AI #232.

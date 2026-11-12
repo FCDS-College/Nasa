@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Lead (Anas) | Current: path B verified end to end on 2026-11-07 (steps added on 2026-11-12 verified individually); path A (Docker) not run, no Docker daemon was available | 1.1.0 | 2026-11-12 | T7 | `infrastructure/`, `apps/api/`, `apps/web/` |
+| Lead (Anas) | Current: path B verified end to end on 2026-11-07; the 9-step browser journey re-run on 2026-11-12; path A (Docker) not run, no Docker daemon was available | 1.2.0 | 2026-11-12 | T7 | `infrastructure/`, `apps/api/`, `apps/web/` |
 
 The demo is a 6-minute walk through the Fire Safety Dashboard. It needs:
 - the API with PostgreSQL + pgvector, Redis and S3/MinIO;
@@ -131,7 +131,7 @@ Pre-flight check (needs Playwright + Chromium; `npx playwright install chromium`
 node apps/web/scripts/demo-smoke.mjs http://127.0.0.1:3000
 ```
 
-Expected: `PASS` on 8 steps and `Demo journey passed.`
+Expected: `PASS` on 9 steps (step 08 is the Knowledge Graph page) and `Demo journey passed.` With no S3/MinIO running, the steps still pass, but `/api/health` answers 503 (`object_storage_health=down`) and image artifacts cannot load, so the script exits non-zero.
 
 ## 5. Demo sequence (~6 minutes)
 
@@ -146,7 +146,7 @@ Expected: `PASS` on 8 steps and `Demo journey passed.`
 | 7 | "Explain with cited sources" on any insight | Click it, then press send. | With a model: a grounded answer whose citations must be in the retrieved set. Without one: the retrieved NTRS passages, labelled "nothing below was generated". |
 | 8 | `/analysis` | Scroll to **Video flame analysis**. | The BASS-II flight video: flame area over time, measured in pixels. Flicker is "not estimable" below the Nyquist rate. No temperature from RGB. |
 | 9 | `/status` | — | Every dependency's health, the AI mode and the local-only providers. |
-| 10 (optional) | Knowledge graph, API only | `curl -H "Authorization: Bearer <read key>" "http://127.0.0.1:8000/api/graph/entities?type=phenomenon"`, then open `extinction` with `?depth=2&predicate=observed&predicate=uses_fuel` | Two hops from "extinction" reach the 186 FLEX tests that ended that way and their two fuels; every edge carries the NASA cell it was read from. The web Knowledge page is not wired to this yet, so show it from the API (or as AURA's two graph tools). |
+| 10 (optional) | `/knowledge` Knowledge Graph | **Outcomes** → **Extinction**, then **Hops 2** and links **ended in** + **burned**; open any evidence chip. | Two hops from "extinction" reach the 186 FLEX tests that ended that way and their two fuels, heptane and methanol. Every link opens the NASA table cell it was read from. |
 
 ## 6. Troubleshooting
 
@@ -168,8 +168,9 @@ Expected: `PASS` on 8 steps and `Demo journey passed.`
 ## Known limitations
 - Path A (Compose) has not been run end to end in this environment (no Docker daemon). The image layout was checked by reproducing its `COPY` lines and serving the app from them.
 - The Railway deployment has not been redeployed with this branch; it needs someone with Railway access.
-- The browser smoke test (8 steps) was last run on 2026-11-07, before reranking was on by default. The search API and its ranking were verified on 2026-11-12, but not the full browser journey.
+- The browser smoke test (now 9 steps) last passed end to end on 2026-11-12 against PostgreSQL, Redis and the reranker, but with no S3 stand-in, so health and one image artifact answered 503 (see §4).
 
 ## Changelog
 - 1.0.0 (2026-11-07): first runbook for the final demo.
+- 1.2.0 (2026-11-12): the Knowledge Graph page replaces the API-only step; smoke test has 9 steps.
 - 1.1.0 (2026-11-12): reranker model preparation, graph counts in the ingest summary, optional knowledge-graph step, two troubleshooting rows (reranker, admin scope).
