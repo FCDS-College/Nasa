@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Anas (E2) | Current: built from the PSI tables (peer sign-off: Eman E1) | 0.6.0 | 2026-11-12 | D2, D3, D6, ADR-007 | `apps/api/flame_api/knowledge_graph.py`, `graph.py`; tables `knowledge_entity`, `knowledge_relation` (migration `0004`) |
+| Anas (E2) | Current: built from the PSI tables (peer sign-off: Eman E1) | 0.6.1 | 2026-11-12 | D2, D3, D6, ADR-007 | `apps/api/flame_api/knowledge_graph.py`, `graph.py`; tables `knowledge_entity`, `knowledge_relation` (migration `0004`) |
 
 Storage decision: [ADR-007](../architecture/adr/ADR-007-graph-storage.md) (Accepted). Relational tables in PostgreSQL first.
 
@@ -23,7 +23,7 @@ From the committed tables and metadata (`python -m flame_api.knowledge_graph bui
 | Entities | Count | Edges | Count |
 |---|---|---|---|
 | experiment | 840 | `part_of` | 840 |
-| fuel (fuels and solid materials) | 59 | `uses_fuel` | 840 |
+| fuel (fuels and solid materials) | 55 | `uses_fuel` | 840 |
 | condition_variable | 45 | `has_condition` | 8,725 |
 | investigation | 4 | `observed` | 274 |
 | document | 4 | `describes` | 4 |
@@ -39,8 +39,18 @@ A rebuild of that data takes about 0.6 s and changes nothing. Ingesting the tabl
 - Both are AURA tools at contract 0.6.0 (`api_list_graph_entities`, `api_get_graph_entity`).
 
 **Checking and merging.**
-- `python -m flame_api.knowledge_graph check`, or `GET /api/admin/graph/consistency` (admin scope), runs §5. Today there are 0 orphan edges, 0 dead-evidence edges and 0 conflicts. There are 4 duplicate candidates, which are real spelling variants in the BASS-II table, such as `1/4" black rod` and `1/4 black rod`.
-- `python -m flame_api.knowledge_graph merge LOSER WINNER --actor NAME` applies §4 and writes `audit_event` (`graph.entity.merge`). Nothing is merged automatically.
+- `python -m flame_api.knowledge_graph check`, or `GET /api/admin/graph/consistency` (admin scope), runs §5. Today all five checks find nothing. The check first found 4 duplicate candidates, which are real spelling variants in the source tables. The Lead approved resolving them on 2026-11-12 (`CURATED_ALIASES` below).
+- `python -m flame_api.knowledge_graph merge LOSER WINNER --actor NAME` applies §4 to one database and writes `audit_event` (`graph.entity.merge`). Nothing is merged automatically.
+- **Reviewed spelling variants** are resolved in code, not in one database, so every deployment agrees. `knowledge_graph.CURATED_ALIASES` maps a variant's canonical name to the reviewed one. The build resolves the variant to that entity, keeps the variant's spelling as an alias, and still cites the variant's own cell. The four approved on 2026-11-12, each keeping the spelling with more tests:
+
+  | Variant (tests) | Resolved to (tests) | Table |
+  |---|---|---|
+  | `1/4 black rod` (2) | `1/4" black rod` (12) | BASS-II |
+  | `1/4 clear rod` (1) | `1/4" clear rod` (15) | BASS-II |
+  | `3/8"clear rod` (2) | `3/8" clear rod` (5) | BASS-II |
+  | `75% Propylene` (16) | `75 % Propylene` (115) | SPICE |
+
+  The graph therefore has 55 fuel entities, not 59, and 951 entities in all. Applying this to an existing database re-pointed 21 edges and dropped the 4 variant entities on the next rebuild. A new variant needs the same review: add a row and say why.
 
 
 ## 1. Entity types used in Phase 2 (a subset of D2)
@@ -98,8 +108,9 @@ A rebuild of that data takes about 0.6 s and changes nothing. Ingesting the tabl
 `ok` is false when a blocking check (orphans, dead evidence, conflicts) finds anything; `check` then exits 1. Checks run on demand, not on a schedule.
 
 ## Known limitations
-Only what the tables record is extracted: no NLP extraction (D1), so no platforms, instruments or links from NTRS reports. Condition variables are the tables' own column names (`ambient_pressure_mmhg`, `percent_o2`), not unified physical quantities, so "pressure" in FLEX and SPICE are different entities. Fuels keep the tables' spellings: variants are flagged, never merged automatically. Graph RAG (using the graph in chat retrieval, `docs/ai/graph-rag.md`) is not built. The consistency checks are not scheduled.
+Only what the tables record is extracted: no NLP extraction (D1), so no platforms, instruments or links from NTRS reports. Condition variables are the tables' own column names (`ambient_pressure_mmhg`, `percent_o2`), not unified physical quantities, so "pressure" in FLEX and SPICE are different entities. Fuels keep the tables' spellings unless a reviewed alias says otherwise; new variants are flagged, never merged automatically. Graph RAG (using the graph in chat retrieval, `docs/ai/graph-rag.md`) is not built. The consistency checks are not scheduled.
 
 ## Changelog
+- 0.6.1 (2026-11-12): the four spelling variants resolved by reviewed aliases (Lead's approval); 55 fuels, 951 entities.
 - 0.6.0 (2026-11-12): built (ADR-007): extractor, recursive-CTE traversal, consistency checks, audited merge, read API; §0 records what is extracted and the counts.
 - 0.5.0 (2026-10-12): schema and rules; tables created by `0004`.

@@ -5169,7 +5169,7 @@
                 },
                 "examples": {
                   "report": {
-                    "summary": "Values from the knowledge graph built from the committed PSI tables on 2026-11-12 (`python -m flame_api.knowledge_graph build`); request_id and timestamps are illustrative. One example per check.",
+                    "summary": "Values from the knowledge graph built from the committed PSI tables on 2026-11-12, with the reviewed spelling aliases (`python -m flame_api.knowledge_graph build`); request_id and timestamps are illustrative. One example per check.",
                     "value": {
                       "ok": true,
                       "extractor_version": "psi-tables-graph-1.0.0",
@@ -5185,24 +5185,9 @@
                           "examples": []
                         },
                         "duplicate_entities": {
-                          "count": 4,
+                          "count": 0,
                           "blocking": false,
-                          "examples": [
-                            {
-                              "entity_type": "fuel",
-                              "collision_key": "14blackrod",
-                              "entities": [
-                                {
-                                  "entity_id": "1E797ZH1FHXNXG8GZ3VKSRS0AZ",
-                                  "canonical_name": "1/4\" black rod"
-                                },
-                                {
-                                  "entity_id": "7C8T7K4PDBWJ9M3XCAFW0J2CGJ",
-                                  "canonical_name": "1/4 black rod"
-                                }
-                              ]
-                            }
-                          ]
+                          "examples": []
                         },
                         "conflicting_relations": {
                           "count": 0,
@@ -5216,8 +5201,8 @@
                         }
                       },
                       "meta": {
-                        "request_id": "req_cb8b925acc8d480f8795e7e4d267c33d",
-                        "generated_at": "2026-11-12T05:55:48.134494Z",
+                        "request_id": "req_17ea0d6d1ad04aedbedba7e3482a61a9",
+                        "generated_at": "2026-11-12T10:20:57.805367Z",
                         "api_version": "0.6.0"
                       }
                     }

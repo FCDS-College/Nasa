@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Lead (Anas) | Current | 1.4.0 | 2026-11-12 | M12, L-1 | — |
+| Lead (Anas) | Current | 1.4.1 | 2026-11-12 | M12, L-1 | — |
 
 Template: **Title, Status (proposed/accepted/superseded), Date, Context, Decision, Alternatives considered, Consequences, Links.**
 ADRs are immutable. A changed decision gets a new ADR that supersedes the old one, and the old one's status is changed to `superseded by ADR-NNN`; nothing else in it is edited.
@@ -32,8 +32,8 @@ The 1.3.0 table listed what was missing on `main` at `73b014b`. Each item is now
 
 | ADR | Built on 2026-11-12 | Still not built, and why |
 |---|---|---|
-| 006 | `ai/rag/retrieval/search_stack.py` orders every `/api/search` (and through it `/api/chat`) result: query rewrite kept next to the original, RRF, and the cross-encoder reranker through the router's `rerank` task (`FLAME_RERANKER_ENABLED`). The API's inline ranking is retired. ADR-006's benchmark gate was met: identical top 5 on all 26 gold questions. The reranker gives hit@1 0.81 → 0.88 ([retrieval-2026-11-12.md](../../evaluation/reports/retrieval-2026-11-12.md)). | The reranker is off by default (about 0.5 s per search on CPU; gold set not human-reviewed). The library's in-memory `RAGRetrievalPipeline` / `FlameRAGService` are not on the serving path; whether to retire them is Eman's call. |
-| 007 | `flame_api/knowledge_graph.py`: 955 entities and 10,683 evidence-cited `table_parse` edges from the PSI tables and ISA-Tab records, rebuilt at every ingest. Also: recursive-CTE traversal (`GET /api/graph/entities/{id}`), the five E2-6 consistency checks (`GET /api/admin/graph/consistency`) and audited merges ([E2-6 §0](../../data/KNOWLEDGE_GRAPH_SCHEMA.md)). | No NLP extraction (D1), so no platforms, instruments or NTRS links. Graph RAG in chat is not built. Checks run on demand, not on a schedule. |
+| 006 | `ai/rag/retrieval/search_stack.py` orders every `/api/search` (and through it `/api/chat`) result: query rewrite kept next to the original, RRF, and the cross-encoder reranker through the router's `rerank` task (`FLAME_RERANKER_ENABLED`). The API's inline ranking is retired. ADR-006's benchmark gate was met: identical top 5 on all 26 gold questions. The reranker (fastembed ONNX, on by default since PR #30) gives hit@1 0.81 → 0.88 ([retrieval-2026-11-12.md](../../evaluation/reports/retrieval-2026-11-12.md)). | The reranker costs about 0.7 s per search on CPU, and the gold set it was measured on is not human-reviewed. The library's in-memory `RAGRetrievalPipeline` / `FlameRAGService` are not on the serving path; whether to retire them is Eman's call. |
+| 007 | `flame_api/knowledge_graph.py`: 951 entities and 10,683 evidence-cited `table_parse` edges from the PSI tables and ISA-Tab records, rebuilt at every ingest. Also: recursive-CTE traversal (`GET /api/graph/entities/{id}`), the five E2-6 consistency checks (`GET /api/admin/graph/consistency`) and audited merges ([E2-6 §0](../../data/KNOWLEDGE_GRAPH_SCHEMA.md)). | No NLP extraction (D1), so no platforms, instruments or NTRS links. Graph RAG in chat is not built. Checks run on demand, not on a schedule. |
 | 008 | Video jobs checkpoint to `video_checkpoint_frame` every segment and resume after `worker recover`; the result is identical to an uninterrupted run (tested). `POST /api/analyses/{id}/cancel`, with `progress` on the analysis (L-6 1.1.0). | Image jobs are not checkpointed (they take seconds). An RQ timeout still fails a video job rather than leaving it to resume. |
 | 009 | An `admin` scope for every `/api/admin/` route; a `write` key gets 403 there. Admin keys must name an `--owner` (migration `0008`), so each audited actor maps to one person (SECURITY.md 0.7.0). | Owners are free text, not verified identities (no identity provider, by design). The deprecated write token is still an admin credential until it is removed. |
 
@@ -50,3 +50,4 @@ The 1.3.0 table listed what was missing on `main` at `73b014b`. Each item is now
 - 1.2.0 (2026-11-07): sign-offs recorded for ADR-001 to 012 (Lead's confirmation); ADR-011 and 012 Accepted.
 - 1.3.0 (2026-11-07): ADR-006 to 009 Accepted on the Lead's instruction; their implementation state recorded; "Accepted" redefined as approved, not necessarily built.
 - 1.4.0 (2026-11-12): ADR-006 to 009 built (PR #29); the implementation table now records what was built and what is still open.
+- 1.4.1 (2026-11-12): reranker on by default; reviewed spelling aliases in the graph (951 entities).
