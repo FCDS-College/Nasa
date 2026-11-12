@@ -34,6 +34,9 @@ Reading the tables: *Required = yes* means the key is always present. A nullable
 | GET | `/api/investigations/{investigation_id}` | 200 [`InvestigationResponse`](#investigationresponse) | 400, 401, 403, 404, 429, 500, 503 |
 | GET | `/api/insights` | 200 [`InsightListResponse`](#insightlistresponse) | 400, 401, 403, 429, 500, 503 |
 | GET | `/api/insights/flex-outcome` | 200 [`FlexOutcomeResponse`](#flexoutcomeresponse) | 400, 401, 403, 429, 500, 503 |
+| GET | `/api/graph/entities` | 200 [`GraphEntityListResponse`](#graphentitylistresponse) | 400, 401, 403, 429, 500, 503 |
+| GET | `/api/graph/entities/{entity_id}` | 200 [`GraphEntityResponse`](#graphentityresponse) | 400, 401, 403, 404, 429, 500, 503 |
+| GET | `/api/admin/graph/consistency` | 200 [`GraphConsistencyResponse`](#graphconsistencyresponse) | 400, 401, 403, 429, 500, 503 |
 
 ## 2. Object schemas
 
@@ -254,6 +257,32 @@ FLEX outcome model estimate (claim class `estimated`). `probabilities` is null o
 | `model` | object | yes |  |
 | `claim_class` | string | yes |  |
 | `scope` | string | yes |  |
+| `meta` | [`ResponseMeta`](#responsemeta) | yes |  |
+
+### GraphEntityListResponse
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `items` | [`GraphEntity`](#graphentity)[] | yes |  |
+| `pagination` | [`Pagination`](#pagination) | yes |  |
+| `meta` | [`ResponseMeta`](#responsemeta) | yes |  |
+
+### GraphEntityResponse
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `entity` | [`GraphEntity`](#graphentity) | yes |  |
+| `resolved_from` | string (ULID) \| `null` | yes | The requested ID when it was merged into `entity` (old IDs keep resolving); null otherwise. |
+| `neighbourhood` | [`GraphNeighbourhood`](#graphneighbourhood) | yes |  |
+| `meta` | [`ResponseMeta`](#responsemeta) | yes |  |
+
+### GraphConsistencyResponse
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `ok` | boolean | yes |  |
+| `extractor_version` | string | yes |  |
+| `checks` | object | yes |  |
 | `meta` | [`ResponseMeta`](#responsemeta) | yes |  |
 
 ### VersionInfo
@@ -675,6 +704,44 @@ A cabin atmosphere. Quoted or derived values cite NASA/TM-2008-215260 p. 5; `use
 | `co2_fraction` | number | no |  |
 | `he_fraction` | number | no |  |
 
+### GraphEntity
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `entity_id` | string (ULID) | yes | `stable_ulid(entity_type + ":" + canonical_name)`; stable across rebuilds. |
+| `entity_type` | [`GraphEntityType`](#graphentitytype) | yes |  |
+| `canonical_name` | string | yes | Lower-cased, whitespace-collapsed name (the resolution key). |
+| `display_name` | string | yes | The spelling the source first used. |
+| `aliases` | string[] | yes | Other spellings resolved to this entity, including merged entities' names. |
+| `properties` | object | yes | Type-specific: `psi_id` (investigation); `experiment_id`, `test_id`, `investigation`, `gravity_regime` (experiment); `unit_si` (condition_variable); `document_id`, `title` (document). |
+| `source_id` | string \| `null` | yes |  |
+| `evidence_ids` | string (ULID)[] | yes | Evidence that identifies the entity itself (e.g. the test-ID cell). |
+| `review_status` | [`GraphReviewStatus`](#graphreviewstatus) | yes |  |
+| `merged_into` | string (ULID) \| `null` | yes | Set on an entity merged into another; listings omit merged entities. |
+| `knowledge_version` | string \| `null` | yes |  |
+| `depth` | integer (minimum=0) | no | Hops from the requested entity (neighbourhood only). |
+| `relation_count` | integer (minimum=0) | no | Non-rejected relations touching the entity (listing only). |
+
+### GraphNeighbourhood
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `depth` | integer (minimum=1, maximum=3) | yes |  |
+| `predicates` | [`GraphPredicate`](#graphpredicate)[] | yes | Predicates followed; empty means all. |
+| `entities` | [`GraphEntity`](#graphentity)[] | yes | The requested entity and the endpoints of the returned edges, nearest first. |
+| `edges` | [`GraphEdge`](#graphedge)[] | yes | Edges among reachable entities, nearest first, at most `max_edges`. |
+| `truncated` | boolean | yes | True when more edges were reachable than `max_edges`. |
+| `reachable_entities` | integer (minimum=1) | yes | Every entity within `depth` hops, including the requested one, before truncation. |
+| `reachable_by_type` | object | yes |  |
+
+### GraphConsistencyCheck
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `count` | integer (minimum=0) | yes |  |
+| `blocking` | boolean | yes | A blocking check with a non-zero count makes `ok` false; a non-blocking one lists candidates for human review. |
+| `examples` | object[] (maxItems=20) | yes |  |
+
 ### ServiceHealth
 
 | Field | Type | Required | Description |
@@ -972,6 +1039,21 @@ One ISA-Tab section (Objective, Hypothesis, Approach, Research impacts), verbati
 | `text` | string | yes |  |
 | `evidence_id` | string | yes |  |
 
+### GraphEdge
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `relation_id` | string (ULID) | yes |  |
+| `subject_id` | string (ULID) | yes |  |
+| `predicate` | [`GraphPredicate`](#graphpredicate) | yes |  |
+| `object_id` | string (ULID) | yes |  |
+| `evidence_id` | string (ULID) \| `null` | yes | The evidence row the edge was read from; resolves at `GET /api/evidence/{evidence_id}`. Null only for `manual` edges. |
+| `extraction_method` | `"table_parse"` \| `"nlp_extraction"` \| `"manual"` | yes |  |
+| `extractor_version` | string \| `null` | yes |  |
+| `confidence` | number \| `null` (minimum=0, maximum=1) | yes | 1.0 for deterministic table parses. |
+| `review_status` | [`GraphReviewStatus`](#graphreviewstatus) | yes |  |
+| `properties` | object | yes | For `has_condition`: `value_si`, `unit_si`, `value_numeric`, `value_text`, `unit_original`, `origin` of the cell. |
+
 ### Calibration
 
 | Field | Type | Required | Description |
@@ -1229,7 +1311,7 @@ multipart/form-data body for POST /api/analyses.
 | <a id="aimodesource"></a>`AiModeSource` | `env`, `audit_override` | Where the effective `mode` comes from: `env` is FLAME_AI_EXECUTION_MODE; `audit_override` is the newest `ai.mode.changed` audit event (PUT /api/admin/ai/mode), which wins over env in every process until the next PUT. There is no clear operation yet. |
 | <a id="reviewstatus"></a>`ReviewStatus` | `raw`, `machine_extracted`, `human_verified`, `rejected` | Review state (data dictionary: review_status). The UI must visibly distinguish human_verified and must not render rejected evidence as support. |
 | <a id="adminreviewstatus"></a>`AdminReviewStatus` | `machine_extracted`, `human_verified`, `rejected` | The ReviewStatus values an administrator may set (`raw` is never a review outcome). |
-| <a id="errorcode"></a>`ErrorCode` | `VALIDATION_ERROR`, `UNAUTHORIZED`, `FORBIDDEN`, `ROUTE_NOT_FOUND`, `DOCUMENT_NOT_FOUND`, `EXPERIMENT_NOT_FOUND`, `EVIDENCE_NOT_FOUND`, `ANALYSIS_NOT_FOUND`, `ANALYSIS_NOT_CANCELLABLE`, `ARTIFACT_NOT_FOUND`, `ARTIFACT_NOT_READY`, `PAYLOAD_TOO_LARGE`, `UNSUPPORTED_MEDIA_TYPE`, `IMAGE_INVALID`, `UNKNOWN_EXPERIMENT`, `RATE_LIMITED`, `DATABASE_UNAVAILABLE`, `STORAGE_UNAVAILABLE`, `SEARCH_UNAVAILABLE`, `MODEL_UNAVAILABLE`, `QUEUE_UNAVAILABLE`, `AURA_UNAVAILABLE`, `INTERNAL_ERROR`, `AUTHENTICATION_REQUIRED`, `CHAT_UNAVAILABLE`, `METHOD_NOT_ALLOWED`, `VIDEO_INVALID`, `FILE_NOT_FOUND`, `FILE_NOT_QUARANTINED`, `INVESTIGATION_NOT_FOUND` | Stable machine-readable error code. The frontend switches on this, never on `message`. AURA_UNAVAILABLE is deprecated since 0.2.0: chat now degrades to an evidence-only answer instead. |
+| <a id="errorcode"></a>`ErrorCode` | `VALIDATION_ERROR`, `UNAUTHORIZED`, `FORBIDDEN`, `ROUTE_NOT_FOUND`, `DOCUMENT_NOT_FOUND`, `EXPERIMENT_NOT_FOUND`, `EVIDENCE_NOT_FOUND`, `ANALYSIS_NOT_FOUND`, `ENTITY_NOT_FOUND`, `ANALYSIS_NOT_CANCELLABLE`, `ARTIFACT_NOT_FOUND`, `ARTIFACT_NOT_READY`, `PAYLOAD_TOO_LARGE`, `UNSUPPORTED_MEDIA_TYPE`, `IMAGE_INVALID`, `UNKNOWN_EXPERIMENT`, `RATE_LIMITED`, `DATABASE_UNAVAILABLE`, `STORAGE_UNAVAILABLE`, `SEARCH_UNAVAILABLE`, `MODEL_UNAVAILABLE`, `QUEUE_UNAVAILABLE`, `AURA_UNAVAILABLE`, `INTERNAL_ERROR`, `AUTHENTICATION_REQUIRED`, `CHAT_UNAVAILABLE`, `METHOD_NOT_ALLOWED`, `VIDEO_INVALID`, `FILE_NOT_FOUND`, `FILE_NOT_QUARANTINED`, `INVESTIGATION_NOT_FOUND` | Stable machine-readable error code. The frontend switches on this, never on `message`. AURA_UNAVAILABLE is deprecated since 0.2.0: chat now degrades to an evidence-only answer instead. |
 | <a id="searchresulttype"></a>`SearchResultType` | `document`, `experiment` | document: a matched passage inside a parsed document (carries a page/section locator). experiment: a matched experiment/test record. |
 | <a id="documenttype"></a>`DocumentType` | `technical_report`, `publication`, `test_plan`, `requirements`, `final_report`, `thesis`, `dataset_documentation`, `other` | Document classification assigned at ingestion. |
 | <a id="searchdomain"></a>`SearchDomain` | `combustion`, `all` | combustion (default) excludes non-combustion sources such as FF-PSI-DSI (DAY2_TASKS domain filter rule). all disables that filter. |
@@ -1245,6 +1327,9 @@ multipart/form-data body for POST /api/analyses.
 | <a id="calibrationstate"></a>`CalibrationState` | `absent`, `spatial_scale_provided` | absent: measurements are pixels only. spatial_scale_provided: caller supplied px-per-mm, enabling ESTIMATED physical lengths/areas. No radiometric calibration state exists in v0.1, so temperature is never produced. |
 | <a id="filestatus"></a>`FileStatus` | `active`, `quarantined` | file_record.status (M9). A quarantined file is kept for review but never parsed or indexed. |
 | <a id="insightkind"></a>`InsightKind` | `measured_statistic`, `model_estimate`, `coverage_gap` | measured_statistic: computed from flight-test rows. model_estimate: from the FLEX outcome model (claim class estimated). coverage_gap: what the data does not cover. |
+| <a id="graphentitytype"></a>`GraphEntityType` | `investigation`, `experiment`, `fuel`, `condition_variable`, `phenomenon`, `document` | E2-6 entity types. `fuel` covers fuels and solid materials, as written in the source tables. |
+| <a id="graphreviewstatus"></a>`GraphReviewStatus` | `unreviewed`, `human_verified`, `rejected` |  |
+| <a id="graphpredicate"></a>`GraphPredicate` | `part_of`, `uses_fuel`, `has_condition`, `observed`, `describes` |  |
 | <a id="servicestatus"></a>`ServiceStatus` | `up`, `degraded`, `down`, `disabled`, `unknown` | disabled: intentionally not configured in this deployment (e.g. AURA in the MVP). unknown: the probe has not run or timed out. |
 | <a id="repository"></a>`Repository` | `NASA PSI`, `NASA NTRS`, `NASA Science`, `NASA Open Data`, `NASA GRC FCF`, `Other` | Canonical repository family. Identical to `repository` in datasets/registry/source_registry.schema.json. |
 | <a id="locatortype"></a>`LocatorType` | `page`, `section`, `table_row`, `frame`, `file` | What kind of position `Locator` points at (data dictionary: location_type). |

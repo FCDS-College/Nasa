@@ -1,6 +1,6 @@
 # ADR-007: Graph storage — relational tables first
 
-- **Status:** Accepted (2026-11-07). Decision owners: Anas (E2) with the Lead and Eman (E1). Accepted on the Lead's instruction; the owners' approval is recorded in ADR index 1.2.0. Partly implemented: see ADR index 1.3.0.
+- **Status:** Accepted (2026-11-07). Decision owners: Anas (E2) with the Lead and Eman (E1). Accepted on the Lead's instruction; the owners' approval is recorded in ADR index 1.2.0. Implemented in PR #29 (2026-11-12): see ADR index 1.4.0 for what is built and what is still open.
 - **Date:** 2026-10-12
 
 ## Context

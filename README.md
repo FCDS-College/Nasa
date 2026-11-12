@@ -17,7 +17,7 @@ Pick a spacecraft cabin atmosphere (ISS air, pre-EVA, Orion, a lunar lander, or 
 | How it is built | [FINAL_ARCHITECTURE.md](FINAL_ARCHITECTURE.md) |
 | What was tested | [FINAL_TEST_REPORT.md](FINAL_TEST_REPORT.md) |
 | Model card | [docs/evaluation/reports/flex-outcome-model.md](docs/evaluation/reports/flex-outcome-model.md) |
-| API contract | [docs/api/openapi.json](docs/api/openapi.json) (0.5.0) · [changelog](docs/api/CHANGELOG.md) |
+| API contract | [docs/api/openapi.json](docs/api/openapi.json) (0.6.0) · [changelog](docs/api/CHANGELOG.md) |
 | AURA integration | [docs/integration/README.md](docs/integration/README.md) |
 | All documentation | [docs/README.md](docs/README.md) |
 

@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Team Flame in Freefall | Current (submission) | 1.0.0 | 2026-11-07 | T7 | `apps/web`, `apps/api`, `ai/fire_safety` |
+| Team Flame in Freefall | Current (submission, facts updated) | 1.0.1 | 2026-11-12 | T7 | `apps/web`, `apps/api`, `ai/fire_safety` |
 
 NASA Space Apps Challenge 2026 · Challenge: *Flame in Freefall*
 
@@ -37,7 +37,7 @@ NASA has flown decades of combustion experiments (BASS, FLEX, Saffire, SPICE, AC
 - **The question is the atmosphere, not the experiment.** We turn decades of experiment records into an answer to the designer's actual question: which flight data covers *this* cabin, and what did it show?
 - **Honesty is a feature.** Coverage-gap cards are first-class results. Example: *"No solid-material test in BASS-II is at 34 % O₂"*. So is the model's refusal to answer for the lunar-lander pressure. Absence of data is never shown as absence of risk.
 - **Every claim is one click from NASA's own cell.** The dashboard ↔ evidence ↔ source table chain is enforced in code and tested.
-- **The same API serves people and AI agents.** The four fire-safety operations compile into AURA agent tools (14 tools accepted by AURA's contract dry run).
+- **The same API serves people and AI agents.** The four fire-safety operations compile into AURA agent tools (16 tools accepted by AURA's contract dry run, including two knowledge-graph reads).
 
 ## 4. Workflow
 
@@ -45,7 +45,7 @@ NASA has flown decades of combustion experiments (BASS, FLEX, Saffire, SPICE, AC
 NASA PSI tables + ISA-Tab metadata + NTRS reports + flight video
    → ingest (cell-level evidence, OCR for broken PDFs) → PostgreSQL + pgvector
    → fire-safety analytics (canonical variables, ranking, insights, outcome model)
-   → REST API (contract 0.5.0) → dashboard / outcome explorer / cited chat / AURA tools
+   → REST API (contract 0.6.0) → dashboard / outcome explorer / cited chat / AURA tools
 ```
 
 ## 5. AI and analytical methods
@@ -91,3 +91,4 @@ NASA PSI tables + ISA-Tab metadata + NTRS reports + flight video
 
 ## Changelog
 - 1.0.0 (2026-11-07): submission version.
+- 1.0.1 (2026-11-12): contract 0.6.0 and AURA tool count (16) after PR #29.

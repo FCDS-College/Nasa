@@ -30,6 +30,7 @@ from flame_api.database import engine, get_session
 from flame_api.admin import AdminScopeRequired, admin_scope_required_handler, router as admin_router
 from flame_api.analysis import router as analysis_router
 from flame_api.investigations import router as investigations_router
+from flame_api.graph import admin_router as graph_admin_router, router as graph_router
 from ai.providers.contracts.errors import ProviderError
 from ai.routing import ExecutionMode, NoCompatibleProvider
 from flame_api import ai_runtime, answer_cache, clients, rate_limit, telemetry
@@ -53,6 +54,8 @@ app = FastAPI(
 app.include_router(analysis_router)
 app.include_router(admin_router)
 app.include_router(investigations_router)
+app.include_router(graph_router)
+app.include_router(graph_admin_router)
 app.add_exception_handler(AdminScopeRequired, admin_scope_required_handler)
 telemetry.setup(settings.otel_service_name, enabled=settings.otel_enabled)
 

@@ -1,6 +1,6 @@
 # ADR-006: One retrieval stack
 
-- **Status:** Accepted (2026-11-07). Owner of the decision: Eman (E1), with the Lead. Accepted on the Lead's instruction; Eman's approval is recorded in ADR index 1.2.0. Partly implemented: see ADR index 1.3.0.
+- **Status:** Accepted (2026-11-07). Owner of the decision: Eman (E1), with the Lead. Accepted on the Lead's instruction; Eman's approval is recorded in ADR index 1.2.0. Implemented in PR #29 (2026-11-12): see ADR index 1.4.0 for what is built and what is still open.
 - **Date:** 2026-10-12
 
 ## Context
