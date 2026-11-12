@@ -88,7 +88,22 @@ await step("07-analysis-video", async () => {
   await visible("Flame persistence");
 });
 
-await step("08-status", async () => {
+await step("08-knowledge-graph", async () => {
+  await page.goto(`${BASE}/knowledge`);
+  await page.getByRole("button", { name: /^FLEX/ }).first().click();
+  await visible("is part of");
+  // FLEX -> one of its flight tests -> the outcome that test ended in, then two hops to the fuels burned.
+  await page.getByRole("button", { name: "Outcomes" }).click();
+  await page.getByRole("button", { name: /^Extinction/ }).first().click();
+  await page.getByRole("button", { name: "2", exact: true }).click();
+  await page.getByRole("button", { name: "ended in" }).click();
+  await page.getByRole("button", { name: "burned" }).click();
+  await page.getByRole("button", { name: /^Show all/ }).first().click();   // the "burned" group comes first
+  await visible("Heptane");
+  await visible("Methanol");
+});
+
+await step("09-status", async () => {
   await page.goto(`${BASE}/status`);
   await visible("database");
 });

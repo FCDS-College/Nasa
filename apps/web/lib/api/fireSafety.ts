@@ -156,9 +156,18 @@ export class ApiError extends Error {
   }
 }
 
-async function get<T>(path: string, query: Record<string, string | number | undefined> = {}): Promise<T> {
+// Shared by every client that goes through the read-only proxy. An array value repeats the parameter
+// (`predicate=a&predicate=b`), as the contract's `explode: true` list parameters expect.
+export async function get<T>(
+  path: string,
+  query: Record<string, string | number | readonly string[] | undefined> = {},
+): Promise<T> {
   const params = new URLSearchParams();
-  for (const [k, v] of Object.entries(query)) if (v !== undefined && v !== "") params.set(k, String(v));
+  for (const [k, v] of Object.entries(query)) {
+    if (v === undefined || v === "") continue;
+    if (Array.isArray(v)) v.forEach((item) => params.append(k, item));
+    else params.set(k, String(v));
+  }
   const qs = params.toString();
   const res = await fetch(`${API_BASE}/api/${path}${qs ? `?${qs}` : ""}`, { cache: "no-store" });
   if (!res.ok) {

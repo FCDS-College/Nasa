@@ -18,6 +18,7 @@ import {
   Activity,
   FileSearch,
   History,
+  Network,
 } from "lucide-react";
 
 // Primary navigation: every page a judge needs is one click away.
@@ -27,6 +28,7 @@ const NAV = [
   { href: "/experiments", label: "Flight Test Browser", icon: Sparkles },
   { href: "/chat", label: "Ask the NASA Corpus", icon: MessageSquare },
   { href: "/search", label: "Search Evidence", icon: FileSearch },
+  { href: "/knowledge", label: "Knowledge Graph", icon: Network },
   { href: "/analysis", label: "Image & Video Analysis", icon: Microscope },
   { href: "/history", label: "Analysis History", icon: History },
   { href: "/status", label: "System Status", icon: Activity },

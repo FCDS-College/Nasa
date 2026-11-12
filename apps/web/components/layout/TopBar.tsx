@@ -21,7 +21,7 @@ export function TopBar() {
   const PAGE_TITLES: [string, string][] = [
     ["/explorer", "Flame Outcome Explorer"], ["/investigations", "Investigation"], ["/experiments", "Flight Test Browser"],
     ["/search", "Search Evidence"], ["/analysis", "Image & Video Analysis"], ["/history", "Analysis History"],
-    ["/evidence", "Evidence"], ["/status", "System Status"], ["/knowledge", "Knowledge"],
+    ["/evidence", "Evidence"], ["/status", "System Status"], ["/knowledge", "Knowledge Graph"],
   ];
   const title = pathname === "/" ? "Fire Safety Dashboard"
     : pathname.startsWith("/chat") ? (activeSession?.title || "Ask the NASA Corpus")

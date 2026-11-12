@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Lead (Anas) | Current (as merged on `main` at `f191bad`) | 1.2.0 | 2026-11-12 | final challenge plan T1–T7, I7–I11, ADR-006–009 | whole repository |
+| Lead (Anas) | Current | 1.3.0 | 2026-11-12 | final challenge plan T1–T7, I7–I11, ADR-006–009 | whole repository |
 
 **Challenge.** NASA Space Apps 2026, *Flame in Freefall: AI-powered fire-safety insights from microgravity combustion data*: summarize, rank and explain NASA microgravity combustion results to inform fire safety for Moon and Mars missions.
 
@@ -30,6 +30,7 @@
 | Contract 0.6.0, AURA Link 2 dry run (16 tools); AURA's own runbook updated to match (AURA-AI #232) | COMPLETE |
 | ADR-006 to 009 built (PR #29): one `ai/rag` search stack, knowledge graph from the PSI tables, video checkpoints and cancellation, admin scope | COMPLETE |
 | Reranker on by default (fastembed ONNX, top 10) and four reviewed material spellings resolved in the graph (PR #30) | COMPLETE |
+| Knowledge Graph page in the web app (`/knowledge`): browse entities, walk links, open the evidence behind each | COMPLETE |
 | Demo runbook, demo data script, browser smoke test | COMPLETE |
 
 ## 2. Remaining limitations
@@ -50,7 +51,6 @@
 | No LLM verified in this environment; chat answers not evaluated | Medium | Ollama via compose profile `local-llm`; the UI falls back to cited evidence |
 | Lexical-only search is weak for full questions (16/26 return nothing) | Medium (only without embeddings) | Vector index built at start-up |
 | Reranking adds about 0.7 s per search on CPU (chat runs up to six searches), and the first search downloads its model (~90 MB) | Medium | `python -m ai.providers.local.cross_encoder prepare` before the demo; `FLAME_RERANKER_ENABLED=false` to turn it off |
-| The web Knowledge page still says the graph is not available; it is not wired to `GET /api/graph/*` | Medium | Use the API or AURA's two graph tools; wiring the page is open work |
 | A client key with only write scope gets 403 on `/api/admin/*` | Low (by design, ADR-009) | Create an admin key with `--owner`; the deprecated write token still works |
 | Gold set and labels authored with AI assistance | Medium | Human review (Ziad, Eman) |
 | `next start` warns about `output: standalone` | Low | Works; or `node .next/standalone/server.js` |
@@ -72,4 +72,5 @@ After submission (2026-11-07 to 2026-11-12):
 ## Changelog
 - 1.0.0 (2026-11-07): final status for submission.
 - 1.1.0 (2026-11-12): contract 0.6.0 and the ADR-006 to 009 builds (PR #29).
+- 1.3.0 (2026-11-12): the Knowledge Graph page; its known issue removed.
 - 1.2.0 (2026-11-12): PR #30 (reranker default, graph aliases) and AURA-AI #232 merged; new known issues; post-submission decisions.

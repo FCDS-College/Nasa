@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Anas (E2) | Current: built from the PSI tables (peer sign-off: Eman E1) | 0.6.1 | 2026-11-12 | D2, D3, D6, ADR-007 | `apps/api/flame_api/knowledge_graph.py`, `graph.py`; tables `knowledge_entity`, `knowledge_relation` (migration `0004`) |
+| Anas (E2) | Current: built from the PSI tables (peer sign-off: Eman E1) | 0.6.2 | 2026-11-12 | D2, D3, D6, ADR-007 | `apps/api/flame_api/knowledge_graph.py`, `graph.py`; tables `knowledge_entity`, `knowledge_relation` (migration `0004`) |
 
 Storage decision: [ADR-007](../architecture/adr/ADR-007-graph-storage.md) (Accepted). Relational tables in PostgreSQL first.
 
@@ -37,6 +37,7 @@ A rebuild of that data takes about 0.6 s and changes nothing. Ingesting the tabl
 - `GET /api/graph/entities?type=&q=` (read scope): live entities, with relation counts.
 - `GET /api/graph/entities/{id}?depth=1..3&predicate=…&max_edges=` (read scope): the entity and its neighbourhood, found with one `WITH RECURSIVE` CTE over both edge directions. It follows `merged_into`, skips rejected edges, returns nearest first, and reports `truncated` and `reachable_by_type`. Example: from `extinction`, two hops over `observed` and `uses_fuel` reach the 186 FLEX tests that ended in extinction and their two fuels, heptane and methanol (24 ms on PostgreSQL).
 - Both are AURA tools at contract 0.6.0 (`api_list_graph_entities`, `api_get_graph_entity`).
+- The web app's **Knowledge Graph** page (`/knowledge`) browses them: filter by type, search names and aliases, open an entity, walk 1–2 hops by link type, and open the evidence cell behind every link.
 
 **Checking and merging.**
 - `python -m flame_api.knowledge_graph check`, or `GET /api/admin/graph/consistency` (admin scope), runs §5. Today all five checks find nothing. The check first found 4 duplicate candidates, which are real spelling variants in the source tables. The Lead approved resolving them on 2026-11-12 (`CURATED_ALIASES` below).
@@ -111,6 +112,7 @@ A rebuild of that data takes about 0.6 s and changes nothing. Ingesting the tabl
 Only what the tables record is extracted: no NLP extraction (D1), so no platforms, instruments or links from NTRS reports. Condition variables are the tables' own column names (`ambient_pressure_mmhg`, `percent_o2`), not unified physical quantities, so "pressure" in FLEX and SPICE are different entities. Fuels keep the tables' spellings unless a reviewed alias says otherwise; new variants are flagged, never merged automatically. Graph RAG (using the graph in chat retrieval, `docs/ai/graph-rag.md`) is not built. The consistency checks are not scheduled.
 
 ## Changelog
+- 0.6.2 (2026-11-12): the web Knowledge Graph page reads the graph API.
 - 0.6.1 (2026-11-12): the four spelling variants resolved by reviewed aliases (Lead's approval); 55 fuels, 951 entities.
 - 0.6.0 (2026-11-12): built (ADR-007): extractor, recursive-CTE traversal, consistency checks, audited merge, read API; §0 records what is extracted and the counts.
 - 0.5.0 (2026-10-12): schema and rules; tables created by `0004`.

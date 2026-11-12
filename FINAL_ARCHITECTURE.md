@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Lead (Anas) | Current (as merged on `main` at `f191bad`) | 1.1.2 | 2026-11-12 | T7, ADR-006–009 | whole repository |
+| Lead (Anas) | Current | 1.1.3 | 2026-11-12 | T7, ADR-006–009 | whole repository |
 
 Detailed, older material: [docs/architecture/overview.md](docs/architecture/overview.md) (Phase 2, Part A), [ADRs](docs/architecture/adr/README.md), [hybrid AI](docs/hybrid-ai/PHASE_2_HYBRID_AI_ARCHITECTURE.md). This file describes the system that answers the Space Apps challenge.
 
@@ -27,7 +27,7 @@ FastAPI apps/api (contract docs/api/openapi.json 0.6.0, per-client keys with rea
                    video checkpoints per segment, resume after recovery; POST /api/analyses/{id}/cancel
         │
 Next.js apps/web ── server-side read-only proxy (app/api/[...path]) holding the read key
-  /  dashboard · /investigations/[id] · /explorer · /experiments · /chat · /search · /analysis · /history · /evidence · /status
+  /  dashboard · /investigations/[id] · /explorer · /experiments · /chat · /search · /knowledge · /analysis · /history · /evidence · /status
         │
 AURA (optional, separate system) ── compiles the read-only GET operations into 16 agent tools (Link 2)
 Local models (optional) ── Ollama / llama.cpp / vLLM behind ai/routing (modes: cloud_preferred · local_first · offline_only)
@@ -96,11 +96,12 @@ Local models (optional) ── Ollama / llama.cpp / vLLM behind ai/routing (mode
 - Single API replica: the answer cache and the investigations cache are in-process.
 - The relevance formula's weights are a documented design choice, not fitted to outcomes ([ADR-011](docs/architecture/adr/ADR-011-scenario-relevance-ranking.md); the ranking order is unchanged under ±50 % weight changes).
 - The reranker is on by default: +0.08 hit@1 on an unreviewed 26-question set, at about 0.7 s per search on CPU, and its model downloads on first use ([retrieval-2026-11-12.md](docs/evaluation/reports/retrieval-2026-11-12.md)).
-- The knowledge graph holds only what the tables record (no NLP extraction); Graph RAG in chat is not built. The web app's Knowledge page is not wired to `/api/graph/*` yet and still says the graph is unavailable.
+- The knowledge graph holds only what the tables record (no NLP extraction); Graph RAG in chat is not built. The web app's Knowledge Graph page (`/knowledge`) shows at most 200 links per view (nearest first) and walks at most 2 hops.
 
 ## Changelog
 - 1.0.0 (2026-11-07): first version.
 - 1.0.1 (2026-11-07): ADR-006 is Accepted and only partly implemented (ADR index 1.3.0).
+- 1.1.3 (2026-11-12): the Knowledge Graph page.
 - 1.1.2 (2026-11-12): states the merged revision; reranking in the system diagram.
 - 1.1.1 (2026-11-12): reranker on by default; reviewed graph aliases.
 - 1.1.0 (2026-11-12): ADR-006 to 009 built (PR #29): contract 0.6.0, admin scope, video checkpoints and cancel, the ai/rag search stack, the knowledge graph.

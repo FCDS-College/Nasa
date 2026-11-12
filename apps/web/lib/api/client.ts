@@ -5,7 +5,6 @@ import {
   SearchResponse,
   EvidenceRecord,
   AnalysisResult,
-  KnowledgeEntity,
   DashboardData,
   AnalysisSummary,
   ExperimentRecord,
@@ -183,10 +182,6 @@ export async function fetchAnalysis(id?: string): Promise<AnalysisResult | null>
 
 // The Flame API exposes no knowledge graph yet (docs/ai/graph-rag.md: Planned). Return nothing rather
 // than sample entities, so the page never shows invented "verified" relations or citations.
-export async function fetchKnowledge(): Promise<KnowledgeEntity[]> {
-  return [];
-}
-
 export async function fetchAnalysesHistory(): Promise<AnalysisSummary[]> {
   try {
     const body = await getJson("analyses?page_size=50");
