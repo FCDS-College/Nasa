@@ -25,6 +25,7 @@ knowledge_relation, memory, model, source, vector_index_manifest
 | `0005_api_clients` | `api_client` (per-client API keys: `client_id`, unique `name`, unique sha256 `key_hash`, `scopes`, `created_at`, `last_used_at`, `revoked_at`); keys are created with `python -m flame_api.clients` |
 | `0006_experiment_ingested_at` | `experiment.ingested_at` (TIMESTAMPTZ, nullable), create-if-missing; backfilled from the latest non-quarantine `ingestion_run.finished_at` of the experiment's table file, else that file's `retrieved_at`. Rows with neither stay NULL. Chains after `0005_api_clients`. |
 | `0007_chunk_search_tsv` | PostgreSQL only: `document_chunk.search_tsv` (TSVECTOR, `GENERATED ALWAYS AS (to_tsvector('english', text)) STORED`) with GIN index `ix_document_chunk_search_tsv`; drops `ix_document_chunk_full_text` from 0001. Not in the ORM model, so SQLite test databases do not have it |
+| `0008_api_client_owner` | `api_client.owner` (VARCHAR(128), nullable), add-if-missing: the person accountable for a key; required for `admin` keys (ADR-009 step 2). Existing clients keep their scopes and get no `admin`. |
 
 **Note.** `0001` builds from the live models. A brand-new database therefore gets the newest schema at `0001`, and later migrations must be idempotent, as `0004` is. An existing database gets the columns from `0004`. Both paths were verified to produce identical schemas (L-8 §2).
 

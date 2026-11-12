@@ -92,17 +92,18 @@ def test_admin_routes_need_the_write_token_for_reads_and_writes(client, corpus):
     assert client.get("/api/admin/files", headers=WRITE).status_code == 200
 
 
-def test_the_router_refuses_a_request_the_middleware_did_not_authorise_with_the_write_token(client):
+def test_the_router_refuses_a_request_the_middleware_did_not_authorise_for_admin(client):
     from flame_api import admin
 
-    class State:
-        token_scope = "read"
+    for scope in ("read", "write", None):
+        class State:
+            token_scope = scope
 
-    class Fake:
-        state = State()
+        class Fake:
+            state = State()
 
-    with pytest.raises(admin.WriteTokenRequired):
-        admin.require_write_token(Fake())
+        with pytest.raises(admin.AdminScopeRequired):
+            admin.require_admin_scope(Fake())
 
 
 def test_files_are_listed_with_their_quarantine_reason(client, corpus):

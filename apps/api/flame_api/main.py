@@ -27,7 +27,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from flame_api.config import get_settings
 from flame_api.contracts import error_body, response_meta
 from flame_api.database import engine, get_session
-from flame_api.admin import WriteTokenRequired, router as admin_router, write_token_required_handler
+from flame_api.admin import AdminScopeRequired, admin_scope_required_handler, router as admin_router
 from flame_api.analysis import router as analysis_router
 from flame_api.investigations import router as investigations_router
 from ai.routing import ExecutionMode, NoCompatibleProvider
@@ -52,7 +52,7 @@ app = FastAPI(
 app.include_router(analysis_router)
 app.include_router(admin_router)
 app.include_router(investigations_router)
-app.add_exception_handler(WriteTokenRequired, write_token_required_handler)
+app.add_exception_handler(AdminScopeRequired, admin_scope_required_handler)
 telemetry.setup(settings.otel_service_name, enabled=settings.otel_enabled)
 
 _CONTRACT_PATH = Path(__file__).resolve().parents[3] / "docs" / "api" / "openapi.json"
@@ -94,16 +94,17 @@ async def _authorized(request: Request, call_next):
     if not path.startswith("/api/") or public_metadata:
         return await call_next(request)
     # Chat only reads the corpus (and asks AURA), so read scope is enough for it; the web service
-    # never needs write scope. Admin data is not for the read tier: every /api/admin/ route, GETs
-    # included, needs write scope.
+    # never needs write scope. Admin data is neither for the read tier nor for every writer: every
+    # /api/admin/ route, GETs included, needs the admin scope (ADR-009 step 2).
     chat = request.method == "POST" and path == "/api/chat"
     admin = path.startswith("/api/admin/")
     reads = (request.method in {"GET", "HEAD"} and not admin) or chat
+    scope = "admin" if admin else "read" if reads else "write"
     if settings.api_auth_enabled:
-        identity = await _identify(request, "read" if reads else "write")
+        identity = await _identify(request, scope)
         if isinstance(identity, JSONResponse):
             return identity
-        request.state.token_scope = "read" if reads else "write"
+        request.state.token_scope = scope
     else:
         identity = "anonymous"
         request.state.token_scope = "unchecked"
@@ -119,13 +120,16 @@ async def _identify(request: Request, scope: str) -> str | JSONResponse:
     """The caller's identity, or the 401/403/503 to send instead (P2-1).
 
     A client key from `api_client` with the scope, or (deprecated) the env token for the scope.
+    The legacy write token also keeps its historical admin rights (ADR-009: tokens keep working as
+    service credentials); a client key reaches /api/admin/ only with the `admin` scope.
     """
     authorization = request.headers.get("Authorization", "")
     scheme, separator, supplied = authorization.partition(" ")
     if scheme.lower() == "bearer" and separator and supplied:
-        legacy = settings.read_api_token if scope == "read" else settings.write_api_token
+        tier = "read" if scope == "read" else "write"
+        legacy = settings.read_api_token if tier == "read" else settings.write_api_token
         if legacy is not None and compare_digest(supplied.encode(), legacy.get_secret_value().encode()):
-            return f"legacy-{scope}"
+            return f"legacy-{tier}"
         if clients.looks_like_client_key(supplied):
             try:
                 found = await run_in_threadpool(_lookup_client, supplied)
@@ -851,7 +855,7 @@ class ModeBody(BaseModel):
 
 @app.put("/api/admin/ai/mode", tags=["Admin"])
 def set_ai_mode(request: Request, body: ModeBody, session: Session = Depends(get_session)):
-    """Switch cloud_preferred / local_first / offline_only. Write scope; every change is audited."""
+    """Switch cloud_preferred / local_first / offline_only. Admin scope; every change is audited."""
     # The legacy write token keeps its historical actor name so existing audit queries still match.
     client = request.state.api_client
     actor = "write-token" if client in {None, "legacy-write"} else client

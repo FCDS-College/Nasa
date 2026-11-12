@@ -351,7 +351,8 @@ class ApiClient(Base):
     """One row per API caller (P2-1, ADR-009 step 2): `web`, `aura`, an operator's script.
 
     Only the SHA-256 of the key is stored; the key itself is printed once by
-    `python -m flame_api.clients create`. Scopes are `read` and/or `write`.
+    `python -m flame_api.clients create`. Scopes are any of `read`, `write` and `admin`; an `admin`
+    client always has an `owner`, the person accountable for what it does (ADR-009).
     """
 
     __tablename__ = "api_client"
@@ -360,6 +361,7 @@ class ApiClient(Base):
     name: Mapped[str] = mapped_column(String(64), unique=True)
     key_hash: Mapped[str] = mapped_column(String(64), unique=True)
     scopes: Mapped[list[str]] = mapped_column(JsonType, default=list)
+    owner: Mapped[str | None] = mapped_column(String(128), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

@@ -85,7 +85,7 @@ RESTORE_DATABASE_URL=postgresql://flame:…@host:5432/flame_restore RESTORE_S3_B
 The effective mode is `FLAME_AI_EXECUTION_MODE` **until anyone calls `PUT /api/admin/ai/mode`**. That call writes an `ai.mode.changed` audit row, and from then on every process (API replicas and the worker, re-read every 10 s) uses the newest such row and ignores the env variable, including after restarts and redeploys.
 
 - **See it:** `GET /api/ai/providers` (and the `ai` block of `GET /api/health`) report `mode`, `mode_source` (`env` or `audit_override`) and `env_mode` (what the env says). `mode_source: audit_override` with `mode` ≠ `env_mode` is why a changed env variable "did nothing". History: `select occurred_at, actor, before, after from audit_event where action = 'ai.mode.changed' order by occurred_at desc;`
-- **Return to the env value:** `PUT /api/admin/ai/mode` with `{"mode": "<env_mode>"}` (write token). There is no "clear" operation yet, so `mode_source` stays `audit_override`; a later env change still needs another PUT. Deleting the audit rows would also return to env, but the audit trail is meant to be kept, so don't.
+- **Return to the env value:** `PUT /api/admin/ai/mode` with `{"mode": "<env_mode>"}` (admin key, or the deprecated write token). There is no "clear" operation yet, so `mode_source` stays `audit_override`; a later env change still needs another PUT. Deleting the audit rows would also return to env, but the audit trail is meant to be kept, so don't.
 
 ## 6. Railway (`.railway/railway.py`, committed in `780d89b`)
 
@@ -140,6 +140,7 @@ docker compose -f infrastructure/compose.yaml up --build
 The Compose path, backup/restore and Railway steps have not been executed in this form. The acceptance criterion "executed from a clean machine by someone other than the Lead" is open.
 
 ## Changelog
+- Unreleased (ADR-009): the AI mode PUT needs an admin key.
 - Unreleased (P2-4, P2-5, P2-11): stuck-job recovery incident, AI mode override behaviour, backup scripts and the 2026-11-02 restore drill.
 - 0.9.1 (2026-10-14): restore drill and the production `0004` migration recorded.
 - 0.9.0 (2026-10-12): first runbook; operational steps moved here from `infrastructure/README.md` and `apps/api/README.md`.

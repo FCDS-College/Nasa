@@ -1,6 +1,6 @@
 # Flame in Freefall: API Response Schemas
 
-**Generated from [`openapi.json`](openapi.json)** (OpenAPI 3.1.0, API 0.5.0) by `docs/tools/render_api_schemas.py`. Do not edit by hand.
+**Generated from [`openapi.json`](openapi.json)** (OpenAPI 3.1.0, API 0.6.0) by `docs/tools/render_api_schemas.py`. Do not edit by hand.
 Endpoint behaviour, examples and display rules: [`FRONTEND_API_CONTRACT.md`](FRONTEND_API_CONTRACT.md).
 
 Reading the tables: *Required = yes* means the key is always present. A nullable field (`| null`) is still present, with value `null`, which means "not present or not established" and is never a stand-in for `0`. The only optional keys in responses are those of [`ErrorDetails`](#errordetails).
