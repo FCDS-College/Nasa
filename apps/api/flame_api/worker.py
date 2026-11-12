@@ -10,7 +10,7 @@ import numpy as np
 from PIL import Image, ImageOps
 from redis import Redis
 from rq import Queue
-from sqlalchemy import update
+from sqlalchemy import delete, select, update
 
 from flame_api.config import get_settings
 from flame_api.database import SessionLocal
@@ -20,7 +20,7 @@ from ai.routing import NoCompatibleProvider
 from flame_api import ai_runtime
 from flame_api.generation import interpret_analysis
 from flame_api.ids import stable_ulid
-from flame_api.models import AnalysisRecord, EvidenceRecord, ExperimentCondition, FileRecord
+from flame_api.models import AnalysisRecord, EvidenceRecord, ExperimentCondition, FileRecord, VideoCheckpointFrame
 from flame_api.storage import get_bytes, put_file
 
 settings = get_settings()
@@ -34,9 +34,118 @@ def _now():
     return datetime.now(UTC)
 
 
+CANCEL_MESSAGE = "The analysis was cancelled on request."
+RESUME_WARNING = "JOB_RESUMED_FROM_CHECKPOINT"
+
+
+class JobCancelled(Exception):
+    """Raised at a checkpoint when the analysis has a cancel request (ADR-008)."""
+
+
+class JobSuperseded(Exception):
+    """Raised at a checkpoint when the row is no longer `processing` for this run (recovered or cancelled)."""
+
+
+def _cancelled_values(record: AnalysisRecord, now: datetime) -> None:
+    """Mark the locked record cancelled; the caller commits. `failure` is non-null for cancelled (contract)."""
+    stamp = _iso(now)
+    record.status = "cancelled"
+    record.updated_at = now
+    record.completed_at = now
+    record.payload = {
+        **record.payload, "status": "cancelled", "updated_at": stamp, "completed_at": stamp, "poll_after_ms": None,
+        "failure": {"code": "CANCELLED", "message": CANCEL_MESSAGE, "retryable": False},
+        "cancel_requested_at": _iso(_aware(record.cancel_requested_at)) if record.cancel_requested_at else None,
+    }
+
+
+def _drop_checkpoint(session, analysis_id: str) -> None:
+    session.execute(delete(VideoCheckpointFrame).where(VideoCheckpointFrame.analysis_id == analysis_id))
+
+
+def _finish_cancelled(analysis_id: str) -> None:
+    session = SessionLocal()
+    try:
+        record = session.get(AnalysisRecord, analysis_id, with_for_update=True)
+        if record is not None and record.status == "processing":
+            _cancelled_values(record, _now())
+        _drop_checkpoint(session, analysis_id)
+        session.commit()
+    finally:
+        session.close()
+    logger.info("analysis_id=%s cancelled", analysis_id)
+
+
+def _load_checkpoint(analysis_id: str) -> dict | None:
+    """The frames a previous run of this job stored, as `VideoAnalysisRequest.resume_from`, or None."""
+    session = SessionLocal()
+    try:
+        rows = list(session.scalars(select(VideoCheckpointFrame).where(VideoCheckpointFrame.analysis_id == analysis_id)
+                                    .order_by(VideoCheckpointFrame.created_at, VideoCheckpointFrame.frame_index)))
+    finally:
+        session.close()
+    if not rows:
+        return None
+    latest = rows[-1]   # one job has one digest; should it ever change, the newest run wins
+    kept = sorted((r for r in rows if r.job_digest == latest.job_digest), key=lambda r: r.frame_index)
+    return {"video_id": latest.video_id, "digest": latest.job_digest, "rows": [dict(r.row) for r in kept]}
+
+
+class VideoCheckpoint:
+    """The `on_frame` hook of a video job: stores measured frames one segment at a time (ADR-008).
+
+    Each flush writes the segment's rows, the job's progress and `updated_at` in one transaction on
+    the locked analysis row, then honours a cancel request. A crash loses at most one segment, and
+    `worker.recover` re-queues the job, which resumes from the stored rows.
+    """
+
+    def __init__(self, analysis_id: str, every: int) -> None:
+        self.analysis_id = analysis_id
+        self.every = every
+        self.pending: list[dict] = []
+        self.resumed: int | None = None
+        self.done = 0
+        self.total = 0
+
+    def __call__(self, event: dict) -> None:
+        self.video_id, self.digest = event["videoId"], event["digest"]
+        self.done, self.total = event["done"], event["total"]
+        if event["event"] == "start":
+            self.resumed = event["done"]
+            self.flush()
+            return
+        self.pending.append(event["row"])
+        if len(self.pending) >= self.every or self.done >= self.total:
+            self.flush()
+
+    def flush(self) -> None:
+        session = SessionLocal()
+        try:
+            record = session.get(AnalysisRecord, self.analysis_id, with_for_update=True)
+            if record is None or record.status != "processing":
+                raise JobSuperseded()
+            now = _now()
+            for row in self.pending:
+                session.merge(VideoCheckpointFrame(
+                    analysis_id=self.analysis_id, frame_index=row["frameIndex"], video_id=self.video_id,
+                    job_digest=self.digest, row=row, created_at=now,
+                ))
+            record.updated_at = now
+            record.payload = {**record.payload, "updated_at": _iso(now), "progress": {
+                "frames_done": self.done, "frames_total": self.total, "checkpointed_at": _iso(now)}}
+            cancel = record.cancel_requested_at is not None
+            session.commit()
+            self.pending = []
+        finally:
+            session.close()
+        if cancel:
+            raise JobCancelled()
+
+
 def process_analysis(analysis_id: str) -> None:
     session = SessionLocal()
-    record = session.get(AnalysisRecord, analysis_id)
+    # Locked, so a cancel (POST /api/analyses/{id}/cancel) cannot land between this read and the commit.
+    record = session.get(AnalysisRecord, analysis_id, with_for_update=True)
     if record is None or record.status != "queued":
         session.close()
         return
@@ -99,7 +208,13 @@ def process_analysis(analysis_id: str) -> None:
 
         now = _now()
         session = SessionLocal()
-        record = session.get(AnalysisRecord, analysis_id)
+        record = session.get(AnalysisRecord, analysis_id, with_for_update=True)
+        if record is not None and record.status != "processing":
+            record = None   # recovered or cancelled meanwhile: this run's result is not stored
+        elif record is not None and record.cancel_requested_at is not None:
+            _cancelled_values(record, now)
+            session.commit()
+            record = None
         if record:
             completed = {
                 **record.payload,
@@ -161,8 +276,8 @@ _UNAVAILABLE_INTERPRETATION = {
 def _mark_failed(analysis_id: str, exc: Exception, decode_code: str, message: str) -> None:
     session = SessionLocal()
     try:
-        record = session.get(AnalysisRecord, analysis_id)
-        if record:
+        record = session.get(AnalysisRecord, analysis_id, with_for_update=True)
+        if record and record.status in {"queued", "processing"}:
             now = _now()
             failure_code = "MODEL_UNAVAILABLE" if isinstance(exc, (ImportError, ProviderError, NoCompatibleProvider)) else decode_code
             cause = exc.last_error if isinstance(exc, NoCompatibleProvider) else exc
@@ -179,6 +294,7 @@ def _mark_failed(analysis_id: str, exc: Exception, decode_code: str, message: st
                 "failure": {"code": failure_code, "message": message, "retryable": failure_code == "MODEL_UNAVAILABLE"},
                 "poll_after_ms": None,
             }
+            _drop_checkpoint(session, analysis_id)
             session.commit()
     finally:
         session.close()
@@ -189,7 +305,8 @@ def process_video_analysis(analysis_id: str) -> None:
     from ai.providers.contracts.video import VideoAnalysisRequest
 
     session = SessionLocal()
-    record = session.get(AnalysisRecord, analysis_id)
+    # Locked, so a cancel (POST /api/analyses/{id}/cancel) cannot land between this read and the commit.
+    record = session.get(AnalysisRecord, analysis_id, with_for_update=True)
     if record is None or record.status != "queued":
         session.close()
         return
@@ -203,28 +320,46 @@ def process_video_analysis(analysis_id: str) -> None:
     original = dict(record.artifacts["original"])
     session.close()
 
+    checkpoint = VideoCheckpoint(analysis_id, settings.video_checkpoint_every_frames)
     try:
         video_input = payload["input"]["video"]
         with tempfile.TemporaryDirectory(prefix="flame-video-") as working:
             work = Path(working)
             video_path = work / f"original.{video_input['container']}"
             video_path.write_bytes(get_bytes(original["object_key"]))
+            # The scratch directory dies with the process; the checkpoint lives in PostgreSQL (ADR-008).
             request = VideoAnalysisRequest(
                 video_path=video_path, video_id=analysis_id, work_dir=work / "job",
                 sample_every_n_frames=video_input["sample_every_n_frames"], max_frames=video_input["max_frames"],
+                resume_from=_load_checkpoint(analysis_id), on_frame=checkpoint,
             )
             routed = ai_runtime.get_router(settings).route("video.analyze", lambda provider: provider.analyze_video(request))
         response = routed.value
         result, pipeline, warnings = _adapt_video_result(response, video_input)
+    except JobCancelled:
+        _finish_cancelled(analysis_id)
+        return
+    except JobSuperseded:
+        logger.warning("analysis_id=%s video_run_superseded at=%s/%s", analysis_id, checkpoint.done, checkpoint.total)
+        return
     except Exception as exc:
         _mark_failed(analysis_id, exc, "VIDEO_DECODE_FAILED", "Video analysis could not be completed.")
         raise
+    if checkpoint.resumed:
+        warnings.append({"code": RESUME_WARNING, "severity": "info",
+                         "message": f"Resumed from a checkpoint: {checkpoint.resumed} of {checkpoint.total} sampled "
+                                    "frames were measured before the job was interrupted."})
 
     now = _now()
     session = SessionLocal()
     try:
-        record = session.get(AnalysisRecord, analysis_id)
-        if record is None:
+        record = session.get(AnalysisRecord, analysis_id, with_for_update=True)
+        if record is None or record.status != "processing":
+            return   # recovered or cancelled meanwhile
+        if record.cancel_requested_at is not None:
+            _cancelled_values(record, now)
+            _drop_checkpoint(session, analysis_id)
+            session.commit()
             return
         evidence = _video_measurement_evidence(session, record, payload["input"], pipeline["pipeline_version"], result, now)
         for observation in result["observations"]:
@@ -244,6 +379,7 @@ def process_video_analysis(analysis_id: str) -> None:
             "poll_after_ms": None,
         }
         session.add(evidence)
+        _drop_checkpoint(session, analysis_id)
         session.commit()
     finally:
         session.close()
@@ -768,6 +904,9 @@ def _has_live_job(queue: Queue, analysis_id: str) -> bool:
 def recover(*, older_than: int | None = None, queue: Queue | None = None, now: datetime | None = None) -> dict:
     """Re-queue analyses stuck in `processing` (or `queued` without an RQ job); fail them after the cap.
 
+    A re-queued video job resumes from its last stored segment (ADR-008). A stuck job with a cancel
+    request is marked cancelled instead of being re-queued.
+
     Safe to run concurrently and repeatedly: each row is claimed with an UPDATE conditioned on the
     status and updated_at that were read, so only one recoverer acts on it and a re-run finds nothing.
     """
@@ -781,17 +920,17 @@ def recover(*, older_than: int | None = None, queue: Queue | None = None, now: d
             return QUEUED_GRACE_S
         return (_job_timeout(analysis_type) or RQ_DEFAULT_TIMEOUT_S) + RECOVERY_GRACE_S
 
-    counts = {"requeued": 0, "failed": 0, "skipped": 0}
+    counts = {"requeued": 0, "failed": 0, "skipped": 0, "cancelled": 0}
     session = SessionLocal()
     try:
         oldest = min(threshold("queued", "flame_image"), threshold("processing", "flame_image"))
         cutoff = now.timestamp() - oldest
         candidates = [
-            (row.analysis_id, row.status, row.updated_at, dict(row.payload))
+            (row.analysis_id, row.status, row.updated_at, dict(row.payload), row.cancel_requested_at)
             for row in session.query(AnalysisRecord).filter(AnalysisRecord.status.in_(("queued", "processing"))).all()
             if _aware(row.updated_at).timestamp() <= cutoff
         ]
-        for analysis_id, status, updated_at, payload in candidates:
+        for analysis_id, status, updated_at, payload, cancel_requested_at in candidates:
             analysis_type = payload.get("analysis_type", "flame_image")
             age = now.timestamp() - _aware(updated_at).timestamp()
             if analysis_type not in _JOBS or age < threshold(status, analysis_type) or (
@@ -801,7 +940,12 @@ def recover(*, older_than: int | None = None, queue: Queue | None = None, now: d
                 continue
             attempts = len(_recovery_warnings(payload))
             stamp = _iso(now)
-            if attempts >= MAX_RECOVERY_ATTEMPTS:
+            if cancel_requested_at is not None:
+                values = {"status": "cancelled", "updated_at": now, "completed_at": now, "payload": {
+                    **payload, "status": "cancelled", "updated_at": stamp, "completed_at": stamp, "poll_after_ms": None,
+                    "failure": {"code": "CANCELLED", "message": CANCEL_MESSAGE, "retryable": False},
+                }}
+            elif attempts >= MAX_RECOVERY_ATTEMPTS:
                 values = {"status": "failed", "updated_at": now, "completed_at": now, "payload": {
                     **payload, "status": "failed", "updated_at": stamp, "completed_at": stamp, "poll_after_ms": None,
                     "failure": {"code": "PIPELINE_ERROR", "retryable": False,
@@ -823,9 +967,15 @@ def recover(*, older_than: int | None = None, queue: Queue | None = None, now: d
                        AnalysisRecord.updated_at == updated_at)
                 .values(**values)
             ).rowcount
+            if claimed == 1 and values["status"] in {"failed", "cancelled"}:
+                _drop_checkpoint(session, analysis_id)
             session.commit()
             if claimed != 1:   # another recoverer (or the worker) changed the row first
                 counts["skipped"] += 1
+                continue
+            if values["status"] == "cancelled":
+                logger.warning("analysis_id=%s recovery=cancelled", analysis_id)
+                counts["cancelled"] += 1
                 continue
             if values["status"] == "failed":
                 logger.warning("analysis_id=%s recovery=failed attempts=%s", analysis_id, attempts)

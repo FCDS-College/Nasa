@@ -50,6 +50,9 @@ class Settings(BaseSettings):
     max_video_upload_bytes: int = Field(default=200 * 1024 * 1024, gt=0, le=500 * 1024 * 1024)
     max_video_frames: int = Field(default=600, ge=1, le=5000)
     video_job_timeout_s: int = Field(default=3600, ge=60, le=6 * 3600)
+    # ADR-008: a video job stores its measured frames in PostgreSQL every this many sampled frames, and
+    # checks for a cancel request at the same points. At most this many frames are re-done after a crash.
+    video_checkpoint_every_frames: int = Field(default=10, ge=1, le=1000)
     api_auth_enabled: bool = True
     # Deprecated (P2-1): per-client keys from `python -m flame_api.clients` replace these. Each is
     # optional and keeps working as before while set (identity `legacy-read` / `legacy-write`).

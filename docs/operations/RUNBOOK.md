@@ -118,7 +118,8 @@ railway config apply
 | Search is lexical-only | Index missing or embedder unavailable | `vector_index build`; check the `fastembed` health |
 | `aura` circuit `open` | AURA failed 3× | Waits 30 s by itself; check AURA's `/health/ready` |
 | Analysis `MODEL_UNAVAILABLE` | Both CV providers failed (HF Space down and OpenCV missing) | Check the worker image has the `cv` extra |
-| Analysis stuck in `processing` (or `queued` with an empty queue) | The worker died mid-job (OOM, kill, redeploy); RQ lost the job | The worker runs `python -m flame_api.worker recover` on start. It re-queues rows older than the job timeout + 60 s (image 180 s, video `FLAME_VIDEO_JOB_TIMEOUT_S`) and `queued` rows with no RQ job after 60 s, adding a `JOB_RECOVERED` warning. After 3 re-queues the analysis is `failed` with `PIPELINE_ERROR`. A worker restarted sooner than the timeout won't catch the row, so run `recover` again later, or `recover --older-than 0` once no job is running |
+| Analysis stuck in `processing` (or `queued` with an empty queue) | The worker died mid-job (OOM, kill, redeploy); RQ lost the job | The worker runs `python -m flame_api.worker recover` on start. It re-queues rows older than the job timeout + 60 s (image 180 s, video `FLAME_VIDEO_JOB_TIMEOUT_S`) and `queued` rows with no RQ job after 60 s, adding a `JOB_RECOVERED` warning. After 3 re-queues the analysis is `failed` with `PIPELINE_ERROR`. A re-queued video job resumes from its last stored segment (`video_checkpoint_frame`, ADR-008); the timeout counts from its last checkpoint, not from its start. A stuck row with a cancel request is marked `cancelled`. A worker restarted sooner than the timeout won't catch the row, so run `recover` again later, or `recover --older-than 0` once no job is running |
+| A user wants a running analysis stopped | — | `POST /api/analyses/{id}/cancel` with a write key: 200 if it was queued, 202 if running (it stops at the next video checkpoint segment, or before an image result is stored); poll GET until `cancelled` |
 | A file is `quarantined` | Unreadable, encrypted, checksum mismatch, invalid JSON | E2-8 §"inspect failed files" |
 | First `seed` loads 0 files | Fixed in PR #14 (sources weren't flushed before the file lookup) | Upgrade |
 
@@ -141,6 +142,7 @@ The Compose path, backup/restore and Railway steps have not been executed in thi
 
 ## Changelog
 - Unreleased (ADR-009): the AI mode PUT needs an admin key.
+- Unreleased (ADR-008): video jobs resume from a checkpoint; cancelling an analysis.
 - Unreleased (P2-4, P2-5, P2-11): stuck-job recovery incident, AI mode override behaviour, backup scripts and the 2026-11-02 restore drill.
 - 0.9.1 (2026-10-14): restore drill and the production `0004` migration recorded.
 - 0.9.0 (2026-10-12): first runbook; operational steps moved here from `infrastructure/README.md` and `apps/api/README.md`.

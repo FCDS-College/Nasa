@@ -1720,6 +1720,145 @@
         ]
       }
     },
+    "/api/analyses/{analysis_id}/cancel": {
+      "post": {
+        "operationId": "cancelAnalysis",
+        "summary": "Cancel a queued or running analysis",
+        "description": "Write scope (ADR-008). A queued analysis becomes `cancelled` at once (200). A processing one records `cancel_requested_at` and stays `processing` until the worker stops (202): a video job checks at every checkpoint segment, an image job before storing its result. A cancelled analysis keeps no result, and its video checkpoint is deleted. `failure.code` is `CANCELLED`. Excluded from AURA (`x-aura-exclude`): AURA never changes a user's jobs.",
+        "tags": [
+          "Analysis"
+        ],
+        "x-aura-exclude": true,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/AnalysisId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The analysis was queued and is now `cancelled`, or it was already cancelled (cancelling is idempotent).",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisResponse"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "The job is running: the cancel request is recorded (`cancel_requested_at`) and status stays `processing` until the worker stops, at its next checkpoint for a video and before storing its result for an image. Poll GET until it is `cancelled`.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              },
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "Resource not found. Codes: ANALYSIS_NOT_FOUND.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "notFound": {
+                    "summary": "Unknown analysis ID",
+                    "value": {
+                      "error": {
+                        "code": "ANALYSIS_NOT_FOUND",
+                        "message": "Analysis was not found.",
+                        "request_id": "req_01J9Z3K8V5Q2N7X4M6R1T0W8YB",
+                        "retryable": false,
+                        "field_errors": [],
+                        "details": {
+                          "resource_id": "01J9Z3Q9D3F5H7K9N1R3T5W7Y9"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The analysis already reached `completed` or `failed`; a finished analysis is immutable. Codes: ANALYSIS_NOT_CANCELLABLE.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "description": "A dependency is unavailable. Codes: DATABASE_UNAVAILABLE.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              },
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/api/analyses/{analysis_id}/artifacts/{artifact_kind}": {
       "get": {
         "operationId": "getAnalysisArtifact",
@@ -4632,6 +4771,7 @@
           "EXPERIMENT_NOT_FOUND",
           "EVIDENCE_NOT_FOUND",
           "ANALYSIS_NOT_FOUND",
+          "ANALYSIS_NOT_CANCELLABLE",
           "ARTIFACT_NOT_FOUND",
           "ARTIFACT_NOT_READY",
           "PAYLOAD_TOO_LARGE",
@@ -6069,7 +6209,7 @@
           "failed",
           "cancelled"
         ],
-        "description": "Terminal states: completed, failed, cancelled. `cancelled` is set only by the server (shutdown/operator); there is no client cancel endpoint in v0.1."
+        "description": "Terminal states: completed, failed, cancelled. `cancelled` is set by the server: by `POST /api/analyses/{analysis_id}/cancel` (contract 0.6.0), or by job recovery when a stuck job had a cancel request."
       },
       "AnalysisType": {
         "type": "string",
@@ -6985,7 +7125,8 @@
           "QUALITY_CHECK_NOT_IMPLEMENTED",
           "INTERPRETATION_UNAVAILABLE",
           "INTERPRETATION_STATEMENTS_REJECTED",
-          "JOB_RECOVERED"
+          "JOB_RECOVERED",
+          "JOB_RESUMED_FROM_CHECKPOINT"
         ],
         "description": "Stable warning code."
       },
@@ -7082,6 +7223,14 @@
             ],
             "format": "date-time"
           },
+          "cancel_requested_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When a cancel was requested for a running job (contract 0.6.0). Absent when none was requested. The job stops at its next checkpoint (video) or before storing its result (image), then status becomes `cancelled`."
+          },
           "input": {
             "$ref": "#/components/schemas/AnalysisInput"
           },
@@ -7145,6 +7294,17 @@
             ],
             "minimum": 0,
             "description": "Suggested delay before the next GET while non-terminal; null when terminal."
+          },
+          "progress": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AnalysisProgress"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Video jobs only (contract 0.6.0); absent for image analyses."
           }
         },
         "additionalProperties": false,
@@ -9590,6 +9750,31 @@
           },
           "evidence_id": {
             "type": "string"
+          }
+        }
+      },
+      "AnalysisProgress": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "frames_done",
+          "frames_total",
+          "checkpointed_at"
+        ],
+        "description": "Video jobs only (ADR-008): sampled frames measured and stored in the job's checkpoint so far. Updated once per checkpoint segment (`FLAME_VIDEO_CHECKPOINT_EVERY_FRAMES`, default 10), not per frame.",
+        "properties": {
+          "frames_done": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "frames_total": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Sampled frames this job will measure."
+          },
+          "checkpointed_at": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       }
