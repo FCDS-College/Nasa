@@ -285,9 +285,12 @@ def _model_services(ai_status: dict[str, Any], checked_at: str) -> tuple[dict[st
         aura_service = _service("disabled", False, None, message=f"AURA is blocked in {mode} mode.")
     else:
         state = aura["health"]["state"]
+        message = None if state == "up" else "AURA is not ready."
+        if aura["health"].get("detail") == "no_local_provider":
+            message = "AURA has no healthy local model and FLAME_AURA_REQUIRE_LOCAL is true, so AURA is skipped."
         aura_service = _service(
             state if state in {"up", "down", "degraded"} else "unknown", False, checked_at,
-            latency_ms=aura["health"]["latency_ms"], version="3", message=None if state == "up" else "AURA is not ready.",
+            latency_ms=aura["health"]["latency_ms"], version="3", message=message,
         )
     return llm, aura_service
 

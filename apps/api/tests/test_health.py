@@ -66,6 +66,29 @@ def test_health_reports_aura_readiness_when_enabled(monkeypatch, aura_status):
     assert providers["aura"]["locality"] == "external" and providers["aura"]["health"]["state"] == aura_status
 
 
+def test_aura_without_a_local_model_is_reported_as_such(monkeypatch):
+    """AURA is ready but has no healthy local provider while Flame requires one: every Link 1 call
+    would fail, and /api/health says why instead of a generic "not ready"."""
+    from pydantic import SecretStr
+
+    from ai.providers.cloud.aura import AuraProvider
+    from ai.providers.contracts.base import HealthStatus
+    from flame_api.config import Settings
+
+    monkeypatch.setattr(main.engine, "connect", lambda: _database_unavailable())
+    monkeypatch.setattr(main.boto3, "client", lambda **_: _object_storage_unavailable())
+    monkeypatch.setattr(main.Redis, "from_url", lambda *args, **kwargs: _cache_unavailable())
+    monkeypatch.setattr(AuraProvider, "health", lambda self, timeout_s: HealthStatus("down", 12.0, "no_local_provider"))
+    monkeypatch.setattr(main, "settings", Settings(
+        api_auth_enabled=False, aura_enabled=True, aura_service_token=SecretStr("fake-service-token"),
+    ))
+
+    aura = TestClient(main.app).get("/api/health").json()["services"]["aura"]
+
+    assert aura["status"] == "down"
+    assert "local" in aura["message"] and "FLAME_AURA_REQUIRE_LOCAL" in aura["message"]
+
+
 def test_offline_only_reports_aura_as_blocked_and_never_probes_it(monkeypatch):
     from pydantic import SecretStr
 
