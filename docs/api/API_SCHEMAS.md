@@ -358,6 +358,9 @@ Echo of the filters the server actually applied, after defaults.
 | `knowledge_version` | string \| `null` | yes |  |
 | `index_version` | string \| `null` | yes | Vector index version; null in lexical mode. |
 | `searched_but_empty` | boolean | yes | True when the corpus was searched and nothing relevant was found (render as an honest empty state, not an error). |
+| `stack_version` | string | yes | Version of the ai/rag search stack that ordered the results (ADR-006), e.g. `flame-search-2.0.0`. |
+| `query_rewrite` | [`QueryRewrite`](#queryrewrite) | yes |  |
+| `reranking` | [`RerankingInfo`](#rerankinginfo) | yes |  |
 
 ### Document
 
@@ -746,6 +749,28 @@ A resolvable position inside an original artefact (data dictionary: location_poi
 | `row` | integer \| `null` (minimum=1) | yes | 1-based data row in a tabular original (header excluded). |
 | `frame_index` | integer \| `null` (minimum=0) | yes | 0-based frame index in an image sequence or video. |
 | `label` | string | yes | Human-readable rendering of the locator, e.g. `p. 5` or `row 12`. |
+
+### QueryRewrite
+
+The rule-based rewrite kept next to the original query (ADR-006, `ai/rag/query/rewrite.py`): whitespace normalisation and expansion of known abbreviations (ISS, PSI, NTRS), appended in parentheses. Lexical search uses the original query; semantic search embeds the rewritten one.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `rewritten` | string | yes |  |
+| `changed` | boolean | yes | False when the rewrite equals the query. |
+| `rules_applied` | string[] | yes | e.g. `expand:iss`, `normalize_whitespace`. |
+| `rewriter_version` | string | yes |  |
+| `used_for` | `"semantic"` \| `"lexical"`[] | yes |  |
+
+### RerankingInfo
+
+What reranking did (ADR-006). `disabled`: FLAME_RERANKER_ENABLED is false and the order is RRF only. `applied`: a cross-encoder, reached through the model router, reordered the first `depth` fused results (they take over the window's fused scores in their new order, so `score` stays monotonic with `rank`). `unavailable`: reranking was configured but failed, so the RRF order is returned; the search does not fail.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `status` | `"disabled"` \| `"applied"` \| `"unavailable"` | yes |  |
+| `model` | string \| `null` | yes |  |
+| `depth` | integer \| `null` (minimum=1) | yes | Size of the reranked window, counted from the first result of page 1. |
 
 ### FileRef
 

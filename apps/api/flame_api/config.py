@@ -93,6 +93,8 @@ class Settings(BaseSettings):
     embedding_cache_dir: str | None = None
     embedding_offline: bool = False
     reranker_enabled: bool = False
+    # ADR-006: how many of the first fused /api/search results the cross-encoder reorders (page-independent).
+    rerank_depth: int = Field(default=20, ge=2, le=100)
     otel_enabled: bool = False
     otel_service_name: str = "flame-api"
     cv_provider: Literal["local", "hf_space"] = "local"

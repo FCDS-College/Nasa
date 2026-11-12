@@ -134,3 +134,93 @@ def test_a_dense_hit_below_the_lexical_cut_keeps_its_exact_lexical_rank(client, 
     assert capped["results"][0]["result_id"] == "c10"
     assert capped["results"][0]["score"] == uncapped["results"][0]["score"] == round(1 / 61 + 1 / 71, 6)
     assert capped["pagination"]["total_items"] == uncapped["pagination"]["total_items"] == 12, "a deep lexical match is not counted twice"
+
+
+# --- ADR-006: one stack (ai/rag), reranking through the router, query rewrite ------------------------------
+
+
+def _router_with_reranker(scorer, seen):
+    from types import SimpleNamespace
+
+    from ai.providers.contracts.reranking import RerankResponse
+
+    class Provider:
+        def rerank(self, request):
+            seen.append(request)
+            scores = [(doc_id, scorer(text)) for doc_id, text in request.documents]
+            return RerankResponse(scores=tuple(sorted(scores, key=lambda pair: -pair[1])), model="fake-cross-encoder")
+
+    class Router:
+        def route(self, task, call, idempotent=None):
+            assert task == "rerank"
+            return SimpleNamespace(value=call(Provider()))
+
+    return Router()
+
+
+def test_reranking_goes_through_the_router_and_reorders_the_window(client, session_factory, monkeypatch):
+    from api_contract import assert_contract_component
+
+    _seed(session_factory)
+    plain = client.get("/api/search", params={"q": "flame", "type": "document"}).json()
+    assert [r["result_id"] for r in plain["results"]] == ["c0", "c1", "c2"]
+    assert plain["retrieval"]["reranking"] == {"status": "disabled", "model": None, "depth": None}
+
+    seen = []
+    monkeypatch.setattr(main.settings, "reranker_enabled", True)
+    monkeypatch.setattr(main.ai_runtime, "get_router", lambda *_: _router_with_reranker(lambda text: float("once" in text), seen))
+    body = client.get("/api/search", params={"q": "flame", "type": "document"}).json()
+
+    assert_contract_component(body["retrieval"], "RetrievalInfo")   # this fixture's IDs are not contract-shaped
+    assert [r["result_id"] for r in body["results"]] == ["c2", "c0", "c1"]
+    assert [r["rank"] for r in body["results"]] == [1, 2, 3]
+    assert [r["score"] for r in body["results"]] == [r["score"] for r in plain["results"]], "the window keeps its score slots"
+    assert body["retrieval"]["reranking"] == {"status": "applied", "model": "fake-cross-encoder", "depth": 20}
+    assert seen[0].query == "flame" and [doc_id for doc_id, _ in seen[0].documents] == ["c0", "c1", "c2"]
+    assert seen[0].documents[0][1] == "flame flame flame spread", "the reranker scores the chunk text"
+
+
+def test_a_reranker_the_router_cannot_reach_leaves_the_fused_order(client, session_factory, monkeypatch, caplog):
+    from ai.routing import ExecutionMode, NoCompatibleProvider
+
+    class Router:
+        def route(self, task, call, idempotent=None):
+            raise NoCompatibleProvider(task, ExecutionMode.LOCAL_FIRST, [{"provider": "cross_encoder", "reason": "model_missing"}])
+
+    _seed(session_factory)
+    monkeypatch.setattr(main.settings, "reranker_enabled", True)
+    monkeypatch.setattr(main.ai_runtime, "get_router", lambda *_: Router())
+    response = client.get("/api/search", params={"q": "flame", "type": "document"})
+
+    assert response.status_code == 200
+    assert [r["result_id"] for r in response.json()["results"]] == ["c0", "c1", "c2"]
+    assert response.json()["retrieval"]["reranking"] == {"status": "unavailable", "model": None, "depth": 20}
+    assert "rerank=unavailable" in caplog.text
+
+
+def test_reranked_pages_are_slices_of_one_order(client, session_factory, monkeypatch):
+    _seed_many(session_factory, 12)
+    monkeypatch.setattr(main.settings, "reranker_enabled", True)
+    monkeypatch.setattr(main.settings, "rerank_depth", 5)
+    monkeypatch.setattr(main.ai_runtime, "get_router", lambda *_: _router_with_reranker(lambda text: float(len(text)), []))
+
+    whole = [r["result_id"] for r in client.get("/api/search", params={"q": "flame", "type": "document", "page_size": 12}).json()["results"]]
+    paged = [r["result_id"] for page in (1, 2, 3)
+             for r in client.get("/api/search", params={"q": "flame", "type": "document", "page": page, "page_size": 4}).json()["results"]]
+    assert paged == whole and len(set(whole)) == 12
+
+
+def test_the_rewritten_query_is_embedded_and_reported_next_to_the_original(client, session_factory, monkeypatch):
+    _seed(session_factory)
+    embedded = []
+    monkeypatch.setattr(main, "index_status", lambda session: {"state": "up", "version": "kv-test"})
+    monkeypatch.setattr(main, "search_chunks", lambda session, query, limit=20, **_: embedded.append(query) or [("c3", 0.9)])
+
+    body = client.get("/api/search", params={"q": "ISS flame", "type": "document"}).json()
+
+    assert body["query"] == "ISS flame"
+    assert embedded == ["ISS (international space station) flame"]
+    assert body["retrieval"]["query_rewrite"] == {
+        "rewritten": "ISS (international space station) flame", "changed": True, "rules_applied": ["expand:iss"],
+        "rewriter_version": "1.0.0", "used_for": ["semantic"]}
+    assert body["retrieval"]["stack_version"] == "flame-search-2.0.0"

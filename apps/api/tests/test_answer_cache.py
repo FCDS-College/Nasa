@@ -53,3 +53,39 @@ def test_answers_with_warnings_are_not_cached(client, corpus, monkeypatch):  # n
     _ask(client)
     assert _ask(client)["cache_hit"] is False
     assert answer_cache.metrics()["entries"] == 0
+
+
+def test_an_answer_retrieved_without_the_configured_reranker_is_not_cached(client, corpus, session_factory, monkeypatch):  # noqa: F811
+    from datetime import UTC, datetime
+
+    from ai.rag.retrieval.search_stack import RerankUnavailable
+    from flame_api.models import DocumentChunk
+
+    with session_factory() as session:   # two hits, so there is a window to rerank
+        session.add(DocumentChunk(chunk_id="chunk-2", document_id="01J9Z3M2A7D4F6H8K0N2Q4S6T8", source_id="nasa-psi",
+                                  file_id="file-1", evidence_id="01J9Z3N5B8C1E3G5J7M9P1R3T6", page=4,
+                                  text="n-heptane droplets in microgravity burn longer.", ingested_at=datetime.now(UTC)))
+        session.commit()
+    monkeypatch.setattr(main, "settings", chat_settings(reranker_enabled=True))
+    monkeypatch.setattr(provider_http, "urlopen",
+                        lambda request, timeout: FakeResponse(aura_reply("A cool flame was simulated.", [EVIDENCE_ID])))
+
+    def unavailable(query, documents):
+        raise RerankUnavailable("model missing")
+
+    monkeypatch.setattr(main, "_rerank_through_router", unavailable)
+    assert _ask(client)["cache_hit"] is False
+    assert _ask(client)["cache_hit"] is False
+    assert answer_cache.metrics()["entries"] == 0
+
+    monkeypatch.setattr(main, "_rerank_through_router", lambda query, documents: ({d: 1.0 for d, _ in documents}, "fake"))
+    assert _ask(client)["cache_hit"] is False
+    assert _ask(client)["cache_hit"] is True
+
+
+def test_the_reranker_is_part_of_the_cache_key():
+    plain = answer_cache.make_key("q", knowledge_version="v1", instructions="i", mode="local_first")
+    reranked = answer_cache.make_key("q", knowledge_version="v1", instructions="i", mode="local_first",
+                                     reranker=answer_cache.reranker_version("cross-encoder/x", 20))
+    assert answer_cache.reranker_version(None, 20) == answer_cache.RERANKER == "none@1"
+    assert plain != reranked

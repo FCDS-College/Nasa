@@ -18,17 +18,22 @@ from ai.rag.cache.cag import DependencyManifest, InMemoryCacheService, build_cac
 _cache = InMemoryCacheService()
 _lock = Lock()
 _last_version: str | None = None
-RERANKER = "none@1"
+RERANKER = "none@1"   # no reranking (FLAME_RERANKER_ENABLED=false)
+
+
+def reranker_version(model: str | None, depth: int | None) -> str:
+    """The cache's reranker dimension (ADR-006): a different reranker or window is a different answer."""
+    return RERANKER if not model else f"{model}@depth{depth}"
 
 
 def prompt_version(instructions: str) -> str:
     return "chat-" + hashlib.sha256(instructions.encode("utf-8")).hexdigest()[:8]
 
 
-def make_key(question: str, *, knowledge_version: str, instructions: str, mode: str) -> str:
+def make_key(question: str, *, knowledge_version: str, instructions: str, mode: str, reranker: str = RERANKER) -> str:
     return build_cache_key(
         query=question, filters=None, top_k=6, corpus_version=knowledge_version,
-        prompt_version=prompt_version(instructions), model=f"router-{mode}", reranker_version=RERANKER,
+        prompt_version=prompt_version(instructions), model=f"router-{mode}", reranker_version=reranker,
     )
 
 
@@ -42,7 +47,8 @@ def lookup(key: str, knowledge_version: str) -> dict[str, Any] | None:
     return copy.deepcopy(hit) if hit is not None else None
 
 
-def store(key: str, response: dict[str, Any], *, knowledge_version: str, instructions: str, started: float) -> None:
+def store(key: str, response: dict[str, Any], *, knowledge_version: str, instructions: str, started: float,
+          reranker: str = RERANKER) -> None:
     entry = {k: v for k, v in response.items() if k != "request_id"}
     manifest = DependencyManifest(
         corpus_version=knowledge_version,
@@ -50,7 +56,7 @@ def store(key: str, response: dict[str, Any], *, knowledge_version: str, instruc
         model=f"{response['model']['provider']}:{response['model']['name']}",
         provider=response["model"]["provider"],
         execution_mode=(response.get("execution") or {}).get("locality", ""),
-        reranker_version=RERANKER,
+        reranker_version=reranker,
     )
     with _lock:
         _cache.set(key, copy.deepcopy(entry), ttl_for({"status": "answered"}), manifest.model_dump(),

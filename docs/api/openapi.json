@@ -450,7 +450,22 @@
                         "mode": "lexical",
                         "knowledge_version": "kv-2026-10-05.1",
                         "index_version": null,
-                        "searched_but_empty": false
+                        "searched_but_empty": false,
+                        "stack_version": "flame-search-2.0.0",
+                        "query_rewrite": {
+                          "rewritten": "flame spread low gravity oxygen",
+                          "changed": false,
+                          "rules_applied": [],
+                          "rewriter_version": "1.0.0",
+                          "used_for": [
+                            "semantic"
+                          ]
+                        },
+                        "reranking": {
+                          "status": "disabled",
+                          "model": null,
+                          "depth": null
+                        }
                       },
                       "meta": {
                         "request_id": "req_01J9Z3K8V5Q2N7X4M6R1T0W8YB",
@@ -5634,6 +5649,16 @@
           "searched_but_empty": {
             "type": "boolean",
             "description": "True when the corpus was searched and nothing relevant was found (render as an honest empty state, not an error)."
+          },
+          "stack_version": {
+            "type": "string",
+            "description": "Version of the ai/rag search stack that ordered the results (ADR-006), e.g. `flame-search-2.0.0`."
+          },
+          "query_rewrite": {
+            "$ref": "#/components/schemas/QueryRewrite"
+          },
+          "reranking": {
+            "$ref": "#/components/schemas/RerankingInfo"
           }
         },
         "additionalProperties": false,
@@ -5641,7 +5666,10 @@
           "mode",
           "knowledge_version",
           "index_version",
-          "searched_but_empty"
+          "searched_but_empty",
+          "stack_version",
+          "query_rewrite",
+          "reranking"
         ]
       },
       "SearchResponse": {
@@ -9775,6 +9803,81 @@
           "checkpointed_at": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "QueryRewrite": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "rewritten",
+          "changed",
+          "rules_applied",
+          "rewriter_version",
+          "used_for"
+        ],
+        "description": "The rule-based rewrite kept next to the original query (ADR-006, `ai/rag/query/rewrite.py`): whitespace normalisation and expansion of known abbreviations (ISS, PSI, NTRS), appended in parentheses. Lexical search uses the original query; semantic search embeds the rewritten one.",
+        "properties": {
+          "rewritten": {
+            "type": "string"
+          },
+          "changed": {
+            "type": "boolean",
+            "description": "False when the rewrite equals the query."
+          },
+          "rules_applied": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "e.g. `expand:iss`, `normalize_whitespace`."
+          },
+          "rewriter_version": {
+            "type": "string"
+          },
+          "used_for": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "semantic",
+                "lexical"
+              ]
+            }
+          }
+        }
+      },
+      "RerankingInfo": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "status",
+          "model",
+          "depth"
+        ],
+        "description": "What reranking did (ADR-006). `disabled`: FLAME_RERANKER_ENABLED is false and the order is RRF only. `applied`: a cross-encoder, reached through the model router, reordered the first `depth` fused results (they take over the window's fused scores in their new order, so `score` stays monotonic with `rank`). `unavailable`: reranking was configured but failed, so the RRF order is returned; the search does not fail.",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "disabled",
+              "applied",
+              "unavailable"
+            ]
+          },
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "depth": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "description": "Size of the reranked window, counted from the first result of page 1."
           }
         }
       }
