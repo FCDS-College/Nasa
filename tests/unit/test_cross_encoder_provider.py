@@ -12,6 +12,10 @@ from ai.providers.local.cross_encoder import CrossEncoderReranker
 
 
 def test_offline_without_a_cached_model_is_model_missing_and_never_downloads(tmp_path, monkeypatch):
+    # Offline mode sets HF_HUB_OFFLINE=1 for the process. setenv records the variable's prior state, so
+    # monkeypatch removes it again afterwards and later tests can still download (delenv on an unset
+    # variable records nothing to undo).
+    monkeypatch.setenv("HF_HUB_OFFLINE", "0")
     def no_download(*args, **kwargs):
         raise AssertionError("an offline reranker must not load (and so download) a model")
 
