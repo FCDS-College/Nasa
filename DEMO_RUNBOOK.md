@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Lead (Anas) | Current: path B verified end to end on 2026-11-07; path A (Docker) not run, no Docker daemon was available | 1.0.0 | 2026-11-07 | T7 | `infrastructure/`, `apps/api/`, `apps/web/` |
+| Lead (Anas) | Current: path B verified end to end on 2026-11-07 (steps added on 2026-11-12 verified individually); path A (Docker) not run, no Docker daemon was available | 1.1.0 | 2026-11-12 | T7 | `infrastructure/`, `apps/api/`, `apps/web/` |
 
 The demo is a 6-minute walk through the Fire Safety Dashboard. It needs:
 - the API with PostgreSQL + pgvector, Redis and S3/MinIO;
@@ -18,7 +18,7 @@ The demo is a 6-minute walk through the Fire Safety Dashboard. It needs:
 | Python 3.12+, Node 22 | API/worker, web |
 | PostgreSQL 16 with pgvector, Redis 7, S3-compatible storage | path B only (path A runs them in containers) |
 | ~3 GB disk, 8 GB RAM; +4 GB RAM for the 3B local model | CPU-only is fine |
-| Internet **once** | embedding model (`bge-small-en-v1.5`) download; Ollama model pull |
+| Internet **once** | embedding model (`bge-small-en-v1.5`) and search reranker (`Xenova/ms-marco-MiniLM-L-6-v2`, ~90 MB) downloads; Ollama model pull |
 
 Create two random keys of 32+ characters that differ: `python -c "import secrets;print(secrets.token_urlsafe(36))"`, twice. Use them as `FLAME_READ_API_TOKEN` and `FLAME_WRITE_API_TOKEN`. Never paste them into slides or chat.
 
@@ -89,7 +89,13 @@ uvicorn flame_api.main:app --host 127.0.0.1 --port 8000 &
 (python -m flame_api.worker recover; rq worker --url "$FLAME_REDIS_URL" flame-analysis) &
 ```
 
-Expected ingest summary: `"experiments": 840, "pdf_documents": 24, "pdf_chunks": 280, "text_documents": 4, "quarantined": 0`. The vector index embeds 315 chunks.
+Expected ingest summary: `"experiments": 840, "pdf_documents": 24, "pdf_chunks": 280, "text_documents": 4, "quarantined": 0, "graph_entities": 951, "graph_relations": 10683`. The vector index embeds 315 chunks.
+
+Fetch the search reranker before the demo. Search reranks its top 10 results by default, and otherwise the first search downloads the model on stage (about 5–7 s). Add `--cache-dir "$FLAME_EMBEDDING_CACHE_DIR"` if you set that variable:
+
+```bash
+python -m ai.providers.local.cross_encoder prepare
+```
 
 Optional local model (Ollama 0.5+):
 
@@ -140,6 +146,7 @@ Expected: `PASS` on 8 steps and `Demo journey passed.`
 | 7 | "Explain with cited sources" on any insight | Click it, then press send. | With a model: a grounded answer whose citations must be in the retrieved set. Without one: the retrieved NTRS passages, labelled "nothing below was generated". |
 | 8 | `/analysis` | Scroll to **Video flame analysis**. | The BASS-II flight video: flame area over time, measured in pixels. Flicker is "not estimable" below the Nyquist rate. No temperature from RGB. |
 | 9 | `/status` | — | Every dependency's health, the AI mode and the local-only providers. |
+| 10 (optional) | Knowledge graph, API only | `curl -H "Authorization: Bearer <read key>" "http://127.0.0.1:8000/api/graph/entities?type=phenomenon"`, then open `extinction` with `?depth=2&predicate=observed&predicate=uses_fuel` | Two hops from "extinction" reach the 186 FLEX tests that ended that way and their two fuels; every edge carries the NASA cell it was read from. The web Knowledge page is not wired to this yet, so show it from the API (or as AURA's two graph tools). |
 
 ## 6. Troubleshooting
 
@@ -149,6 +156,8 @@ Expected: `PASS` on 8 steps and `Demo journey passed.`
 | Every call 401 | Read key wrong or missing on the web server | Same key as the API's `FLAME_READ_API_TOKEN` |
 | "No investigation has ingested data yet" | Ingest not run, or not from this checkout | Run `python -m flame_api.ingest`; expect `"experiments": 840` |
 | Search finds little for full questions | No vector index (lexical only) | `python -m flame_api.vector_index build` (needs the embedding model once) |
+| First search takes several seconds; `/api/search` shows `reranking.status: "unavailable"` | Reranker model not cached (and offline), or still downloading | `python -m ai.providers.local.cross_encoder prepare`; or set `FLAME_RERANKER_ENABLED=false` |
+| An admin call (`/api/admin/*`) gets 403 with a client key | The key has `write` but not `admin` scope (ADR-009) | `python -m flame_api.clients create NAME --scopes admin --owner PERSON`, or use the deprecated write token |
 | Chat shows evidence only | No language model configured (`/api/health` → `llm: disabled`) | Expected fallback; configure Ollama for generated answers |
 | Explorer: "No estimate" | Conditions outside the flight-tested domain | By design; use a preset inside it (ISS air, Pre-EVA) |
 | Video panel empty | Demo analyses not submitted, or the worker is not running | Run `submit_demo_analyses.py`; check the worker log |
@@ -159,6 +168,8 @@ Expected: `PASS` on 8 steps and `Demo journey passed.`
 ## Known limitations
 - Path A (Compose) has not been run end to end in this environment (no Docker daemon). The image layout was checked by reproducing its `COPY` lines and serving the app from them.
 - The Railway deployment has not been redeployed with this branch; it needs someone with Railway access.
+- The browser smoke test (8 steps) was last run on 2026-11-07, before reranking was on by default. The search API and its ranking were verified on 2026-11-12, but not the full browser journey.
 
 ## Changelog
 - 1.0.0 (2026-11-07): first runbook for the final demo.
+- 1.1.0 (2026-11-12): reranker model preparation, graph counts in the ingest summary, optional knowledge-graph step, two troubleshooting rows (reranker, admin scope).

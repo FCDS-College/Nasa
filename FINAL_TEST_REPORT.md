@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Lead (Anas), run by Claude Code | Current | 1.1.0 | 2026-11-12 | T7, ADR-006–009 | whole repository |
+| Lead (Anas), run by Claude Code | Current | 1.2.0 | 2026-11-12 | T7, ADR-006–009 | whole repository |
 
 Every result below was produced by a command run on 2026-11-07 on branch `anas/vibrant-sagan-fsnckf`. "Not run" means it was not run.
 
@@ -102,7 +102,7 @@ Run on branch `anas/vibrant-sagan-fsnckf` after the four ADR builds, in the same
 | Contract docs fresh | `python docs/tools/render_api_schemas.py --check` | exit 0 (contract 0.6.0) |
 | Migrations on real data | `alembic upgrade head` on the 2026-11-07 database, then `downgrade 0007_chunk_search_tsv` and `upgrade head` again | `0007 → 0008 → 0009`, round trip clean |
 | AURA Link 2 dry run | `AURA_BACKEND=<AURA d696fad>/aura_backend python tests/integration/aura_blueprint_dryrun.py` | **16 tools ACCEPTED**, 10 operations excluded, exit 0 |
-| ADR-006 benchmark gate | `flame_retrieval_benchmark` against old `main`, the new stack, and the stack with the reranker, all on one database | Identical top 5 for all 26 questions; reranker hit@1 0.81 → 0.88 at about 0.5 s per search ([retrieval-2026-11-12.md](docs/evaluation/reports/retrieval-2026-11-12.md)) |
+| ADR-006 benchmark gate | `flame_retrieval_benchmark` against old `main`, the new stack, and the stack with the reranker, all on one database | Identical top 5 for all 26 questions; reranker (sentence-transformers) hit@1 0.81 → 0.88 at about 0.5 s per search. Superseded by §9's fastembed run ([retrieval-2026-11-12.md](docs/evaluation/reports/retrieval-2026-11-12.md)) |
 | Knowledge graph on PostgreSQL | `python -m flame_api.ingest` (graph built at the end) | 955 entities, 10,683 edges, consistency `ok` (4 spelling-variant candidates, non-blocking; resolved by reviewed aliases in PR #30: 951 entities, 0 candidates) |
 
 New tests:
@@ -112,7 +112,37 @@ New tests:
 - `test_answer_cache.py`: reranker cache keying;
 - `test_knowledge_graph.py`: 11 tests over the real committed tables.
 
-Not re-run: the web lint and build (no web code changed), the browser smoke test, Docker Compose, Railway, and generated-answer evaluation (still no language model here).
+Not re-run locally: the web lint and build (no web code changed; CI ran them green), the browser smoke test, Docker Compose, Railway, and generated-answer evaluation (still no language model here).
+
+**CI on GitHub (PR #29).** All five jobs green on the merged head `f6ca06f`: Python lint and tests, web lint/typecheck/build, migrations with seed and ingest on PostgreSQL + pgvector, secret scan, and the AURA Link 2 contract. The contract job first failed at checking out AURA, because the `AURA_REPO_TOKEN` secret no longer worked. It passed once the owner replaced the token.
+
+## 9. Follow-up verification: reranker default and graph aliases (2026-11-12, PR #30)
+
+| Check | Command | Result |
+|---|---|---|
+| Full test suite | `python -m pytest` | **423 passed, 6 skipped, 0 failed** |
+| Unit tree with an empty model cache (as on CI) | `HF_HOME=<empty dir> python -m pytest tests/unit` | 113 passed |
+| fastembed vs sentence-transformers cross-encoder | the same 4 (query, passage) pairs through both | identical scores (−3.625, −11.351, −11.034, 0.259) |
+| Retrieval with the default reranker | `flame_retrieval_benchmark`, one database, fused vs reranked | hit@1 0.81 → **0.88**, MRR@10 0.86 → **0.91**, recall@5 0.83 → **0.88**, hit@5 0.96 unchanged; about 0.7 s per search ([report](docs/evaluation/reports/retrieval-2026-11-12.md), follow-up section) |
+| Offline model preparation | `python -m ai.providers.local.cross_encoder prepare --cache-dir <dir>`, then `verify` | downloaded in about 5 s; offline load OK (exit 0) |
+| Knowledge graph with the reviewed aliases (PostgreSQL) | `python -m flame_api.knowledge_graph build`, then `check` | 21 edges re-pointed, 4 variant entities dropped; **951 entities**, 10,683 edges; all five checks 0 |
+| AURA runbook (AURA-AI #232) | dry run of Flame `main` `80b9c21` against AURA `ad215d3` and `d696fad` | 16 ACCEPTED, 10 excluded, exit 0, both |
+| CI (PR #30) | — | all five jobs green on the merged head `0aec4f7` |
+
+New tests:
+- `tests/unit/test_cross_encoder_provider.py`: offline means `model_missing` and never a download; scores come back best first; long passages are truncated;
+- `test_knowledge_graph.py`, now 12 tests: a reviewed variant resolves to its canonical entity and keeps its own cell.
+
+Defects CI found in PR #30's own tests, both fixed before merge:
+- The provider test assumed fastembed was installed. CI's repo-root job does not install it.
+- The offline test left `HF_HUB_OFFLINE=1` set for the rest of the session, so the existing `test_embeddings` could not download its model on CI. It passed locally only because the model was cached. This was reproduced with an empty `HF_HOME` and fixed with `monkeypatch.setenv`.
+
+Not run: the browser smoke test against the reranked search, Docker Compose, Railway, and generated-answer evaluation.
+
+**AURA-AI #232's own CI did not run.** Its Repo Hygiene jobs were never assigned a runner (`runner_id: 0`, about 2 s, no log), including on a re-run. The same checks run locally on the branch passed:
+- the tracked-artefact check;
+- the 27 hygiene tests;
+- actionlint 1.7.12.
 
 ## Unresolved
 
@@ -121,7 +151,10 @@ Not re-run: the web lint and build (no web code changed), the browser smoke test
 - Docker Compose dry run and Railway redeploy: **not run** (no Docker daemon; no Railway access).
 - Generated-answer evaluation: **not run** (no language model in this environment).
 - Gold set and model labels: human review pending.
+- The web Knowledge page is not wired to the knowledge-graph API (it still says the graph is unavailable).
+- AURA's GitHub Actions were not assigning runners on 2026-11-12 (account-level); AURA-AI #232 merged on locally run checks.
 
 ## Changelog
 - 1.0.0 (2026-11-07): first version.
 - 1.1.0 (2026-11-12): §8, verification of the ADR-006 to 009 builds.
+- 1.2.0 (2026-11-12): §8 CI results; §9, verification of PR #30 and AURA-AI #232.

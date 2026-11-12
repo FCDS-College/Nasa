@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Lead (Anas) | Current; kept current on every PR (PR template checkbox) | 1.2.0 | 2026-11-12 | G-1, G-3 | — |
+| Lead (Anas) | Current; kept current on every PR (PR template checkbox) | 1.2.1 | 2026-11-12 | G-1, G-3 | — |
 
 **Status key:** Draft → In review → Approved. "Due Wn" means the document doesn't exist yet and is due in Phase 2 week n. "On branch X" means it exists only on that engineer's branch. Requirements per engineer:
 - `docs/reports/DOC_REQUIREMENTS_Lead.md` and `DOC_REQUIREMENTS_Anas.md` on `main`;
@@ -66,7 +66,7 @@
 
 | Document | Status | Owner |
 |---|---|---|
-| **Final challenge deliverables (2026-11-07):** [status](../FINAL_PROJECT_STATUS.md), [architecture](../FINAL_ARCHITECTURE.md), [test report](../FINAL_TEST_REPORT.md), [demo runbook](../DEMO_RUNBOOK.md), [presentation](../FINAL_CHALLENGE_PRESENTATION.md) | Current | Lead |
+| **Final challenge deliverables (2026-11-07, updated 2026-11-12 for PR #27–#30):** [status](../FINAL_PROJECT_STATUS.md), [architecture](../FINAL_ARCHITECTURE.md), [test report](../FINAL_TEST_REPORT.md), [demo runbook](../DEMO_RUNBOOK.md), [presentation](../FINAL_CHALLENGE_PRESENTATION.md) | Current | Lead |
 | [FLEX outcome model card and evaluation](evaluation/reports/flex-outcome-model.md), [retrieval evaluation](evaluation/reports/retrieval-2026-11-07.md) | Current (human review pending: Ziad, Eman) | Lead |
 | 2026-10-30 system audit: [status audit](reviews/SYSTEM_STATUS_AUDIT.md), [roadmap](plan/IMPLEMENTATION_ROADMAP.md), [implementation changelog](reviews/IMPLEMENTATION_CHANGELOG.md), [readiness report](reviews/FINAL_SYSTEM_READINESS_REPORT.md) | Current | Lead |
 | [Phase 2 plan](plan/PHASE2_PLAN.md) | Current | Lead |
@@ -109,4 +109,5 @@ Taken from each engineer's requirements file. Every document also gets the Lead'
 - 1.0.0 (2026-10-12): first index.
 - 1.1.0 (2026-11-07): final challenge deliverables and evaluation reports.
 - 1.1.1 (2026-11-07): L-1 row: ADR-006 to 009 Accepted, partly implemented. The header version, which still read 1.0.0, is corrected.
+- 1.2.1 (2026-11-12): final deliverables updated for the merged PR #30 and AURA-AI #232.
 - 1.2.0 (2026-11-12): ADR-006 to 009 built (PR #29): L-1, L-4, L-6, L-10, L-12, E2-3, E2-6 and E2-8 rows.
