@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Lead (Anas) | Current; kept current on every PR (PR template checkbox) | 1.1.1 | 2026-11-07 | G-1, G-3 | — |
+| Lead (Anas) | Current; kept current on every PR (PR template checkbox) | 1.2.0 | 2026-11-12 | G-1, G-3 | — |
 
 **Status key:** Draft → In review → Approved. "Due Wn" means the document doesn't exist yet and is due in Phase 2 week n. "On branch X" means it exists only on that engineer's branch. Requirements per engineer:
 - `docs/reports/DOC_REQUIREMENTS_Lead.md` and `DOC_REQUIREMENTS_Anas.md` on `main`;
@@ -12,18 +12,18 @@
 
 | ID | Document | Status | Last updated |
 |---|---|---|---|
-| L-1 | [ADRs 001–012](architecture/adr/README.md) | 001–012 Accepted (006–009 partly implemented); all signed off 2026-11-07 (Lead's confirmation) | 2026-11-07 |
+| L-1 | [ADRs 001–012](architecture/adr/README.md) | 001–012 Accepted; 006–009 built in PR #29 (index 1.4.0 lists what is still open); all signed off 2026-11-07 (Lead's confirmation) | 2026-11-12 |
 | L-2 | [Architecture overview](architecture/overview.md) | In review | 2026-10-12 |
 | L-3 | delivered as H-2 + H-4 | In review | 2026-10-12 |
-| L-4 | [openapi.json](api/openapi.json) 0.3.0, [API_SCHEMAS.md](api/API_SCHEMAS.md), [CHANGELOG](api/CHANGELOG.md) | Current | 2026-10-30 |
+| L-4 | [openapi.json](api/openapi.json) 0.6.0, [API_SCHEMAS.md](api/API_SCHEMAS.md), [CHANGELOG](api/CHANGELOG.md) | Current | 2026-11-12 |
 | L-5 | [Index synchronization contract](architecture/index-sync-contract.md) | In review | 2026-10-12 |
-| L-6 | [Background jobs](architecture/background-jobs.md) | In review | 2026-10-12 |
+| L-6 | [Background jobs](architecture/background-jobs.md) | In review (1.1.0: video checkpoints, cancellation) | 2026-11-12 |
 | L-7 | [CI/CD and testing](operations/CI_CD.md) | In review | 2026-10-12 |
 | L-8 | [Runbook](operations/RUNBOOK.md) | Draft (needs a clean-machine dry run) | 2026-10-12 |
 | L-9 | [Observability](operations/OBSERVABILITY.md) | In review | 2026-10-12 |
-| L-10 | [Security and access control](operations/SECURITY.md) | Draft (final in W7) | 2026-10-12 |
+| L-10 | [Security and access control](operations/SECURITY.md) | Current (0.7.0: admin scope, ADR-009 step 2) | 2026-11-12 |
 | L-11 | [Release v0.1.0-mvp](releases/v0.1.0-mvp.md) | Tag approved, push pending; sign-offs pending | 2026-10-12 |
-| L-12 | [AURA integration README](integration/README.md) (entry point, contract 0.5.0), [audit](integration/AURA_INTEGRATION_AUDIT.md), [API integration reference](integration/API_INTEGRATION_REFERENCE.md); [status report](integration/AURA_INTEGRATION_STATUS.md) §0 is history | Current | 2026-11-07 |
+| L-12 | [AURA integration README](integration/README.md) (entry point, contract 0.6.0, 16 tools), [audit](integration/AURA_INTEGRATION_AUDIT.md), [API integration reference](integration/API_INTEGRATION_REFERENCE.md); [status report](integration/AURA_INTEGRATION_STATUS.md) §0 is history | Current | 2026-11-12 |
 | H-1 | [Dependency audit](hybrid-ai/PHASE_2_HYBRID_AI_DEPENDENCY_AUDIT.md) | In review | 2026-10-12 |
 | H-2 | [Hybrid AI architecture](hybrid-ai/PHASE_2_HYBRID_AI_ARCHITECTURE.md) | In review | 2026-10-12 |
 | H-3 | [Local model registry](hybrid-ai/PHASE_2_LOCAL_MODEL_REGISTRY.md) | In review (checksums partly Pending) | 2026-10-12 |
@@ -43,12 +43,12 @@
 |---|---|---|---|
 | E2-1 | [Source registry guide](data/SOURCE_REGISTRY.md) | In review | 2026-10-12 |
 | E2-2 | [Ingestion pipeline](data/INGESTION_PIPELINE.md) | In review | 2026-10-12 |
-| E2-3 | [Data dictionary](data/DATA_DICTIONARY.md) | In review | 2026-10-12 |
+| E2-3 | [Data dictionary](data/DATA_DICTIONARY.md) | In review (2.1.0: migrations to `0009`) | 2026-11-12 |
 | E2-4 | [Provenance and lineage](data/PROVENANCE.md) | In review | 2026-10-12 |
 | E2-5 | [Knowledge versioning](data/KNOWLEDGE_VERSIONING.md) | In review (needs Eman's sign-off) | 2026-10-12 |
-| E2-6 | [Knowledge graph schema](data/KNOWLEDGE_GRAPH_SCHEMA.md) | Draft | 2026-10-12 |
+| E2-6 | [Knowledge graph schema](data/KNOWLEDGE_GRAPH_SCHEMA.md) | Current (0.6.0: built from the PSI tables, ADR-007) | 2026-11-12 |
 | E2-7 | [Data quality scoring](data/DATA_QUALITY_SCORING.md) | Draft (method authority: Ziad's rubrics, due W4) | 2026-10-12 |
-| E2-8 | [Admin data operations](data/ADMIN_DATA_OPERATIONS.md) | Draft | 2026-10-12 |
+| E2-8 | [Admin data operations](data/ADMIN_DATA_OPERATIONS.md) | Draft (0.7.0: admin scope) | 2026-11-12 |
 | E2-9 | [NTRS report](data/NTRS_DATASET_REPORT.md), [NIST WebBook report](data/NIST_WEBBOOK_DATASET_REPORT.md), [DSI report](data/DSI_DATASET_REPORT.md) | In review | 2026-10-12 |
 | E2-10 | [Offline data and sync](data/OFFLINE_DATA_AND_SYNC.md) | Draft (restore drill Pending) | 2026-10-12 |
 | — | [Weekly note](reports/WEEKLY_Anas_E2.md) | Current | 2026-10-12 |
@@ -109,3 +109,4 @@ Taken from each engineer's requirements file. Every document also gets the Lead'
 - 1.0.0 (2026-10-12): first index.
 - 1.1.0 (2026-11-07): final challenge deliverables and evaluation reports.
 - 1.1.1 (2026-11-07): L-1 row: ADR-006 to 009 Accepted, partly implemented. The header version, which still read 1.0.0, is corrected.
+- 1.2.0 (2026-11-12): ADR-006 to 009 built (PR #29): L-1, L-4, L-6, L-10, L-12, E2-3, E2-6 and E2-8 rows.

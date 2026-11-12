@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Lead (Anas), run by Claude Code | Current | 1.0.0 | 2026-11-07 | T7 | whole repository |
+| Lead (Anas), run by Claude Code | Current | 1.1.0 | 2026-11-12 | T7, ADR-006–009 | whole repository |
 
 Every result below was produced by a command run on 2026-11-07 on branch `anas/vibrant-sagan-fsnckf`. "Not run" means it was not run.
 
@@ -91,6 +91,29 @@ A separate reviewer agent read the new backend code. It found no crash-level def
 | Re-ingest left evidence rows for pages that no longer yield text; a human review carried over to changed text | Fixed |
 | The garbled-text heuristic could misfire on reference lists or non-English pages, and drops a page if OCR is unavailable | Kept, and listed under Unresolved: it flags no legitimate page in the current English corpus; Tesseract is installed in the image and CI |
 
+## 8. Follow-up verification: ADR-006 to 009 (2026-11-12, PR #29)
+
+Run on branch `anas/vibrant-sagan-fsnckf` after the four ADR builds, in the same kind of environment as §1 (Python 3.13, PostgreSQL 16.15 + pgvector holding the 2026-11-07 corpus, Redis 7, no Docker, no language model).
+
+| Check | Command | Result |
+|---|---|---|
+| Full test suite | `python -m pytest` | **420 passed, 6 skipped, 0 failed** |
+| Lint | `ruff check .` | All checks passed |
+| Contract docs fresh | `python docs/tools/render_api_schemas.py --check` | exit 0 (contract 0.6.0) |
+| Migrations on real data | `alembic upgrade head` on the 2026-11-07 database, then `downgrade 0007_chunk_search_tsv` and `upgrade head` again | `0007 → 0008 → 0009`, round trip clean |
+| AURA Link 2 dry run | `AURA_BACKEND=<AURA d696fad>/aura_backend python tests/integration/aura_blueprint_dryrun.py` | **16 tools ACCEPTED**, 10 operations excluded, exit 0 |
+| ADR-006 benchmark gate | `flame_retrieval_benchmark` against old `main`, the new stack, and the stack with the reranker, all on one database | Identical top 5 for all 26 questions; reranker hit@1 0.81 → 0.88 at about 0.5 s per search ([retrieval-2026-11-12.md](docs/evaluation/reports/retrieval-2026-11-12.md)) |
+| Knowledge graph on PostgreSQL | `python -m flame_api.ingest` (graph built at the end) | 955 entities, 10,683 edges, consistency `ok` (4 spelling-variant candidates, non-blocking) |
+
+New tests:
+- `test_api_clients.py`: the admin scope;
+- `test_video_checkpoints.py`: 8 tests, including a crash, recovery and resume giving a frame-for-frame identical result, and cancellation in every state;
+- `tests/unit/test_search_stack.py` and `test_search_fusion.py`: the stack, the routed reranker and the rewrite;
+- `test_answer_cache.py`: reranker cache keying;
+- `test_knowledge_graph.py`: 11 tests over the real committed tables.
+
+Not re-run: the web lint and build (no web code changed), the browser smoke test, Docker Compose, Railway, and generated-answer evaluation (still no language model here).
+
 ## Unresolved
 
 - The garbled-text heuristic is tuned on this English corpus; a reference-list or non-English page could be mis-flagged in future documents (see §7).
@@ -101,3 +124,4 @@ A separate reviewer agent read the new backend code. It found no crash-level def
 
 ## Changelog
 - 1.0.0 (2026-11-07): first version.
+- 1.1.0 (2026-11-12): §8, verification of the ADR-006 to 009 builds.

@@ -400,6 +400,40 @@ def get_analysis(request: Request, analysis_id: Annotated[str, ApiPath(pattern=U
     return _analysis_response(record, request)
 
 
+@router.post("/api/analyses/{analysis_id}/cancel")
+def cancel_analysis(request: Request, analysis_id: Annotated[str, ApiPath(pattern=ULID_PATTERN)],
+                    session: Session = Depends(get_session)):
+    """ADR-008: cancel a queued analysis now, or ask a running one to stop at its next checkpoint."""
+    record = session.get(AnalysisRecord, analysis_id, with_for_update=True)
+    if not record:
+        return _error(request, 404, "ANALYSIS_NOT_FOUND", "Analysis was not found.", details={"resource_id": analysis_id})
+    if record.status == "cancelled":
+        return _analysis_response(record, request)
+    if record.status not in {"queued", "processing"}:
+        return _error(request, 409, "ANALYSIS_NOT_CANCELLABLE",
+                      f"The analysis is already {record.status}; a finished analysis cannot be cancelled.",
+                      details={"resource_id": analysis_id})
+    now = datetime.now(UTC)
+    stamp = _utc(now)
+    if record.cancel_requested_at is None:
+        record.cancel_requested_at = now
+    if record.status == "queued":
+        # The worker only starts `queued` rows, so the RQ job, if it runs at all, does nothing.
+        record.status = "cancelled"
+        record.updated_at = now
+        record.completed_at = now
+        record.payload = {
+            **record.payload, "status": "cancelled", "updated_at": stamp, "completed_at": stamp, "poll_after_ms": None,
+            "cancel_requested_at": _utc(record.cancel_requested_at),
+            "failure": {"code": "CANCELLED", "message": "The analysis was cancelled on request.", "retryable": False},
+        }
+        session.commit()
+        return _analysis_response(record, request)
+    record.payload = {**record.payload, "cancel_requested_at": _utc(record.cancel_requested_at)}
+    session.commit()
+    return JSONResponse(status_code=202, content=_analysis_response(record, request), headers={"Retry-After": "1"})
+
+
 @router.get("/api/analyses/{analysis_id}/artifacts/{artifact_kind}")
 def get_analysis_artifact(
     request: Request,

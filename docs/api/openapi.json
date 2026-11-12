@@ -3,9 +3,9 @@
   "jsonSchemaDialect": "https://spec.openapis.org/oas/3.1/dialect/base",
   "info": {
     "title": "Flame in Freefall API",
-    "version": "0.5.0",
+    "version": "0.6.0",
     "summary": "Frontend-facing REST contract for the Flame in Freefall scientific dashboard.",
-    "description": "Contract-first specification (MVP plan §12, DAY2_TASKS Lead deliverable). The FastAPI implementation is in `apps/api` and serves this document at `/api/openapi.json`; `x-implementation-status` records implementation state. API bearer authentication is required: use the read token for GET/HEAD and a distinct upload token for mutations. AURA Track AP compatibility is checked from this contract against a pinned AURA revision by `tests/integration/aura_blueprint_dryrun.py`.\n\nConventions: snake_case JSON; RFC 3339 UTC timestamps; ULID resource IDs; nullable means 'not present or not established' (never 0 for missing); every JSON success body has `meta`; every error body is `ErrorResponse`.\n\nScientific rules encoded in the schema: no temperature field exists; pixel measurements are `measured`, scale-derived physical sizes are `estimated`; AI interpretation is separate from measurements and limited to inferred/hypothesized/unsupported claim classes; evidence is only source content or deterministic calculation.\n\nAURA boundary (ADR-004, contract 0.2.0): operations marked `x-aura-exclude: true` (chat, AI status, admin writes) are skipped by AURA's OpenAPI discovery, so AURA can never compile a tool that calls back into Flame's model path. Changes: docs/api/CHANGELOG.md.\n\nCredentials and rate limits (P2-1, P2-2): each caller has its own API key (`python -m flame_api.clients create NAME --scopes read|write`), stored hashed and revocable. `read` scope allows GET/HEAD and `POST /api/chat`; `write` scope allows every other method. A valid key without the needed scope gets 403 `FORBIDDEN`; while the database is unreachable a client key cannot be checked and gets 503 `DATABASE_UNAVAILABLE`. The legacy `FLAME_READ_API_TOKEN` / `FLAME_WRITE_API_TOKEN` are deprecated but still accepted with their old meaning (a token used for the wrong kind of request stays 401). Every authenticated `/api/*` operation except `/api/health` is rate-limited per client, with separate per-minute budgets for reads, writes and chat (chat is the strictest); over the budget the response is 429 `RATE_LIMITED` with `Retry-After` in seconds. One client exhausting its budget does not affect another's.",
+    "description": "Contract-first specification (MVP plan §12, DAY2_TASKS Lead deliverable). The FastAPI implementation is in `apps/api` and serves this document at `/api/openapi.json`; `x-implementation-status` records implementation state. API bearer authentication is required: use a key with the read scope for GET/HEAD, the write scope for other mutations and the admin scope for `/api/admin/*`. AURA Track AP compatibility is checked from this contract against a pinned AURA revision by `tests/integration/aura_blueprint_dryrun.py`.\n\nConventions: snake_case JSON; RFC 3339 UTC timestamps; ULID resource IDs; nullable means 'not present or not established' (never 0 for missing); every JSON success body has `meta`; every error body is `ErrorResponse`.\n\nScientific rules encoded in the schema: no temperature field exists; pixel measurements are `measured`, scale-derived physical sizes are `estimated`; AI interpretation is separate from measurements and limited to inferred/hypothesized/unsupported claim classes; evidence is only source content or deterministic calculation.\n\nAURA boundary (ADR-004, contract 0.2.0): operations marked `x-aura-exclude: true` (chat, AI status, admin writes) are skipped by AURA's OpenAPI discovery, so AURA can never compile a tool that calls back into Flame's model path. Changes: docs/api/CHANGELOG.md.\n\nCredentials and rate limits (P2-1, P2-2): each caller has its own API key (`python -m flame_api.clients create NAME --scopes read|write|admin [--owner PERSON]`), stored hashed and revocable. `read` scope allows GET/HEAD and `POST /api/chat`; `write` scope allows every other method outside `/api/admin/`; `admin` scope (ADR-009 step 2, contract 0.6.0) allows every `/api/admin/` operation, reads included, and an admin key always names the person who holds it. Scopes are independent: `admin` implies neither `read` nor `write`. A valid key without the needed scope gets 403 `FORBIDDEN`; while the database is unreachable a client key cannot be checked and gets 503 `DATABASE_UNAVAILABLE`. The legacy `FLAME_READ_API_TOKEN` / `FLAME_WRITE_API_TOKEN` are deprecated but still accepted with their old meaning, so the write token still reaches `/api/admin/` (a token used for the wrong kind of request stays 401). Every authenticated `/api/*` operation except `/api/health` is rate-limited per client, with separate per-minute budgets for reads, writes and chat (chat is the strictest); over the budget the response is 429 `RATE_LIMITED` with `Retry-After` in seconds. One client exhausting its budget does not affect another's.",
     "license": {
       "name": "Proprietary (team internal)",
       "identifier": "LicenseRef-Proprietary"
@@ -40,11 +40,15 @@
     },
     {
       "name": "Admin",
-      "description": "Authenticated configuration changes (write token, audited)."
+      "description": "Authenticated configuration changes (admin scope, audited)."
     },
     {
       "name": "Fire safety",
       "description": "Investigation summaries, scenario ranking, insights and the FLEX outcome model."
+    },
+    {
+      "name": "Knowledge graph",
+      "description": "Entities and evidence-backed relations derived deterministically from the ingested NASA tables (ADR-007, E2-6). Read scope."
     }
   ],
   "security": [
@@ -450,7 +454,22 @@
                         "mode": "lexical",
                         "knowledge_version": "kv-2026-10-05.1",
                         "index_version": null,
-                        "searched_but_empty": false
+                        "searched_but_empty": false,
+                        "stack_version": "flame-search-2.0.0",
+                        "query_rewrite": {
+                          "rewritten": "flame spread low gravity oxygen",
+                          "changed": false,
+                          "rules_applied": [],
+                          "rewriter_version": "1.0.0",
+                          "used_for": [
+                            "semantic"
+                          ]
+                        },
+                        "reranking": {
+                          "status": "disabled",
+                          "model": null,
+                          "depth": null
+                        }
                       },
                       "meta": {
                         "request_id": "req_01J9Z3K8V5Q2N7X4M6R1T0W8YB",
@@ -1720,6 +1739,145 @@
         ]
       }
     },
+    "/api/analyses/{analysis_id}/cancel": {
+      "post": {
+        "operationId": "cancelAnalysis",
+        "summary": "Cancel a queued or running analysis",
+        "description": "Write scope (ADR-008). A queued analysis becomes `cancelled` at once (200). A processing one records `cancel_requested_at` and stays `processing` until the worker stops (202): a video job checks at every checkpoint segment, an image job before storing its result. A cancelled analysis keeps no result, and its video checkpoint is deleted. `failure.code` is `CANCELLED`. Excluded from AURA (`x-aura-exclude`): AURA never changes a user's jobs.",
+        "tags": [
+          "Analysis"
+        ],
+        "x-aura-exclude": true,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/AnalysisId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The analysis was queued and is now `cancelled`, or it was already cancelled (cancelling is idempotent).",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisResponse"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "The job is running: the cancel request is recorded (`cancel_requested_at`) and status stays `processing` until the worker stops, at its next checkpoint for a video and before storing its result for an image. Poll GET until it is `cancelled`.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              },
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "Resource not found. Codes: ANALYSIS_NOT_FOUND.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "notFound": {
+                    "summary": "Unknown analysis ID",
+                    "value": {
+                      "error": {
+                        "code": "ANALYSIS_NOT_FOUND",
+                        "message": "Analysis was not found.",
+                        "request_id": "req_01J9Z3K8V5Q2N7X4M6R1T0W8YB",
+                        "retryable": false,
+                        "field_errors": [],
+                        "details": {
+                          "resource_id": "01J9Z3Q9D3F5H7K9N1R3T5W7Y9"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The analysis already reached `completed` or `failed`; a finished analysis is immutable. Codes: ANALYSIS_NOT_CANCELLABLE.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "description": "A dependency is unavailable. Codes: DATABASE_UNAVAILABLE.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              },
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/api/analyses/{analysis_id}/artifacts/{artifact_kind}": {
       "get": {
         "operationId": "getAnalysisArtifact",
@@ -2406,7 +2564,7 @@
       "put": {
         "operationId": "setAiMode",
         "summary": "Change the AI execution mode",
-        "description": "Write token. Records an `audit_event` (action `ai.mode.changed`, before/after); every API and worker process picks the change up within ~10 s.",
+        "description": "Admin scope. Records an `audit_event` (action `ai.mode.changed`, before/after); every API and worker process picks the change up within ~10 s.",
         "tags": [
           "Admin"
         ],
@@ -2499,7 +2657,7 @@
       "get": {
         "operationId": "listAdminFiles",
         "summary": "List files with their ingestion status",
-        "description": "Write token (admin data is not served to the read tier or AURA). ADMIN_DATA_OPERATIONS.md procedure 3: every file_record with `status` and `quarantine_reason`, ordered by source and file ID.",
+        "description": "Admin scope (admin data is not served to the read tier, ordinary writers or AURA). ADMIN_DATA_OPERATIONS.md procedure 3: every file_record with `status` and `quarantine_reason`, ordered by source and file ID.",
         "tags": [
           "Admin"
         ],
@@ -2627,7 +2785,7 @@
       "get": {
         "operationId": "listIngestionRuns",
         "summary": "List ingestion runs",
-        "description": "Write token (admin data is not served to the read tier or AURA). ADMIN_DATA_OPERATIONS.md procedure 3: ingestion_run rows, newest first. `transformation_id=quarantine` lists the failed runs.",
+        "description": "Admin scope (admin data is not served to the read tier, ordinary writers or AURA). ADMIN_DATA_OPERATIONS.md procedure 3: ingestion_run rows, newest first. `transformation_id=quarantine` lists the failed runs.",
         "tags": [
           "Admin"
         ],
@@ -2754,7 +2912,7 @@
       "post": {
         "operationId": "reprocessFile",
         "summary": "Release a quarantined file for re-ingestion",
-        "description": "Write token (admin data is not served to the read tier or AURA). ADMIN_DATA_OPERATIONS.md procedure 4: sets `status` to `active` and clears `quarantine_reason`, so the next `python -m flame_api.ingest` retries the file. Ingestion is not run by this request. Records `audit_event` (action `file.reprocess`, before/after) in the same transaction. Fix or re-mirror the bytes first: a file whose checksum still does not match is quarantined again.",
+        "description": "Admin scope (admin data is not served to the read tier, ordinary writers or AURA). ADMIN_DATA_OPERATIONS.md procedure 4: sets `status` to `active` and clears `quarantine_reason`, so the next `python -m flame_api.ingest` retries the file. Ingestion is not run by this request. Records `audit_event` (action `file.reprocess`, before/after) in the same transaction. Fix or re-mirror the bytes first: a file whose checksum still does not match is quarantined again.",
         "tags": [
           "Admin"
         ],
@@ -2920,7 +3078,7 @@
       "put": {
         "operationId": "reviewEvidence",
         "summary": "Set an evidence row's review status",
-        "description": "Write token (admin data is not served to the read tier or AURA). ADMIN_DATA_OPERATIONS.md procedure 7: sets `payload.review_status`. `rejected` evidence is excluded from `/api/search` and so never reaches `/api/chat`; a re-ingest keeps the review. Nothing is deleted. Records `audit_event` (action `evidence.review`, before/after) in the same transaction.",
+        "description": "Admin scope (admin data is not served to the read tier, ordinary writers or AURA). ADMIN_DATA_OPERATIONS.md procedure 7: sets `payload.review_status`. `rejected` evidence is excluded from `/api/search` and so never reaches `/api/chat`; a re-ingest keeps the review. Nothing is deleted. Records `audit_event` (action `evidence.review`, before/after) in the same transaction.",
         "tags": [
           "Admin"
         ],
@@ -3055,7 +3213,7 @@
       "get": {
         "operationId": "listAuditEvents",
         "summary": "Read the audit log",
-        "description": "Write token (admin data is not served to the read tier or AURA). audit_event rows, newest first, filtered by action, target type and target ID.",
+        "description": "Admin scope (admin data is not served to the read tier, ordinary writers or AURA). audit_event rows, newest first, filtered by action, target type and target ID.",
         "tags": [
           "Admin"
         ],
@@ -4556,6 +4714,553 @@
         ],
         "x-implementation-status": "implemented"
       }
+    },
+    "/api/graph/entities": {
+      "get": {
+        "operationId": "listGraphEntities",
+        "summary": "Knowledge-graph entities",
+        "description": "Read scope. Live (unmerged) entities derived from the ingested tables (ADR-007), filtered by type and a case-insensitive substring of the name or an alias, ordered by type and name.",
+        "tags": [
+          "Knowledge graph"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestIdHeader"
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/GraphEntityType"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "description": "Case-insensitive substring of the canonical name or an alias.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matching entities with their relation counts.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GraphEntityListResponse"
+                },
+                "examples": {
+                  "heptane": {
+                    "summary": "Values from the knowledge graph built from the committed PSI tables on 2026-11-12 (`python -m flame_api.knowledge_graph build`); request_id and timestamps are illustrative.",
+                    "value": {
+                      "items": [
+                        {
+                          "entity_id": "124GH2VSYBYAGCN0ZX1GZR85FS",
+                          "entity_type": "fuel",
+                          "canonical_name": "heptane",
+                          "display_name": "Heptane",
+                          "aliases": [],
+                          "properties": {},
+                          "source_id": null,
+                          "evidence_ids": [],
+                          "review_status": "unreviewed",
+                          "merged_into": null,
+                          "knowledge_version": "bge-small-en-v1.5-315-20261107",
+                          "relation_count": 117
+                        }
+                      ],
+                      "pagination": {
+                        "page": 1,
+                        "page_size": 20,
+                        "total_items": 1,
+                        "total_pages": 1
+                      },
+                      "meta": {
+                        "request_id": "req_9feae9d17a0545d6a412f36f06be627b",
+                        "generated_at": "2026-11-12T05:55:47.928985Z",
+                        "api_version": "0.6.0"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "description": "A dependency is unavailable. Codes: DATABASE_UNAVAILABLE.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              },
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/graph/entities/{entity_id}": {
+      "get": {
+        "operationId": "getGraphEntity",
+        "summary": "A knowledge-graph entity and its neighbourhood",
+        "description": "Read scope. The entity (following `merged_into`, so a merged ID still resolves) and every entity within `depth` hops in either direction, found with one recursive CTE, with the edges among them, nearest first. Rejected edges are never returned. Every edge carries the evidence it was read from.",
+        "tags": [
+          "Knowledge graph"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestIdHeader"
+          },
+          {
+            "name": "entity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+            }
+          },
+          {
+            "name": "depth",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 3,
+              "default": 1
+            }
+          },
+          {
+            "name": "predicate",
+            "in": "query",
+            "required": false,
+            "style": "form",
+            "explode": true,
+            "description": "Follow only these predicates (repeat the parameter).",
+            "schema": {
+              "type": "array",
+              "maxItems": 5,
+              "items": {
+                "$ref": "#/components/schemas/GraphPredicate"
+              }
+            }
+          },
+          {
+            "name": "max_edges",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "default": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The entity and its neighbourhood.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GraphEntityResponse"
+                },
+                "examples": {
+                  "extinctionFuels": {
+                    "summary": "Which fuels did experiments that ended in extinction burn? depth=2, predicate=observed&predicate=uses_fuel, max_edges=3. Values from the knowledge graph built from the committed PSI tables on 2026-11-12 (`python -m flame_api.knowledge_graph build`); request_id and timestamps are illustrative.",
+                    "value": {
+                      "entity": {
+                        "entity_id": "0CP6ZYSYE050H3MQVYT91TX245",
+                        "entity_type": "phenomenon",
+                        "canonical_name": "extinction",
+                        "display_name": "Extinction",
+                        "aliases": [],
+                        "properties": {},
+                        "source_id": null,
+                        "evidence_ids": [],
+                        "review_status": "unreviewed",
+                        "merged_into": null,
+                        "knowledge_version": "bge-small-en-v1.5-315-20261107"
+                      },
+                      "resolved_from": null,
+                      "neighbourhood": {
+                        "depth": 2,
+                        "predicates": [
+                          "observed",
+                          "uses_fuel"
+                        ],
+                        "entities": [
+                          {
+                            "entity_id": "0CP6ZYSYE050H3MQVYT91TX245",
+                            "entity_type": "phenomenon",
+                            "canonical_name": "extinction",
+                            "display_name": "Extinction",
+                            "aliases": [],
+                            "properties": {},
+                            "source_id": null,
+                            "evidence_ids": [],
+                            "review_status": "unreviewed",
+                            "merged_into": null,
+                            "knowledge_version": "bge-small-en-v1.5-315-20261107",
+                            "depth": 0
+                          },
+                          {
+                            "entity_id": "3WG2W8PSYAHDYY7C5AVGHWTA4K",
+                            "entity_type": "experiment",
+                            "canonical_name": "02pyehf0wjs3z8erw0n20g95qf",
+                            "display_name": "02pyehf0wjs3z8erw0n20g95qf",
+                            "aliases": [],
+                            "properties": {
+                              "test_id": "C09M101",
+                              "experiment_id": "02PYEHF0WJS3Z8ERW0N20G95QF",
+                              "investigation": "FLEX",
+                              "gravity_regime": "microgravity"
+                            },
+                            "source_id": "FF-PSI-69",
+                            "evidence_ids": [
+                              "1H161YP14TWAV34JDQBS9Q1WFP",
+                              "21TEBAJK0YWQ1W3BV205RFNC66"
+                            ],
+                            "review_status": "unreviewed",
+                            "merged_into": null,
+                            "knowledge_version": "bge-small-en-v1.5-315-20261107",
+                            "depth": 1
+                          },
+                          {
+                            "entity_id": "0W17GCGX6DDE49XS2HK10ADJQ4",
+                            "entity_type": "experiment",
+                            "canonical_name": "0xyrb5kmyq9qd0rpmb59j2s527",
+                            "display_name": "0xyrb5kmyq9qd0rpmb59j2s527",
+                            "aliases": [],
+                            "properties": {
+                              "test_id": "C04H201",
+                              "experiment_id": "0XYRB5KMYQ9QD0RPMB59J2S527",
+                              "investigation": "FLEX",
+                              "gravity_regime": "microgravity"
+                            },
+                            "source_id": "FF-PSI-69",
+                            "evidence_ids": [
+                              "0C448ZF66ATGKNE81V6PAHXVVP",
+                              "6X55QTVFYZ5WYZP05XSA35A956"
+                            ],
+                            "review_status": "unreviewed",
+                            "merged_into": null,
+                            "knowledge_version": "bge-small-en-v1.5-315-20261107",
+                            "depth": 1
+                          },
+                          {
+                            "entity_id": "5C4XNFGEZ5HJHDQ6X9CQXV0N5N",
+                            "entity_type": "experiment",
+                            "canonical_name": "3rpd5ef88h82e6en96hmbr6cax",
+                            "display_name": "3rpd5ef88h82e6en96hmbr6cax",
+                            "aliases": [],
+                            "properties": {
+                              "test_id": "C13M103",
+                              "experiment_id": "3RPD5EF88H82E6EN96HMBR6CAX",
+                              "investigation": "FLEX",
+                              "gravity_regime": "microgravity"
+                            },
+                            "source_id": "FF-PSI-69",
+                            "evidence_ids": [
+                              "11ZJREQWDDAZCTD4NC9XC1D4W5",
+                              "504E7JG9QW6N04WZRVCB8AEDDM"
+                            ],
+                            "review_status": "unreviewed",
+                            "merged_into": null,
+                            "knowledge_version": "bge-small-en-v1.5-315-20261107",
+                            "depth": 1
+                          }
+                        ],
+                        "edges": [
+                          {
+                            "relation_id": "00Y8T8TS22QAHM3G2K85888S3H",
+                            "subject_id": "0W17GCGX6DDE49XS2HK10ADJQ4",
+                            "predicate": "observed",
+                            "object_id": "0CP6ZYSYE050H3MQVYT91TX245",
+                            "evidence_id": "1YJFQ93BSX2A8CWBNFT93PC8SA",
+                            "extraction_method": "table_parse",
+                            "extractor_version": "psi-tables-graph-1.0.0",
+                            "confidence": 1.0,
+                            "review_status": "unreviewed",
+                            "properties": {}
+                          },
+                          {
+                            "relation_id": "02AADYWNWNG07EYZ8RFSFQYFB0",
+                            "subject_id": "3WG2W8PSYAHDYY7C5AVGHWTA4K",
+                            "predicate": "observed",
+                            "object_id": "0CP6ZYSYE050H3MQVYT91TX245",
+                            "evidence_id": "0HJ3ANPZRBXYGDWN4KVW4BMDVF",
+                            "extraction_method": "table_parse",
+                            "extractor_version": "psi-tables-graph-1.0.0",
+                            "confidence": 1.0,
+                            "review_status": "unreviewed",
+                            "properties": {}
+                          },
+                          {
+                            "relation_id": "07M1VBGGPWMENSSTRPFYB7AA38",
+                            "subject_id": "5C4XNFGEZ5HJHDQ6X9CQXV0N5N",
+                            "predicate": "observed",
+                            "object_id": "0CP6ZYSYE050H3MQVYT91TX245",
+                            "evidence_id": "1EV51QVYYXDSY64K9WXEZW14CY",
+                            "extraction_method": "table_parse",
+                            "extractor_version": "psi-tables-graph-1.0.0",
+                            "confidence": 1.0,
+                            "review_status": "unreviewed",
+                            "properties": {}
+                          }
+                        ],
+                        "truncated": true,
+                        "reachable_entities": 189,
+                        "reachable_by_type": {
+                          "fuel": 2,
+                          "phenomenon": 1,
+                          "experiment": 186
+                        }
+                      },
+                      "meta": {
+                        "request_id": "req_1b9f4a02c79c4055869a32a4f5d2659b",
+                        "generated_at": "2026-11-12T05:55:47.971169Z",
+                        "api_version": "0.6.0"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "description": "A dependency is unavailable. Codes: DATABASE_UNAVAILABLE.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              },
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found. Codes: ENTITY_NOT_FOUND.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/graph/consistency": {
+      "get": {
+        "operationId": "getGraphConsistency",
+        "summary": "Knowledge-graph consistency checks",
+        "description": "Admin scope (admin data is not served to the read tier, ordinary writers or AURA). The five E2-6 §5 checks: orphan edges, edges with dead or missing evidence, duplicate-entity candidates, conflicting condition values, unreviewed low-confidence edges. `ok` is false when a blocking check finds anything; duplicate candidates are for a human to merge (`python -m flame_api.knowledge_graph merge`), never merged automatically.",
+        "tags": [
+          "Admin"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-aura-exclude": true,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestIdHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The consistency report.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GraphConsistencyResponse"
+                },
+                "examples": {
+                  "report": {
+                    "summary": "Values from the knowledge graph built from the committed PSI tables on 2026-11-12 (`python -m flame_api.knowledge_graph build`); request_id and timestamps are illustrative. One example per check.",
+                    "value": {
+                      "ok": true,
+                      "extractor_version": "psi-tables-graph-1.0.0",
+                      "checks": {
+                        "orphan_edges": {
+                          "count": 0,
+                          "blocking": true,
+                          "examples": []
+                        },
+                        "edges_with_dead_evidence": {
+                          "count": 0,
+                          "blocking": true,
+                          "examples": []
+                        },
+                        "duplicate_entities": {
+                          "count": 4,
+                          "blocking": false,
+                          "examples": [
+                            {
+                              "entity_type": "fuel",
+                              "collision_key": "14blackrod",
+                              "entities": [
+                                {
+                                  "entity_id": "1E797ZH1FHXNXG8GZ3VKSRS0AZ",
+                                  "canonical_name": "1/4\" black rod"
+                                },
+                                {
+                                  "entity_id": "7C8T7K4PDBWJ9M3XCAFW0J2CGJ",
+                                  "canonical_name": "1/4 black rod"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        "conflicting_relations": {
+                          "count": 0,
+                          "blocking": true,
+                          "examples": []
+                        },
+                        "unreviewed_low_confidence_edges": {
+                          "count": 0,
+                          "blocking": false,
+                          "examples": []
+                        }
+                      },
+                      "meta": {
+                        "request_id": "req_cb8b925acc8d480f8795e7e4d267c33d",
+                        "generated_at": "2026-11-12T05:55:48.134494Z",
+                        "api_version": "0.6.0"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "description": "A dependency is unavailable. Codes: DATABASE_UNAVAILABLE.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              },
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -4632,6 +5337,8 @@
           "EXPERIMENT_NOT_FOUND",
           "EVIDENCE_NOT_FOUND",
           "ANALYSIS_NOT_FOUND",
+          "ENTITY_NOT_FOUND",
+          "ANALYSIS_NOT_CANCELLABLE",
           "ARTIFACT_NOT_FOUND",
           "ARTIFACT_NOT_READY",
           "PAYLOAD_TOO_LARGE",
@@ -5494,6 +6201,16 @@
           "searched_but_empty": {
             "type": "boolean",
             "description": "True when the corpus was searched and nothing relevant was found (render as an honest empty state, not an error)."
+          },
+          "stack_version": {
+            "type": "string",
+            "description": "Version of the ai/rag search stack that ordered the results (ADR-006), e.g. `flame-search-2.0.0`."
+          },
+          "query_rewrite": {
+            "$ref": "#/components/schemas/QueryRewrite"
+          },
+          "reranking": {
+            "$ref": "#/components/schemas/RerankingInfo"
           }
         },
         "additionalProperties": false,
@@ -5501,7 +6218,10 @@
           "mode",
           "knowledge_version",
           "index_version",
-          "searched_but_empty"
+          "searched_but_empty",
+          "stack_version",
+          "query_rewrite",
+          "reranking"
         ]
       },
       "SearchResponse": {
@@ -6069,7 +6789,7 @@
           "failed",
           "cancelled"
         ],
-        "description": "Terminal states: completed, failed, cancelled. `cancelled` is set only by the server (shutdown/operator); there is no client cancel endpoint in v0.1."
+        "description": "Terminal states: completed, failed, cancelled. `cancelled` is set by the server: by `POST /api/analyses/{analysis_id}/cancel` (contract 0.6.0), or by job recovery when a stuck job had a cancel request."
       },
       "AnalysisType": {
         "type": "string",
@@ -6985,7 +7705,8 @@
           "QUALITY_CHECK_NOT_IMPLEMENTED",
           "INTERPRETATION_UNAVAILABLE",
           "INTERPRETATION_STATEMENTS_REJECTED",
-          "JOB_RECOVERED"
+          "JOB_RECOVERED",
+          "JOB_RESUMED_FROM_CHECKPOINT"
         ],
         "description": "Stable warning code."
       },
@@ -7082,6 +7803,14 @@
             ],
             "format": "date-time"
           },
+          "cancel_requested_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When a cancel was requested for a running job (contract 0.6.0). Absent when none was requested. The job stops at its next checkpoint (video) or before storing its result (image), then status becomes `cancelled`."
+          },
           "input": {
             "$ref": "#/components/schemas/AnalysisInput"
           },
@@ -7145,6 +7874,17 @@
             ],
             "minimum": 0,
             "description": "Suggested delay before the next GET while non-terminal; null when terminal."
+          },
+          "progress": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AnalysisProgress"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Video jobs only (contract 0.6.0); absent for image analyses."
           }
         },
         "additionalProperties": false,
@@ -9592,6 +10332,490 @@
             "type": "string"
           }
         }
+      },
+      "AnalysisProgress": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "frames_done",
+          "frames_total",
+          "checkpointed_at"
+        ],
+        "description": "Video jobs only (ADR-008): sampled frames measured and stored in the job's checkpoint so far. Updated once per checkpoint segment (`FLAME_VIDEO_CHECKPOINT_EVERY_FRAMES`, default 10), not per frame.",
+        "properties": {
+          "frames_done": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "frames_total": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Sampled frames this job will measure."
+          },
+          "checkpointed_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "QueryRewrite": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "rewritten",
+          "changed",
+          "rules_applied",
+          "rewriter_version",
+          "used_for"
+        ],
+        "description": "The rule-based rewrite kept next to the original query (ADR-006, `ai/rag/query/rewrite.py`): whitespace normalisation and expansion of known abbreviations (ISS, PSI, NTRS), appended in parentheses. Lexical search uses the original query; semantic search embeds the rewritten one.",
+        "properties": {
+          "rewritten": {
+            "type": "string"
+          },
+          "changed": {
+            "type": "boolean",
+            "description": "False when the rewrite equals the query."
+          },
+          "rules_applied": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "e.g. `expand:iss`, `normalize_whitespace`."
+          },
+          "rewriter_version": {
+            "type": "string"
+          },
+          "used_for": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "semantic",
+                "lexical"
+              ]
+            }
+          }
+        }
+      },
+      "RerankingInfo": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "status",
+          "model",
+          "depth"
+        ],
+        "description": "What reranking did (ADR-006). `disabled`: FLAME_RERANKER_ENABLED is false and the order is RRF only. `applied`: a cross-encoder, reached through the model router, reordered the first `depth` fused results (they take over the window's fused scores in their new order, so `score` stays monotonic with `rank`). `unavailable`: reranking was configured but failed, so the RRF order is returned; the search does not fail.",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "disabled",
+              "applied",
+              "unavailable"
+            ]
+          },
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "depth": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "description": "Size of the reranked window, counted from the first result of page 1."
+          }
+        }
+      },
+      "GraphEntityType": {
+        "type": "string",
+        "enum": [
+          "investigation",
+          "experiment",
+          "fuel",
+          "condition_variable",
+          "phenomenon",
+          "document"
+        ],
+        "description": "E2-6 entity types. `fuel` covers fuels and solid materials, as written in the source tables."
+      },
+      "GraphPredicate": {
+        "type": "string",
+        "enum": [
+          "part_of",
+          "uses_fuel",
+          "has_condition",
+          "observed",
+          "describes"
+        ]
+      },
+      "GraphReviewStatus": {
+        "type": "string",
+        "enum": [
+          "unreviewed",
+          "human_verified",
+          "rejected"
+        ]
+      },
+      "GraphEntity": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "entity_id",
+          "entity_type",
+          "canonical_name",
+          "display_name",
+          "aliases",
+          "properties",
+          "source_id",
+          "evidence_ids",
+          "review_status",
+          "merged_into",
+          "knowledge_version"
+        ],
+        "properties": {
+          "entity_id": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+            "description": "`stable_ulid(entity_type + \":\" + canonical_name)`; stable across rebuilds."
+          },
+          "entity_type": {
+            "$ref": "#/components/schemas/GraphEntityType"
+          },
+          "canonical_name": {
+            "type": "string",
+            "description": "Lower-cased, whitespace-collapsed name (the resolution key)."
+          },
+          "display_name": {
+            "type": "string",
+            "description": "The spelling the source first used."
+          },
+          "aliases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Other spellings resolved to this entity, including merged entities' names."
+          },
+          "properties": {
+            "type": "object",
+            "description": "Type-specific: `psi_id` (investigation); `experiment_id`, `test_id`, `investigation`, `gravity_regime` (experiment); `unit_si` (condition_variable); `document_id`, `title` (document)."
+          },
+          "source_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "evidence_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+            },
+            "description": "Evidence that identifies the entity itself (e.g. the test-ID cell)."
+          },
+          "review_status": {
+            "$ref": "#/components/schemas/GraphReviewStatus"
+          },
+          "merged_into": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set on an entity merged into another; listings omit merged entities."
+          },
+          "knowledge_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "depth": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Hops from the requested entity (neighbourhood only)."
+          },
+          "relation_count": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Non-rejected relations touching the entity (listing only)."
+          }
+        }
+      },
+      "GraphEdge": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "relation_id",
+          "subject_id",
+          "predicate",
+          "object_id",
+          "evidence_id",
+          "extraction_method",
+          "extractor_version",
+          "confidence",
+          "review_status",
+          "properties"
+        ],
+        "properties": {
+          "relation_id": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "subject_id": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "predicate": {
+            "$ref": "#/components/schemas/GraphPredicate"
+          },
+          "object_id": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "evidence_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The evidence row the edge was read from; resolves at `GET /api/evidence/{evidence_id}`. Null only for `manual` edges."
+          },
+          "extraction_method": {
+            "type": "string",
+            "enum": [
+              "table_parse",
+              "nlp_extraction",
+              "manual"
+            ]
+          },
+          "extractor_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 1,
+            "description": "1.0 for deterministic table parses."
+          },
+          "review_status": {
+            "$ref": "#/components/schemas/GraphReviewStatus"
+          },
+          "properties": {
+            "type": "object",
+            "description": "For `has_condition`: `value_si`, `unit_si`, `value_numeric`, `value_text`, `unit_original`, `origin` of the cell."
+          }
+        }
+      },
+      "GraphEntityListResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "items",
+          "pagination",
+          "meta"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GraphEntity"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Pagination"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        }
+      },
+      "GraphNeighbourhood": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "depth",
+          "predicates",
+          "entities",
+          "edges",
+          "truncated",
+          "reachable_entities",
+          "reachable_by_type"
+        ],
+        "properties": {
+          "depth": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 3
+          },
+          "predicates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GraphPredicate"
+            },
+            "description": "Predicates followed; empty means all."
+          },
+          "entities": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GraphEntity"
+            },
+            "description": "The requested entity and the endpoints of the returned edges, nearest first."
+          },
+          "edges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GraphEdge"
+            },
+            "description": "Edges among reachable entities, nearest first, at most `max_edges`."
+          },
+          "truncated": {
+            "type": "boolean",
+            "description": "True when more edges were reachable than `max_edges`."
+          },
+          "reachable_entities": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Every entity within `depth` hops, including the requested one, before truncation."
+          },
+          "reachable_by_type": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        }
+      },
+      "GraphEntityResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "entity",
+          "resolved_from",
+          "neighbourhood",
+          "meta"
+        ],
+        "properties": {
+          "entity": {
+            "$ref": "#/components/schemas/GraphEntity"
+          },
+          "resolved_from": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The requested ID when it was merged into `entity` (old IDs keep resolving); null otherwise."
+          },
+          "neighbourhood": {
+            "$ref": "#/components/schemas/GraphNeighbourhood"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        }
+      },
+      "GraphConsistencyCheck": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "count",
+          "blocking",
+          "examples"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "blocking": {
+            "type": "boolean",
+            "description": "A blocking check with a non-zero count makes `ok` false; a non-blocking one lists candidates for human review."
+          },
+          "examples": {
+            "type": "array",
+            "maxItems": 20,
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "GraphConsistencyResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "ok",
+          "extractor_version",
+          "checks",
+          "meta"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "extractor_version": {
+            "type": "string"
+          },
+          "checks": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "orphan_edges",
+              "edges_with_dead_evidence",
+              "duplicate_entities",
+              "conflicting_relations",
+              "unreviewed_low_confidence_edges"
+            ],
+            "properties": {
+              "orphan_edges": {
+                "$ref": "#/components/schemas/GraphConsistencyCheck"
+              },
+              "edges_with_dead_evidence": {
+                "$ref": "#/components/schemas/GraphConsistencyCheck"
+              },
+              "duplicate_entities": {
+                "$ref": "#/components/schemas/GraphConsistencyCheck"
+              },
+              "conflicting_relations": {
+                "$ref": "#/components/schemas/GraphConsistencyCheck"
+              },
+              "unreviewed_low_confidence_edges": {
+                "$ref": "#/components/schemas/GraphConsistencyCheck"
+              }
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        }
       }
     },
     "parameters": {
@@ -9759,7 +10983,7 @@
         "type": "http",
         "scheme": "bearer",
         "bearerFormat": "Opaque token",
-        "description": "Required. A per-client API key (`flk_…`) with the `read` scope for GET/HEAD and `POST /api/chat`, or the `write` scope for other mutations. Deprecated but accepted: FLAME_READ_API_TOKEN for reads and the distinct FLAME_WRITE_API_TOKEN for mutations."
+        "description": "Required. A per-client API key (`flk_…`) with the `read` scope for GET/HEAD and `POST /api/chat`, the `write` scope for other mutations, or the `admin` scope for `/api/admin/*`. Deprecated but accepted: FLAME_READ_API_TOKEN for reads and the distinct FLAME_WRITE_API_TOKEN for mutations and admin operations."
       }
     }
   }

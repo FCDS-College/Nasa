@@ -1,6 +1,7 @@
 import csv
 import hashlib
 import json
+import logging
 import re
 import zipfile
 import zlib
@@ -25,6 +26,8 @@ from flame_api.models import (
     SourceRecord,
 )
 from flame_api.seed import seed
+
+logger = logging.getLogger("flame_api.ingest")
 
 # 0.2.0: OCR fallback for pages without a text layer; quarantine; NTRS titles. Chunk and evidence IDs
 # are unchanged from 0.1.0 (they depend on file hash and page only), so re-ingestion is idempotent.
@@ -783,12 +786,29 @@ def ingest() -> dict[str, int]:
                 totals["spice_duplicates"] += counts["duplicates"]
         session.commit()
         _publish_corpus_version(session, totals)
+        _build_knowledge_graph(session, totals)
         return totals
     except Exception:
         session.rollback()
         raise
     finally:
         session.close()
+
+
+def _build_knowledge_graph(session: Session, totals: dict[str, int]) -> None:
+    """Rebuild the table-derived knowledge graph (ADR-007). Derived data: a failure is logged and counted,
+    and never undoes the ingestion it follows (`python -m flame_api.knowledge_graph build` retries it)."""
+    from flame_api.knowledge_graph import build_graph
+
+    try:
+        counts = build_graph(session)
+    except Exception:
+        session.rollback()
+        logger.exception("knowledge_graph_build_failed")
+        totals["graph_build_failed"] = 1
+        return
+    totals["graph_entities"] = counts["entities"]
+    totals["graph_relations"] = counts["relations"]
 
 
 def _publish_corpus_version(session: Session, totals: dict[str, int]) -> None:

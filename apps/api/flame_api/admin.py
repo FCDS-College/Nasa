@@ -1,7 +1,8 @@
 """Audited admin data operations (ADMIN_DATA_OPERATIONS.md procedures 3, 4, 5 and 7; plan B2/B3).
 
-Every route here needs the write token, reads included: quarantine reasons, ingestion runs and the
-audit log are operator data, not something the read-only web tier or AURA should see. Every change
+Every route here needs the `admin` scope (or the deprecated write token), reads included: quarantine
+reasons, ingestion runs and the audit log are operator data, not something the read-only web tier,
+AURA or an ordinary writer should see (ADR-009 step 2). Every change
 writes one `audit_event` row (actor, action, target, before, after, request_id) in the same
 transaction as the change itself, and nothing here deletes scientific source data: reprocessing only
 clears a quarantine flag, and a review only changes `evidence.payload.review_status`.
@@ -30,27 +31,28 @@ REPROCESS_ACTION = "file.reprocess"
 REVIEW_ACTION = "evidence.review"
 
 
-class WriteTokenRequired(Exception):
-    """Raised by `require_write_token`; main.py turns it into a 401 ErrorResponse."""
+class AdminScopeRequired(Exception):
+    """Raised by `require_admin_scope`; main.py turns it into a 401 ErrorResponse."""
 
 
-def require_write_token(request: Request) -> None:
-    """Defence in depth behind the auth middleware: refuse anything not authenticated with the write token.
+def require_admin_scope(request: Request) -> None:
+    """Defence in depth behind the auth middleware: refuse anything it did not authorise for admin.
 
-    The middleware records which token it accepted in `request.state.token_scope` ("unchecked" only
+    The middleware records the scope it checked in `request.state.token_scope` ("unchecked" only
     when API auth is disabled for local development).
     """
-    if getattr(request.state, "token_scope", None) not in {"write", "unchecked"}:
-        raise WriteTokenRequired()
+    if getattr(request.state, "token_scope", None) not in {"admin", "unchecked"}:
+        raise AdminScopeRequired()
 
 
-router = APIRouter(tags=["Admin"], dependencies=[Depends(require_write_token)])
+router = APIRouter(tags=["Admin"], dependencies=[Depends(require_admin_scope)])
 
 
-async def write_token_required_handler(request: Request, _exc: Exception) -> JSONResponse:
+async def admin_scope_required_handler(request: Request, _exc: Exception) -> JSONResponse:
     return JSONResponse(
         status_code=401,
-        content=error_body(request, "AUTHENTICATION_REQUIRED", "The write token is required for admin operations."),
+        content=error_body(request, "AUTHENTICATION_REQUIRED",
+                           "An API key with the admin scope is required for admin operations."),
         headers={"WWW-Authenticate": "Bearer"},
     )
 

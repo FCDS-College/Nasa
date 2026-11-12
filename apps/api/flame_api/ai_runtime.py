@@ -29,6 +29,13 @@ def _secret(value) -> str | None:
     return value.get_secret_value() if value is not None else None
 
 
+def reranker_model() -> str:
+    """The cross-encoder `build_router` registers when FLAME_RERANKER_ENABLED=true (ADR-006)."""
+    from ai.providers.local.cross_encoder import DEFAULT_MODEL
+
+    return DEFAULT_MODEL
+
+
 def build_router(settings: Settings) -> Router:
     from ai.providers.cloud.aura import AuraProvider
     from ai.providers.cloud.hf_space_cv import HfSpaceCvProvider

@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Anas (E2) | In review (peer sign-off: Eman E1) | 2.0.0 | 2026-10-12 | M8, MVP §9, E2-3 | `apps/api/flame_api/models.py`, `apps/api/migrations/versions/0001`–`0004` |
+| Anas (E2) | In review (peer sign-off: Eman E1) | 2.1.0 | 2026-11-12 | M8, MVP §9, E2-3 | `apps/api/flame_api/models.py`, `apps/api/migrations/versions/0001`–`0009` |
 
 Every table in the database is listed here. §4 is **generated** from the SQLAlchemy metadata (the generator script is quoted in §4). §5 covers the two raw-SQL tables from migration `0003`. Field definitions for the source registry CSV are in [E2-1](SOURCE_REGISTRY.md).
 
@@ -25,6 +25,8 @@ knowledge_relation, memory, model, source, vector_index_manifest
 | `0005_api_clients` | `api_client` (per-client API keys: `client_id`, unique `name`, unique sha256 `key_hash`, `scopes`, `created_at`, `last_used_at`, `revoked_at`); keys are created with `python -m flame_api.clients` |
 | `0006_experiment_ingested_at` | `experiment.ingested_at` (TIMESTAMPTZ, nullable), create-if-missing; backfilled from the latest non-quarantine `ingestion_run.finished_at` of the experiment's table file, else that file's `retrieved_at`. Rows with neither stay NULL. Chains after `0005_api_clients`. |
 | `0007_chunk_search_tsv` | PostgreSQL only: `document_chunk.search_tsv` (TSVECTOR, `GENERATED ALWAYS AS (to_tsvector('english', text)) STORED`) with GIN index `ix_document_chunk_search_tsv`; drops `ix_document_chunk_full_text` from 0001. Not in the ORM model, so SQLite test databases do not have it |
+| `0008_api_client_owner` | `api_client.owner` (VARCHAR(128), nullable), add-if-missing: the person accountable for a key; required for `admin` keys (ADR-009 step 2). Existing clients keep their scopes and get no `admin`. |
+| `0009_video_checkpoints` | `analysis_result.cancel_requested_at` (TIMESTAMPTZ, nullable) and table `video_checkpoint_frame` (PK `analysis_id` + `frame_index`, FK → `analysis_result` ON DELETE CASCADE; `video_id`, `job_digest`, `row`, `created_at`), each create-if-missing (ADR-008). |
 
 **Note.** `0001` builds from the live models. A brand-new database therefore gets the newest schema at `0001`, and later migrations must be idempotent, as `0004` is. An existing database gets the columns from `0004`. Both paths were verified to produce identical schemas (L-8 §2).
 
@@ -57,6 +59,20 @@ Evidence rows record `extraction_method`: `verbatim_text`, `ocr`, `table_parse`,
 ## 4. Tables (generated)
 
 Generated with `python docs/tools/render_data_dictionary_tables.py`, which walks `flame_api.models.Base.metadata.sorted_tables` and compiles each type for the PostgreSQL dialect. Tables appear in dependency order.
+
+### `api_client`
+
+| Column | Type (PostgreSQL) | Null | Key / default |
+|---|---|---|---|
+| `client_id` | VARCHAR(26) | no | PK |
+| `name` | VARCHAR(64) | no |  |
+| `key_hash` | VARCHAR(64) | no |  |
+| `scopes` | JSONB | no |  |
+| `owner` | VARCHAR(128) | yes |  |
+| `created_at` | TIMESTAMP WITH TIME ZONE | no |  |
+| `last_used_at` | TIMESTAMP WITH TIME ZONE | yes |  |
+| `revoked_at` | TIMESTAMP WITH TIME ZONE | yes |  |
+Unique: `None` (name); `None` (key_hash).
 
 ### `audit_event`
 
@@ -328,6 +344,7 @@ Unique: `uq_knowledge_relation_edge` (subject_id, predicate, object_id, evidence
 | `original_filename` | TEXT | no |  |
 | `pipeline_version` | TEXT | yes |  |
 | `idempotency_key` | VARCHAR(128) | yes |  |
+| `cancel_requested_at` | TIMESTAMP WITH TIME ZONE | yes |  |
 | `payload` | JSONB | no |  |
 | `artifacts` | JSONB | no |  |
 
@@ -388,6 +405,16 @@ Indexes: `ix_evidence_analysis_id` (analysis_id); `ix_evidence_document_id` (doc
 
 Indexes: `ix_experiment_condition_evidence_id` (evidence_id); `ix_experiment_condition_experiment_id` (experiment_id).
 
+### `video_checkpoint_frame`
+
+| Column | Type (PostgreSQL) | Null | Key / default |
+|---|---|---|---|
+| `analysis_id` | VARCHAR(26) | no | PK, FK → `analysis_result.analysis_id` ON DELETE CASCADE |
+| `frame_index` | INTEGER | no | PK |
+| `video_id` | VARCHAR(64) | no |  |
+| `job_digest` | VARCHAR(64) | no |  |
+| `row` | JSONB | no |  |
+| `created_at` | TIMESTAMP WITH TIME ZONE | no |  |
 
 ## 5. Raw-SQL tables (migration `0003`, PostgreSQL only)
 
@@ -448,9 +475,10 @@ All values are illustrative. Where real hashes and IDs appear, they are from the
 - `ai/routing/model_manifest.json`: the H-3 source for the `model` table.
 
 ## Known limitations
-- `memory`, `cache_entry`, `dataset` and the graph tables have **no writer yet**. Their owners' work (M4/M5 Eman, D2 Anas/Eman, M11 Ziad) fills them. The schemas may need a migration once those writers exist.
+- `memory`, `cache_entry` and `dataset` have **no writer yet**. Their owners' work (M4/M5 Eman, M11 Ziad) fills them. The graph tables are written by `flame_api.knowledge_graph` (ADR-007, E2-6 §0).
 - §6 rows are synthetic, apart from the IDs and hashes quoted from committed files.
 
 ## Changelog
+- 2.1.0 (2026-11-12): §1 adds `0005`–`0009`; §4 regenerated (adds `api_client`, `api_client.owner`, `analysis_result.cancel_requested_at`, `video_checkpoint_frame`).
 - 2.0.0 (2026-10-12): rewritten for E2-3. Covers migrations `0002`–`0004`, every table, and generated listings. The Day 1 field lists moved to E2-1 (registry) and to §7.
 - 1.0.0 (Day 1): canonical field lists.

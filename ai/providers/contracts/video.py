@@ -1,6 +1,7 @@
-"""Video analysis (Workstream A). Contract only: no adapter implements it yet."""
+"""Video analysis (Workstream A), implemented locally by `ai/providers/local/flame_cv_video.py`."""
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
@@ -15,6 +16,11 @@ class VideoAnalysisRequest:
     work_dir: Path
     sample_every_n_frames: int = 30
     max_frames: int | None = None
+    # ADR-008: a checkpoint kept by the caller ({"video_id", "digest", "rows"}) to resume from, and a
+    # hook called with each progress event. The hook may raise to stop the job (cancellation); the
+    # frames checkpointed so far survive. Neither takes part in equality.
+    resume_from: dict[str, Any] | None = field(default=None, compare=False)
+    on_frame: Callable[[dict[str, Any]], None] | None = field(default=None, compare=False)
 
 
 @dataclass(frozen=True, slots=True)

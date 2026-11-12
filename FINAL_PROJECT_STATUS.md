@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Lead (Anas) | Current | 1.0.0 | 2026-11-07 | final challenge plan T1–T7, I7–I11 | whole repository |
+| Lead (Anas) | Current | 1.1.0 | 2026-11-12 | final challenge plan T1–T7, I7–I11, ADR-006–009 | whole repository |
 
 **Challenge.** NASA Space Apps 2026, *Flame in Freefall: AI-powered fire-safety insights from microgravity combustion data*: summarize, rank and explain NASA microgravity combustion results to inform fire safety for Moon and Mars missions.
 
@@ -27,7 +27,8 @@
 | Hybrid retrieval measured on a corpus-grounded gold set | COMPLETE (gold set needs human review) |
 | Cited chat; evidence-only fallback when no model is deployed | COMPLETE (generation not evaluated: no model here) |
 | Image and video CV through the API (BASS-II flight video, SPICE photos) | COMPLETE |
-| Contract 0.5.0, AURA Link 2 dry run (14 tools) | COMPLETE |
+| Contract 0.6.0, AURA Link 2 dry run (16 tools) | COMPLETE |
+| ADR-006 to 009 built (PR #29): one `ai/rag` search stack (reranker optional), knowledge graph from the PSI tables, video checkpoints and cancellation, admin scope | COMPLETE (reranker off by default; no NLP graph extraction) |
 | Demo runbook, demo data script, browser smoke test | COMPLETE |
 
 ## 2. Remaining limitations
@@ -60,3 +61,4 @@
 
 ## Changelog
 - 1.0.0 (2026-11-07): final status for submission.
+- 1.1.0 (2026-11-12): contract 0.6.0 and the ADR-006 to 009 builds (PR #29).

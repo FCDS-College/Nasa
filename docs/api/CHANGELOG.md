@@ -2,9 +2,35 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Lead (Anas) | Current | — | 2026-11-07 | L-4, M6 | `docs/api/openapi.json`, `apps/api/flame_api/` |
+| Lead (Anas) | Current | — | 2026-11-12 | L-4, M6 | `docs/api/openapi.json`, `apps/api/flame_api/` |
 
 Semver applies to `docs/api/openapi.json` `info.version`. Breaking changes need a minor bump while we are pre-1.0, an entry here, and one release of deprecation where practical.
+
+## 0.6.0 (2026-11-12)
+
+ADR-006 to 009 built. Additive for read clients; read **Changed** before upgrading a deployment that uses client keys for admin work. AURA's Link 2 dry run at the pinned AURA revision `d696fad`: **16 tools accepted, 10 operations excluded**, exit 0.
+
+**Changed (ADR-009)**
+- `/api/admin/*` needs the new **`admin` scope**, reads included. A client key with only `write` scope now gets **403 `FORBIDDEN`** there, where it used to be allowed. Create admin keys with `python -m flame_api.clients create NAME --scopes admin --owner PERSON`; `--owner` is required for admin keys (migration `0008_api_client_owner`). The deprecated `FLAME_WRITE_API_TOKEN` keeps working for admin operations.
+
+**Added (ADR-008)**
+- `POST /api/analyses/{analysis_id}/cancel` (write scope, `x-aura-exclude`):
+  - a queued analysis becomes `cancelled` (200);
+  - a processing one records `cancel_requested_at` and stops at its next checkpoint (202);
+  - an already cancelled one returns 200;
+  - `completed` or `failed` returns 409 **`ANALYSIS_NOT_CANCELLABLE`**.
+- `Analysis.progress` (`AnalysisProgress`: `frames_done`, `frames_total`, `checkpointed_at`) for video jobs, and `Analysis.cancel_requested_at`. Both are optional and absent when they do not apply.
+- `WarningCode.JOB_RESUMED_FROM_CHECKPOINT`: a recovered video job resumed from its stored frames (migration `0009_video_checkpoints`).
+
+**Added (ADR-006)**
+- `RetrievalInfo.stack_version`, `.query_rewrite` (`QueryRewrite`) and `.reranking` (`RerankingInfo`: `disabled` | `applied` | `unavailable`). They are required: every `/api/search` response now has them.
+- Ordering is unchanged with the reranker off (identical top 5 on the 26-question gold set). With `FLAME_RERANKER_ENABLED=true`, the first `FLAME_RERANK_DEPTH` results are reordered by a cross-encoder; `score` stays monotonic with `rank`.
+
+**Added (ADR-007)**, tag **Knowledge graph**:
+- `GET /api/graph/entities` (read scope; AURA tool `api_list_graph_entities`);
+- `GET /api/graph/entities/{entity_id}` (read scope; AURA tool `api_get_graph_entity`; 404 **`ENTITY_NOT_FOUND`**);
+- `GET /api/admin/graph/consistency` (admin scope, `x-aura-exclude`);
+- schemas `GraphEntityType`, `GraphPredicate`, `GraphReviewStatus`, `GraphEntity`, `GraphEdge`, `GraphNeighbourhood`, `GraphEntityListResponse`, `GraphEntityResponse`, `GraphConsistencyCheck`, `GraphConsistencyResponse`.
 
 ## 0.5.0 (2026-11-07)
 

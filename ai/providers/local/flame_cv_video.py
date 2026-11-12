@@ -36,15 +36,19 @@ class FlameCvVideoProvider:
     def analyze_video(self, request: VideoAnalysisRequest) -> VideoAnalysisResponse:
         try:
             from cv.flame_cv import CVError
-            from cv.video_analysis import analyze_video
+            from cv.video_analysis import analyze_video, seed_checkpoint
             from cv.video_ingestion import VideoConfig
         except ImportError as exc:
             raise ProviderError(ProviderErrorCode.MODEL_MISSING, "The local video pipeline is not installed.",
                                 provider="flame_cv_video", request_sent=False) from exc
         config = VideoConfig(sample_every=max(1, request.sample_every_n_frames), max_frames=request.max_frames)
         try:
-            # Re-running with the same work_dir resumes from the JSONL checkpoint (L-6 job recovery).
-            result = analyze_video(request.video_path, request.work_dir, video_cfg=config)
+            # Re-running with the same work_dir resumes from the JSONL checkpoint (L-6 job recovery); a
+            # checkpoint the caller kept elsewhere is written back into the work_dir first (ADR-008).
+            seed = request.resume_from
+            if seed and seed.get("rows"):
+                seed_checkpoint(request.work_dir, seed["video_id"], seed["digest"], list(seed["rows"]))
+            result = analyze_video(request.video_path, request.work_dir, video_cfg=config, on_frame=request.on_frame)
         except CVError as exc:
             code = ProviderErrorCode.UNAVAILABLE if exc.retryable else ProviderErrorCode.INVALID_REQUEST
             raise ProviderError(code, exc.message, provider="flame_cv_video") from exc

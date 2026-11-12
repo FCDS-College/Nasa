@@ -157,9 +157,32 @@ class AnalysisRecord(Base):
     original_filename: Mapped[str] = mapped_column(Text)
     pipeline_version: Mapped[str | None] = mapped_column(Text, nullable=True)
     idempotency_key: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    # Set by POST /api/analyses/{id}/cancel while the job is processing; the worker stops at its next
+    # checkpoint (video) or before storing its result (image) and marks the analysis cancelled (ADR-008).
+    cancel_requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     payload: Mapped[dict[str, Any]] = mapped_column(JsonType, default=dict)
     artifacts: Mapped[dict[str, Any]] = mapped_column(JsonType, default=dict)
     __table_args__ = (UniqueConstraint("idempotency_key", name="uq_analysis_idempotency_key"),)
+
+
+class VideoCheckpointFrame(Base):
+    """One sampled frame a running video job has measured (ADR-008 per-segment checkpoint).
+
+    The worker writes a segment of rows at a time, so a job re-queued after a crash (worker.recover)
+    resumes after the last stored segment, even on a new container. `job_digest` identifies the video,
+    pipeline version and sampling; rows from another digest are ignored on resume. Rows are deleted
+    when the analysis reaches a terminal state.
+    """
+
+    __tablename__ = "video_checkpoint_frame"
+
+    analysis_id: Mapped[str] = mapped_column(ForeignKey("analysis_result.analysis_id", ondelete="CASCADE"),
+                                             primary_key=True)
+    frame_index: Mapped[int] = mapped_column(Integer, primary_key=True)
+    video_id: Mapped[str] = mapped_column(String(64))
+    job_digest: Mapped[str] = mapped_column(String(64))
+    row: Mapped[dict[str, Any]] = mapped_column(JsonType)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
 class IngestionRun(Base):
@@ -351,7 +374,8 @@ class ApiClient(Base):
     """One row per API caller (P2-1, ADR-009 step 2): `web`, `aura`, an operator's script.
 
     Only the SHA-256 of the key is stored; the key itself is printed once by
-    `python -m flame_api.clients create`. Scopes are `read` and/or `write`.
+    `python -m flame_api.clients create`. Scopes are any of `read`, `write` and `admin`; an `admin`
+    client always has an `owner`, the person accountable for what it does (ADR-009).
     """
 
     __tablename__ = "api_client"
@@ -360,6 +384,7 @@ class ApiClient(Base):
     name: Mapped[str] = mapped_column(String(64), unique=True)
     key_hash: Mapped[str] = mapped_column(String(64), unique=True)
     scopes: Mapped[list[str]] = mapped_column(JsonType, default=list)
+    owner: Mapped[str | None] = mapped_column(String(128), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

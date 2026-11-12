@@ -20,9 +20,9 @@ def bearer(key):
 
 @pytest.fixture
 def make_client(session_factory):
-    def make(name, scopes=("read",)):
+    def make(name, scopes=("read",), owner=None):
         with session_factory() as session:
-            _, key = clients.create_client(session, name, list(scopes))
+            _, key = clients.create_client(session, name, list(scopes), owner=owner)
         return key
 
     return make
@@ -43,15 +43,20 @@ def test_a_key_is_stored_only_as_its_hash(session_factory, make_client):
     assert key.startswith("flk_") and len(key) > 40
     assert record.key_hash == clients.hash_key(key) and key not in record.key_hash
     assert record.scopes == ["read"] and record.revoked_at is None and record.last_used_at is None
+    assert record.owner is None
 
 
 def test_names_and_scopes_are_validated(session_factory, make_client):
     make_client("web")
     with session_factory() as session:
         for name, scopes in (("web", ["read"]), ("Web Server", ["read"]), ("legacy-read", ["read"]),
-                             ("anonymous", ["read"]), ("aura", []), ("aura", ["admin"])):
+                             ("anonymous", ["read"]), ("aura", []), ("aura", ["root"]), ("aura", ["admin"])):
             with pytest.raises(clients.ClientError):
                 clients.create_client(session, name, scopes)
+        # An admin key names its holder, on one printable line.
+        for owner in ("", "   ", "Eman\nE1", "x" * 129):
+            with pytest.raises(clients.ClientError):
+                clients.create_client(session, "ops", ["admin"], owner=owner)
 
 
 def test_a_read_key_reads_and_cannot_write(client, make_client):
@@ -131,7 +136,7 @@ def test_a_client_key_needs_the_database_but_legacy_tokens_do_not(client, monkey
 
 
 def test_the_audit_actor_is_the_client_name(client, session_factory, make_client):
-    key = make_client("ops", scopes=("write",))
+    key = make_client("ops", scopes=("admin",), owner="Belal (E4)")
 
     assert client.put("/api/admin/ai/mode", json={"mode": "offline_only"}, headers=bearer(key)).status_code == 200
     assert client.put("/api/admin/ai/mode", json={"mode": "local_first"}, headers=bearer(WRITE_TOKEN)).status_code == 200
@@ -139,6 +144,60 @@ def test_the_audit_actor_is_the_client_name(client, session_factory, make_client
     with session_factory() as session:
         actors = list(session.scalars(select(AuditEvent.actor).order_by(AuditEvent.occurred_at)))
     assert actors == ["ops", "write-token"]
+
+
+# --- ADR-009 step 2: the admin scope ---------------------------------------------------------------
+
+ADMIN_ROUTES = (
+    ("GET", "/api/admin/files", None),
+    ("GET", "/api/admin/ingestion-runs", None),
+    ("GET", "/api/admin/audit", None),
+    ("PUT", "/api/admin/ai/mode", {"mode": "offline_only"}),
+)
+
+
+def test_a_write_key_is_not_an_admin(client, make_client):
+    key = make_client("uploader", scopes=("read", "write"))
+
+    for method, path, body in ADMIN_ROUTES:
+        response = client.request(method, path, json=body, headers=bearer(key))
+        assert response.status_code == 403, (method, path)
+        assert response.json()["error"]["code"] == "FORBIDDEN"
+        assert "admin scope" in response.json()["error"]["message"]
+    # It still writes outside /api/admin/.
+    assert client.post("/api/analyses", headers=bearer(key)).status_code == 400
+
+
+def test_an_admin_key_reaches_admin_routes_and_nothing_else(client, session_factory, make_client):
+    key = make_client("eman-admin", scopes=("admin",), owner="Eman (E1)")
+
+    for method, path, body in ADMIN_ROUTES:
+        assert client.request(method, path, json=body, headers=bearer(key)).status_code == 200, (method, path)
+    # Scopes are independent: admin implies neither read nor write.
+    assert client.get("/api/documents", headers=bearer(key)).status_code == 403
+    assert client.post("/api/analyses", headers=bearer(key)).status_code == 403
+    assert stored(session_factory, "eman-admin").owner == "Eman (E1)"
+
+
+def test_the_legacy_write_token_keeps_its_admin_rights(client):
+    for method, path, body in ADMIN_ROUTES:
+        assert client.request(method, path, json=body, headers=bearer(WRITE_TOKEN)).status_code == 200, (method, path)
+        assert client.request(method, path, json=body, headers=bearer(READ_TOKEN)).status_code == 401, (method, path)
+
+
+def test_the_cli_requires_an_owner_for_an_admin_key(session_factory, monkeypatch, capsys):
+    from flame_api import database
+
+    monkeypatch.setattr(database, "SessionLocal", session_factory)
+
+    assert clients.main(["create", "ops", "--scopes", "admin"]) == 2
+    assert "--owner" in capsys.readouterr().err
+    assert clients.main(["create", "ops", "--scopes", "admin,read", "--owner", "Belal (E4)"]) == 0
+    out = capsys.readouterr().out
+    assert "with scopes admin,read, held by Belal (E4)." in out
+    assert clients.main(["list"]) == 0
+    row = next(line for line in capsys.readouterr().out.splitlines() if line.startswith("ops\t"))
+    assert row.split("\t")[2:4] == ["admin,read", "Belal (E4)"]
 
 
 def test_the_cli_creates_lists_and_revokes(session_factory, monkeypatch, capsys):

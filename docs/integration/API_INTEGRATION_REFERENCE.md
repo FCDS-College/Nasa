@@ -4,7 +4,7 @@
 |---|---|---|---|---|---|
 | Lead (Anas) | Current for contract 0.3.0 | 1.0.0 | 2026-10-30 | L-4, L-12 | `docs/api/openapi.json`, `apps/api/flame_api/main.py`, `apps/api/flame_api/analysis.py` |
 
-**Start with [README.md](README.md)** for the current setup (contract 0.5.0: 14 tools, per-client keys). This page is the per-endpoint reference written for 0.3.0.
+**Start with [README.md](README.md)** for the current setup (contract 0.6.0: 16 tools, per-client keys). This page is the per-endpoint reference written for 0.3.0.
 
 **Source of truth:** [`docs/api/openapi.json`](../api/openapi.json), served at `GET /api/openapi.json`, plus the rendered [API_SCHEMAS.md](../api/API_SCHEMAS.md). This page tells a client what to call and how to behave; it does not repeat every field. Changes are listed in [CHANGELOG](../api/CHANGELOG.md).
 

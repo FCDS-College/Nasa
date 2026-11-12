@@ -82,7 +82,7 @@ def test_a_crashed_image_job_is_requeued_once(rows, session_factory):
     rows("01JCRASHED0000000000000000", age_s=600)
     queue = FakeQueue()
 
-    assert worker.recover(queue=queue, now=NOW) == {"requeued": 1, "failed": 0, "skipped": 0}
+    assert worker.recover(queue=queue, now=NOW) == {"requeued": 1, "failed": 0, "skipped": 0, "cancelled": 0}
 
     record = _get(session_factory, "01JCRASHED0000000000000000")
     assert record.status == "queued" and record.payload["status"] == "queued"
@@ -95,7 +95,7 @@ def test_a_crashed_image_job_is_requeued_once(rows, session_factory):
     assert kwargs["job_id"] == analysis_id and "job_timeout" not in kwargs   # RQ default, as at submission
 
     # Idempotent: the row is now queued with a live job, so a second run (even much later) does nothing.
-    assert worker.recover(queue=queue, now=NOW + timedelta(hours=1)) == {"requeued": 0, "failed": 0, "skipped": 1}
+    assert worker.recover(queue=queue, now=NOW + timedelta(hours=1)) == {"requeued": 0, "failed": 0, "skipped": 1, "cancelled": 0}
     assert len(queue.jobs) == 1
 
 
@@ -105,7 +105,7 @@ def test_video_jobs_use_the_video_timeout(rows, session_factory):
     rows("01JVIDEORUNNING00000000000", analysis_type="flame_video", age_s=timeout - 60)   # still within its timeout
     queue = FakeQueue()
 
-    assert worker.recover(queue=queue, now=NOW) == {"requeued": 1, "failed": 0, "skipped": 1}
+    assert worker.recover(queue=queue, now=NOW) == {"requeued": 1, "failed": 0, "skipped": 1, "cancelled": 0}
 
     (job, analysis_id, kwargs), = queue.jobs
     assert (job, analysis_id) == ("flame_api.worker.process_video_analysis", "01JVIDEOOLD000000000000000")
@@ -119,7 +119,7 @@ def test_fresh_processing_and_terminal_rows_are_untouched(rows, session_factory)
     rows("01JFAILED00000000000000000", status="failed", age_s=100_000)
     queue = FakeQueue()
 
-    assert worker.recover(queue=queue, now=NOW) == {"requeued": 0, "failed": 0, "skipped": 0}
+    assert worker.recover(queue=queue, now=NOW) == {"requeued": 0, "failed": 0, "skipped": 0, "cancelled": 0}
     assert queue.jobs == []
     assert _get(session_factory, "01JFRESH000000000000000000").status == "processing"
 
@@ -138,7 +138,7 @@ def test_queued_rows_are_requeued_only_without_a_live_rq_job(rows, session_facto
     rows("01JQUEUEDNEW00000000000000", status="queued", age_s=5)      # enqueue not reached yet
     queue = FakeQueue(live=["01JQUEUEDWAIT0000000000000"])
 
-    assert worker.recover(queue=queue, now=NOW) == {"requeued": 1, "failed": 0, "skipped": 1}
+    assert worker.recover(queue=queue, now=NOW) == {"requeued": 1, "failed": 0, "skipped": 1, "cancelled": 0}
     assert [analysis_id for _, analysis_id, _ in queue.jobs] == ["01JQUEUEDLOST0000000000000"]
 
 
@@ -146,7 +146,7 @@ def test_the_attempt_cap_marks_the_analysis_failed(rows, session_factory):
     rows("01JCAPPED00000000000000000", warnings=[_recovered(1), _recovered(2), _recovered(3)])
     queue = FakeQueue()
 
-    assert worker.recover(queue=queue, now=NOW) == {"requeued": 0, "failed": 1, "skipped": 0}
+    assert worker.recover(queue=queue, now=NOW) == {"requeued": 0, "failed": 1, "skipped": 0, "cancelled": 0}
 
     record = _get(session_factory, "01JCAPPED00000000000000000")
     assert record.status == "failed" and record.payload["status"] == "failed"
@@ -154,7 +154,7 @@ def test_the_attempt_cap_marks_the_analysis_failed(rows, session_factory):
     assert record.payload["failure"]["retryable"] is False
     assert record.payload["poll_after_ms"] is None and record.completed_at is not None
     assert queue.jobs == []
-    assert worker.recover(queue=queue, now=NOW) == {"requeued": 0, "failed": 0, "skipped": 0}
+    assert worker.recover(queue=queue, now=NOW) == {"requeued": 0, "failed": 0, "skipped": 0, "cancelled": 0}
 
 
 def test_two_recoverers_claim_a_row_only_once(rows, session_factory, monkeypatch):
@@ -175,8 +175,8 @@ def test_two_recoverers_claim_a_row_only_once(rows, session_factory, monkeypatch
 
     first = worker.recover(queue=queue, now=NOW)
 
-    assert raced == [{"requeued": 1, "failed": 0, "skipped": 0}]
-    assert first == {"requeued": 0, "failed": 0, "skipped": 1}
+    assert raced == [{"requeued": 1, "failed": 0, "skipped": 0, "cancelled": 0}]
+    assert first == {"requeued": 0, "failed": 0, "skipped": 1, "cancelled": 0}
     assert len(queue.jobs) == 1
     assert len(_get(session_factory, "01JRACE0000000000000000000").payload["warnings"]) == 1
 
@@ -214,7 +214,7 @@ def test_a_recovered_image_analysis_completes_and_keeps_the_warning(client, sess
 
 def test_the_recover_command_parses_its_options(monkeypatch, capsys):
     seen = {}
-    monkeypatch.setattr(worker, "recover", lambda **kwargs: seen.update(kwargs) or {"requeued": 0, "failed": 0, "skipped": 0})
+    monkeypatch.setattr(worker, "recover", lambda **kwargs: seen.update(kwargs) or {"requeued": 0, "failed": 0, "skipped": 0, "cancelled": 0})
 
     assert worker.main(["recover", "--older-than", "900"]) == 0
     assert seen == {"older_than": 900}

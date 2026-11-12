@@ -1,6 +1,6 @@
 # ADR-008: RQ stays the job system for Phase 2
 
-- **Status:** Accepted (2026-11-07). Decision owner: Lead, with Princess (E3). Accepted by the Lead; Princess's approval is recorded in ADR index 1.2.0. Partly implemented: see ADR index 1.3.0.
+- **Status:** Accepted (2026-11-07). Decision owner: Lead, with Princess (E3). Accepted by the Lead; Princess's approval is recorded in ADR index 1.2.0. Implemented in PR #29 (2026-11-12): see ADR index 1.4.0 for what is built and what is still open.
 - **Date:** 2026-10-12
 
 ## Context

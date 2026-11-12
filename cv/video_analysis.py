@@ -2,7 +2,9 @@
 video_analysis.py - End-to-end video analysis: ingestion -> per-frame flame analysis -> temporal summary (A1/A2/A4).
 
 Per-frame measurements are appended to a JSONL checkpoint as they are computed, so an interrupted
-run resumes from the last completed frame instead of starting over. Run from the repo root:
+run resumes from the last completed frame instead of starting over. A caller that keeps the
+checkpoint elsewhere (the API worker keeps it in PostgreSQL, ADR-008) restores it with
+``seed_checkpoint`` and receives every new frame through ``on_frame``. Run from the repo root:
 
     python -m cv.video_analysis path/to/video.mp4 [--out-dir cv/output/video] [--sample-every N] [--max-frames N]
 """
@@ -26,6 +28,10 @@ from cv.video_ingestion import (VIDEO_PIPELINE_VERSION, VideoConfig, iter_frames
 
 VIDEO_SCHEMA_VERSION = "1.3.0"
 FrameAnalyzer = Callable[..., Dict[str, Any]]
+# Called once when the run starts ({"event": "start", ...}) and after each frame is checkpointed
+# ({"event": "frame", "row": ...}); both carry videoId, digest, total and done. An exception raised
+# by the hook stops the run; the frames already written stay in the checkpoint, so it can resume.
+FrameHook = Callable[[Dict[str, Any]], None]
 
 
 def _job_digest(record: Dict[str, Any], vcfg: VideoConfig, cfg: CVConfig) -> str:
@@ -69,9 +75,24 @@ def _load_checkpoint(path: Path) -> List[Dict[str, Any]]:
     return rows
 
 
+def seed_checkpoint(work_dir: Any, video_id: str, digest: str, rows: List[Dict[str, Any]]) -> None:
+    """Write a checkpoint kept elsewhere back into ``work_dir`` so that ``analyze_video`` resumes from it.
+
+    ``analyze_video`` still compares ``digest`` with the job it is asked to run and discards the rows
+    when they differ (another video, pipeline version or sampling), so a stale seed is harmless.
+    """
+    job_dir = Path(work_dir) / video_id
+    job_dir.mkdir(parents=True, exist_ok=True)
+    ordered = sorted(rows, key=lambda r: r["frameIndex"])
+    atomic_write_text(job_dir / "frames.jsonl", "".join(json.dumps(r) + "\n" for r in ordered))
+    atomic_write_text(job_dir / "job.json", json.dumps({"digest": digest, "status": "RUNNING", "videoId": video_id,
+                                                        "updatedAt": utc_now()}, indent=2))
+
+
 def analyze_video(video_path: Any, work_dir: Any, cfg: Optional[CVConfig] = None,
                   video_cfg: Optional[VideoConfig] = None, temporal_cfg: Optional[TemporalConfig] = None,
-                  resume: bool = True, analyzer: FrameAnalyzer = analyze_image_safe) -> Dict[str, Any]:
+                  resume: bool = True, analyzer: FrameAnalyzer = analyze_image_safe,
+                  on_frame: Optional[FrameHook] = None) -> Dict[str, Any]:
     """Analyze a video and return a ``VideoAnalysisResult`` payload (raises CVError on failure)."""
     cfg = cfg or CVConfig()
     video_cfg = video_cfg or VideoConfig()
@@ -94,6 +115,9 @@ def analyze_video(video_path: Any, work_dir: Any, cfg: Optional[CVConfig] = None
 
     total = len(sampled_indexes(record["frameCount"], video_cfg))
     done_idx = {r["frameIndex"] for r in done}
+    progress = {"videoId": record["videoId"], "digest": digest, "total": total}
+    if on_frame is not None:
+        on_frame({"event": "start", **progress, "done": len(done)})
     if len(done_idx) < total:
         with open(ckpt_path, "w", encoding="utf-8") as f:  # rewrite to drop any truncated tail
             for r in done:
@@ -108,6 +132,8 @@ def analyze_video(video_path: Any, work_dir: Any, cfg: Optional[CVConfig] = None
                 f.write(json.dumps(row) + "\n")
                 f.flush()
                 done.append(row)
+                if on_frame is not None:
+                    on_frame({"event": "frame", **progress, "done": len(done), "row": row})
 
     measurements = sorted(done, key=lambda r: r["frameIndex"])
     summary = summarize(measurements, record["fps"], video_cfg.sample_every, temporal_cfg)

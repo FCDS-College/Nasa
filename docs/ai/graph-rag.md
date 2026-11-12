@@ -4,7 +4,7 @@
 |---|---|---|---|---|---|
 | Eman | Draft (design only; every behaviour is **Planned**) | 0.1.0 | 2026-10-14 | D4 | none yet (Planned: `ai/rag/graph/`) |
 
-**Status: design only.** Graph RAG depends on D2 and D3 (graph schema and storage) and on M8 (entity and relation tables owned by Anas, E2). None exists. Everything below is **Planned**. Examples use synthetic ids. No metric is reported because no run exists.
+**Status: design only.** Graph RAG depends on D2 and D3 (graph schema and storage) and on M8 (entity and relation tables owned by Anas, E2). **Update 2026-11-12:** the graph itself now exists. ADR-007 is built: tables populated from the PSI tables, recursive-CTE traversal, and `GET /api/graph/entities/{id}` ([E2-6 §0](../data/KNOWLEDGE_GRAPH_SCHEMA.md)). Graph RAG, which uses it inside chat retrieval, is still not built, so everything below is **Planned**. The built graph holds only `table_parse` edges (confidence 1.0, `unreviewed`); the default `reviewed`/`curated` edge filter in §2 would return nothing until edges are reviewed. Examples use synthetic ids. No metric is reported because no run exists.
 
 Graph RAG complements the conventional pipeline in `retrieval-pipeline.md`. It never replaces it and never answers without evidence chunks.
 

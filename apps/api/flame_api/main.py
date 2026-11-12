@@ -27,15 +27,17 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from flame_api.config import get_settings
 from flame_api.contracts import error_body, response_meta
 from flame_api.database import engine, get_session
-from flame_api.admin import WriteTokenRequired, router as admin_router, write_token_required_handler
+from flame_api.admin import AdminScopeRequired, admin_scope_required_handler, router as admin_router
 from flame_api.analysis import router as analysis_router
 from flame_api.investigations import router as investigations_router
+from flame_api.graph import admin_router as graph_admin_router, router as graph_router
+from ai.providers.contracts.errors import ProviderError
 from ai.routing import ExecutionMode, NoCompatibleProvider
 from flame_api import ai_runtime, answer_cache, clients, rate_limit, telemetry
 from flame_api.generation import CHAT_INSTRUCTIONS, answer_question
 from flame_api.knowledge_version import current_knowledge_version
 from flame_api.models import AnalysisRecord, DocumentChunk, DocumentRecord, EvidenceRecord, ExperimentCondition, ExperimentRecord, SourceRecord
-from ai.rag.retrieval.fusion import reciprocal_rank_fusion
+from ai.rag.retrieval.search_stack import STACK_VERSION, Candidate, RerankUnavailable, SearchStack
 from flame_api.vector_index import VectorUnavailableError, index_status, indexed_chunk_count, search_chunks
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -52,7 +54,9 @@ app = FastAPI(
 app.include_router(analysis_router)
 app.include_router(admin_router)
 app.include_router(investigations_router)
-app.add_exception_handler(WriteTokenRequired, write_token_required_handler)
+app.include_router(graph_router)
+app.include_router(graph_admin_router)
+app.add_exception_handler(AdminScopeRequired, admin_scope_required_handler)
 telemetry.setup(settings.otel_service_name, enabled=settings.otel_enabled)
 
 _CONTRACT_PATH = Path(__file__).resolve().parents[3] / "docs" / "api" / "openapi.json"
@@ -94,16 +98,17 @@ async def _authorized(request: Request, call_next):
     if not path.startswith("/api/") or public_metadata:
         return await call_next(request)
     # Chat only reads the corpus (and asks AURA), so read scope is enough for it; the web service
-    # never needs write scope. Admin data is not for the read tier: every /api/admin/ route, GETs
-    # included, needs write scope.
+    # never needs write scope. Admin data is neither for the read tier nor for every writer: every
+    # /api/admin/ route, GETs included, needs the admin scope (ADR-009 step 2).
     chat = request.method == "POST" and path == "/api/chat"
     admin = path.startswith("/api/admin/")
     reads = (request.method in {"GET", "HEAD"} and not admin) or chat
+    scope = "admin" if admin else "read" if reads else "write"
     if settings.api_auth_enabled:
-        identity = await _identify(request, "read" if reads else "write")
+        identity = await _identify(request, scope)
         if isinstance(identity, JSONResponse):
             return identity
-        request.state.token_scope = "read" if reads else "write"
+        request.state.token_scope = scope
     else:
         identity = "anonymous"
         request.state.token_scope = "unchecked"
@@ -119,13 +124,16 @@ async def _identify(request: Request, scope: str) -> str | JSONResponse:
     """The caller's identity, or the 401/403/503 to send instead (P2-1).
 
     A client key from `api_client` with the scope, or (deprecated) the env token for the scope.
+    The legacy write token also keeps its historical admin rights (ADR-009: tokens keep working as
+    service credentials); a client key reaches /api/admin/ only with the `admin` scope.
     """
     authorization = request.headers.get("Authorization", "")
     scheme, separator, supplied = authorization.partition(" ")
     if scheme.lower() == "bearer" and separator and supplied:
-        legacy = settings.read_api_token if scope == "read" else settings.write_api_token
+        tier = "read" if scope == "read" else "write"
+        legacy = settings.read_api_token if tier == "read" else settings.write_api_token
         if legacy is not None and compare_digest(supplied.encode(), legacy.get_secret_value().encode()):
-            return f"legacy-{scope}"
+            return f"legacy-{tier}"
         if clients.looks_like_client_key(supplied):
             try:
                 found = await run_in_threadpool(_lookup_client, supplied)
@@ -485,6 +493,28 @@ def _experiment_ingested_at(experiment: ExperimentRecord) -> datetime:
     return experiment.ingested_at or experiment.table_file.retrieved_at
 
 
+def _rerank_through_router(query: str, documents) -> tuple[dict[str, float], str]:
+    """ADR-006: the cross-encoder is reached through the router's `rerank` task, never imported here."""
+    from ai.providers.contracts.reranking import RerankRequest
+
+    try:
+        routed = ai_runtime.get_router(settings).route(
+            "rerank", lambda provider: provider.rerank(RerankRequest(query=query, documents=tuple(documents))))
+    except (NoCompatibleProvider, ProviderError) as exc:
+        raise RerankUnavailable(str(exc)) from exc
+    return dict(routed.value.scores), routed.value.model
+
+
+def _search_stack() -> SearchStack:
+    return SearchStack(rerank=_rerank_through_router if settings.reranker_enabled else None,
+                       rerank_depth=settings.rerank_depth)
+
+
+def _experiment_text(experiment: ExperimentRecord) -> str:
+    return (f"{experiment.investigation or 'Experiment'} {experiment.test_id}: fuel or material "
+            f"{experiment.fuel_or_material or 'unknown'}; gravity regime {experiment.gravity_regime or 'unknown'}.")
+
+
 @app.get("/api/search", tags=["Research"])
 def search(
     request: Request,
@@ -497,25 +527,28 @@ def search(
     page_size: int = 20,
     session: Session = Depends(get_session),
 ):
+    """Data access for the ai/rag search stack (ADR-006): SQL finds and filters candidates, the stack orders them."""
     query = q.strip()
     if not query or len(query) > 500 or page < 1 or not 1 <= page_size <= 50:
         return JSONResponse(status_code=400, content=error_body(request, "VALIDATION_ERROR", "Search parameters are invalid."))
     if len(source_id or []) > 20 or domain not in {"combustion", "all"} or type not in {None, "document", "experiment"}:
         return JSONResponse(status_code=400, content=error_body(request, "VALIDATION_ERROR", "Search filters are invalid."))
-    results: list[dict[str, Any]] = []
+    stack = _search_stack()
+    plan = stack.plan(query)
+    candidates: list[Candidate] = []
+    payloads: dict[str, dict[str, Any]] = {}
     total_items = 0
     index_version: str | None = None
-    candidates = _lexical_candidates(page, page_size)
+    limit = _lexical_candidates(page, page_size)
     try:
         source_filter = source_id or None
-        offset = (page - 1) * page_size
         # Resolved up front: as an IN (subquery) PostgreSQL plans a per-source index scan that re-parses every
         # chunk's text (12 s at 10^5 chunks) instead of using the full-text GIN index (30 ms).
         combustion_sources = session.scalars(select(SourceRecord.source_id).where(SourceRecord.domain == "combustion")).all() if domain == "combustion" else []
         experiment_evidence = select(EvidenceRecord.evidence_id).where(EvidenceRecord.experiment_id == experiment_id)
         if type in {None, "document"}:
             chunk_options = joinedload(DocumentChunk.document).joinedload(DocumentRecord.source)
-            matches, lexical_score = _lexical_match(session, DocumentChunk.text, query)
+            matches, lexical_score = _lexical_match(session, DocumentChunk.text, plan.lexical_query)
             doc_query = session.query(DocumentChunk).filter(matches)
             if domain == "combustion":
                 doc_query = doc_query.filter(DocumentChunk.source_id.in_(combustion_sources))
@@ -526,23 +559,24 @@ def search(
             doc_query = doc_query.filter(DocumentChunk.evidence_id.notin_(_rejected_evidence_ids()))
             total_items += doc_query.count()
             lexical_order = (lexical_score.desc(), DocumentChunk.chunk_id)
-            lexical_chunks = doc_query.options(chunk_options).order_by(*lexical_order).limit(candidates).all()
+            lexical_chunks = doc_query.options(chunk_options).order_by(*lexical_order).limit(limit).all()
             extra_chunks: list[DocumentChunk] = []
             semantic_scores: dict[str, float] = {}
             if domain in {"combustion", "all"}:
                 try:
                     status = index_status(session)
                     if status["state"] == "up":
-                        semantic_scores = dict(search_chunks(session, query, limit=10))
+                        semantic_scores = dict(search_chunks(session, plan.semantic_query, limit=10))
                         index_version = status["version"]
                 except (VectorUnavailableError, SQLAlchemyError):
                     logger.warning("request_id=%s vector_search=unavailable", request.state.request_id)
-            seen_chunks = {chunk.chunk_id for chunk in lexical_chunks}
-            extra_ids = [cid for cid in semantic_scores if cid not in seen_chunks]
-            # A dense hit that is also a lexical match below the candidate cut keeps its exact lexical rank,
-            # so its fused score (and therefore paging) does not depend on how many candidates were fetched.
-            deep_lexical_rank: dict[str, int] = {}
+            ranks: dict[str, dict[str, int]] = {
+                chunk.chunk_id: {"lexical": position} for position, chunk in enumerate(lexical_chunks, start=1)
+            }
+            extra_ids = [cid for cid in semantic_scores if cid not in ranks]
             if extra_ids:
+                # A dense hit that is also a lexical match below the candidate cut keeps its exact lexical rank,
+                # so its fused score (and therefore paging) does not depend on how many candidates were fetched.
                 ranked = doc_query.with_entities(
                     DocumentChunk.chunk_id.label("chunk_id"),
                     func.row_number().over(order_by=lexical_order).label("position"),
@@ -562,21 +596,22 @@ def search(
                 extra_chunks = extra.order_by(DocumentChunk.chunk_id).all()
                 # deep lexical matches are already in the COUNT above
                 total_items += sum(chunk.chunk_id not in deep_lexical_rank for chunk in extra_chunks)
-            dense_ranking = sorted(semantic_scores, key=lambda cid: (-semantic_scores[cid], cid))
-            # only true lexical hits enter the lexical ranking; dense-only hits are ranked by the dense list alone
-            fused = dict(reciprocal_rank_fusion([[c.chunk_id for c in lexical_chunks], dense_ranking], k=_RRF_K))
-            for chunk_id, position in deep_lexical_rank.items():
-                fused[chunk_id] += 1.0 / (_RRF_K + position)
+                for chunk in extra_chunks:
+                    if chunk.chunk_id in deep_lexical_rank:
+                        ranks[chunk.chunk_id] = {"lexical": deep_lexical_rank[chunk.chunk_id]}
+            # Only chunks that survived the filters are ranked; the dense ranking is over the filtered hits too.
+            kept = {chunk.chunk_id for chunk in [*lexical_chunks, *extra_chunks]}
+            dense_ranking = sorted((cid for cid in semantic_scores if cid in kept), key=lambda cid: (-semantic_scores[cid], cid))
+            for position, chunk_id in enumerate(dense_ranking, start=1):
+                ranks.setdefault(chunk_id, {})["dense"] = position
             for chunk in [*lexical_chunks, *extra_chunks]:
                 document = chunk.document
-                snippet = chunk.text[:400]
-                results.append({
+                candidates.append(Candidate(chunk.chunk_id, "document", chunk.text, ranks[chunk.chunk_id]))
+                payloads[chunk.chunk_id] = {
                     "result_id": chunk.chunk_id,
                     "result_type": "document",
-                    "rank": len(results) + 1 + offset,
-                    "score": round(fused[chunk.chunk_id], 6),
                     "title": document.title,
-                    "snippet": snippet,
+                    "snippet": chunk.text[:400],
                     "highlights": [],
                     "source": _source_payload(document.source),
                     "document_id": document.document_id,
@@ -587,9 +622,9 @@ def search(
                     "has_evidence": True,
                     "locator": {"type": "page", "page": chunk.page, "section": chunk.section, "row": None, "frame_index": None, "label": f"p. {chunk.page}" if chunk.page else "file"},
                     "ingested_at": _timestamp(document.ingested_at),
-                })
+                }
         if type in {None, "experiment"}:
-            matches, experiment_score = _lexical_match(session, ExperimentRecord.searchable_text, query)
+            matches, experiment_score = _lexical_match(session, ExperimentRecord.searchable_text, plan.lexical_query)
             # SearchResult.ingested_at is required: a row with neither an ingestion time nor a table file
             # (only possible for rows written outside ingest.py) is left out rather than given a made-up time.
             exp_query = session.query(ExperimentRecord).filter(
@@ -611,21 +646,20 @@ def search(
             experiments = (
                 exp_query.options(selectinload(ExperimentRecord.conditions), joinedload(ExperimentRecord.source), joinedload(ExperimentRecord.table_file))
                 .order_by(experiment_score.desc(), ExperimentRecord.experiment_id)
-                .limit(candidates)
+                .limit(limit)
                 .all()
             )
             condition_evidence = [c.evidence_id for e in experiments for c in e.conditions]
             rejected = set(session.scalars(_rejected_evidence_ids().where(EvidenceRecord.evidence_id.in_(condition_evidence)))) if condition_evidence else set()
             cited = {e.experiment_id: next((c.evidence_id for c in e.conditions if c.evidence_id not in rejected), None) for e in experiments}
             for experiment_rank, experiment in enumerate(experiments, start=1):
-                snippet = experiment.fuel_or_material or experiment.test_id
-                results.append({
+                candidates.append(Candidate(experiment.experiment_id, "experiment", _experiment_text(experiment),
+                                            {"experiment_lexical": experiment_rank}))
+                payloads[experiment.experiment_id] = {
                     "result_id": experiment.experiment_id,
                     "result_type": "experiment",
-                    "rank": len(results) + 1 + offset,
-                    "score": round(1.0 / (_RRF_K + experiment_rank), 6),
                     "title": f"{experiment.investigation or 'Experiment'} {experiment.test_id}",
-                    "snippet": snippet,
+                    "snippet": experiment.fuel_or_material or experiment.test_id,
                     "highlights": [],
                     "source": _source_payload(experiment.source),
                     "document_id": None,
@@ -636,19 +670,24 @@ def search(
                     "has_evidence": cited[experiment.experiment_id] is not None,
                     "locator": None,
                     "ingested_at": _timestamp(_experiment_ingested_at(experiment)),
-                })
+                }
     except SQLAlchemyError:
         return JSONResponse(status_code=503, content=error_body(request, "SEARCH_UNAVAILABLE", "Search is unavailable.", retryable=True))
-    results.sort(key=lambda item: (-item["score"], item["result_type"], item["result_id"]))
-    results = results[offset:offset + page_size]
-    for position, item in enumerate(results, start=offset + 1):
-        item["rank"] = position
+    ranked, reranking = stack.rank(plan, candidates)
+    if reranking.status == "unavailable":
+        logger.warning("request_id=%s rerank=unavailable", request.state.request_id)
+    results = [{**payloads[item.candidate.result_id], "rank": position, "score": round(item.score, 6)}
+               for position, item in stack.page(ranked, page, page_size)]
     return {
         "query": query,
         "results": results,
         "pagination": _pagination(page, page_size, total_items),
         "filters": {"type": type, "source_id": source_id or [], "experiment_id": experiment_id, "domain": domain},
-        "retrieval": {"mode": "hybrid" if index_version else "lexical", "knowledge_version": index_version, "index_version": index_version, "searched_but_empty": not results},
+        "retrieval": {
+            "mode": "hybrid" if index_version else "lexical", "knowledge_version": index_version, "index_version": index_version,
+            "searched_but_empty": not results, "stack_version": STACK_VERSION, "query_rewrite": plan.as_dict(),
+            "reranking": reranking.as_dict(),
+        },
         "meta": response_meta(request),
     }
 
@@ -710,6 +749,7 @@ def _retrieve_passages(request: Request, session: Session, question: str):
     """
     found: dict[str, dict[str, Any]] = {}
     knowledge_version: str | None = None
+    request.state.rerank_degraded = False
     for position, term in enumerate([question, *_question_terms(question)]):
         result = search(request, q=term, page_size=5, session=session)
         if isinstance(result, JSONResponse):
@@ -717,6 +757,8 @@ def _retrieve_passages(request: Request, session: Session, question: str):
                 return result
             continue
         knowledge_version = knowledge_version or result["retrieval"]["knowledge_version"]
+        if result["retrieval"]["reranking"]["status"] == "unavailable":
+            request.state.rerank_degraded = True
         for item in result["results"]:
             evidence_id = item.get("evidence_id")
             if not evidence_id:
@@ -749,7 +791,12 @@ def chat(request: Request, body: ChatBody, session: Session = Depends(get_sessio
         )
     started = time.perf_counter()
     cache_version = current_knowledge_version(session) or "unversioned"
-    cache_key = answer_cache.make_key(question, knowledge_version=cache_version, instructions=CHAT_INSTRUCTIONS, mode=router.mode.value)
+    # The configured reranker, not the per-request outcome: a request whose reranker was unavailable still
+    # keys as reranked, but its answer is not cached (degraded answers never are).
+    reranker = answer_cache.reranker_version(
+        ai_runtime.reranker_model() if settings.reranker_enabled else None, settings.rerank_depth)
+    cache_key = answer_cache.make_key(question, knowledge_version=cache_version, instructions=CHAT_INSTRUCTIONS,
+                                      mode=router.mode.value, reranker=reranker)
     cached = answer_cache.lookup(cache_key, cache_version)
     if cached is not None:
         return {**cached, "request_id": request.state.request_id, "cache_hit": True}
@@ -833,8 +880,10 @@ def chat(request: Request, body: ChatBody, session: Session = Depends(get_sessio
         "execution": execution,
         "warnings": warnings,
     }
-    if not warnings and sources:
-        answer_cache.store(cache_key, response, knowledge_version=cache_version, instructions=CHAT_INSTRUCTIONS, started=started)
+    # An answer retrieved without the configured reranker is degraded, so it is not cached under the reranked key.
+    if not warnings and sources and not getattr(request.state, "rerank_degraded", False):
+        answer_cache.store(cache_key, response, knowledge_version=cache_version, instructions=CHAT_INSTRUCTIONS, started=started,
+                           reranker=reranker)
     return response
 
 
@@ -851,7 +900,7 @@ class ModeBody(BaseModel):
 
 @app.put("/api/admin/ai/mode", tags=["Admin"])
 def set_ai_mode(request: Request, body: ModeBody, session: Session = Depends(get_session)):
-    """Switch cloud_preferred / local_first / offline_only. Write scope; every change is audited."""
+    """Switch cloud_preferred / local_first / offline_only. Admin scope; every change is audited."""
     # The legacy write token keeps its historical actor name so existing audit queries still match.
     client = request.state.api_client
     actor = "write-token" if client in {None, "legacy-write"} else client
