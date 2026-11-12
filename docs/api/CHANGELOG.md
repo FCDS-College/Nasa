@@ -26,6 +26,10 @@ ADR-006 to 009 built. Additive for read clients; read **Changed** before upgradi
 - `RetrievalInfo.stack_version`, `.query_rewrite` (`QueryRewrite`) and `.reranking` (`RerankingInfo`: `disabled` | `applied` | `unavailable`). They are required: every `/api/search` response now has them.
 - Ordering is unchanged with the reranker off (identical top 5 on the 26-question gold set). With `FLAME_RERANKER_ENABLED=true`, the first `FLAME_RERANK_DEPTH` results are reordered by a cross-encoder; `score` stays monotonic with `rank`.
 
+**Default changed after release (no contract change, PR #30)**
+- The reranker is **on by default** (`FLAME_RERANKER_ENABLED=true`, depth 10, fastembed ONNX). `/api/search` and chat results are reordered within the first 10, and `retrieval.reranking.status` is now `applied` (or `unavailable` when the model cannot load). Set `FLAME_RERANKER_ENABLED=false` for the previous order.
+- The knowledge graph resolves four reviewed spelling variants (E2-6 §0), so `GET /api/graph/entities?type=fuel` lists 55 entities instead of 59.
+
 **Added (ADR-007)**, tag **Knowledge graph**:
 - `GET /api/graph/entities` (read scope; AURA tool `api_list_graph_entities`);
 - `GET /api/graph/entities/{entity_id}` (read scope; AURA tool `api_get_graph_entity`; 404 **`ENTITY_NOT_FOUND`**);

@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Eman | In review (ADR in section 2 is **Accepted**; ADR-006 built 2026-11-12, section 0) | 0.4.0 | 2026-11-12 | M2, M11, ADR-006, 2H (Planned parts marked) | `ai/rag/retrieval/`, `ai/rag/reranking/`, `ai/rag/query/`, `ai/rag/service.py`, `apps/api/flame_api/main.py` |
+| Eman | In review (ADR in section 2 is **Accepted**; ADR-006 built 2026-11-12, section 0) | 0.4.1 | 2026-11-12 | M2, M11, ADR-006, 2H (Planned parts marked) | `ai/rag/retrieval/`, `ai/rag/reranking/`, `ai/rag/query/`, `ai/rag/service.py`, `apps/api/flame_api/main.py` |
 
 This document describes the code on branch `Eman` at commits `9319d65` (retrieval fusion/reranker/rewrite modules), `0fc94c3` (service wiring) and `d7bf6b2` (cache timing fix). Facts about `apps/api` come from a search of Eman's working tree on 2026-10-12 (`Select-String` over `apps/api/flame_api/*.py`); line numbers refer to that tree. **Planned** marks behaviour not yet in code.
 
@@ -15,11 +15,11 @@ Sections 1–9 describe the code as of October and are kept as the design record
 | Query plan | `SearchStack.plan` | `QueryRewriter` 1.0.0 (whitespace, ISS/PSI/NTRS expansion). Lexical search uses the **original** query, because `plainto_tsquery` ANDs every term, so appended expansions could only narrow it. Semantic search embeds the **rewritten** one. Both are returned in `retrieval.query_rewrite`. |
 | Candidates | `apps/api/flame_api/main.py` `search` (data access only) | PostgreSQL full-text matches (GIN-indexed `search_tsv`), the top 10 pgvector hits, and experiment-table matches. Every filter is applied in SQL: domain, `source_id`, `experiment_id`, rejected evidence. Each candidate carries its 1-based rank in each list it is in; a dense hit that is also a deep lexical match keeps its exact lexical rank. |
 | Fusion | `SearchStack.fuse` | RRF, `score = Σ 1/(60 + rank)`; ties broken by result type, then ID. The dense ranking is taken over the hits that survived the filters. |
-| Reranking | `SearchStack.rank` | When `FLAME_RERANKER_ENABLED=true`, the first `FLAME_RERANK_DEPTH` (20) fused results are scored by the cross-encoder, reached through the router's `rerank` task (`ai/providers/local/cross_encoder.py`). Only that window is reordered. It keeps its fused score slots, so `score` stays monotonic with `rank`. The window is page-independent, so paging is exact. A reranker failure returns the fused order with `reranking.status = "unavailable"`; the search does not fail. |
+| Reranking | `SearchStack.rank` | On by default (`FLAME_RERANKER_ENABLED`): the first `FLAME_RERANK_DEPTH` (10) fused results are scored by the cross-encoder, fastembed ONNX `Xenova/ms-marco-MiniLM-L-6-v2`, reached through the router's `rerank` task (`ai/providers/local/cross_encoder.py`). Only that window is reordered. It keeps its fused score slots, so `score` stays monotonic with `rank`. The window is page-independent, so paging is exact. A reranker failure returns the fused order with `reranking.status = "unavailable"`; the search does not fail. |
 | Paging | `SearchStack.page` | One ordered list, sliced. |
 
 - **The API's inline ranking is retired.** ADR-006's condition was that `ai/rag` pass the M11 benchmark at least as well. On the 26-question gold set it returned the same top 5 as the old code for every question ([retrieval-2026-11-12.md](../evaluation/reports/retrieval-2026-11-12.md)).
-- **The reranker has now run on the real model.** It raised hit@1 from 0.81 to 0.88 and MRR@10 from 0.86 to 0.91, with one regression, at about 0.5 s per search on CPU. It stays off by default.
+- **The reranker has now run on the real model** and is **on by default**. It raised hit@1 from 0.81 to 0.88, MRR@10 from 0.86 to 0.91 and recall@5 from 0.83 to 0.88, with one regression, at about 0.7 s per search on CPU (report §Follow-up). The model is downloaded on first use; offline deployments must prepare it.
 - **Chat.** `/api/chat` searches through the same stack. Its answer-cache key includes the configured reranker (`answer_cache.reranker_version`), and an answer whose retrieval had the reranker configured but unavailable is not cached.
 - **What did not move.** The in-memory `RAGRetrievalPipeline` / `HybridSearchService` (weighted 0.7/0.3) and `FlameRAGService` remain library code that only `tests/unit/` uses; nothing in the API calls them. `ai/rag/retrieval/fusion.py` (list-based RRF) is kept for the same tests. Retiring or rewiring them is the library owner's (Eman's) decision, not part of ADR-006's serving change.
 
@@ -164,6 +164,7 @@ The API also returns `retrieval.searched_but_empty`, which separates "searched a
 
 | Version | Date | Change |
 |---|---|---|
+| 0.4.1 | 2026-11-12 | Reranker on by default, fastembed ONNX, depth 10. |
 | 0.4.0 | 2026-11-12 | Section 0: ADR-006 built: one search stack in `ai/rag` (rewrite, RRF, reranker through the router, paging), the API's inline ranking retired after the benchmark gate. |
 | 0.3.0 | 2026-10-14 | `/api/search` now fuses lexical and dense rankings with RRF. |
 | 0.2.0 | 2026-10-14 | ADR accepted by the Lead; recorded what is wired into the API and what is still Planned. |
@@ -173,4 +174,4 @@ The API also returns `retrieval.searched_but_empty`, which separates "searched a
 
 عندنا stack تاني بيعمل search في الـ API (Postgres full-text بس، من غير semantic ولا rerank)، وstack بتاعنا في `ai/rag` اللي أغنى بس الـ API مش بيستخدمه. الاقتراح (ADR، لسه محتاج موافقة الـ Lead): `ai/rag` هو المكان الوحيد للـ retrieval logic، وجدول `document_chunk` يفضل هو المصدر للـ chunk_id والـ evidence_id، وبعدين الـ API ينده على `FlameRAGService`. المستند بيوضّح كل مرحلة والإصدارات المسجّلة وسلوك الفشل (من غير ما يرجّع إجابة من غير citations). مفيش أرقام تقييم لسه، والـ cross-encoder عمره ما اتشغّل على موديل حقيقي.
 
-**تحديث 2026-11-12 (القسم 0):** الـ API بقى بيستخدم search stack واحد في `ai/rag` (rewrite و RRF و rerank اختياري عن طريق الـ router). اتقاس على الـ benchmark وطلع نفس نتيجة الكود القديم بالظبط، والـ cross-encoder اتشغّل على الموديل الحقيقي وحسّن hit@1 من 0.81 لـ 0.88، بس بيزوّد حوالي نص ثانية لكل search، فهو مقفول افتراضيًا.
+**تحديث 2026-11-12 (القسم 0):** الـ API بقى بيستخدم search stack واحد في `ai/rag` (rewrite و RRF و rerank اختياري عن طريق الـ router). اتقاس على الـ benchmark وطلع نفس نتيجة الكود القديم بالظبط، والـ cross-encoder اتشغّل على الموديل الحقيقي وحسّن hit@1 من 0.81 لـ 0.88، وبقى شغّال افتراضيًا (fastembed ONNX، أول 10 نتائج)، وبيزوّد حوالي 0.7 ثانية لكل search.

@@ -103,7 +103,7 @@ Run on branch `anas/vibrant-sagan-fsnckf` after the four ADR builds, in the same
 | Migrations on real data | `alembic upgrade head` on the 2026-11-07 database, then `downgrade 0007_chunk_search_tsv` and `upgrade head` again | `0007 → 0008 → 0009`, round trip clean |
 | AURA Link 2 dry run | `AURA_BACKEND=<AURA d696fad>/aura_backend python tests/integration/aura_blueprint_dryrun.py` | **16 tools ACCEPTED**, 10 operations excluded, exit 0 |
 | ADR-006 benchmark gate | `flame_retrieval_benchmark` against old `main`, the new stack, and the stack with the reranker, all on one database | Identical top 5 for all 26 questions; reranker hit@1 0.81 → 0.88 at about 0.5 s per search ([retrieval-2026-11-12.md](docs/evaluation/reports/retrieval-2026-11-12.md)) |
-| Knowledge graph on PostgreSQL | `python -m flame_api.ingest` (graph built at the end) | 955 entities, 10,683 edges, consistency `ok` (4 spelling-variant candidates, non-blocking) |
+| Knowledge graph on PostgreSQL | `python -m flame_api.ingest` (graph built at the end) | 955 entities, 10,683 edges, consistency `ok` (4 spelling-variant candidates, non-blocking; resolved by reviewed aliases in PR #30: 951 entities, 0 candidates) |
 
 New tests:
 - `test_api_clients.py`: the admin scope;

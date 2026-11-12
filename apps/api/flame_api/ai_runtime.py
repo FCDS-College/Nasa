@@ -77,7 +77,7 @@ def build_router(settings: Settings) -> Router:
     if settings.reranker_enabled:
         from ai.providers.local.cross_encoder import CrossEncoderReranker
 
-        registry.register(CrossEncoderReranker(offline=models_offline), priority=10)
+        registry.register(CrossEncoderReranker(cache_dir=settings.embedding_cache_dir, offline=models_offline), priority=10)
     # FLAME_CV_PROVIDER picks the preferred vision provider; the other one stays as the fallback.
     registry.register(FlameCvProvider(), priority=10 if settings.cv_provider == "local" else 20)
     registry.register(FlameCvVideoProvider(), priority=10)  # local only: video never leaves the machine

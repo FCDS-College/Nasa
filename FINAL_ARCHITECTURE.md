@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Lead (Anas) | Current (as built on `anas/vibrant-sagan-fsnckf`) | 1.1.0 | 2026-11-12 | T7, ADR-006–009 | whole repository |
+| Lead (Anas) | Current (as built on `anas/vibrant-sagan-fsnckf`) | 1.1.1 | 2026-11-12 | T7, ADR-006–009 | whole repository |
 
 Detailed, older material: [docs/architecture/overview.md](docs/architecture/overview.md) (Phase 2, Part A), [ADRs](docs/architecture/adr/README.md), [hybrid AI](docs/hybrid-ai/PHASE_2_HYBRID_AI_ARCHITECTURE.md). This file describes the system that answers the Space Apps challenge.
 
@@ -53,7 +53,7 @@ Local models (optional) ── Ollama / llama.cpp / vLLM behind ai/routing (mode
 3. `ai.fire_safety.investigations.canonical` maps each investigation's columns to comparable variables: O₂, pressure, flow, material, end state, duration. Unrecorded variables become `None`, never 0.
 4. `envelope`, `relevance` and `insights` compute everything the dashboard shows, carrying the evidence IDs of the rows used.
 
-**Knowledge graph (ADR-007).** At the end of every ingest, `knowledge_graph.build_graph` turns the tables into entities (investigations, experiments, fuels, condition variables, phenomena, ISA-Tab documents) and `table_parse` edges, each citing the cell it was read from: 955 entities and 10,683 edges. Rebuilds are idempotent and keep human review and merges.
+**Knowledge graph (ADR-007).** At the end of every ingest, `knowledge_graph.build_graph` turns the tables into entities (investigations, experiments, fuels, condition variables, phenomena, ISA-Tab documents) and `table_parse` edges, each citing the cell it was read from: 951 entities and 10,683 edges (four reviewed spelling variants resolve to one material each). Rebuilds are idempotent and keep human review and merges.
 
 **NASA summaries.** `ingest.parse_isatab` turns the metadata zip into sections (Objective, Hypothesis, Approach, Research impacts, Hardware, Publications). Each section is stored as a citable, searchable document chunk, verbatim.
 
@@ -63,7 +63,7 @@ Local models (optional) ── Ollama / llama.cpp / vLLM behind ai/routing (mode
 3. `test_api_features_match_training_features_for_every_flex_test` proves the API rebuilds identical features from the database.
 
 **Chat (RAG).**
-1. Retrieval: the `ai/rag` search stack (ADR-006) over 315 chunks, for the question plus up to 5 key terms. The query rewrite is kept next to the original; the cross-encoder reranker is optional and off by default.
+1. Retrieval: the `ai/rag` search stack (ADR-006) over 315 chunks, for the question plus up to 5 key terms. The query rewrite is kept next to the original; the cross-encoder reranker (fastembed ONNX) reorders the first 10 results by default.
 2. Generation: the router (`chat.answer`) sends the passages on a data channel. Flame validates the output and drops citations outside the retrieved set, and the answer cache stores clean answers.
 3. Fallbacks:
    - a model that fails gives an evidence-only answer (`generation_unavailable`);
@@ -95,10 +95,11 @@ Local models (optional) ── Ollama / llama.cpp / vLLM behind ai/routing (mode
 ## Known limitations
 - Single API replica: the answer cache and the investigations cache are in-process.
 - The relevance formula's weights are a documented design choice, not fitted to outcomes ([ADR-011](docs/architecture/adr/ADR-011-scenario-relevance-ranking.md); the ranking order is unchanged under ±50 % weight changes).
-- The reranker is off by default: +0.08 hit@1 on an unreviewed 26-question set, at about 0.5 s per search on CPU ([retrieval-2026-11-12.md](docs/evaluation/reports/retrieval-2026-11-12.md)).
+- The reranker is on by default: +0.08 hit@1 on an unreviewed 26-question set, at about 0.7 s per search on CPU, and its model downloads on first use ([retrieval-2026-11-12.md](docs/evaluation/reports/retrieval-2026-11-12.md)).
 - The knowledge graph holds only what the tables record (no NLP extraction); Graph RAG in chat is not built.
 
 ## Changelog
 - 1.0.0 (2026-11-07): first version.
 - 1.0.1 (2026-11-07): ADR-006 is Accepted and only partly implemented (ADR index 1.3.0).
+- 1.1.1 (2026-11-12): reranker on by default; reviewed graph aliases.
 - 1.1.0 (2026-11-12): ADR-006 to 009 built (PR #29): contract 0.6.0, admin scope, video checkpoints and cancel, the ai/rag search stack, the knowledge graph.

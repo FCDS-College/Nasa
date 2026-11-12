@@ -84,7 +84,7 @@ def test_every_table_row_becomes_an_experiment_with_cited_edges(graph):
         predicates = dict(session.execute(select(KnowledgeRelation.predicate, func.count()).group_by(KnowledgeRelation.predicate)).all())
         assert types["experiment"] == 840 and types["investigation"] == 4 and types["document"] == 4
         assert types["phenomenon"] == 3   # FLEX test_end: Extinction, Disruption, Completion
-        assert types["fuel"] == 59 and types["condition_variable"] == 45   # as documented in E2-6 §0
+        assert types["fuel"] == 55 and types["condition_variable"] == 45   # as documented in E2-6 §0
         assert predicates["part_of"] == predicates["uses_fuel"] == 840 and predicates["has_condition"] == 8725
         assert predicates["observed"] == 274 and predicates["describes"] == 4
         assert counts["relations"] == sum(predicates.values())
@@ -130,16 +130,30 @@ def test_the_neighbourhood_is_a_recursive_traversal_in_both_directions(graph):
             kg.neighbourhood(session, extinction, depth=4)
 
 
-def test_consistency_checks_pass_and_list_spelling_variants_for_review(graph):
+def test_consistency_checks_pass_once_the_reviewed_spelling_variants_resolve(graph):
     sessions, _ = graph
     with sessions() as session:
         report = kg.check_consistency(session)
     assert report["ok"] is True
-    assert {name: report[name]["count"] for name in ("orphan_edges", "edges_with_dead_evidence", "conflicting_relations")} == {
-        "orphan_edges": 0, "edges_with_dead_evidence": 0, "conflicting_relations": 0}
-    names = [{e["canonical_name"] for e in group["entities"]} for group in report["duplicate_entities"]["examples"]]
-    assert {'1/4" black rod', "1/4 black rod"} in names   # BASS-II writes the same rod two ways
+    assert {name: report[name]["count"] for name in (
+        "orphan_edges", "edges_with_dead_evidence", "conflicting_relations", "duplicate_entities")} == {
+        "orphan_edges": 0, "edges_with_dead_evidence": 0, "conflicting_relations": 0, "duplicate_entities": 0}
     assert report["duplicate_entities"]["blocking"] is False
+
+
+def test_a_reviewed_variant_resolves_to_its_canonical_entity_and_keeps_its_own_cell(graph):
+    sessions, _ = graph
+    with sessions() as session:
+        assert len(kg.CURATED_ALIASES) == 4
+        for (entity_type, variant), winner in kg.CURATED_ALIASES.items():
+            assert session.get(KnowledgeEntity, kg.entity_id(entity_type, variant)) is None
+            canonical_entity = session.get(KnowledgeEntity, kg.entity_id(entity_type, winner))
+            assert variant in {kg.canonical(a) for a in canonical_entity.aliases}
+        rod = session.get(KnowledgeEntity, kg.entity_id("fuel", '1/4" black rod'))
+        edges = session.scalars(select(KnowledgeRelation).where(KnowledgeRelation.object_id == rod.entity_id)).all()
+        cells = {session.get(EvidenceRecord, e.evidence_id).excerpt for e in edges}
+        assert len(edges) == 14   # 12 tests spelled '1/4" black rod' and 2 spelled '1/4 black rod'
+        assert any('"' not in (cell or "") for cell in cells), "the variant's own cell stays its evidence"
 
 
 def test_the_graph_api_lists_and_walks_entities(api):

@@ -60,6 +60,16 @@ TEST_ID_VARIABLES = ("flex_identifier", "flex_test", "test", "sample_number")
 FUEL_VARIABLES = ("fuel", "fuel_sample_material", "material")
 OUTCOME_VARIABLE = "test_end"
 LOW_CONFIDENCE = 0.5
+# Reviewed resolutions of spelling variants the source tables contain (E2-6 §4), applied by every build so
+# that every database resolves them the same way. Keys and values are canonical names; the value is the
+# spelling with more tests, and the variant becomes its alias. The tables themselves are never edited.
+# Approved by the Lead (Anas) on 2026-11-12, from the duplicate-entity check of the committed tables.
+CURATED_ALIASES: dict[tuple[str, str], str] = {
+    ("fuel", '1/4 black rod'): '1/4" black rod',     # BASS-II: 2 tests vs 12, inch mark missing
+    ("fuel", '1/4 clear rod'): '1/4" clear rod',     # BASS-II: 1 test vs 15, inch mark missing
+    ("fuel", '3/8"clear rod'): '3/8" clear rod',     # BASS-II: 2 tests vs 5, space missing
+    ("fuel", "75% propylene"): "75 % propylene",     # SPICE: 16 tests vs 115, space before %
+}
 
 
 class GraphError(ValueError):
@@ -111,7 +121,11 @@ class _Builder:
 
     def entity(self, entity_type: str, name: str, *, properties: dict | None = None, source_id: str | None = None,
                evidence_ids: list[str] | None = None, alias: str | None = None) -> str:
-        """Resolve by canonical name, then alias; create when neither matches. Returns the live entity ID."""
+        """Resolve by curated alias, canonical name, then alias; create when none matches. Returns the live entity ID."""
+        curated = CURATED_ALIASES.get((entity_type, canonical(name)))
+        if curated is not None:
+            # The variant's own spelling stays as an alias; the entity is the reviewed canonical one.
+            alias, name = (alias if alias else name), curated
         identifier = entity_id(entity_type, name)
         if identifier not in self.entities and (entity_type, canonical(name)) in self.alias_index:
             identifier = self.alias_index[(entity_type, canonical(name))]

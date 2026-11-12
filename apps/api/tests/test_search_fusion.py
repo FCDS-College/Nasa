@@ -175,7 +175,7 @@ def test_reranking_goes_through_the_router_and_reorders_the_window(client, sessi
     assert [r["result_id"] for r in body["results"]] == ["c2", "c0", "c1"]
     assert [r["rank"] for r in body["results"]] == [1, 2, 3]
     assert [r["score"] for r in body["results"]] == [r["score"] for r in plain["results"]], "the window keeps its score slots"
-    assert body["retrieval"]["reranking"] == {"status": "applied", "model": "fake-cross-encoder", "depth": 20}
+    assert body["retrieval"]["reranking"] == {"status": "applied", "model": "fake-cross-encoder", "depth": 10}
     assert seen[0].query == "flame" and [doc_id for doc_id, _ in seen[0].documents] == ["c0", "c1", "c2"]
     assert seen[0].documents[0][1] == "flame flame flame spread", "the reranker scores the chunk text"
 
@@ -194,7 +194,7 @@ def test_a_reranker_the_router_cannot_reach_leaves_the_fused_order(client, sessi
 
     assert response.status_code == 200
     assert [r["result_id"] for r in response.json()["results"]] == ["c0", "c1", "c2"]
-    assert response.json()["retrieval"]["reranking"] == {"status": "unavailable", "model": None, "depth": 20}
+    assert response.json()["retrieval"]["reranking"] == {"status": "unavailable", "model": None, "depth": 10}
     assert "rerank=unavailable" in caplog.text
 
 

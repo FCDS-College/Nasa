@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Lead (Anas); storage sections Anas (E2) | Draft (sign-off: the engineer who dry-runs it offline) | 0.9.0 | 2026-10-12 | 2H Tasks 4, 7 | `infrastructure/compose.yaml`, `infrastructure/.env.example`, `apps/api/Dockerfile` |
+| Lead (Anas); storage sections Anas (E2) | Draft (sign-off: the engineer who dry-runs it offline) | 0.9.1 | 2026-11-12 | 2H Tasks 4, 7 | `infrastructure/compose.yaml`, `infrastructure/.env.example`, `apps/api/Dockerfile` |
 
 Linked from the [L-8 runbook](../operations/RUNBOOK.md). Data availability, backup and the sync policy are in [E2-10](../data/OFFLINE_DATA_AND_SYNC.md).
 
@@ -21,7 +21,7 @@ Linked from the [L-8 runbook](../operations/RUNBOOK.md). Data availability, back
 | `postgres-data` | metadata, evidence, vectors | grows with corpus; ~50 MB for the committed corpus |
 | `minio-data` | uploads, masks, overlays | per analysis ~1–10 MB |
 | `redis-data` | queue (AOF) | small |
-| `model-cache` → `/app/models/fastembed` | embedding model | 67,181,750 B (m) |
+| `model-cache` → `/app/models/fastembed` | embedding model; reranker model (since 2026-11-12) | 67,181,750 B for the embedding model; 90,992,115 B for the reranker's `model.onnx` (m, 2026-11-12) |
 | `ollama-models` → `/root/.ollama` | local LLM | 1,929,912,432 B for `qwen2.5:3b` (m) |
 | `datasets/raw/` (bind mount, git-ignored) | PSI/DSI mirrors | ~GBs; see E2-10 |
 
@@ -41,7 +41,14 @@ sha256sum -c flame-images.tar.sha256 && docker load -i flame-images.tar
 
 ## 4. Models: install and verify (with checksums)
 
-Follow [H-3 §2](PHASE_2_LOCAL_MODEL_REGISTRY.md#2-download-and-verification-procedure). Then set:
+Follow [H-3 §2](PHASE_2_LOCAL_MODEL_REGISTRY.md#2-download-and-verification-procedure). The search reranker is on by default (ADR-006), so prepare its model in the same cache while connected, then check it loads offline:
+
+```bash
+python -m ai.providers.local.cross_encoder prepare --cache-dir /app/models/fastembed
+python -m ai.providers.local.cross_encoder verify  --cache-dir /app/models/fastembed
+```
+
+Without it, search falls back to the fused order (`reranking.status = "unavailable"`) and chat answers are not cached; `FLAME_RERANKER_ENABLED=false` turns reranking off instead. Then set:
 
 ```text
 FLAME_EMBEDDING_OFFLINE=true     # never download; a missing model is reported
@@ -96,4 +103,5 @@ The commands and the drill record are in E2-10 §5. They cover PostgreSQL (`pg_d
 - The Compose `ollama` service has no memory limit.
 
 ## Changelog
+- 0.9.1 (2026-11-12): prepare and verify the reranker model (on by default since PR #30).
 - 0.9.0 (2026-10-12): draft.
