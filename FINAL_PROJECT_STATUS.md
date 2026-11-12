@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Lead (Anas) | Current | 1.3.0 | 2026-11-12 | final challenge plan T1–T7, I7–I11, ADR-006–009 | whole repository |
+| Lead (Anas) | Current | 1.3.1 | 2026-11-12 | final challenge plan T1–T7, I7–I11, ADR-006–009 | whole repository |
 
 **Challenge.** NASA Space Apps 2026, *Flame in Freefall: AI-powered fire-safety insights from microgravity combustion data*: summarize, rank and explain NASA microgravity combustion results to inform fire safety for Moon and Mars missions.
 
@@ -30,7 +30,7 @@
 | Contract 0.6.0, AURA Link 2 dry run (16 tools); AURA's own runbook updated to match (AURA-AI #232) | COMPLETE |
 | ADR-006 to 009 built (PR #29): one `ai/rag` search stack, knowledge graph from the PSI tables, video checkpoints and cancellation, admin scope | COMPLETE |
 | Reranker on by default (fastembed ONNX, top 10) and four reviewed material spellings resolved in the graph (PR #30) | COMPLETE |
-| Knowledge Graph page in the web app (`/knowledge`): browse entities, walk links, open the evidence behind each | COMPLETE |
+| Knowledge Graph page in the web app (`/knowledge`): browse entities, walk links, open the evidence behind each (PR #32) | COMPLETE |
 | Demo runbook, demo data script, browser smoke test | COMPLETE |
 
 ## 2. Remaining limitations
@@ -68,9 +68,11 @@ After submission (2026-11-07 to 2026-11-12):
 - ADR-001 to 012 signed off; ADR-006 to 009 accepted and built (PR #27, #28, #29).
 - Reranking on by default, after it raised hit@1 from 0.81 to 0.88 on the gold set (PR #30).
 - Four material spelling variants in the BASS-II and SPICE tables resolved by reviewed aliases, never automatically (PR #30).
+- The knowledge graph made browsable in the web app: the Knowledge Graph page (`/knowledge`) replaces the old "not available" placeholder (PR #32).
 
 ## Changelog
 - 1.0.0 (2026-11-07): final status for submission.
 - 1.1.0 (2026-11-12): contract 0.6.0 and the ADR-006 to 009 builds (PR #29).
-- 1.3.0 (2026-11-12): the Knowledge Graph page; its known issue removed.
 - 1.2.0 (2026-11-12): PR #30 (reranker default, graph aliases) and AURA-AI #232 merged; new known issues; post-submission decisions.
+- 1.3.0 (2026-11-12): the Knowledge Graph page; its known issue removed.
+- 1.3.1 (2026-11-12): PR #32 (Knowledge Graph page) merged; recorded in the completed features and post-submission decisions.
