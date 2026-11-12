@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Team Flame in Freefall | Current (submission, facts updated) | 1.0.1 | 2026-11-12 | T7 | `apps/web`, `apps/api`, `ai/fire_safety` |
+| Team Flame in Freefall | Current (submission, facts updated) | 1.0.2 | 2026-11-12 | T7 | `apps/web`, `apps/api`, `ai/fire_safety` |
 
 NASA Space Apps Challenge 2026 · Challenge: *Flame in Freefall*
 
@@ -29,6 +29,7 @@ NASA has flown decades of combustion experiments (BASS, FLEX, Saffire, SPICE, AC
 4. **Explain.** The dashboard states what the flight tests measured there; every number comes with the IDs of the NASA table cells it came from. It also states **what the data cannot tell you**.
 5. **Estimate.** A validated model estimates whether a droplet flame would self-extinguish, and shows the most similar real ISS tests next to it. It **refuses** outside the conditions NASA actually flew.
 6. **Ask.** A chat answers questions over 24 NASA reports and 4 investigation records. Answers may only cite retrieved evidence; without a language model, the chat shows that evidence directly.
+7. **Connect.** A knowledge graph links investigations, tests, fuels, conditions and outcomes, every link citing the NASA cell it came from. Example: which fuels did the tests that ended in extinction burn? (API and AI agents today; the web view is next.)
 
 ![Computed, cited insights for the pre-EVA atmosphere](docs/presentations/screenshots/2-insights.png)
 
@@ -53,7 +54,8 @@ NASA PSI tables + ISA-Tab metadata + NTRS reports + flight video
 | Component | Method | Evidence of quality |
 |---|---|---|
 | Flame-outcome model (FLEX, 261 ISS tests, 80 test days) | Multinomial logistic regression on O₂, pressure, ppO₂, CO₂, He, droplet size, fuel; chosen over random forest and kNN by repeated grouped CV; exported to JSON, run with numpy | Macro-F1 **0.54 ± 0.02** vs 0.27 baseline; extinction ROC-AUC **0.86**; split by test day; strict applicability domain |
-| Retrieval | PostgreSQL full-text + pgvector (`bge-small-en-v1.5`), fused with reciprocal rank fusion | 26 corpus-grounded questions: hit@1 **0.81**, hit@5 **0.96** vs 0.31 lexical-only |
+| Retrieval | PostgreSQL full-text + pgvector (`bge-small-en-v1.5`), fused with reciprocal rank fusion, then the top 10 reranked by a local cross-encoder | 26 corpus-grounded questions: hit@1 **0.88**, hit@5 **0.96**, MRR@10 **0.91** (fusion alone: 0.81 / 0.96 / 0.86; lexical-only 0.31) |
+| Knowledge graph | Deterministic extraction from the PSI tables and ISA-Tab records into PostgreSQL; recursive traversal | 951 entities, 10,683 edges, each citing its NASA table cell; consistency checks clean |
 | Grounded generation | Router across local and cloud models; output validated; citations outside the retrieved set dropped | Not evaluated in this run (no model available) |
 | Computer vision | OpenCV segmentation of flame images and sampled video frames; temporal statistics with Nyquist and tracking-gap guards | Pixel measurements only; no temperature from RGB |
 | Document AI | PDF text, OCR fallback, automatic detection of garbled font encodings | 35 garbled pages recovered by OCR |
@@ -87,8 +89,10 @@ NASA PSI tables + ISA-Tab metadata + NTRS reports + flight video
   - ingest SPICE flame lengths and SAFFIRE sensor workbooks;
   - add Saffire II–VI and ACME;
   - evaluate generated answers with a local 3B+ model;
+  - show the knowledge graph in the web app and use it in chat (Graph RAG);
   - calibrate the relevance weights against expert judgement.
 
 ## Changelog
 - 1.0.0 (2026-11-07): submission version.
 - 1.0.1 (2026-11-12): contract 0.6.0 and AURA tool count (16) after PR #29.
+- 1.0.2 (2026-11-12): reranked retrieval results and the knowledge graph (PR #29, #30).

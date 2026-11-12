@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Lead (Anas) | Current | 1.1.0 | 2026-11-12 | final challenge plan T1–T7, I7–I11, ADR-006–009 | whole repository |
+| Lead (Anas) | Current (as merged on `main` at `f191bad`) | 1.2.0 | 2026-11-12 | final challenge plan T1–T7, I7–I11, ADR-006–009 | whole repository |
 
 **Challenge.** NASA Space Apps 2026, *Flame in Freefall: AI-powered fire-safety insights from microgravity combustion data*: summarize, rank and explain NASA microgravity combustion results to inform fire safety for Moon and Mars missions.
 
@@ -24,11 +24,12 @@
 | Computed fire-safety insights with evidence links; coverage gaps stated | COMPLETE |
 | FLEX outcome model: grouped validation, model card, strict applicability domain, nearest real tests | COMPLETE |
 | Dashboard, investigation page, outcome explorer, flight test browser, video view, navigation | COMPLETE |
-| Hybrid retrieval measured on a corpus-grounded gold set | COMPLETE (gold set needs human review) |
+| Hybrid retrieval with cross-encoder reranking, measured on a corpus-grounded gold set (hit@1 0.88, hit@5 0.96, MRR@10 0.91) | COMPLETE (gold set needs human review) |
 | Cited chat; evidence-only fallback when no model is deployed | COMPLETE (generation not evaluated: no model here) |
 | Image and video CV through the API (BASS-II flight video, SPICE photos) | COMPLETE |
-| Contract 0.6.0, AURA Link 2 dry run (16 tools) | COMPLETE |
-| ADR-006 to 009 built (PR #29): one `ai/rag` search stack (reranker optional), knowledge graph from the PSI tables, video checkpoints and cancellation, admin scope | COMPLETE (reranker on by default since PR #30; no NLP graph extraction) |
+| Contract 0.6.0, AURA Link 2 dry run (16 tools); AURA's own runbook updated to match (AURA-AI #232) | COMPLETE |
+| ADR-006 to 009 built (PR #29): one `ai/rag` search stack, knowledge graph from the PSI tables, video checkpoints and cancellation, admin scope | COMPLETE |
+| Reranker on by default (fastembed ONNX, top 10) and four reviewed material spellings resolved in the graph (PR #30) | COMPLETE |
 | Demo runbook, demo data script, browser smoke test | COMPLETE |
 
 ## 2. Remaining limitations
@@ -39,6 +40,7 @@
 - **Subset.** The tables are complete, but the media mirror holds a fraction of each investigation's raw files.
 - **Model size.** 261 tests on 80 days; the Completion class (27) is weak (precision 0.29 on the hold-out).
 - **Ranking weights.** The ranking is an evidence-relevance score with design-choice weights, not a validated risk score.
+- **Knowledge graph from tables only.** It holds what the PSI tables and ISA-Tab records state (951 entities, 10,683 cited edges). Platforms, instruments and links from the NTRS reports would need NLP extraction, which is not built; nor is Graph RAG in chat.
 
 ## 3. Known issues
 
@@ -47,6 +49,9 @@
 | Compose and Railway not redeployed or dry-run with this branch | High for a hosted demo | Path B in [DEMO_RUNBOOK.md](DEMO_RUNBOOK.md) (verified); Railway needs an account holder |
 | No LLM verified in this environment; chat answers not evaluated | Medium | Ollama via compose profile `local-llm`; the UI falls back to cited evidence |
 | Lexical-only search is weak for full questions (16/26 return nothing) | Medium (only without embeddings) | Vector index built at start-up |
+| Reranking adds about 0.7 s per search on CPU (chat runs up to six searches), and the first search downloads its model (~90 MB) | Medium | `python -m ai.providers.local.cross_encoder prepare` before the demo; `FLAME_RERANKER_ENABLED=false` to turn it off |
+| The web Knowledge page still says the graph is not available; it is not wired to `GET /api/graph/*` | Medium | Use the API or AURA's two graph tools; wiring the page is open work |
+| A client key with only write scope gets 403 on `/api/admin/*` | Low (by design, ADR-009) | Create an admin key with `--owner`; the deprecated write token still works |
 | Gold set and labels authored with AI assistance | Medium | Human review (Ziad, Eman) |
 | `next start` warns about `output: standalone` | Low | Works; or `node .next/standalone/server.js` |
 | Garbled-PDF detector is a function-word heuristic tuned on English reports | Low | Flags only the 35 broken-font pages today; review flagged pages in `document.payload.garbled_text_pages` |
@@ -59,6 +64,12 @@
 - Run the local demo as primary, with Railway as a bonus.
 - Keep uploads disabled in the dashboard: the web tier never holds a write key.
 
+After submission (2026-11-07 to 2026-11-12):
+- ADR-001 to 012 signed off; ADR-006 to 009 accepted and built (PR #27, #28, #29).
+- Reranking on by default, after it raised hit@1 from 0.81 to 0.88 on the gold set (PR #30).
+- Four material spelling variants in the BASS-II and SPICE tables resolved by reviewed aliases, never automatically (PR #30).
+
 ## Changelog
 - 1.0.0 (2026-11-07): final status for submission.
 - 1.1.0 (2026-11-12): contract 0.6.0 and the ADR-006 to 009 builds (PR #29).
+- 1.2.0 (2026-11-12): PR #30 (reranker default, graph aliases) and AURA-AI #232 merged; new known issues; post-submission decisions.
