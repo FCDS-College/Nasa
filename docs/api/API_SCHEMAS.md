@@ -18,6 +18,7 @@ Reading the tables: *Required = yes* means the key is always present. A nullable
 | POST | `/api/analyses` | 202 [`AnalysisResponse`](#analysisresponse) | 400, 401, 403, 413, 415, 422, 429, 500, 503 |
 | GET | `/api/analyses` | 200 [`AnalysisListResponse`](#analysislistresponse) | 400, 401, 403, 429, 500, 503 |
 | GET | `/api/analyses/{analysis_id}` | 200 [`AnalysisResponse`](#analysisresponse) | 400, 401, 403, 404, 429, 500, 503 |
+| POST | `/api/analyses/{analysis_id}/cancel` | 200 [`AnalysisResponse`](#analysisresponse)<br>202 [`AnalysisResponse`](#analysisresponse) | 400, 401, 403, 404, 409, 429, 500, 503 |
 | GET | `/api/analyses/{analysis_id}/artifacts/{artifact_kind}` | 200 `image/png` bytes or `image/jpeg` bytes | 400, 401, 403, 404, 409, 429, 500, 503 |
 | GET | `/api/documents` | 200 [`DocumentListResponse`](#documentlistresponse) | 400, 401, 403, 429, 500, 503 |
 | GET | `/api/experiments` | 200 [`ExperimentListResponse`](#experimentlistresponse) | 400, 401, 403, 429, 500, 503 |
@@ -427,6 +428,7 @@ Echo of the filters the server actually applied, after defaults.
 | `updated_at` | string (date-time) | yes |  |
 | `started_at` | string (date-time) \| `null` | yes |  |
 | `completed_at` | string (date-time) \| `null` | yes |  |
+| `cancel_requested_at` | string (date-time) \| `null` | no | When a cancel was requested for a running job (contract 0.6.0). Absent when none was requested. The job stops at its next checkpoint (video) or before storing its result (image), then status becomes `cancelled`. |
 | `input` | [`AnalysisInput`](#analysisinput) | yes |  |
 | `pipeline` | [`PipelineInfo`](#pipelineinfo) \| `null` | yes | Null while queued. |
 | `result` | [`FlameAnalysisResult`](#flameanalysisresult) \| [`FlameVideoAnalysisResult`](#flamevideoanalysisresult) \| `null` | yes | flame_image, non-null iff status = completed. |
@@ -435,6 +437,7 @@ Echo of the filters the server actually applied, after defaults.
 | `warnings` | [`Warning`](#warning)[] | yes |  |
 | `failure` | [`AnalysisFailure`](#analysisfailure) \| `null` | yes | Non-null iff status is failed or cancelled. |
 | `poll_after_ms` | integer \| `null` (minimum=0) | yes | Suggested delay before the next GET while non-terminal; null when terminal. |
+| `progress` | [`AnalysisProgress`](#analysisprogress) \| `null` | no | Video jobs only (contract 0.6.0); absent for image analyses. |
 
 ### AnalysisSummary
 
@@ -875,6 +878,16 @@ Optional AI interpretation. Never alters measurements; displayed separately from
 | `message` | string | yes |  |
 | `retryable` | boolean | yes |  |
 
+### AnalysisProgress
+
+Video jobs only (ADR-008): sampled frames measured and stored in the job's checkpoint so far. Updated once per checkpoint segment (`FLAME_VIDEO_CHECKPOINT_EVERY_FRAMES`, default 10), not per frame.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `frames_done` | integer (minimum=0) | yes |  |
+| `frames_total` | integer (minimum=0) | yes | Sampled frames this job will measure. |
+| `checkpointed_at` | string (date-time) | yes |  |
+
 ### AiProviderHealth
 
 | Field | Type | Required | Description |
@@ -1191,7 +1204,7 @@ multipart/form-data body for POST /api/analyses.
 | <a id="aimodesource"></a>`AiModeSource` | `env`, `audit_override` | Where the effective `mode` comes from: `env` is FLAME_AI_EXECUTION_MODE; `audit_override` is the newest `ai.mode.changed` audit event (PUT /api/admin/ai/mode), which wins over env in every process until the next PUT. There is no clear operation yet. |
 | <a id="reviewstatus"></a>`ReviewStatus` | `raw`, `machine_extracted`, `human_verified`, `rejected` | Review state (data dictionary: review_status). The UI must visibly distinguish human_verified and must not render rejected evidence as support. |
 | <a id="adminreviewstatus"></a>`AdminReviewStatus` | `machine_extracted`, `human_verified`, `rejected` | The ReviewStatus values an administrator may set (`raw` is never a review outcome). |
-| <a id="errorcode"></a>`ErrorCode` | `VALIDATION_ERROR`, `UNAUTHORIZED`, `FORBIDDEN`, `ROUTE_NOT_FOUND`, `DOCUMENT_NOT_FOUND`, `EXPERIMENT_NOT_FOUND`, `EVIDENCE_NOT_FOUND`, `ANALYSIS_NOT_FOUND`, `ARTIFACT_NOT_FOUND`, `ARTIFACT_NOT_READY`, `PAYLOAD_TOO_LARGE`, `UNSUPPORTED_MEDIA_TYPE`, `IMAGE_INVALID`, `UNKNOWN_EXPERIMENT`, `RATE_LIMITED`, `DATABASE_UNAVAILABLE`, `STORAGE_UNAVAILABLE`, `SEARCH_UNAVAILABLE`, `MODEL_UNAVAILABLE`, `QUEUE_UNAVAILABLE`, `AURA_UNAVAILABLE`, `INTERNAL_ERROR`, `AUTHENTICATION_REQUIRED`, `CHAT_UNAVAILABLE`, `METHOD_NOT_ALLOWED`, `VIDEO_INVALID`, `FILE_NOT_FOUND`, `FILE_NOT_QUARANTINED`, `INVESTIGATION_NOT_FOUND` | Stable machine-readable error code. The frontend switches on this, never on `message`. AURA_UNAVAILABLE is deprecated since 0.2.0: chat now degrades to an evidence-only answer instead. |
+| <a id="errorcode"></a>`ErrorCode` | `VALIDATION_ERROR`, `UNAUTHORIZED`, `FORBIDDEN`, `ROUTE_NOT_FOUND`, `DOCUMENT_NOT_FOUND`, `EXPERIMENT_NOT_FOUND`, `EVIDENCE_NOT_FOUND`, `ANALYSIS_NOT_FOUND`, `ANALYSIS_NOT_CANCELLABLE`, `ARTIFACT_NOT_FOUND`, `ARTIFACT_NOT_READY`, `PAYLOAD_TOO_LARGE`, `UNSUPPORTED_MEDIA_TYPE`, `IMAGE_INVALID`, `UNKNOWN_EXPERIMENT`, `RATE_LIMITED`, `DATABASE_UNAVAILABLE`, `STORAGE_UNAVAILABLE`, `SEARCH_UNAVAILABLE`, `MODEL_UNAVAILABLE`, `QUEUE_UNAVAILABLE`, `AURA_UNAVAILABLE`, `INTERNAL_ERROR`, `AUTHENTICATION_REQUIRED`, `CHAT_UNAVAILABLE`, `METHOD_NOT_ALLOWED`, `VIDEO_INVALID`, `FILE_NOT_FOUND`, `FILE_NOT_QUARANTINED`, `INVESTIGATION_NOT_FOUND` | Stable machine-readable error code. The frontend switches on this, never on `message`. AURA_UNAVAILABLE is deprecated since 0.2.0: chat now degrades to an evidence-only answer instead. |
 | <a id="searchresulttype"></a>`SearchResultType` | `document`, `experiment` | document: a matched passage inside a parsed document (carries a page/section locator). experiment: a matched experiment/test record. |
 | <a id="documenttype"></a>`DocumentType` | `technical_report`, `publication`, `test_plan`, `requirements`, `final_report`, `thesis`, `dataset_documentation`, `other` | Document classification assigned at ingestion. |
 | <a id="searchdomain"></a>`SearchDomain` | `combustion`, `all` | combustion (default) excludes non-combustion sources such as FF-PSI-DSI (DAY2_TASKS domain filter rule). all disables that filter. |
@@ -1202,7 +1215,7 @@ multipart/form-data body for POST /api/analyses.
 | <a id="evidenceorigin"></a>`EvidenceOrigin` | `source_evidence`, `calculated_measurement` | source_evidence: content that exists in an upstream NASA/NIST artefact. calculated_measurement: a deterministic, reproducible computation by a versioned Flame pipeline. Model-generated interpretation and inference are NEVER evidence. |
 | <a id="extractionmethod"></a>`ExtractionMethod` | `verbatim_text`, `ocr`, `table_parse`, `cv_pipeline`, `manual` | How the evidence content was obtained. |
 | <a id="analysistype"></a>`AnalysisType` | `flame_image`, `flame_video` | flame_image: one PNG/JPEG image. flame_video (0.3.0, ADR-005): an MP4/MOV/AVI video analysed on sampled frames with a temporal summary. |
-| <a id="analysisstatus"></a>`AnalysisStatus` | `queued`, `processing`, `completed`, `failed`, `cancelled` | Terminal states: completed, failed, cancelled. `cancelled` is set only by the server (shutdown/operator); there is no client cancel endpoint in v0.1. |
+| <a id="analysisstatus"></a>`AnalysisStatus` | `queued`, `processing`, `completed`, `failed`, `cancelled` | Terminal states: completed, failed, cancelled. `cancelled` is set by the server: by `POST /api/analyses/{analysis_id}/cancel` (contract 0.6.0), or by job recovery when a stuck job had a cancel request. |
 | <a id="detectionstatus"></a>`DetectionStatus` | `present`, `absent`, `uncertain` | Whether a flame was detected. |
 | <a id="calibrationstate"></a>`CalibrationState` | `absent`, `spatial_scale_provided` | absent: measurements are pixels only. spatial_scale_provided: caller supplied px-per-mm, enabling ESTIMATED physical lengths/areas. No radiometric calibration state exists in v0.1, so temperature is never produced. |
 | <a id="filestatus"></a>`FileStatus` | `active`, `quarantined` | file_record.status (M9). A quarantined file is kept for review but never parsed or indexed. |
@@ -1213,7 +1226,7 @@ multipart/form-data body for POST /api/analyses.
 | <a id="conditionorigin"></a>`ConditionOrigin` | `reported`, `derived` | reported: value as written in the source. derived: computed by us (e.g. unit conversion); `value_si` is always derived. |
 | <a id="interpretationstatus"></a>`InterpretationStatus` | `not_requested`, `pending`, `completed`, `unavailable`, `failed` | unavailable: AURA disabled or unreachable; the analysis itself still completes. |
 | <a id="artifactkind"></a>`ArtifactKind` | `original`, `preprocessed`, `mask`, `overlay` | original: the uploaded bytes, immutable. preprocessed: oriented/colour-converted input to the model. mask: binary flame mask (PNG, original resolution). overlay: original with mask contour drawn (PNG). |
-| <a id="warningcode"></a>`WarningCode` | `SCALE_CALIBRATION_ABSENT`, `RADIOMETRIC_CALIBRATION_ABSENT`, `TEMPERATURE_NOT_AVAILABLE`, `EXIF_ORIENTATION_APPLIED`, `COLOR_CONVERTED_TO_RGB`, `LOW_DETECTION_CONFIDENCE`, `MULTIPLE_FLAMES`, `SATURATION_CLIPPING`, `BLUR_DETECTED`, `LOW_LIGHT`, `OCCLUSION`, `QUALITY_CHECK_NOT_IMPLEMENTED`, `INTERPRETATION_UNAVAILABLE`, `INTERPRETATION_STATEMENTS_REJECTED`, `JOB_RECOVERED` | Stable warning code. |
+| <a id="warningcode"></a>`WarningCode` | `SCALE_CALIBRATION_ABSENT`, `RADIOMETRIC_CALIBRATION_ABSENT`, `TEMPERATURE_NOT_AVAILABLE`, `EXIF_ORIENTATION_APPLIED`, `COLOR_CONVERTED_TO_RGB`, `LOW_DETECTION_CONFIDENCE`, `MULTIPLE_FLAMES`, `SATURATION_CLIPPING`, `BLUR_DETECTED`, `LOW_LIGHT`, `OCCLUSION`, `QUALITY_CHECK_NOT_IMPLEMENTED`, `INTERPRETATION_UNAVAILABLE`, `INTERPRETATION_STATEMENTS_REJECTED`, `JOB_RECOVERED`, `JOB_RESUMED_FROM_CHECKPOINT` | Stable warning code. |
 | <a id="analysisfailurecode"></a>`AnalysisFailureCode` | `IMAGE_DECODE_FAILED`, `MODEL_UNAVAILABLE`, `PIPELINE_ERROR`, `TIMEOUT`, `CANCELLED`, `VIDEO_DECODE_FAILED` | Why a job ended in failed/cancelled. A no-flame image is NOT a failure: it completes with detection.status = absent. |
 | <a id="claimclass"></a>`ClaimClass` | `observed`, `measured`, `estimated`, `inferred`, `hypothesized`, `unsupported` | Scientific interpretation label (MVP plan §10). cv_pipeline statements are observed/measured/estimated only; aura_interpretation statements are inferred/hypothesized/unsupported only. |
 | <a id="statementorigin"></a>`StatementOrigin` | `cv_pipeline`, `aura_interpretation`, `model_interpretation` | cv_pipeline: deterministic template text generated from measurements. aura_interpretation: model-generated text, validated by Flame before storage. model_interpretation: the same, written by a non-AURA model chosen by Flame's router. |
