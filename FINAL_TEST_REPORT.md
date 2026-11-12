@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Lead (Anas), run by Claude Code | Current | 1.3.0 | 2026-11-12 | T7, ADR-006–009 | whole repository |
+| Lead (Anas), run by Claude Code | Current | 1.3.1 | 2026-11-12 | T7, ADR-006–009 | whole repository |
 
 Every result below was produced by a command run on 2026-11-07 on branch `anas/vibrant-sagan-fsnckf`. "Not run" means it was not run.
 
@@ -144,7 +144,7 @@ Not run: the browser smoke test against the reranked search, Docker Compose, Rai
 - the 27 hygiene tests;
 - actionlint 1.7.12.
 
-## 10. Knowledge Graph page (2026-11-12)
+## 10. Knowledge Graph page (2026-11-12, PR #32)
 
 | Check | Command | Result |
 |---|---|---|
@@ -152,6 +152,7 @@ Not run: the browser smoke test against the reranked search, Docker Compose, Rai
 | Proxy | `GET /api/graph/entities?type=investigation` through the web app; `GET /api/admin/graph/consistency` through it; the API without a key | 4 investigations (BASS-II, FLEX, SAFFIRE-I, SPICE); 404 (not forwarded); 401 |
 | Browser journey, API with auth on, PostgreSQL graph, reranker on | `node apps/web/scripts/demo-smoke.mjs` (9 steps; new step 08 opens FLEX, then walks Extinction 2 hops over "ended in" and "burned") | **9/9 PASS**. Not clean: no S3 stand-in ran, so `/api/health` answered 503 seven times and one image overlay artifact once (`object_storage_health=down`); none involves `/knowledge` |
 | Phone (iPhone 13 emulation) | Playwright | 0 px horizontal overflow; after a tap the details scroll into view (top at 181 px, was 631 px before the fix) |
+| CI (PR #32) | — | all four jobs green on the merged head `8277c85` (Python lint and tests, web lint/typecheck/build, migrations with seed and ingest on PostgreSQL + pgvector, secret scan); merged to `main` as `3ce2d69`. The AURA Link 2 contract job did not run: it runs only when `apps/api/`, the contract or the dry run changes, and PR #32 changed none of them |
 
 ## Unresolved
 
@@ -165,5 +166,6 @@ Not run: the browser smoke test against the reranked search, Docker Compose, Rai
 ## Changelog
 - 1.0.0 (2026-11-07): first version.
 - 1.1.0 (2026-11-12): §8, verification of the ADR-006 to 009 builds.
-- 1.3.0 (2026-11-12): §10, the Knowledge Graph page.
 - 1.2.0 (2026-11-12): §8 CI results; §9, verification of PR #30 and AURA-AI #232.
+- 1.3.0 (2026-11-12): §10, the Knowledge Graph page.
+- 1.3.1 (2026-11-12): §10 CI results on PR #32's merged head.
