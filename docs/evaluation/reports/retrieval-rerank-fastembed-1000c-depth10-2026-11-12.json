@@ -1,0 +1,430 @@
+{
+  "label": "rerank-fastembed-1000c-depth10",
+  "generated_at": "2026-11-12T10:18:48Z",
+  "git_commit": "80b9c21+reranker-default",
+  "gold_set": "datasets/evaluation/retrieval_gold_v1.jsonl",
+  "retrieval_modes_reported": [
+    "hybrid"
+  ],
+  "latency_s": {
+    "p50": 0.388,
+    "max": 1.183
+  },
+  "questions": 26,
+  "hit@1": 0.8846,
+  "hit@3": 0.9231,
+  "hit@5": 0.9615,
+  "mrr@10": 0.9071,
+  "recall@5": 0.8365,
+  "per_question": [
+    {
+      "id": "RG-01",
+      "top5": [
+        "FF-NTRS-20080012607",
+        "FF-NTRS-20070010766",
+        "FF-NTRS-20140006580",
+        "FF-NTRS-20080034883",
+        "FF-NTRS-20170001636"
+      ],
+      "first_relevant_rank": 1,
+      "hit@1": 1,
+      "hit@3": 1,
+      "hit@5": 1,
+      "rr@10": 1.0,
+      "recall@5": 1.0
+    },
+    {
+      "id": "RG-02",
+      "top5": [
+        "FF-NTRS-20080012607",
+        "FF-NTRS-20110008636",
+        "FF-NTRS-20120015928",
+        "FF-NTRS-20000034017",
+        "FF-NTRS-20150023467"
+      ],
+      "first_relevant_rank": 1,
+      "hit@1": 1,
+      "hit@3": 1,
+      "hit@5": 1,
+      "rr@10": 1.0,
+      "recall@5": 1.0
+    },
+    {
+      "id": "RG-03",
+      "top5": [
+        "FF-NTRS-20000034017",
+        "FF-NTRS-19990063738",
+        "FF-NTRS-20150023467",
+        "FF-NTRS-20040161216",
+        "FF-NTRS-20150004099"
+      ],
+      "first_relevant_rank": 1,
+      "hit@1": 1,
+      "hit@3": 1,
+      "hit@5": 1,
+      "rr@10": 1.0,
+      "recall@5": 0.5
+    },
+    {
+      "id": "RG-04",
+      "top5": [
+        "FF-NTRS-20150004099",
+        "FF-NTRS-20110008636",
+        "FF-NTRS-20000034017",
+        "FF-NTRS-19990063738",
+        "FF-NTRS-20070010766"
+      ],
+      "first_relevant_rank": 1,
+      "hit@1": 1,
+      "hit@3": 1,
+      "hit@5": 1,
+      "rr@10": 1.0,
+      "recall@5": 1.0
+    },
+    {
+      "id": "RG-05",
+      "top5": [
+        "FF-NTRS-20040161216",
+        "FF-NTRS-20140006580",
+        "FF-NTRS-19990063738",
+        "FF-NTRS-20070010766"
+      ],
+      "first_relevant_rank": 1,
+      "hit@1": 1,
+      "hit@3": 1,
+      "hit@5": 1,
+      "rr@10": 1.0,
+      "recall@5": 1.0
+    },
+    {
+      "id": "RG-06",
+      "top5": [
+        "FF-NTRS-20140006580",
+        "FF-NTRS-19990063738",
+        "FF-NTRS-20170000230",
+        "FF-NTRS-20040161216",
+        "FF-NTRS-20130001713"
+      ],
+      "first_relevant_rank": 1,
+      "hit@1": 1,
+      "hit@3": 1,
+      "hit@5": 1,
+      "rr@10": 1.0,
+      "recall@5": 1.0
+    },
+    {
+      "id": "RG-07",
+      "top5": [
+        "FF-NTRS-20170001636",
+        "FF-NTRS-20120015928",
+        "FF-NTRS-20210021781",
+        "FF-NTRS-19990063738",
+        "FF-NTRS-20140006580"
+      ],
+      "first_relevant_rank": 1,
+      "hit@1": 1,
+      "hit@3": 1,
+      "hit@5": 1,
+      "rr@10": 1.0,
+      "recall@5": 0.25
+    },
+    {
+      "id": "RG-08",
+      "top5": [
+        "FF-NTRS-20170001636",
+        "FF-NTRS-20170000230",
+        "FF-PSI-98",
+        "FF-NTRS-20130001713",
+        "FF-NTRS-20120015928"
+      ],
+      "first_relevant_rank": 1,
+      "hit@1": 1,
+      "hit@3": 1,
+      "hit@5": 1,
+      "rr@10": 1.0,
+      "recall@5": 1.0
+    },
+    {
+      "id": "RG-09",
+      "top5": [
+        "FF-NTRS-20120016855",
+        "FF-NTRS-20130014061",
+        "FF-NTRS-20140006750",
+        "FF-NTRS-20120015928",
+        "FF-NTRS-19990063738"
+      ],
+      "first_relevant_rank": 1,
+      "hit@1": 1,
+      "hit@3": 1,
+      "hit@5": 1,
+      "rr@10": 1.0,
+      "recall@5": 1.0
+    },
+    {
+      "id": "RG-10",
+      "top5": [
+        "FF-NTRS-20140006750",
+        "FF-NTRS-20120015928",
+        "FF-NTRS-20130014061",
+        "FF-NTRS-20120016855"
+      ],
+      "first_relevant_rank": 1,
+      "hit@1": 1,
+      "hit@3": 1,
+      "hit@5": 1,
+      "rr@10": 1.0,
+      "recall@5": 1.0
+    },
+    {
+      "id": "RG-11",
+      "top5": [
+        "FF-NTRS-20150019858",
+        "FF-NTRS-20140009169",
+        "FF-NTRS-20210021781",
+        "FF-PSI-107",
+        "FF-NTRS-20140006580"
+      ],
+      "first_relevant_rank": 1,
+      "hit@1": 1,
+      "hit@3": 1,
+      "hit@5": 1,
+      "rr@10": 1.0,
+      "recall@5": 1.0
+    },
+    {
+      "id": "RG-12",
+      "top5": [
+        "FF-NTRS-20160012691",
+        "FF-NTRS-20150008961",
+        "FF-NTRS-20120015928",
+        "FF-NTRS-20000034017",
+        "FF-NTRS-19990063738"
+      ],
+      "first_relevant_rank": 1,
+      "hit@1": 1,
+      "hit@3": 1,
+      "hit@5": 1,
+      "rr@10": 1.0,
+      "recall@5": 1.0
+    },
+    {
+      "id": "RG-13",
+      "top5": [
+        "FF-NTRS-20000034017",
+        "FF-NTRS-20080034883",
+        "FF-NTRS-20150008961",
+        "FF-NTRS-20070010766",
+        "FF-NTRS-20160012691"
+      ],
+      "first_relevant_rank": 3,
+      "hit@1": 0,
+      "hit@3": 1,
+      "hit@5": 1,
+      "rr@10": 0.3333333333333333,
+      "recall@5": 1.0
+    },
+    {
+      "id": "RG-14",
+      "top5": [
+        "FF-NTRS-20090014827",
+        "FF-NTRS-19990063738",
+        "FF-NTRS-20210021781",
+        "FF-PSI-107",
+        "FF-NTRS-20140009169"
+      ],
+      "first_relevant_rank": 1,
+      "hit@1": 1,
+      "hit@3": 1,
+      "hit@5": 1,
+      "rr@10": 1.0,
+      "recall@5": 1.0
+    },
+    {
+      "id": "RG-15",
+      "top5": [
+        "FF-NTRS-20210021781",
+        "FF-PSI-69",
+        "FF-NTRS-20120015928",
+        "FF-NTRS-20140009169"
+      ],
+      "first_relevant_rank": 1,
+      "hit@1": 1,
+      "hit@3": 1,
+      "hit@5": 1,
+      "rr@10": 1.0,
+      "recall@5": 1.0
+    },
+    {
+      "id": "RG-16",
+      "top5": [
+        "FF-NTRS-20040053557",
+        "FF-NTRS-20150008961",
+        "FF-NTRS-20120016855",
+        "FF-NTRS-20120015928",
+        "FF-NTRS-20000034017"
+      ],
+      "first_relevant_rank": 1,
+      "hit@1": 1,
+      "hit@3": 1,
+      "hit@5": 1,
+      "rr@10": 1.0,
+      "recall@5": 1.0
+    },
+    {
+      "id": "RG-17",
+      "top5": [
+        "FF-NTRS-20080034883",
+        "FF-NTRS-20000034017",
+        "FF-NTRS-20150004099",
+        "FF-NTRS-20040053557"
+      ],
+      "first_relevant_rank": 1,
+      "hit@1": 1,
+      "hit@3": 1,
+      "hit@5": 1,
+      "rr@10": 1.0,
+      "recall@5": 0.5
+    },
+    {
+      "id": "RG-18",
+      "top5": [
+        "FF-NTRS-20070010766",
+        "FF-NTRS-20040161216",
+        "FF-NTRS-19990063738"
+      ],
+      "first_relevant_rank": 1,
+      "hit@1": 1,
+      "hit@3": 1,
+      "hit@5": 1,
+      "rr@10": 1.0,
+      "recall@5": 1.0
+    },
+    {
+      "id": "RG-19",
+      "top5": [
+        "FF-PSI-98",
+        "FF-NTRS-20170000230",
+        "FF-NTRS-20000034017",
+        "FF-NTRS-19990063738",
+        "FF-PSI-69"
+      ],
+      "first_relevant_rank": 4,
+      "hit@1": 0,
+      "hit@3": 0,
+      "hit@5": 1,
+      "rr@10": 0.25,
+      "recall@5": 0.3333333333333333
+    },
+    {
+      "id": "RG-20",
+      "top5": [
+        "FF-NTRS-20000034017",
+        "FF-NTRS-19990063738",
+        "FF-NTRS-20120015928",
+        "FF-NTRS-20170001636",
+        "FF-NTRS-20150023467"
+      ],
+      "first_relevant_rank": 1,
+      "hit@1": 1,
+      "hit@3": 1,
+      "hit@5": 1,
+      "rr@10": 1.0,
+      "recall@5": 0.5
+    },
+    {
+      "id": "RG-21",
+      "top5": [
+        "FF-PSI-69",
+        "FF-NTRS-20130014061",
+        "FF-NTRS-20120015928",
+        "FF-NTRS-20120016855",
+        "FF-NTRS-20150004099"
+      ],
+      "first_relevant_rank": 1,
+      "hit@1": 1,
+      "hit@3": 1,
+      "hit@5": 1,
+      "rr@10": 1.0,
+      "recall@5": 1.0
+    },
+    {
+      "id": "RG-22",
+      "top5": [
+        "FF-PSI-107",
+        "FF-PSI-69",
+        "FF-NTRS-20150023467",
+        "FF-NTRS-20040161216",
+        "FF-NTRS-20110008636"
+      ],
+      "first_relevant_rank": null,
+      "hit@1": 0,
+      "hit@3": 0,
+      "hit@5": 0,
+      "rr@10": 0.0,
+      "recall@5": 0.0
+    },
+    {
+      "id": "RG-23",
+      "top5": [
+        "FF-NTRS-20150023467",
+        "FF-NTRS-20120015928",
+        "FF-NTRS-19990063738",
+        "FF-NTRS-20040161216",
+        "FF-NTRS-20000034017"
+      ],
+      "first_relevant_rank": 1,
+      "hit@1": 1,
+      "hit@3": 1,
+      "hit@5": 1,
+      "rr@10": 1.0,
+      "recall@5": 1.0
+    },
+    {
+      "id": "RG-24",
+      "top5": [
+        "FF-NTRS-20150004099",
+        "FF-NTRS-20080034883",
+        "FF-NTRS-20110008636",
+        "FF-NTRS-19990063738"
+      ],
+      "first_relevant_rank": 1,
+      "hit@1": 1,
+      "hit@3": 1,
+      "hit@5": 1,
+      "rr@10": 1.0,
+      "recall@5": 1.0
+    },
+    {
+      "id": "RG-25",
+      "top5": [
+        "FF-NTRS-20120016855",
+        "FF-NTRS-20120015928",
+        "FF-NTRS-20130014061"
+      ],
+      "first_relevant_rank": 1,
+      "hit@1": 1,
+      "hit@3": 1,
+      "hit@5": 1,
+      "rr@10": 1.0,
+      "recall@5": 1.0
+    },
+    {
+      "id": "RG-26",
+      "top5": [
+        "FF-NTRS-20000034017",
+        "FF-NTRS-19990063738",
+        "FF-NTRS-20170000230",
+        "FF-NTRS-20150023467",
+        "FF-NTRS-20170001636"
+      ],
+      "first_relevant_rank": 1,
+      "hit@1": 1,
+      "hit@3": 1,
+      "hit@5": 1,
+      "rr@10": 1.0,
+      "recall@5": 0.6666666666666666
+    }
+  ],
+  "code_under_test": "same code with passages capped at 1000 characters (not adopted), depth 10.",
+  "recorded_git_commit_of_benchmark_checkout": "80b9c21"
+}

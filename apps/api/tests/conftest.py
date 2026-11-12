@@ -4,6 +4,8 @@ os.environ["FLAME_API_AUTH_ENABLED"] = "true"
 os.environ["FLAME_READ_API_TOKEN"] = "test-read-token-0123456789abcdef0123456789"
 os.environ["FLAME_WRITE_API_TOKEN"] = "test-write-token-0123456789abcdef0123456789"
 os.environ["FLAME_AURA_ENABLED"] = "false"
+# The reranker is on by default and would download a model; tests that need it fake the router.
+os.environ.setdefault("FLAME_RERANKER_ENABLED", "false")
 
 import pytest
 from fastapi.testclient import TestClient

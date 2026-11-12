@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Lead (Anas) | In review (Princess E3, CV rows: signed 2026-10-14; Anas E2, data rows: pending) | 1.1.0 | 2026-10-14 | 2H Task 1, M1 | `apps/api/flame_api/*`, `ai/`, `cv/`, `apps/web/`, `infrastructure/`, `.github/workflows/` |
+| Lead (Anas) | In review (Princess E3, CV rows: signed 2026-10-14; Anas E2, data rows: pending) | 1.1.1 | 2026-11-12 | 2H Task 1, M1 | `apps/api/flame_api/*`, `ai/`, `cv/`, `apps/web/`, `infrastructure/`, `.github/workflows/` |
 
 **Method.** Every route in `apps/api/flame_api/main.py` and `analysis.py`, the RQ worker (`worker.py`), the ingestion and seed CLIs, `ai/rag`, `cv/`, the web app (`apps/web`), the Compose and Railway configs and the CI workflows were read at commit `2afbc37`. Each outbound network call, model download and container pull is listed below. "Offline today" is the behaviour on branch `ccr-c6a5a263-498la9` (PR #14). The "MVP" column is the behaviour at the audit baseline `e73dcf1`.
 
@@ -15,7 +15,7 @@
 | 3 | AURA readiness | `ai/providers/cloud/aura.py` `health` | AURA `GET /health/ready` | none | 2 s timeout per `/api/health` call | Cached and bounded; **never sent** in `offline_only` | — | P0 ✅ |
 | 4 | Embeddings (index build + query) | `vector_index.py` → `ai/providers/local/fastembed_embeddings.py` | Hugging Face Hub download of `Qdrant/bge-small-en-v1.5-onnx-Q` on first use | none (download only) | Fails with an empty cache; search falls back to lexical | `FLAME_EMBEDDING_OFFLINE=true` sets `HF_HUB_OFFLINE` and reports `model_missing` instead of downloading. Cache prepared and checksummed while connected (H-3, H-6). | fastembed cache in the `model-cache` volume | P0 ✅ |
 | 5 | Embeddings in `ai/rag` | `ai/rag/embeddings/embedding_service.py` | HF Hub download of `sentence-transformers/all-MiniLM-L6-v2` | none | Fails with an empty cache | **Unchanged.** `ai/rag` is not wired into the API (M2, ADR-006). It also uses a *different* model from the API index, so the M2 wiring must switch it to the router's `embed.*` tasks. | router `embed.*` | P1 (with M2, Eman) |
-| 6 | Reranking | `ai/rag/reranking/reranker.py`; `ai/providers/local/cross_encoder.py` | HF Hub download (cross-encoder) | none | No cross-encoder exists (score passthrough) | Adapter exists, off by default (`FLAME_RERANKER_ENABLED`) | cached cross-encoder | P1 |
+| 6 | Reranking | `ai/rag/reranking/reranker.py`; `ai/providers/local/cross_encoder.py` | HF Hub download (fastembed ONNX cross-encoder, into `FLAME_EMBEDDING_CACHE_DIR`) | fused order, `reranking.status = "unavailable"` | No cross-encoder exists (score passthrough) | On by default since 2026-11-12 (`FLAME_RERANKER_ENABLED`, PR #30); cache-only when offline | `python -m ai.providers.local.cross_encoder prepare` | P1 |
 | 7 | CV inference (image) | `worker.py` → router `vision.analyze` | Optional HF Space `POST /api/analyze` | the uploaded image + pixel scale | Local provider works; `hf_space` fails if the Space is unreachable | `hf_space` is never contacted in `offline_only`; when it fails in other modes the router falls back to local `flame_cv` | `ai/providers/local/flame_cv.py` (OpenCV) | P0 ✅ |
 | 8 | Video embedding / training | `cv/video_embedding.py`, `cv/video_training.py` | `torchvision` weights download (`weights="DEFAULT"`) | none | Fails with an empty torch cache | Unchanged (research script `cv/video_embedding.py`, not in the API path; `weights="DEFAULT"` only when `weights` is set) | pre-download into `TORCH_HOME` (H-6 §4) | P1 (Princess) |
 | 8a | Video analysis (frames, temporal summary) | `ai/providers/local/flame_cv_video.py` → `cv/video_analysis.py` | none (OpenCV, local files only) | — | Works offline | Resumable from `frames.jsonl` when the same `work_dir` is reused; local only, so never blocked | `flame_cv_video` provider (registered for `video.analyze`) | P0 ✅ (API: `POST /api/analyses` with `video`, contract 0.3.0) |
@@ -83,5 +83,6 @@ Every critical AI dependency now has a local alternative or a defined degraded m
 | Anas (E2) | — | — | Pending: data rows (11, 12, 22) |
 
 ## Changelog
+- 1.1.1 (2026-11-12): row 6: the reranker is fastembed ONNX and on by default.
 - 1.1.0 (2026-10-14): row 8a (video provider); row 8 and limitations corrected; Princess's review recorded.
 - 1.0.0 (2026-10-12): first complete audit, starting from the Phase 2 Plan §7A.3 table and extended to every route, worker, the auth path, the frontend and CI.

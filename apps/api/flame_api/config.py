@@ -92,9 +92,14 @@ class Settings(BaseSettings):
     provider_health_ttl_s: float = Field(default=15.0, ge=1, le=600)
     embedding_cache_dir: str | None = None
     embedding_offline: bool = False
-    reranker_enabled: bool = False
-    # ADR-006: how many of the first fused /api/search results the cross-encoder reorders (page-independent).
-    rerank_depth: int = Field(default=20, ge=2, le=100)
+    # ADR-006: the fastembed ONNX cross-encoder reorders the first `rerank_depth` search results. On by
+    # default since 2026-11-12: hit@1 0.81 -> 0.88 and MRR@10 0.86 -> 0.91 on the 26-question gold set, at
+    # about 0.7 s per search on a shared 4-core CPU (docs/evaluation/reports/retrieval-2026-11-12.md §5).
+    # With no cached model in an offline deployment, search falls back to the fused order ("unavailable").
+    reranker_enabled: bool = True
+    # How many of the first fused /api/search results the cross-encoder reorders (page-independent).
+    # 10 scored the same as 20 on the gold set, for half the model work.
+    rerank_depth: int = Field(default=10, ge=2, le=100)
     otel_enabled: bool = False
     otel_service_name: str = "flame-api"
     cv_provider: Literal["local", "hf_space"] = "local"
