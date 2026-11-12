@@ -1,4 +1,5 @@
 """ADR-006 reranker provider: fastembed ONNX cross-encoder, cache-only when offline."""
+import importlib.util
 import sys
 import types
 
@@ -40,6 +41,10 @@ def test_scores_come_back_best_first_with_long_passages_truncated(tmp_path, monk
     fake = types.ModuleType("fastembed.rerank.cross_encoder")
     fake.TextCrossEncoder = FakeCrossEncoder
     monkeypatch.setitem(sys.modules, "fastembed.rerank.cross_encoder", fake)
+    # CI's repo-root job does not install fastembed; the provider's health checks for it by name.
+    real_find_spec = importlib.util.find_spec
+    monkeypatch.setattr(importlib.util, "find_spec",
+                        lambda name, *args: object() if name == "fastembed" else real_find_spec(name, *args))
     provider = CrossEncoderReranker(cache_dir=str(tmp_path))
 
     response = provider.rerank(RerankRequest(query="flame", documents=(("short", "abc"), ("long", "x" * 5000))))
