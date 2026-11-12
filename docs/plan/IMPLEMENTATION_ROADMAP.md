@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Lead (Anas) | Current | 1.1.0 | 2026-11-12 | Phase 2 M1, M2, M6, A4, B2/B3, C2, L-8 | see each task |
+| Lead (Anas) | Current | 1.1.1 | 2026-11-12 | Phase 2 M1, M2, M6, A4, B2/B3, C2, L-8 | see each task |
 
 Evidence for every task is in the [system status audit](../reviews/SYSTEM_STATUS_AUDIT.md) and the [AURA integration audit](../integration/AURA_INTEGRATION_AUDIT.md). **Done** means implemented on branch `claude/nasa-flame-aura-audit-abu89q`, tested, and (where noted) runtime-verified. Details are in the [implementation changelog](../reviews/IMPLEMENTATION_CHANGELOG.md). Work after 2026-11-02 merged to `main` through the PRs named in [Status update (2026-11-12)](#status-update-2026-11-12).
 
@@ -68,7 +68,7 @@ Changes since the P2 status table of 2026-11-02, which is kept above as dated hi
 | P1-4 | **Superseded.** The "not available" Knowledge page became the Knowledge Graph page (`/knowledge`). It reads the real graph (951 entities, 10,683 edges), and every link opens the table cell it came from. | PR #32; FTR §10: smoke test 9/9 steps | Graph built from tables only: no NLP extraction, no Graph RAG in chat |
 | P1-6 | **Partly done (retrieval).** A 26-question gold set (`datasets/evaluation/retrieval_gold_v1.jsonl`), written against the registered corpus. The harness runs against the live `/api/search`. Scores: hit@1 0.88, MRR@10 0.91, recall@5 0.88, with reranking on. | [retrieval-2026-11-12.md](../evaluation/reports/retrieval-2026-11-12.md); FTR §9 | The gold set was written with AI assistance and is not yet human-reviewed (Ziad, Eman). Citation precision, faithfulness and per-model ranking still need a language model, and none was available here |
 | P1-7 | Open. | — | No Docker host or Railway access |
-| P1-8 | Open. Contract checked only: contract 0.6.0, AURA dry run with 16 tools accepted and 10 operations excluded at `d696fad`. | FTR §8–§9; AURA-AI #232 | A live AURA agent run |
+| P1-8 | **Open (partly met).** Link 2 ran live once, on Railway on 2026-10-07: an AURA agent answered with real Flame evidence IDs, through 8 compiled tools of an older contract. At contract 0.6.0 only the dry run has been checked: 16 tools accepted, 10 operations excluded, at `d696fad` and AURA `main`. | [integration README](../integration/README.md) §2; AURA `docs/reports/flame-link2-live.md`; FTR §8–§9; AURA-AI #232 | A complete Link 2 report at contract 0.6.0, with every item AURA's runbook §2.6 asks for. Any Link 1 run: no Flame analysis has been interpreted by AURA (`provider=aura`) |
 | P2-1 | **Done, and closed the earlier gap.** There is now an `admin` scope for `/api/admin/*`, and a `write` key gets 403 there. Each admin key must name an `--owner` (ADR-009, migration `0008`). | PR #29; `test_api_clients.py`; SECURITY.md 0.7.0 | Still no `rotate` command (create a new key, deploy, revoke the old one). Owners are free text. The deprecated write token keeps its admin rights until it is removed |
 | P2-4 | **Done, and closed the earlier gap.** Video jobs checkpoint to `video_checkpoint_frame` every 10 frames and resume after `worker recover`, with a frame-for-frame identical result. `POST /api/analyses/{id}/cancel` was added (ADR-008, migration `0009`). | PR #29; `test_video_checkpoints.py` (8 tests) | Image jobs are not checkpointed (they take seconds). An RQ timeout still fails a video job instead of leaving it to resume. Recovery still runs only at worker start |
 | P2-7 | **Done.** ADR-006 was Accepted and built: one `ai/rag` search stack serves `/api/search` and `/api/chat`, and the API's inline ranking is retired. The benchmark gate was met (identical top 5 on all 26 questions). The cross-encoder reranker has been on by default since PR #30. | PR #29, #30; [retrieval-2026-11-12.md](../evaluation/reports/retrieval-2026-11-12.md) | Reranking costs about 0.7 s per search on CPU. Retiring the in-memory `RAGRetrievalPipeline` / `FlameRAGService` is Eman's call |
@@ -93,7 +93,7 @@ P0-1 → (P0-2, P0-3) → P1-2/P1-3 → P1-1 → P1-4/P1-5 [all done] → P1-7 (
 
 As of 2026-11-12, every P0, P1-1 to P1-5 and every P2 item except P2-9 and P2-10's dashboard panels are done (P2-11 as a local drill only). P1-6 is partly done. **What is left, in order:**
 1. P1-7, the compose dry run (needs a Docker host).
-2. P1-8, a live AURA agent run (needs AURA access).
+2. P1-8: a live Link 2 run at contract 0.6.0, with a complete report, and a first Link 1 run (needs AURA access).
 3. P1-6, human review of the gold set (Ziad, Eman), then generated-answer evaluation with a deployed model.
 4. The rest of P2-9, P2-10 and P2-11.
 
@@ -101,3 +101,4 @@ As of 2026-11-12, every P0, P1-1 to P1-5 and every P2 item except P2-9 and P2-10
 - 1.0.0 (2026-10-30): roadmap from the system audit.
 - 1.0.0, amended in place (2026-11-02): the P2 status table. The version was not bumped then.
 - 1.1.0 (2026-11-12): status update after the ADR-006 to 009 builds and the Knowledge Graph page (PR #29–#32). Updated: the P1-4 and P1-6 status cells, a pointer from the dated P2-7 row, and the remaining order of work.
+- 1.1.1 (2026-11-12): P1-8 corrected. Link 2 ran live once, on 2026-10-07, at an older contract; 1.1.0 had said no live AURA agent had run.

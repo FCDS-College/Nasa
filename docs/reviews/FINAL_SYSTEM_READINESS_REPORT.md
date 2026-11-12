@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Lead (Anas), assessment by Claude Code | Historical snapshot (2026-10-30), with a status update | 1.1.0 | 2026-11-12 | release gate input | whole repository |
+| Lead (Anas), assessment by Claude Code | Historical snapshot (2026-10-30), with a status update | 1.1.1 | 2026-11-12 | release gate input | whole repository |
 
 > Sections 1–10 are the assessment as written on 2026-10-30 and are not edited. [§11](#11-status-update-2026-11-12) records what has changed since, item by item. For the current state of the project, read [FINAL_PROJECT_STATUS.md](../../FINAL_PROJECT_STATUS.md).
 
@@ -152,7 +152,7 @@ What changed after this assessment, for each finding above. Evidence is in [FINA
 | Dashboard Knowledge page showed an honest "not available" (§2) | **Built.** The Knowledge Graph page (`/knowledge`) browses the real graph: 951 entities and 10,683 edges, each citing the NASA table cell it was read from. You can walk links 1 or 2 hops and open each link's evidence. | PR #32; FTR §10: smoke test 9/9 steps, iPhone 13 no overflow; CI green |
 | WF B, Experiment: **NOT RUN**, PSI tables not installed (§6, §9) | **Runs on a fresh clone.** The small CC0 PSI tables are committed (ADR-012). Ingest gives 840 flight tests from FLEX, BASS-II, SPICE and SAFFIRE-I. | FTR: migrate → seed → ingest |
 | AI / RAG: quality unmeasured; the `ai/rag` reranker not wired in (§4) | **Retrieval measured; generation still not.** One `ai/rag` search stack (ADR-006), with the cross-encoder reranker on by default. On the 26-question gold set: hit@1 0.88, MRR@10 0.91, recall@5 0.88. The gold set was written with AI assistance and is not yet human-reviewed (P1-6 still open). No language model was available to evaluate generated answers. | [retrieval-2026-11-12.md](../evaluation/reports/retrieval-2026-11-12.md); FTR §9 |
-| AURA: contract 0.3.0, 10 tools accepted, 3 excluded; no live AURA test (§4, WF D) | **Contract 0.6.0:** 16 tools accepted, 10 operations excluded, against AURA `d696fad`. AURA's own runbook matches (AURA-AI #232). **A live AURA agent has still not been run (P1-8 open).** | FTR §8–§9 |
+| AURA: contract 0.3.0, 10 tools accepted, 3 excluded; no live AURA test (§4, WF D) | **Contract 0.6.0:** 16 tools accepted, 10 operations excluded, against AURA `d696fad`. AURA's own runbook matches (AURA-AI #232). **Correction:** this assessment missed a live Link 2 run on Railway on 2026-10-07. In that run an AURA agent answered with real Flame evidence IDs, but it used an older contract (8 tools) and its report lacks items AURA's runbook §2.6 requires. **It has not been repeated at contract 0.6.0, and Link 1 has never run (P1-8 open).** | FTR §8–§9; [integration README](../integration/README.md) §2; AURA `docs/reports/flame-link2-live.md` |
 | Security: shared static tokens, chat-only rate limit, default secrets accepted in production (P2-1, P2-2, P2-6) | **Fixed:** per-client hashed keys with `read`, `write` and `admin` scopes, and every admin key must name an owner (ADR-009). Per-key Redis rate limits on all routes. Production start-up refuses default secrets. Still true: owners are free text, not verified identities, and the deprecated write token remains an admin credential. | Roadmap P2-1, P2-2, P2-6; SECURITY.md 0.7.0 |
 | Data management: no admin endpoints or UI (P2-8, WF G) | **Audited admin endpoints** for reprocessing, review status and quarantine, behind the `admin` scope. Still **no admin UI**: the web tier never holds a write key. | Roadmap P2-8 |
 | Stuck jobs after a worker crash (P2-4) | **Fixed:** `worker recover` runs at worker start. Video jobs now checkpoint every 10 frames and resume with a frame-for-frame identical result. They can also be cancelled (ADR-008). | Roadmap P2-4; FTR §8 |
@@ -173,3 +173,4 @@ Two remain open:
 ## Changelog
 - 1.0.0 (2026-10-30): the readiness assessment.
 - 1.1.0 (2026-11-12): §11 status update. Marked as a historical snapshot; sections 1–10 are unchanged.
+- 1.1.1 (2026-11-12): §11 corrected. A live Link 2 run did happen on 2026-10-07, at an older contract; 1.1.0 had said no live AURA agent had run.
