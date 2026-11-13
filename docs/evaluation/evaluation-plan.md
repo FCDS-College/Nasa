@@ -74,7 +74,7 @@ No single aggregate metric is used to promote a model or declare a release gate 
 
 ## 3. Human vs Deterministic Evaluation Protocol
 
-* **Deterministic**: Recall@K, MRR, nDCG@K, citation locator match, latency, schema compliance. Run in automated CI on every commit.
+* **Deterministic**: Recall@K, MRR, nDCG@K, citation locator match, latency, schema compliance. The unit tests of these metrics run in CI (`python -m pytest`); `run_evaluation.py` itself is not run in CI.
 * **Human Review Required**: Answer clarity, cross-document reasoning subtlety, visual anomaly interpretation, and subtle hallucination detection.
 
 ---

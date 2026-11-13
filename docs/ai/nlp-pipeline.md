@@ -2,9 +2,9 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Eman | Draft (design only; every behaviour is **Planned**) | 0.1.0 | 2026-10-14 | D1 | none yet (Planned: `ai/rag/nlp/`) |
+| Eman | Draft; rule-based extractors implemented as a library, everything else **Planned** | 0.2.0 | 2026-11-13 | D1 | `ai/rag/nlp/`, `tests/unit/test_nlp_*.py` (not called by ingest or the API) |
 
-**Status: design only.** No extractor exists in the repository at commit of this document. Every table below describes behaviour to build and is **Planned**. Nothing here reports a precision, recall or F1 value, because no extractor has been run. Examples are synthetic.
+**Status (2026-11-13):** six rule-based extractors exist in `ai/rag/nlp/` and pass their unit tests: identifiers, measurements and units, vocabulary lookup, document class, first-page metadata, table/figure association. They are a library: ingest and the API do not call them, nothing is stored, and the seed vocabularies are unreviewed. Model NER, relation, claim and contradiction extraction, query classification and expansion, summarisation, persistence and graph integration are still **Planned** (see `.internal/plans/2026-11-13-d1-nlp-pipeline.md`). Every other table below describes behaviour to build. Nothing here reports a precision, recall or F1 value, because no extractor has been run. Examples are synthetic.
 
 ## 1. Scope and ground rules
 
@@ -54,7 +54,7 @@ Confidence is only comparable inside one extractor version. It is never used as 
 
 Record shape (Planned): `{record_id, type, text, normalized, document_id, document_version, page, char_start, char_end, chunk_id, extractor, extractor_version, method, confidence, review_status}`. A re-ingestion with a new document version creates new records and marks the old ones `superseded`; it never edits them in place.
 
-Synthetic example: chunk `c-demo-001` (page 3) reads "In run FX-0042 the flame speed was 3.2 cm/s at 0.1 atm." Records: Experiment `FX-0042` (chars 7-14), Measurement `3.2 cm/s` (chars 40-48, quantity `flame speed`), Environmental condition `0.1 atm` (chars 52-59). All three point to `c-demo-001`.
+Synthetic example: chunk `c-demo-001` (page 3) reads "In run FX-0042 the flame speed was 3.2 cm/s at 0.1 atm." Records: Experiment `FX-0042` (chars 7-14), Measurement `3.2 cm/s` (chars 35-43, quantity `flame speed`), Environmental condition `0.1 atm` (chars 47-54). All three point to `c-demo-001`.
 
 ## 5. Evaluation
 
@@ -62,7 +62,7 @@ Precision, recall and F1 per extractor will be copied from Ziad's harness output
 
 ## Known limitations
 
-- Nothing is implemented; this is a design for review.
+- Only the rule-based extractors are implemented. No model has been chosen or tested, and no extractor has a measured precision or recall: the gold set (`datasets/evaluation/nlp_gold_v1.jsonl`) is empty.
 - No model has been chosen or tested, and no confidence is calibrated.
 - Arabic and mixed-language text handling is not designed yet.
 - Contradiction detection today exists only as the `conflicts_with` metadata flag read by the composer (`docs/ai/grounded-generation.md`).
@@ -71,4 +71,5 @@ Precision, recall and F1 per extractor will be copied from Ziad's harness output
 
 | Version | Date | Change |
 |---|---|---|
+| 0.2.0 | 2026-11-13 | Status updated: rule-based extractors implemented as an unwired library; example character offsets corrected (they did not match the sentence). |
 | 0.1.0 | 2026-10-14 | First design draft for E1-7 (D1); all behaviour Planned. |
