@@ -12,6 +12,23 @@ Semver applies to `docs/api/openapi.json` `info.version`. Breaking changes need 
 - `ChatWarning` value `low_evidence_score` and setting `FLAME_CHAT_ABSTAIN_BELOW` (default unset = off): when set, `/api/chat` returns "too weak to answer from" with the closest sources, calls no model and is not cached, if the best fused score of the search for the whole question is below the value. Calibrate it with `ai.rag.evaluation.run_passage_gold`; no value is recommended until the passage gold set is verified.
 - `ChatWarning` value `answer_terms_not_in_cited_evidence` (`/api/chat`): the answer names a fuel, material, oxidizer, instrument or platform (the controlled vocabulary of `ai/rag/nlp/vocab`, with aliases) that none of the cited passages mentions. A weaker signal than a figure: it warns in `warn` and `strict` mode and never withholds the answer; answers with it are not cached.
 
+## 0.8.0 (2026-11-14)
+
+Suppression Advisor (ADR-014, plan `docs/plan/SUPPRESSION_ADVISOR_PLAN.md`). Additive: no existing response changes.
+
+**Added**
+- `GET /api/insights/suppression-advice` (`getSuppressionAdvice`, `SuppressionAdviceResponse`, `SuppressionAgentAdvice`, `SuppressionHazard`).
+  - A deterministic recommendation between the ISS CO₂ PFE and Fine Water Mist PFE for a cabin.
+  - Inputs: fire type, cabin volume, pressure, O₂, background CO₂, temperature, whole-cabin or aimed discharge, and the assumed water delivery fraction.
+  - Returns:
+    - the post-discharge fire-zone and cabin atmospheres;
+    - crew hazards, where a CO₂ discharge reaching the CO₂ IDLH vetoes CO₂;
+    - the crossover delivery fraction;
+    - for heptane and methanol, the FLEX estimate for CO₂ with its 5 nearest flight tests;
+    - a thermal-model probability per agent, when its gates allow.
+  - `outcome` is `recommend`, `no_clear_winner` or `no_recommendation`.
+  - The absolute water-mist probability is withheld while the thermal model fails the MIST check (see ADR-014).
+
 ## 0.7.0 (2026-11-13)
 
 Historical scenarios, a gravity dimension and a scenario-level coverage verdict (ADR-013). The Apollo 1 pure-oxygen atmosphere is the first historical scenario. Response shapes gain **required** fields: clients that validate strictly must take this contract (AURA re-discovery; the `aura-link2-contract` job checks the dry run).

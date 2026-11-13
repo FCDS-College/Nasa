@@ -4,7 +4,7 @@ from typing import Any
 from fastapi import Request
 
 
-API_VERSION = "0.7.0"  # = docs/api/openapi.json info.version (ResponseMeta.api_version is the contract version)
+API_VERSION = "0.8.0"  # = docs/api/openapi.json info.version (ResponseMeta.api_version is the contract version)
 
 
 def response_meta(request: Request) -> dict[str, str]:

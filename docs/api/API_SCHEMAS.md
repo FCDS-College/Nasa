@@ -34,6 +34,7 @@ Reading the tables: *Required = yes* means the key is always present. A nullable
 | GET | `/api/investigations/{investigation_id}` | 200 [`InvestigationResponse`](#investigationresponse) | 400, 401, 403, 404, 429, 500, 503 |
 | GET | `/api/insights` | 200 [`InsightListResponse`](#insightlistresponse) | 400, 401, 403, 429, 500, 503 |
 | GET | `/api/insights/flex-outcome` | 200 [`FlexOutcomeResponse`](#flexoutcomeresponse) | 400, 401, 403, 429, 500, 503 |
+| GET | `/api/insights/suppression-advice` | 200 `SuppressionAdviceResponse` (see `docs/api/openapi.json` and ADR-014) | 400, 401, 403, 429, 500, 503 |
 | GET | `/api/graph/entities` | 200 [`GraphEntityListResponse`](#graphentitylistresponse) | 400, 401, 403, 429, 500, 503 |
 | GET | `/api/graph/entities/{entity_id}` | 200 [`GraphEntityResponse`](#graphentityresponse) | 400, 401, 403, 404, 429, 500, 503 |
 | GET | `/api/admin/graph/consistency` | 200 [`GraphConsistencyResponse`](#graphconsistencyresponse) | 400, 401, 403, 429, 500, 503 |

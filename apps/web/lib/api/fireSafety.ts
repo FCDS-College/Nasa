@@ -263,6 +263,80 @@ export const fetchScenarioHistory = (scenarioId: string) =>
 export const fetchFlexOutcome = (input: FlexInput) =>
   get<FlexOutcome>("insights/flex-outcome", input as unknown as Record<string, string | number>);
 
+// Suppression Advisor (contract 0.8.0, ADR-014): CO₂ vs water-mist PFE for a cabin. Deterministic, no language model.
+export type FireType = "heptane" | "methanol" | "other_liquid" | "electrical_battery" | "solid";
+export type HazardLevel = "red" | "amber" | "green" | "info";
+
+export interface SuppressionInput {
+  fire_type: FireType;
+  cabin_volume_m3: number;
+  pressure_kpa: number;
+  o2_fraction: number;
+  co2_fraction: number;
+  zone: "well_mixed" | "local";
+  local_zone_fraction: number;
+  delivery_fraction: number;
+}
+
+export interface SuppressionAtmosphere {
+  pressure_kpa: number;
+  mole_fractions: Record<string, number>;
+  liquid_water_mol_per_mol_gas: number;
+  ppo2_kpa: number;
+  ppco2_mmhg: number;
+}
+
+export interface SuppressionHazard {
+  hazard: string;
+  level: HazardLevel;
+  value?: number;
+  before?: number;
+  unit?: string;
+  statement: string;
+  claim_class: "reference" | "computed";
+  sources?: string[];
+}
+
+export interface SuppressionAgent {
+  agent: "co2" | "water_mist";
+  extinguisher: string;
+  charge: Record<string, string | number>;
+  post_discharge: { agent: string; fire_zone: SuppressionAtmosphere; cabin_after: SuppressionAtmosphere };
+  effective_enthalpy_kcal_per_mol_o2: number | null;
+  hazards: SuppressionHazard[];
+  hazard_level: HazardLevel;
+  flex_estimate: {
+    p_extinction: number | null;
+    claim_class: "estimated";
+    applicability: { in_domain: boolean; reasons: string[] } | null;
+    similar_tests: { experiment_id: string; test_id: string; end_state: EndState | null; end_state_evidence_id: string | null }[];
+  } | null;
+  thermal_estimate: { p_extinction: number; claim_class: "computed"; model_version: string } | null;
+  withheld: string[];
+}
+
+export interface SuppressionAdvice {
+  input: Record<string, string | number>;
+  assumptions: Record<string, string>;
+  outcome: "recommend" | "no_clear_winner" | "no_recommendation";
+  recommended_agent: "co2" | "water_mist" | null;
+  confidence: "high" | "moderate" | "low" | "none";
+  basis: "thermal_model_comparison" | "relative_only" | "hazard_veto" | "sourced_rule" | "out_of_scope";
+  why: string[];
+  what_would_change_it: string[];
+  decision_sources: string[];
+  crossover_delivery_fraction: { value: number | null; claim_class: "computed"; statement: string; basis?: string } | null;
+  co2_idlh_volume_m3: number;
+  agents: { co2: SuppressionAgent; water_mist: SuppressionAgent };
+  gates: { water_probability_allowed: boolean; model_signal_ok: boolean };
+  evidence: { id: string; title: string; kind: string }[];
+  scope: string;
+  disclaimer: string;
+}
+
+export const fetchSuppressionAdvice = (input: Partial<SuppressionInput>) =>
+  get<SuppressionAdvice>("insights/suppression-advice", input as unknown as Record<string, string | number>);
+
 export const fetchCounts = () =>
   get<{ documents: number; experiments: number; evidence: number; analyses?: number; chunks?: number; indexed_chunks?: number }>("dashboard/counts");
 

@@ -51,10 +51,30 @@ export default function OutcomeExplorer() {
     }
   }, []);
 
+  // The Suppression Advisor links here with a post-discharge atmosphere in the query string.
+  useEffect(() => {
+    queueMicrotask(() => {
+      const p = new URLSearchParams(window.location.search);
+      const patch: Partial<FlexInput> = {};
+      const fuel = p.get("fuel");
+      if (fuel === "Heptane" || fuel === "Methanol") patch.fuel = fuel;
+      for (const key of ["o2_fraction", "pressure_kpa", "co2_fraction"] as const) {
+        const raw = p.get(key);
+        if (raw && Number.isFinite(Number(raw))) patch[key] = Number(raw);
+      }
+      if (Object.keys(patch).length) setInput((prev) => ({ ...prev, ...patch }));
+    });
+  }, []);
+
   useEffect(() => {
     const t = setTimeout(() => run(input), 200);
     return () => clearTimeout(t);
   }, [input, run]);
+
+  const advisorHref = `/suppression?${new URLSearchParams({
+    fire_type: input.fuel.toLowerCase(), o2_fraction: String(input.o2_fraction), pressure_kpa: String(input.pressure_kpa),
+    co2_fraction: String(input.co2_fraction),
+  })}`;
 
   const set = (patch: Partial<FlexInput>) => setInput((prev) => ({ ...prev, ...patch }));
   const m = result?.model;
@@ -68,6 +88,9 @@ export default function OutcomeExplorer() {
           Trained on {m?.training_rows ?? 261} real FLEX droplet tests flown on the ISS. Set the atmosphere and droplet; the model estimates how
           the flame ends, shows the most similar real flight tests, and refuses to answer outside the conditions NASA actually flew.
         </p>
+        <Link href={advisorHref} className="w-fit text-xs font-semibold hover:underline" style={{ color: "var(--accent-ember)" }}>
+          Which extinguisher for this atmosphere? Open the Suppression Advisor →
+        </Link>
       </header>
 
       <div className="grid gap-5 lg:grid-cols-[340px_1fr]">

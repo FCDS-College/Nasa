@@ -19,12 +19,14 @@ import {
   FileSearch,
   History,
   Network,
+  FireExtinguisher,
 } from "lucide-react";
 
 // Primary navigation: every page a judge needs is one click away.
 const NAV = [
   { href: "/", label: "Fire Safety Dashboard", icon: ShieldCheck },
   { href: "/explorer", label: "Flame Outcome Explorer", icon: FlaskConical },
+  { href: "/suppression", label: "Suppression Advisor", icon: FireExtinguisher },
   { href: "/experiments", label: "Flight Test Browser", icon: Sparkles },
   { href: "/chat", label: "Ask the NASA Corpus", icon: MessageSquare },
   { href: "/search", label: "Search Evidence", icon: FileSearch },

@@ -1,0 +1,72 @@
+{
+  "model_version": "suppression-thermal-logistic-1.0.0",
+  "training_data": {
+    "rows_used": 261,
+    "extinction": 179,
+    "test_days": 80
+  },
+  "repeated_grouped_cv": {
+    "extinction_roc_auc": {
+      "mean": 0.814,
+      "sd": 0.005
+    },
+    "extinction_brier": {
+      "mean": 0.1569,
+      "sd": 0.0021
+    }
+  },
+  "repeated_grouped_cv_h_eff_only": {
+    "extinction_roc_auc": {
+      "mean": 0.7859,
+      "sd": 0.0027
+    },
+    "extinction_brier": {
+      "mean": 0.1643,
+      "sd": 0.001
+    }
+  },
+  "comparison": "FLEX outcome model (7 inputs) extinction ROC-AUC 0.857 ± 0.010, docs/evaluation/reports/flex-outcome-model.md",
+  "h50_kcal_per_mol_o2_at_1_atm": {
+    "Heptane": 51.97,
+    "Methanol": 42.7
+  },
+  "literature_check": {
+    "normal_gravity_pmma_kcal_per_mol_o2": 63.2,
+    "air_kcal_per_mol_o2": 48.25,
+    "source": "NTRS 20040161262 p. 362; not used for fitting"
+  },
+  "gates": {
+    "flex_auc": {
+      "passed": true,
+      "lower_bound": 0.809,
+      "threshold": 0.75,
+      "rule": "mean − 1 SD of repeated grouped-CV ROC-AUC"
+    },
+    "mist": {
+      "passed": false,
+      "rule": "model ω_w at P=0.5 must be ≥ 0.048 (highest measured extinguishing loading)",
+      "model_omega_w_at_p50": 0.02007,
+      "fuel_proxy": "Heptane",
+      "cases": [
+        {
+          "cmd_um": 20,
+          "measured_extinction_omega_w": 0.033,
+          "model_p_extinction_at_measured_extinction": 0.573,
+          "measured_no_extinction_omega_w": 0.025,
+          "model_p_extinction_at_no_extinction": 0.528,
+          "under_prediction_factor": 0.608
+        },
+        {
+          "cmd_um": 30,
+          "measured_extinction_omega_w": 0.048,
+          "model_p_extinction_at_measured_extinction": 0.6536,
+          "measured_no_extinction_omega_w": 0.033,
+          "model_p_extinction_at_no_extinction": 0.573,
+          "under_prediction_factor": 0.418
+        }
+      ],
+      "note": "MIST burned premixed propane–air at 1 atm in a 6.3 cm tube; heptane is used as the hydrocarbon proxy."
+    }
+  },
+  "generated_at": "2026-11-13T22:32:54+00:00"
+}
