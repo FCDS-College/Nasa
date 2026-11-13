@@ -757,6 +757,7 @@ def _retrieve_passages(request: Request, session: Session, question: str):
     found: dict[str, dict[str, Any]] = {}
     knowledge_version: str | None = None
     request.state.rerank_degraded = False
+    request.state.chat_top_score = None          # the best fused score of the search for the whole question (0.0 when it found nothing)
     for position, term in enumerate([question, *_question_terms(question)]):
         result = search(request, q=term, page_size=5, session=session)
         if isinstance(result, JSONResponse):
@@ -764,6 +765,8 @@ def _retrieve_passages(request: Request, session: Session, question: str):
                 return result
             continue
         knowledge_version = knowledge_version or result["retrieval"]["knowledge_version"]
+        if position == 0:
+            request.state.chat_top_score = max((hit["score"] for hit in result["results"]), default=0.0)
         if result["retrieval"]["reranking"]["status"] == "unavailable":
             request.state.rerank_degraded = True
         for item in result["results"]:
@@ -862,6 +865,22 @@ def chat(request: Request, body: ChatBody, session: Session = Depends(get_sessio
             "document_id": item.get("document_id") or item.get("experiment_id") or "",
             "title": item["title"],
             "location": (item.get("locator") or {}).get("label") or item["result_type"],
+        }
+
+    top_score = getattr(request.state, "chat_top_score", None)
+    if settings.chat_abstain_below is not None and top_score is not None and top_score < settings.chat_abstain_below:
+        # Calibrated with `python -m ai.rag.evaluation.run_passage_gold run --mode chat` then `calibrate` (same search, same score).
+        return {
+            **base,
+            "answer": (
+                "The evidence Flame found for this question is too weak to answer from, so no answer was generated. "
+                "The closest passages are listed below; try a more specific term such as a fuel, an instrument or a test name."
+            ),
+            "sources": [source_entry(item) for item in items],
+            "cache_hit": False,
+            "model": {"provider": "flame", "name": "retrieval-only", "version": "n/a"},
+            "execution": None,
+            "warnings": ["low_evidence_score"],
         }
 
     try:
