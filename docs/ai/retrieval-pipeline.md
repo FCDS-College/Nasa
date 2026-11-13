@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Eman | In review (ADR in section 2 is **Accepted**; ADR-006 built 2026-11-12, section 0) | 0.5.0 | 2026-11-13 | M2, M11, ADR-006, 2H (Planned parts marked) | `ai/rag/retrieval/`, `ai/rag/reranking/`, `ai/rag/query/`, `ai/rag/service.py`, `apps/api/flame_api/main.py` |
+| Eman | In review (ADR in section 2 is **Accepted**; ADR-006 built 2026-11-12, section 0) | 0.5.1 | 2026-11-13 | M2, M11, ADR-006, 2H (Planned parts marked) | `ai/rag/retrieval/`, `ai/rag/reranking/`, `ai/rag/query/`, `ai/rag/service.py`, `apps/api/flame_api/main.py` |
 
 This document describes the code on branch `Eman` at commits `9319d65` (retrieval fusion/reranker/rewrite modules), `0fc94c3` (service wiring) and `d7bf6b2` (cache timing fix). Facts about `apps/api` come from a search of Eman's working tree on 2026-10-12 (`Select-String` over `apps/api/flame_api/*.py`); line numbers refer to that tree. **Planned** marks behaviour not yet in code.
 
@@ -29,7 +29,7 @@ Sections 1–9 describe the code as of October and are kept as the design record
 
 - **Verified:** the SQL runs on PostgreSQL 16 (`apps/api/tests/test_lexical_postgres.py`: any-term match, a rare term outranks a common one, operator characters in the question are harmless; run in CI against pgvector/pgvector:pg16).
 - **Not verified:** that it retrieves better. The passage-level gold set has too few verified questions to say (the guideline needs ≥ 20), so the default stays `and`. Compare with `python -m ai.rag.evaluation.evaluate_retrieval` using the paired bootstrap before switching it on.
-- **Known gap:** the `english` configuration drops `He` (helium) at index and query time, so a question that is only about helium still cannot match. The term is kept in the query so that switching the stored vector to a configuration that keeps it needs no code change there; that is a migration and a re-index, not done.
+- **`He` (helium):** the `english` configuration drops it at index and query time, so a question about helium cannot match `search_tsv`. Migration `0012_chunk_search_tsv_keep` adds `search_tsv_keep`, a stored vector built with `flame_english` (snowball English stemming, no stopword list) and its GIN index; `or_idf` reads it automatically once it exists (`apps/api/flame_api/lexical.py`). The default `and` query keeps `search_tsv`, because with stopwords indexed `plainto_tsquery` would require "the" and "is" to match. Verified on PostgreSQL 16 (`apps/api/tests/test_lexical_postgres.py`: `He` finds the helium page only with the new vector, stemming still works, the migration is repeatable and reversible). Cost: a second tsvector and index per page. After upgrading, nothing needs re-indexing: the column is generated.
 
 
 ### 0b. Window-level dense index (flag, default off) — 2026-11-13
@@ -191,6 +191,7 @@ The API also returns `retrieval.searched_but_empty`, which separates "searched a
 
 | Version | Date | Change |
 |---|---|---|
+| 0.5.1 | 2026-11-13 | §0a: stopword-free vector (migration 0012) so `He` is searchable in `or_idf`. |
 | 0.5.0 | 2026-11-13 | Rewriter 1.0.1 (psi after a number); §0a lexical OR with IDF behind `FLAME_LEXICAL_MODE` (default off); §0b window-level dense index behind `FLAME_DENSE_GRANULARITY` (default off); §0c table-aware indexing measured, not wired. |
 | 0.4.1 | 2026-11-12 | Reranker on by default, fastembed ONNX, depth 10. |
 | 0.4.0 | 2026-11-12 | Section 0: ADR-006 built: one search stack in `ai/rag` (rewrite, RRF, reranker through the router, paging), the API's inline ranking retired after the benchmark gate. |

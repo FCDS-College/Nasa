@@ -2,10 +2,14 @@
 
 Skipped unless FLAME_TEST_PG_URL points at a database the test may create a scratch schema in (CI sets it).
 """
+import importlib.util
 import os
 from datetime import UTC, datetime
+from pathlib import Path
 
 import pytest
+from alembic.migration import MigrationContext
+from alembic.operations import Operations
 from sqlalchemy import create_engine, select, text
 from sqlalchemy.orm import Session
 
@@ -20,11 +24,23 @@ TEXTS = {
     "c2": "Flame spread over PMMA was measured in helium and oxygen mixtures.",
     "c3": "The flame was photographed. The flame front was bright and the flame was stable.",
     "c4": "Heptane droplets burned with a cool flame in microgravity.",
+    "c5": "Burning in He and O2 atmospheres was compared.",
 }
+MIGRATION = Path(__file__).parents[1] / "migrations" / "versions" / "0012_chunk_search_tsv_keep.py"
 
 
-@pytest.fixture
-def session():
+def apply_keep_migration(connection, *, direction="upgrade"):
+    """Run the real migration 0012 on the scratch schema (it adds the stopword-free vector `He` needs)."""
+    spec = importlib.util.spec_from_file_location("migration_0012", MIGRATION)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    with Operations.context(MigrationContext.configure(connection)):
+        getattr(module, direction)()
+    connection.commit()
+
+
+@pytest.fixture(params=["english vector", "stopword-free vector"])
+def session(request):
     engine = create_engine(URL)
     connection = engine.connect()
     connection.execute(text("DROP SCHEMA IF EXISTS lexical_test CASCADE"))
@@ -48,6 +64,8 @@ def session():
         db.add(DocumentChunk(chunk_id=chunk_id, document_id="D", source_id="S", file_id="F", evidence_id=chunk_id.upper(),
                              page=1, text=body, ingested_at=now))
     db.commit()
+    if request.param == "stopword-free vector":
+        apply_keep_migration(connection)
     lexical.clear_cache()
     yield db
     db.close()
@@ -96,3 +114,29 @@ def test_a_freshly_booted_machine_does_not_see_an_empty_cache_as_fresh(session, 
     monkeypatch.setattr(lexical.time, "monotonic", lambda: 10.0)
     lexical.clear_cache()
     assert _ranked(session, "PMMA flame helium")[0][0] == "c2"
+
+
+def test_helium_is_searchable_only_with_the_stopword_free_vector(session, request):
+    ranked = _ranked(session, "What happens in He?")
+    found = [chunk for chunk, _ in ranked or []]
+    if "stopword-free" in request.node.callspec.id:
+        assert found == ["c5"]
+    else:
+        assert found == []                         # `english` drops "he" at index and query time
+
+
+def test_the_stopword_free_vector_still_finds_stemmed_terms(session):
+    ranked = _ranked(session, "burned droplets")
+    assert ranked[0][0] == "c4"                    # stemming survives: burned/burning share a lexeme
+
+
+def test_migration_0012_is_repeatable_and_reversible(session):
+    connection = session.connection()
+    session.commit()
+    apply_keep_migration(connection)
+    apply_keep_migration(connection)                      # create-if-missing: a second run changes nothing
+    has_column = "SELECT count(*) FROM information_schema.columns WHERE table_schema = current_schema() AND column_name = 'search_tsv_keep'"
+    has_config = "SELECT count(*) FROM pg_ts_config WHERE cfgname = 'flame_english' AND cfgnamespace = current_schema()::regnamespace"
+    assert session.execute(text(has_column)).scalar_one() == 1 and session.execute(text(has_config)).scalar_one() == 1
+    apply_keep_migration(connection, direction="downgrade")
+    assert session.execute(text(has_column)).scalar_one() == 0 and session.execute(text(has_config)).scalar_one() == 0
