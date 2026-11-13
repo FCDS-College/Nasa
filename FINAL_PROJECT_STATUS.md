@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Lead (Anas) | Current | 1.3.1 | 2026-11-12 | final challenge plan T1–T7, I7–I11, ADR-006–009 | whole repository |
+| Lead (Anas) | Current | 1.3.2 | 2026-11-12 | final challenge plan T1–T7, I7–I11, ADR-006–009 | whole repository |
 
 **Challenge.** NASA Space Apps 2026, *Flame in Freefall: AI-powered fire-safety insights from microgravity combustion data*: summarize, rank and explain NASA microgravity combustion results to inform fire safety for Moon and Mars missions.
 
@@ -47,6 +47,7 @@
 
 | Issue | Severity | Workaround |
 |---|---|---|
+| No AURA deployment reachable (both Railway hosts 404 on 2026-11-12) | Medium (AURA is optional, ADR-004) | Nothing to do in Flame. AURA's owner redeploys it. A hosted-only AURA also needs the Link 1 data-ceiling change ([integration README](docs/integration/README.md) §5) |
 | Compose and Railway not redeployed or dry-run with this branch | High for a hosted demo | Path B in [DEMO_RUNBOOK.md](DEMO_RUNBOOK.md) (verified); Railway needs an account holder |
 | No LLM verified in this environment; chat answers not evaluated | Medium | Ollama via compose profile `local-llm`; the UI falls back to cited evidence |
 | Lexical-only search is weak for full questions (16/26 return nothing) | Medium (only without embeddings) | Vector index built at start-up |
@@ -76,3 +77,4 @@ After submission (2026-11-07 to 2026-11-12):
 - 1.2.0 (2026-11-12): PR #30 (reranker default, graph aliases) and AURA-AI #232 merged; new known issues; post-submission decisions.
 - 1.3.0 (2026-11-12): the Knowledge Graph page; its known issue removed.
 - 1.3.1 (2026-11-12): PR #32 (Knowledge Graph page) merged; recorded in the completed features and post-submission decisions.
+- 1.3.2 (2026-11-12): the AURA integration re-checked against AURA `main`; a known issue for the unreachable AURA deployment.

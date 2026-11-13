@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import socket
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -17,6 +18,9 @@ from ai.providers.contracts.errors import ProviderError, ProviderErrorCode
 logger = logging.getLogger("flame_api")
 
 DEFAULT_MAX_BYTES = 64 * 1024
+#: A provider's error slug is echoed into messages and logs only if it is a plain identifier, so a
+#: response body cannot write arbitrary text into Flame's logs.
+_SLUG = re.compile(r"[a-z][a-z0-9_]{0,63}")
 _OOM_MARKERS = ("out of memory", "requires more system memory", "insufficient memory", "cuda error: out of memory")
 
 
@@ -60,7 +64,12 @@ def _map_http_error(exc: HTTPError, provider: str) -> ProviderError:
         mapped = ProviderErrorCode.UNAVAILABLE
     else:
         mapped = ProviderErrorCode.INVALID_REQUEST
-    return ProviderError(mapped, f"{provider} returned HTTP {code}.", provider=provider, status_code=code)
+    # AURA names the reason (e.g. 503 `capability_unavailable`: no provider allowed to see this turn's
+    # data answered, a configuration matter rather than an outage). Same mapping; the name is kept.
+    slug = _error_code(raw)
+    slug = slug if slug is not None and _SLUG.fullmatch(slug) else None
+    message = f"{provider} returned HTTP {code} ({slug})." if slug else f"{provider} returned HTTP {code}."
+    return ProviderError(mapped, message, provider=provider, status_code=code, upstream_code=slug)
 
 
 def request_json(

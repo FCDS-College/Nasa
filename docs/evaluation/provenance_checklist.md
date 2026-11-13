@@ -6,13 +6,13 @@
 
 ## 1. Automated Thresholds and Strict Exit Codes
 
-* **Status**: **Operational & Verified in CI**
+* **Status**: **Partly operational.** `pytest` runs the schema, coverage and (page-level) leakage tests in CI. `run_evaluation.py` is not run in CI and has no exit-code policy (its only `sys.exit(1)` is for a missing dataset file).
 * **Verification Command**:
   ```bash
   pytest tests/eval/test_provenance.py tests/eval/test_rag_metrics.py -v
   ```
 * **Exit Code Policy**:
-  * Any violation of schema constraints, missing cases, duplicate queries, or evidence leakage across `dev`/`val`/`holdout` splits results in an immediate non-zero exit code (`exit 1`), halting CI pipeline execution.
+  * A failing `pytest` test in `tests/eval/test_provenance.py` fails the CI job. Duplicate-query detection is not implemented there, and document-level leakage is a known strict expected failure.
   * See verification implementation in [`tests/eval/test_provenance.py`](../../tests/eval/test_provenance.py#L43-L65).
 
 ---
@@ -32,6 +32,6 @@ Code Implementation: [`tests/eval/master_pipeline.py`](../../tests/eval/master_p
 
 ## 3. Benchmark Integrity & Domain Alignment
 
-- [x] The 35 curated benchmark cases (38 with the 3 adversarial ones) originate from NASA microgravity combustion publications (FLEX, ACME, SAFFIRE, NASA-STD-6001B).
+- [ ] The 38 benchmark cases originate from NASA microgravity combustion publications (FLEX, ACME, SAFFIRE, NASA-STD-6001B). Not verifiable from this repository: the evidence IDs are not documents of the indexed corpus.
 - [x] Unanswerable cases (4 items) and adversarial prompt-injection cases (3 items) included to verify safe abstention.
-- [x] Zero evidence leakage verified between dev, validation, and holdout splits.
+- [ ] No document leakage between splits. **Known issue:** the splits share documents (dev and holdout share `DOC-001`, `DOC-004`, `DOC-007`); only page-level IDs are disjoint. See `test_no_document_leakage_between_splits` (strict xfail).

@@ -179,8 +179,8 @@ class Router:
                 attempts.append({"provider": name, "code": exc.code.value})
                 reasons.append({"provider": name, "reason": exc.code.value})
                 self._count(task_name, name, exc.code.value)
-                logger.warning("routing_attempt_failed task=%s mode=%s provider=%s code=%s status=%s",
-                               task_name, mode.value, name, exc.code.value, exc.status_code)
+                logger.warning("routing_attempt_failed task=%s mode=%s provider=%s code=%s status=%s upstream=%s",
+                               task_name, mode.value, name, exc.code.value, exc.status_code, exc.upstream_code or "-")
                 if not exc.fallback_eligible:
                     break
                 if not idempotent and exc.request_sent:

@@ -9,7 +9,7 @@ carries a phrase that `--check-labels` verifies against the ingested text. Label
 the ranking is scored by the first appearance of each document in the top-k chunk hits.
 
 Metrics: hit@1, hit@3, hit@5 (a relevant document appears in the top k documents), MRR@10 and
-recall@5 (share of a question's relevant documents found in the top 5). Stdlib only.
+recall@5 (share of a question's relevant documents found in the top 5), each with a 95% bootstrap interval. Stdlib only.
 """
 from __future__ import annotations
 
@@ -23,6 +23,8 @@ import urllib.parse
 import urllib.request
 from datetime import UTC, datetime
 from pathlib import Path
+
+from ai.rag.evaluation.stats import bootstrap_ci
 
 ROOT = Path(__file__).resolve().parents[3]
 GOLD = ROOT / "datasets" / "evaluation" / "retrieval_gold_v1.jsonl"
@@ -61,8 +63,12 @@ def score(gold: list[dict], runs: dict[str, list[str]]) -> dict:
         })
     def mean(key):
         return round(statistics.fmean(q[key] for q in per_question), 4)
+    # 95% bootstrap intervals over questions. With a few dozen questions they are wide: report them with every number, and
+    # compare two runs with `python -m ai.rag.evaluation.stats` (paired), not by eye.
+    ci95 = {name: [round(x, 4) for x in bootstrap_ci([q[key] for q in per_question])]
+            for name, key in (("hit@1", "hit@1"), ("hit@3", "hit@3"), ("hit@5", "hit@5"), ("mrr@10", "rr@10"), ("recall@5", "recall@5"))}
     return {"questions": len(gold), "hit@1": mean("hit@1"), "hit@3": mean("hit@3"), "hit@5": mean("hit@5"),
-            "mrr@10": mean("rr@10"), "recall@5": mean("recall@5"), "per_question": per_question}
+            "mrr@10": mean("rr@10"), "recall@5": mean("recall@5"), "ci95": ci95, "per_question": per_question}
 
 
 def main() -> int:
@@ -91,7 +97,7 @@ def main() -> int:
         **result,
     }
     args.out.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps({k: report[k] for k in ("label", "retrieval_modes_reported", "hit@1", "hit@3", "hit@5", "mrr@10", "recall@5", "latency_s")}))
+    print(json.dumps({k: report[k] for k in ("label", "retrieval_modes_reported", "hit@1", "hit@3", "hit@5", "mrr@10", "recall@5", "ci95", "latency_s")}))
     return 0
 
 

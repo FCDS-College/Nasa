@@ -2,9 +2,9 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Eman | Draft (design only; every behaviour is **Planned**) | 0.1.0 | 2026-10-14 | D1 | none yet (Planned: `ai/rag/nlp/`) |
+| Eman | Draft; rule-based extractors run at ingest and are stored, everything else **Planned** | 0.3.0 | 2026-11-13 | D1 | `ai/rag/nlp/`, `apps/api/flame_api/nlp_extract.py`, `nlp_graph.py`, migration `0010`, `tests/unit/test_nlp_*.py`, `apps/api/tests/test_nlp_*.py` |
 
-**Status: design only.** No extractor exists in the repository at commit of this document. Every table below describes behaviour to build and is **Planned**. Nothing here reports a precision, recall or F1 value, because no extractor has been run. Examples are synthetic.
+**Status (2026-11-13):** six rule-based extractors exist in `ai/rag/nlp/` (identifiers, measurements and units, vocabulary lookup, document class, first-page metadata, table/figure association). `python -m flame_api.ingest` runs them over the indexed chunk text after the knowledge-graph build and stores the records in `nlp_record` (migration `0010`); `python -m flame_api.nlp_extract run|status` does the same on demand, and `python -m flame_api.nlp_graph build` turns co-occurrences into unreviewed graph edges (`docs/data/KNOWLEDGE_GRAPH_SCHEMA.md`). The API does not serve the records yet. Re-running creates nothing new; a human `human_verified` / `rejected` decision survives a re-run; a changed chunk, a new extractor version or a deleted chunk marks old rows `superseded`. The vocabulary is the seed files plus the graph's own fuels, phenomena and investigation names (an investigation name is matched in its own case only, because `SAME` is also a word). **The seed vocabularies are still unreviewed by a domain expert and no extractor has a measured precision or recall**; treat every record as a candidate. Model NER, relation, claim and contradiction extraction, query classification and expansion, and summarisation remain **Planned**. Examples are synthetic.
 
 ## 1. Scope and ground rules
 
@@ -52,9 +52,9 @@ Confidence is only comparable inside one extractor version. It is never used as 
 
 ## 4. Source-location preservation
 
-Record shape (Planned): `{record_id, type, text, normalized, document_id, document_version, page, char_start, char_end, chunk_id, extractor, extractor_version, method, confidence, review_status}`. A re-ingestion with a new document version creates new records and marks the old ones `superseded`; it never edits them in place.
+Record shape (stored in `nlp_record`): `{record_id, type, text, normalized, document_id, document_version, page, char_start, char_end, chunk_id, extractor, extractor_version, method, confidence, review_status}`. A re-ingestion with a new document version creates new records and marks the old ones `superseded`; it never edits them in place.
 
-Synthetic example: chunk `c-demo-001` (page 3) reads "In run FX-0042 the flame speed was 3.2 cm/s at 0.1 atm." Records: Experiment `FX-0042` (chars 7-14), Measurement `3.2 cm/s` (chars 40-48, quantity `flame speed`), Environmental condition `0.1 atm` (chars 52-59). All three point to `c-demo-001`.
+Synthetic example: chunk `c-demo-001` (page 3) reads "In run FX-0042 the flame speed was 3.2 cm/s at 0.1 atm." Records: Experiment `FX-0042` (chars 7-14), Measurement `3.2 cm/s` (chars 35-43, quantity `flame speed`), Environmental condition `0.1 atm` (chars 47-54). All three point to `c-demo-001`.
 
 ## 5. Evaluation
 
@@ -62,7 +62,7 @@ Precision, recall and F1 per extractor will be copied from Ziad's harness output
 
 ## Known limitations
 
-- Nothing is implemented; this is a design for review.
+- Only the rule-based extractors are implemented. No model has been chosen or tested, and no extractor has a measured precision or recall: the gold set (`datasets/evaluation/nlp_gold_v1.jsonl`) is empty.
 - No model has been chosen or tested, and no confidence is calibrated.
 - Arabic and mixed-language text handling is not designed yet.
 - Contradiction detection today exists only as the `conflicts_with` metadata flag read by the composer (`docs/ai/grounded-generation.md`).
@@ -71,4 +71,6 @@ Precision, recall and F1 per extractor will be copied from Ziad's harness output
 
 | Version | Date | Change |
 |---|---|---|
+| 0.3.0 | 2026-11-13 | Ingest runs the extractors and stores `nlp_record` rows (migration `0010`); graph edges from co-occurrence; vocabulary draws on the graph. |
+| 0.2.0 | 2026-11-13 | Status updated: rule-based extractors implemented as an unwired library; example character offsets corrected (they did not match the sentence). |
 | 0.1.0 | 2026-10-14 | First design draft for E1-7 (D1); all behaviour Planned. |

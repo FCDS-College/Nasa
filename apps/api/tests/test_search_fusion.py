@@ -222,5 +222,5 @@ def test_the_rewritten_query_is_embedded_and_reported_next_to_the_original(clien
     assert embedded == ["ISS (international space station) flame"]
     assert body["retrieval"]["query_rewrite"] == {
         "rewritten": "ISS (international space station) flame", "changed": True, "rules_applied": ["expand:iss"],
-        "rewriter_version": "1.0.0", "used_for": ["semantic"]}
+        "rewriter_version": "1.0.1", "used_for": ["semantic"]}
     assert body["retrieval"]["stack_version"] == "flame-search-2.0.0"

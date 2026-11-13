@@ -346,3 +346,62 @@ def test_aura_outage_keeps_completed_analysis_completed(monkeypatch, session_fac
         assert stored.status == "completed"
         assert stored.payload["interpretation"]["status"] == "unavailable"
         assert stored.payload["warnings"][0]["code"] == "INTERPRETATION_UNAVAILABLE"
+
+
+def _aura_error(status_code, slug):
+    import io
+
+    def opener(*_, **__):
+        body = io.BytesIO(json.dumps({"error": slug, "message": "m", "retryable": False, "details": {}}).encode())
+        raise HTTPError("https://aura.example/api/v3/chat", status_code, "error", {}, body)
+    return opener
+
+
+def test_aura_capability_unavailable_is_named_but_still_falls_back(monkeypatch, caplog):
+    """AURA 503 `capability_unavailable` (no provider allowed to see this turn's content answered):
+    the same fallback as any 503, but the slug reaches the error and the routing log, so an operator
+    can tell a data-classification refusal from an outage."""
+    from ai.providers.contracts.errors import ProviderErrorCode
+
+    monkeypatch.setattr(provider_http, "urlopen", _aura_error(503, "capability_unavailable"))
+    with pytest.raises(provider_http.ProviderError) as error:
+        provider_http.request_json("POST", "https://aura.example/api/v3/chat", provider="aura", timeout_s=1, body={})
+    assert error.value.code is ProviderErrorCode.UNAVAILABLE
+    assert error.value.fallback_eligible
+    assert error.value.upstream_code == "capability_unavailable"
+    assert "capability_unavailable" in error.value.message
+
+    caplog.set_level("WARNING")
+    with pytest.raises(aura_integration.AuraIntegrationError) as wrapped:
+        aura_integration.interpret_analysis(aura_settings(), analysis_id=ANALYSIS_ID, context=[], allowed_evidence_ids=set())
+    assert wrapped.value.status_code == 503
+    assert "capability_unavailable" in str(wrapped.value)
+    assert "upstream=capability_unavailable" in caplog.text
+    assert AURA_TOKEN not in caplog.text
+
+
+def test_aura_error_slug_is_echoed_only_when_it_is_a_plain_identifier(monkeypatch):
+    for slug in ("bad slug\nwith a newline", "x" * 65, "<script>"):
+        monkeypatch.setattr(provider_http, "urlopen", _aura_error(503, slug))
+        with pytest.raises(provider_http.ProviderError) as error:
+            provider_http.request_json("POST", "https://aura.example/api/v3/chat", provider="aura", timeout_s=1, body={})
+        assert error.value.upstream_code is None
+        assert error.value.message == "aura returned HTTP 503."
+
+
+@pytest.mark.parametrize(("require_local", "body", "expected"), [
+    (True, {"healthy": True, "local_healthy": False}, "down"),
+    (True, {"healthy": True, "local_healthy": True}, "up"),
+    (False, {"healthy": True, "local_healthy": False}, "up"),
+    (True, {"healthy": True}, "up"),   # an AURA without the field: no evidence either way
+])
+def test_aura_health_reflects_local_healthy_when_flame_requires_local(monkeypatch, require_local, body, expected):
+    from ai.providers.cloud.aura import AuraProvider
+
+    monkeypatch.setattr(provider_http, "urlopen", lambda *_, **__: FakeResponse(body))
+    status = AuraProvider(base_url="https://aura.example", service_token="t", require_local=require_local).health(1.0)
+    assert status.state == expected
+    if expected == "down":
+        assert status.detail == "no_local_provider"
+    settings = aura_settings().model_copy(update={"aura_require_local": require_local})
+    assert aura_integration.check_aura_ready(settings)[0] == expected

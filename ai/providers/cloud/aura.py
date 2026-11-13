@@ -36,10 +36,16 @@ class AuraProvider:
     def health(self, timeout_s: float) -> HealthStatus:
         started = time.perf_counter()
         try:
-            probe(f"{self._base}/health/ready", provider="aura", timeout_s=timeout_s)
+            ready = probe(f"{self._base}/health/ready", provider="aura", timeout_s=timeout_s)
         except ProviderError as exc:
             return HealthStatus("down", round((time.perf_counter() - started) * 1000, 1), exc.code.value)
-        return HealthStatus("up", round((time.perf_counter() - started) * 1000, 1))
+        latency = round((time.perf_counter() - started) * 1000, 1)
+        # AURA's readiness is 200 when any provider is healthy, but a `require_local` turn can only use
+        # a local one. `local_healthy` (AURA A3) says whether one is up; without it every call would
+        # 503 while AURA looked "up". An AURA that does not report the field is taken at its word.
+        if self._require_local and isinstance(ready, dict) and ready.get("local_healthy") is False:
+            return HealthStatus("down", latency, "no_local_provider")
+        return HealthStatus("up", latency)
 
     def _body(self, request: ChatRequest, schema: dict[str, Any] | None) -> dict[str, Any]:
         body: dict[str, Any] = {

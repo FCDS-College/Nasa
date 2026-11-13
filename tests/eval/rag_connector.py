@@ -1,14 +1,10 @@
-import json
-import urllib.request
-import urllib.error
 from typing import Dict, Any
 from tests.eval.mock_rag import MockRAGSystem
 
 class RAGConnector:
     """
     موصل موحد لنظام الـ RAG (Unified RAG Connector):
-    يدعم العمل إما بنظام المحاكاة المحلي (mock mode) أو الاتصال المباشر بـ REST API
-    الخاص بالفريق (apps/api) عند تشغيله.
+    يدعم نظام المحاكاة المحلي (mock mode) فقط. نمط api غير مدعوم حالياً (انظر NotImplementedError).
     """
     def __init__(self, mode: str = "mock", api_base_url: str = "http://localhost:8000"):
         self.mode = mode.lower()
@@ -20,30 +16,11 @@ class RAGConnector:
             return self.mock_rag.query(user_query, top_k=top_k)
 
         elif self.mode == "api":
-            url = f"{self.api_base_url}/api/search"
-            payload = json.dumps({"query": user_query, "top_k": top_k}).encode("utf-8")
-            headers = {"Content-Type": "application/json"}
-            req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
-
-            try:
-                with urllib.request.urlopen(req, timeout=10) as response:
-                    data = json.loads(response.read().decode("utf-8"))
-                    results = data.get("results", [])
-                    return {
-                        "query": user_query,
-                        "answer": data.get("answer", "لا توجد إجابة مسترجعة."),
-                        "retrieved_context": [r.get("text", "") for r in results],
-                        "retrieved_doc_ids": [r.get("doc_id", "") for r in results],
-                        "citations": data.get("citations", [])
-                    }
-            except Exception as e:
-                # عند تعذر الاتصال بالـ API الحقيقي، نسجل الخطأ ونوفر رد طوارئ
-                return {
-                    "query": user_query,
-                    "answer": f"API Connection Error: {str(e)}",
-                    "retrieved_context": [],
-                    "retrieved_doc_ids": [],
-                    "citations": []
-                }
+            # This mode POSTed JSON to /api/search, which is `GET /api/search?q=...` with a different result shape,
+            # swallowed the failure and returned the error text as the system's "answer" (scored as a system failure).
+            raise NotImplementedError(
+                "RAGConnector api mode does not match /api/search (GET ?q=, different result shape). "
+                "Use ai/rag/evaluation/flame_retrieval_benchmark.py to evaluate the live API."
+            )
         else:
             raise ValueError(f"Unknown RAG connector mode: {self.mode}. Choose 'mock' or 'api'.")

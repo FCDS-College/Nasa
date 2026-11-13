@@ -1306,7 +1306,7 @@ multipart/form-data body for POST /api/analyses.
 | Enum | Values | Meaning |
 |---|---|---|
 | <a id="overallstatus"></a>`OverallStatus` | `healthy`, `degraded`, `unhealthy` | healthy: every service up. degraded: a required service degraded or an optional one down/degraded. unhealthy: a required service down. |
-| <a id="chatwarning"></a>`ChatWarning` | `no_matching_evidence`, `citations_not_in_retrieved_evidence_removed`, `answer_cites_no_evidence`, `generation_unavailable`, `model_fallback_used` |  |
+| <a id="chatwarning"></a>`ChatWarning` | `no_matching_evidence`, `citations_not_in_retrieved_evidence_removed`, `answer_cites_no_evidence`, `generation_unavailable`, `model_fallback_used`, `answer_values_not_in_cited_evidence`, `answer_withheld_unsupported_values` |  |
 | <a id="executionmode"></a>`ExecutionMode` | `cloud_preferred`, `local_first`, `offline_only` | Hybrid AI execution mode (Sub-phase 2H). offline_only never contacts an external provider. |
 | <a id="aimodesource"></a>`AiModeSource` | `env`, `audit_override` | Where the effective `mode` comes from: `env` is FLAME_AI_EXECUTION_MODE; `audit_override` is the newest `ai.mode.changed` audit event (PUT /api/admin/ai/mode), which wins over env in every process until the next PUT. There is no clear operation yet. |
 | <a id="reviewstatus"></a>`ReviewStatus` | `raw`, `machine_extracted`, `human_verified`, `rejected` | Review state (data dictionary: review_status). The UI must visibly distinguish human_verified and must not render rejected evidence as support. |
@@ -1327,9 +1327,9 @@ multipart/form-data body for POST /api/analyses.
 | <a id="calibrationstate"></a>`CalibrationState` | `absent`, `spatial_scale_provided` | absent: measurements are pixels only. spatial_scale_provided: caller supplied px-per-mm, enabling ESTIMATED physical lengths/areas. No radiometric calibration state exists in v0.1, so temperature is never produced. |
 | <a id="filestatus"></a>`FileStatus` | `active`, `quarantined` | file_record.status (M9). A quarantined file is kept for review but never parsed or indexed. |
 | <a id="insightkind"></a>`InsightKind` | `measured_statistic`, `model_estimate`, `coverage_gap` | measured_statistic: computed from flight-test rows. model_estimate: from the FLEX outcome model (claim class estimated). coverage_gap: what the data does not cover. |
-| <a id="graphentitytype"></a>`GraphEntityType` | `investigation`, `experiment`, `fuel`, `condition_variable`, `phenomenon`, `document` | E2-6 entity types. `fuel` covers fuels and solid materials, as written in the source tables. |
+| <a id="graphentitytype"></a>`GraphEntityType` | `investigation`, `experiment`, `fuel`, `condition_variable`, `phenomenon`, `document`, `platform`, `instrument` | E2-6 entity types. `fuel` covers fuels and solid materials, as written in the source tables. `platform` and `instrument` come only from NLP extraction (`extraction_method` `nlp_extraction`, always unreviewed until a person reviews them). |
 | <a id="graphreviewstatus"></a>`GraphReviewStatus` | `unreviewed`, `human_verified`, `rejected` |  |
-| <a id="graphpredicate"></a>`GraphPredicate` | `part_of`, `uses_fuel`, `has_condition`, `observed`, `describes` |  |
+| <a id="graphpredicate"></a>`GraphPredicate` | `part_of`, `uses_fuel`, `has_condition`, `observed`, `describes`, `ran_on`, `measured_with` |  |
 | <a id="servicestatus"></a>`ServiceStatus` | `up`, `degraded`, `down`, `disabled`, `unknown` | disabled: intentionally not configured in this deployment (e.g. AURA in the MVP). unknown: the probe has not run or timed out. |
 | <a id="repository"></a>`Repository` | `NASA PSI`, `NASA NTRS`, `NASA Science`, `NASA Open Data`, `NASA GRC FCF`, `Other` | Canonical repository family. Identical to `repository` in datasets/registry/source_registry.schema.json. |
 | <a id="locatortype"></a>`LocatorType` | `page`, `section`, `table_row`, `frame`, `file` | What kind of position `Locator` points at (data dictionary: location_type). |

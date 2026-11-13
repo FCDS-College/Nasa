@@ -312,17 +312,19 @@ All numbers in this section are copied from the generated `evaluation_report.jso
 | graph-only | Planned | Planned | Planned | none (D4 not built) |
 | hybrid + graph | Planned | Planned | Planned | none (D4 not built) |
 | graph + rerank | Planned | Planned | Planned | none (D4 not built) |
-| harness mock connector (reference only) | 0.2105 | 0.2105 | 0.2105 | `2026-10-14T00:45:43.759317+00:00` |
+| harness mock connector (reference only) | 0.0323 | 0.0323 | 0.0323 | `2026-11-13T15:44:06.956637+00:00` |
 
-Targets: Recall@5 0.8, MRR 0.7, Citation F1 0.75. The reference row misses all three. It measures the mock connector, so it says nothing about `ai/rag`.
+Targets: Recall@5 0.8, MRR 0.7, Citation F1 0.75. The reference row misses all three. It measures the mock connector, so it says nothing about `ai/rag` or the served API. Since 2026-11-13 the means are over the 31 answerable cases only: an unanswerable case expects no evidence, so its recall and MRR are undefined and are no longer scored as 1.0 (the earlier 0.2105 was inflated that way; it is 1 hit in 31 answerable cases). The gold file's evidence IDs (`DOC-001-P15`, ...) are not documents of the indexed corpus, and there are no confidence intervals.
 
 ### 15.2 Results by difficulty (the gold set has no cross-doc or multi-hop labels)
 
-| Difficulty | Cases | Recall@5 | MRR | Citation F1 |
+Mock connector, answerable cases only. These are artefacts of what the mock hard-codes, not a property of any retrieval system.
+
+| Difficulty | Answerable cases | Recall@5 | MRR | Citation F1 |
 |---|---:|---:|---:|---:|
-| easy | 12 | 0.333 | 0.333 | 0.333 |
-| hard | 14 | 0.214 | 0.214 | 0.214 |
-| medium | 12 | 0.083 | 0.083 | 0.083 |
+| easy | 9 | 0.111 | 0.111 | 0.111 |
+| hard | 11 | 0.000 | 0.000 | 0.000 |
+| medium | 11 | 0.000 | 0.000 | 0.000 |
 
 ### 15.3 Conclusion
 
