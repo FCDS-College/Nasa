@@ -34,6 +34,7 @@ from flame_api.graph import admin_router as graph_admin_router, router as graph_
 from ai.providers.contracts.errors import ProviderError
 from ai.routing import ExecutionMode, NoCompatibleProvider
 from flame_api import ai_runtime, answer_cache, clients, rate_limit, telemetry
+from ai.rag.verification.support import check_answer_support
 from flame_api.generation import CHAT_INSTRUCTIONS, answer_question
 from flame_api.knowledge_version import current_knowledge_version
 from flame_api.models import AnalysisRecord, DocumentChunk, DocumentRecord, EvidenceRecord, ExperimentCondition, ExperimentRecord, SourceRecord
@@ -885,6 +886,19 @@ def chat(request: Request, body: ChatBody, session: Session = Depends(get_sessio
     execution = result["execution"]
     if execution["fallback_used"]:
         warnings.append("model_fallback_used")
+    answer_text = result["answer"]
+    if settings.answer_support_check != "off":
+        report = check_answer_support(answer_text, [_passage(i) for i in items], cited_ids=result["evidence_ids"], question=question)
+        if report.unsupported:
+            warnings.append("answer_values_not_in_cited_evidence")
+            logger.info("request_id=%s chat_unsupported_values=%s", request.state.request_id, [u.text for u in report.unsupported][:8])
+            if settings.answer_support_check == "strict":
+                warnings.append("answer_withheld_unsupported_values")
+                answer_text = (
+                    "The draft answer stated figures that do not appear in the evidence it cited "
+                    f"({', '.join(dict.fromkeys(u.text for u in report.unsupported[:5]))}), so it is withheld. "
+                    "The evidence Flame found is listed below."
+                )
     logger.info(
         "request_id=%s chat passages=%d cited=%d dropped=%d provider=%s locality=%s",
         request.state.request_id, len(items), len(sources), result["dropped_citations"],
@@ -892,8 +906,8 @@ def chat(request: Request, body: ChatBody, session: Session = Depends(get_sessio
     )
     response = {
         **base,
-        "answer": result["answer"],
-        "sources": sources,
+        "answer": answer_text,
+        "sources": sources if answer_text == result["answer"] else [source_entry(item) for item in items],
         "cache_hit": False,
         "model": {"provider": result["provider"], "name": result["model"], "version": execution.get("version") or "unknown"},
         "execution": execution,

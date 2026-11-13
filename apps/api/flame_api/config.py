@@ -100,6 +100,11 @@ class Settings(BaseSettings):
     # How many of the first fused /api/search results the cross-encoder reorders (page-independent).
     # 10 scored the same as 20 on the gold set, for half the model work.
     rerank_depth: int = Field(default=10, ge=2, le=100)
+    # Roadmap item 8: figures and identifiers in a chat answer that appear in none of the cited passages.
+    # "warn" adds the warning `answer_values_not_in_cited_evidence` (and keeps the answer out of the cache);
+    # "strict" also withholds the answer text (`answer_withheld_unsupported_values`); "off" skips the check.
+    # It is a traceability check, not entailment: see ai/rag/verification/support.py.
+    answer_support_check: Literal["off", "warn", "strict"] = "warn"
     otel_enabled: bool = False
     otel_service_name: str = "flame-api"
     cv_provider: Literal["local", "hf_space"] = "local"

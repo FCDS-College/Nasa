@@ -1306,7 +1306,7 @@ multipart/form-data body for POST /api/analyses.
 | Enum | Values | Meaning |
 |---|---|---|
 | <a id="overallstatus"></a>`OverallStatus` | `healthy`, `degraded`, `unhealthy` | healthy: every service up. degraded: a required service degraded or an optional one down/degraded. unhealthy: a required service down. |
-| <a id="chatwarning"></a>`ChatWarning` | `no_matching_evidence`, `citations_not_in_retrieved_evidence_removed`, `answer_cites_no_evidence`, `generation_unavailable`, `model_fallback_used` |  |
+| <a id="chatwarning"></a>`ChatWarning` | `no_matching_evidence`, `citations_not_in_retrieved_evidence_removed`, `answer_cites_no_evidence`, `generation_unavailable`, `model_fallback_used`, `answer_values_not_in_cited_evidence`, `answer_withheld_unsupported_values` |  |
 | <a id="executionmode"></a>`ExecutionMode` | `cloud_preferred`, `local_first`, `offline_only` | Hybrid AI execution mode (Sub-phase 2H). offline_only never contacts an external provider. |
 | <a id="aimodesource"></a>`AiModeSource` | `env`, `audit_override` | Where the effective `mode` comes from: `env` is FLAME_AI_EXECUTION_MODE; `audit_override` is the newest `ai.mode.changed` audit event (PUT /api/admin/ai/mode), which wins over env in every process until the next PUT. There is no clear operation yet. |
 | <a id="reviewstatus"></a>`ReviewStatus` | `raw`, `machine_extracted`, `human_verified`, `rejected` | Review state (data dictionary: review_status). The UI must visibly distinguish human_verified and must not render rejected evidence as support. |
