@@ -5,6 +5,7 @@ the extension, the index, or the embedding runtime is missing, so callers must t
 """
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import logging
 import sys
@@ -19,6 +20,8 @@ from sqlalchemy.orm import Session
 from ai.providers.contracts.embeddings import EmbeddingRequest
 from ai.providers.contracts.errors import ProviderError
 from ai.providers.local.fastembed_embeddings import DIMENSIONS, MAX_CHUNK_CHARS, MODEL_NAME, QUERY_PREFIX  # noqa: F401
+from ai.rag.ingestion.windows import split_windows
+from ai.rag.retrieval.aggregate import aggregate_windows
 from ai.routing import NoCompatibleProvider
 
 logger = logging.getLogger("flame_api")
@@ -171,15 +174,99 @@ def build_index(session: Session, *, batch_size: int = 64) -> dict[str, Any]:
     return {"embedded": len(pending), "total": total, "knowledge_version": version}
 
 
+# --- window-level index (roadmap item 11; FLAME_DENSE_GRANULARITY=window) ---------------------------------------------------
+WINDOW_HITS = 30     # windows fetched before they are aggregated to pages
+
+
+def _text_sha(text_: str) -> str:
+    return hashlib.sha256(text_.encode("utf-8")).hexdigest()[:16]
+
+
+def window_index_status(session: Session) -> dict[str, Any]:
+    """state: up | stale | missing | unavailable. Never raises. `up` = every page has windows of the current model and text."""
+    if session.bind.dialect.name != "postgresql":
+        return {"state": "unavailable", "message": "Vector search requires PostgreSQL."}
+    try:
+        covered = session.execute(text(
+            "select count(distinct w.chunk_id) from chunk_window_embedding w join document_chunk c on c.chunk_id = w.chunk_id "
+            "where w.model = :model"), {"model": MODEL_NAME}).scalar_one()
+        chunks = session.execute(text("select count(*) from document_chunk")).scalar_one()
+    except SQLAlchemyError:
+        session.rollback()
+        return {"state": "missing", "message": "No window index has been built."}
+    if covered == 0:
+        return {"state": "missing", "message": "No window index has been built."}
+    if covered < chunks:
+        return {"state": "stale", "pages": covered, "chunks": chunks, "message": f"Window index covers {covered} of {chunks} pages."}
+    return {"state": "up", "pages": covered, "chunks": chunks, "message": None}
+
+
+def search_window_chunks(session: Session, query: str, *, limit: int = 10, min_similarity: float = MIN_SIMILARITY) -> list[tuple[str, float]]:
+    """(chunk_id, best window similarity) for the nearest pages, best first. Falls back to the page index when there are no windows."""
+    if session.bind.dialect.name != "postgresql":
+        raise VectorUnavailableError("Vector search requires PostgreSQL.")
+    try:
+        vector = _embed_query(query)
+        rows = session.execute(
+            text(
+                "select chunk_id, 1 - (embedding <=> cast(:q as vector)) as sim from chunk_window_embedding "
+                "order by embedding <=> cast(:q as vector) limit :limit"
+            ),
+            {"q": vector, "limit": WINDOW_HITS},
+        ).all()
+    except SQLAlchemyError:
+        session.rollback()
+        logger.warning("window_index=unavailable; using the page index")
+        return search_chunks(session, query, limit=limit, min_similarity=min_similarity)
+    if not rows:
+        return search_chunks(session, query, limit=limit, min_similarity=min_similarity)
+    return [(chunk_id, sim) for chunk_id, sim in aggregate_windows(((row.chunk_id, float(row.sim)) for row in rows), limit=limit)
+            if sim >= min_similarity]
+
+
+def build_window_index(session: Session, *, batch_size: int = 64) -> dict[str, Any]:
+    """Embed the windows of every page that has none, or whose text or model changed; drop windows of changed pages."""
+    if session.bind.dialect.name != "postgresql":
+        raise VectorUnavailableError("Vector search requires PostgreSQL.")
+    existing = {row.chunk_id: (row.text_sha, row.model) for row in session.execute(
+        text("select distinct chunk_id, text_sha, model from chunk_window_embedding"))}
+    pending: list[tuple[str, str]] = []
+    for row in session.execute(text("select chunk_id, text from document_chunk order by chunk_id")).all():
+        if existing.get(row.chunk_id) != (_text_sha(row.text), MODEL_NAME):
+            pending.append((row.chunk_id, row.text))
+    embedded = 0
+    for start in range(0, len(pending), batch_size):
+        batch = pending[start:start + batch_size]
+        windows = [(chunk_id, text_, window) for chunk_id, text_ in batch for window in split_windows(text_)]
+        for chunk_id, _ in batch:
+            session.execute(text("delete from chunk_window_embedding where chunk_id = :id"), {"id": chunk_id})
+        vectors = embed_texts([window.text for _, _, window in windows]) if windows else []
+        if windows:
+            session.execute(
+                text(
+                    "insert into chunk_window_embedding (window_id, chunk_id, ordinal, char_start, char_end, text_sha, model, embedding) "
+                    "values (:wid, :cid, :ord, :s, :e, :sha, :model, cast(:v as vector))"
+                ),
+                [{"wid": f"{chunk_id}#w{window.ordinal}", "cid": chunk_id, "ord": window.ordinal, "s": window.start, "e": window.end,
+                  "sha": _text_sha(text_), "model": MODEL_NAME, "v": _literal(vec)}
+                 for (chunk_id, text_, window), vec in zip(windows, vectors)],
+            )
+        session.commit()
+        embedded += len(windows)
+        logger.info("window_index pages=%d/%d windows=%d", min(start + batch_size, len(pending)), len(pending), embedded)
+    total = session.execute(text("select count(*) from chunk_window_embedding")).scalar_one()
+    return {"pages_embedded": len(pending), "windows_embedded": embedded, "windows_total": total}
+
+
 def main(argv: list[str]) -> int:
     from flame_api.database import SessionLocal
 
     logging.basicConfig(level=logging.INFO)
-    if argv[:1] != ["build"]:
-        print("usage: python -m flame_api.vector_index build")
+    if argv[:1] not in (["build"], ["build-windows"]):
+        print("usage: python -m flame_api.vector_index build | build-windows")
         return 2
     with SessionLocal() as session:
-        print(build_index(session))
+        print(build_window_index(session) if argv[0] == "build-windows" else build_index(session))
     return 0
 
 

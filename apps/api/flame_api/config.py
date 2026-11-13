@@ -109,6 +109,11 @@ class Settings(BaseSettings):
     # may match and a chunk scores the sum of its matched terms' idf (apps/api/flame_api/lexical.py). Default stays "and"
     # until the passage-level gold set (>= 20 verified questions) shows a difference; PostgreSQL only.
     lexical_mode: Literal["and", "or_idf"] = "and"
+    # Roadmap item 11. "page": the dense leg embeds each page's first 2,000 characters (served behaviour). "window": it embeds
+    # overlapping 1,200-character windows of the whole page and a page scores as its best window; needs
+    # `python -m flame_api.vector_index build-windows`, falls back to "page" when there are no windows. Default "page" until the
+    # passage-level gold set (>= 20 verified questions) shows a difference.
+    dense_granularity: Literal["page", "window"] = "page"
     otel_enabled: bool = False
     otel_service_name: str = "flame-api"
     cv_provider: Literal["local", "hf_space"] = "local"

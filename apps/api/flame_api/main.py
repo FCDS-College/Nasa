@@ -41,7 +41,7 @@ from flame_api.models import AnalysisRecord, DocumentChunk, DocumentRecord, Evid
 from ai.rag.retrieval.evidence_window import STOPWORDS as _CHAT_STOPWORDS
 from ai.rag.retrieval.evidence_window import best_window
 from ai.rag.retrieval.search_stack import STACK_VERSION, Candidate, RerankUnavailable, SearchStack
-from flame_api.vector_index import VectorUnavailableError, index_status, indexed_chunk_count, search_chunks
+from flame_api.vector_index import VectorUnavailableError, index_status, indexed_chunk_count, search_chunks, search_window_chunks
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 logger = logging.getLogger("flame_api")
@@ -573,7 +573,9 @@ def search(
                 try:
                     status = index_status(session)
                     if status["state"] == "up":
-                        semantic_scores = dict(search_chunks(session, plan.semantic_query, limit=10))
+                        semantic_scores = dict(
+                            (search_window_chunks if settings.dense_granularity == "window" else search_chunks)(
+                                session, plan.semantic_query, limit=10))
                         index_version = status["version"]
                 except (VectorUnavailableError, SQLAlchemyError):
                     logger.warning("request_id=%s vector_search=unavailable", request.state.request_id)
