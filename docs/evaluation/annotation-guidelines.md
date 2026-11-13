@@ -1,6 +1,6 @@
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Ziad | In review | 0.2.0 | 2026-11-13 | C2, M10, D1 | `docs/evaluation/annotation-guidelines.md`, `datasets/evaluation/nlp_gold_v1.schema.json`, `ai/rag/nlp/evaluation.py` |
+| Ziad | In review | 0.3.0 | 2026-11-13 | C2, M10, D1, E2 | `docs/evaluation/annotation-guidelines.md`, `datasets/evaluation/nlp_gold_v1.schema.json`, `ai/rag/nlp/evaluation.py`, `datasets/evaluation/passage_gold_v1.schema.json`, `ai/rag/evaluation/passage_gold.py`, `ai/rag/evaluation/propose_candidates.py` |
 
 # E5-3: Annotation and Human-Review Guidelines
 
@@ -52,14 +52,42 @@ Gold set for the scientific NLP extractors of `docs/ai/nlp-pipeline.md`. Format:
 
 ---
 
+## 5. Passage-level question gold set (retrieval and answers)
+
+Why: `retrieval_gold_v1` is 26 AI-authored, document-level questions with no unanswerable case, and `rag_gold` cites documents that are not in the corpus.
+A difference of a few points on 26 questions is noise (`python -m ai.rag.evaluation.stats` shows the reranker's gain is within it). This set is what a
+retrieval or answer claim can be checked against. Format: `datasets/evaluation/passage_gold_v1.schema.json`; file: `passage_gold_v1.jsonl`; rules and
+scoring: `ai/rag/evaluation/passage_gold.py` (`validate`, `retrieval_report`). The file is empty until annotators fill it.
+
+1. **A case** is a question, whether it is answerable, and (if so) the evidence: document, page, and the character span of the passage on that page, with its
+   text. The span is an offset into the page text the pipeline stores (PyMuPDF `get_text("text")`, stripped), not into the rendered page; `validate(..., page_texts=...)`
+   checks that the text equals the page text at that span.
+2. **Write the question from the passage, then hide the passage.** Paraphrase: a question that quotes the passage rewards lexical matching and says nothing about
+   semantic retrieval. Types: `value_lookup`, `condition` ("what happened at 0.1 atm?"), `comparison`, `definition`, `procedure`, `other`.
+3. **Unanswerable questions are written by a person**, at least 25% of the set, and each has a kind: `out_of_domain` (chocolate cake) or `in_domain_not_in_corpus`
+   (a combustion question the committed reports do not answer). The second kind matters most: the dense similarity gate cannot catch it (on the committed PDFs the
+   best irrelevant page scores a median 0.756 against 0.794 for the best relevant one). Do not generate it from a passage.
+4. **Split by document, never by question.** No document appears in two splits; `validate` reports every document that does. The holdout is scored once.
+5. **Two people.** An author writes a case as `draft`; a different person checks the evidence and the question and adds themselves to `verified_by`, which makes it
+   `verified`. Only verified cases are scored, and `retrieval_report` refuses to report with fewer than 20 verified answerable cases. Token-level or label agreement is
+   measured on a double-annotated 20% (κ ≥ 0.65, as in §2).
+6. **A worklist exists, a gold set does not.** `python -m ai.rag.evaluation.propose_candidates --out worklist.jsonl --per-document 5` proposes sentences that contain a
+   measurement, with exact offsets (checked on the committed PDFs: all 102 proposals reproduce the stored page text). Proposals are not cases. The tool needs PyMuPDF.
+7. **Report intervals, not points.** Every number from this set carries a 95% bootstrap interval, and a claimed improvement carries a paired one
+   (`ai.rag.evaluation.stats.compare_reports`). If it contains 0, the difference is not shown.
+
+---
+
 ## Known limitations
 
 - `nlp_gold_v1.jsonl` is empty at version 0.2.0: no chunk has been annotated yet, so no extractor has a measured precision or recall. Items 4 and 5 are proposals until Ziad confirms them.
+- `passage_gold_v1.jsonl` is empty at version 0.3.0: no question has been written or verified, so no retrieval or answer number can be reported from it. §5 sizes and thresholds are proposals until Ziad confirms them; the 20-case floor is a minimum for reporting, not a claim that 20 is enough.
 - Sections 1-3 are unchanged from 0.1.0 and keep their own open points.
 
 ## Changelog
 
 | Version | Date | Change |
 |---|---|---|
+| 0.3.0 | 2026-11-13 | Added §5 (passage-level question gold set: protocol, schema, validator, worklist, intervals). |
 | 0.2.0 | 2026-11-13 | Added §4 (NLP span annotation, D1), known limitations and this changelog. |
 | 0.1.0 | 2026-10-12 | First draft: human rubric, blinded review protocol, mask-review protocol. |

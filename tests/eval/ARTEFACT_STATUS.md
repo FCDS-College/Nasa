@@ -19,7 +19,14 @@ measures the deployed system. Nothing here has been run against a real language 
 | `ranking.py` | Hard gates plus a weighted composite (`0.40 * recall + 0.40 * faithfulness + 0.20 * speed`). Not a Pareto frontier; no BM25. | No: inputs are typed in tests. |
 | `evaluation_report.json` (in this directory) | A report of 2026-10-05 over 6 test cases from the legacy notebooks (typed scores). Not the same file as the one at the repository root. | No. |
 
+## Tools for a trustworthy set (no data yet)
+| Tool | Purpose |
+|---|---|
+| `ai/rag/evaluation/stats.py` | Bootstrap intervals; paired comparison of two benchmark runs (`python -m ai.rag.evaluation.stats A.json B.json`). |
+| `ai/rag/evaluation/passage_gold.py`, `datasets/evaluation/passage_gold_v1.*` | Passage-level gold schema, validator (document-disjoint splits, unanswerable share, verifier other than the author) and scoring. The gold file is empty. |
+| `ai/rag/evaluation/propose_candidates.py` | A worklist of sentences with measurements for annotators to write questions about. Proposals are not gold. |
+
 ## Where real measurements are
 `ai/rag/evaluation/flame_retrieval_benchmark.py` runs the live `/api/search` against `datasets/evaluation/retrieval_gold_v1.jsonl`
-(26 AI-authored questions, document-level labels, all answerable, no confidence intervals). It is the only measurement of the
+(26 AI-authored questions, document-level labels, all answerable). It now writes a 95% interval with each number; `docs/evaluation/reports/retrieval-significance-2026-11-13.md` compares the committed runs. It is the only measurement of the
 served retrieval stack. No measurement of generated-answer quality, citation correctness or abstention exists yet.
