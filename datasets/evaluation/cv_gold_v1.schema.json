@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "cv_gold_v1 item",
+  "description": "One labelled frame of the CV evaluation set. See docs/cv/annotation-protocol.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["itemId", "sourceId", "groupId", "split", "frameIndex", "label", "mask", "notes", "provenance"],
+  "properties": {
+    "itemId": {"type": "string", "minLength": 1},
+    "sourceId": {"type": "string", "description": "A sourceId in cv_gold_v1_sources.json."},
+    "groupId": {"type": "string", "description": "The test or image sequence. Splits never share a groupId."},
+    "split": {"enum": ["dev", "holdout"], "description": "holdout tests were never used to choose a threshold."},
+    "frameIndex": {"type": ["integer", "null"], "minimum": 0, "description": "Constant-frame-rate index for video items; null for images."},
+    "label": {"enum": ["present", "absent", "unclear"], "description": "Is a flame visible in the frame? unclear items are excluded from metrics."},
+    "mask": {
+      "description": "Flame mask in original image pixels (binary PNG, 255 = flame); only for present items.",
+      "oneOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["uri", "method", "box"],
+          "properties": {
+            "uri": {"type": "string"},
+            "method": {"type": "string", "description": "grabcut-from-box: GrabCut seeded by a box the labeller drew around the flame."},
+            "box": {"type": "array", "items": {"type": "integer"}, "minItems": 4, "maxItems": 4}
+          }
+        }
+      ]
+    },
+    "notes": {"type": "string"},
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["labeller", "labelledAt", "verified", "verifiedBy", "verifiedAt"],
+      "properties": {
+        "labeller": {"type": "string", "description": "claude-draft for labels drafted by Claude Code; a person's name otherwise."},
+        "labelledAt": {"type": "string"},
+        "verified": {"type": "boolean", "description": "True only once a person has checked the label (and mask, if any)."},
+        "verifiedBy": {"type": ["string", "null"]},
+        "verifiedAt": {"type": ["string", "null"]}
+      }
+    }
+  }
+}

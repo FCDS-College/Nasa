@@ -1,6 +1,6 @@
 ﻿# cv/
 
-Flame-image analysis with OpenCV (PyTorch layer planned). **Owner:** Engineer 3. **Status:** auto-adaptive Otsu/contour pipeline implemented (v1.2.0); segmentation accuracy not yet evaluated (no ground-truth masks).
+Flame-image analysis with OpenCV (PyTorch layer planned). **Owner:** Engineer 3. **Status:** auto-adaptive Otsu/contour pipeline implemented (v1.2.0); evaluated on `cv_gold_v1` (held-out, Claude-drafted labels pending human verification; see docs/cv/evaluation-report.md).
 
 | Path | What it is |
 |---|---|
@@ -10,6 +10,7 @@ Flame-image analysis with OpenCV (PyTorch layer planned). **Owner:** Engineer 3.
 | `hf_space/` | Docker Space endpoint for remote `flame_cv.py` inference; deployment and worker configuration are documented in `apps/api/README.md` |
 | `video_training.py` | Trains/evaluates video-level models on the 17 PSI-25 videos with labels from the experimental table (initial O2 %, fuel family); leave-one-test-out vs baselines; writes `contracts/training_report*.json` (`python -m cv.video_training --arch resnet18`) |
 | `notebooks/models.ipynb` | Thin driver for the two modules above |
+| `gold.py` | The CV evaluation set `cv_gold_v1` (frame labels and flame masks, held-out split): fetch, extract frames, draft masks, review and adopt, and `evaluate` the served pipeline (`python -m cv.gold evaluate`). See [docs/cv/annotation-protocol.md](../docs/cv/annotation-protocol.md) and [docs/cv/evaluation-report.md](../docs/cv/evaluation-report.md) |
 | `overlay_mask.py` | Finds burned-in text overlays (telemetry banner, timestamps) across a video and masks them before segmentation, so the banner is never measured as a flame. Steady flames are not masked. See [docs/cv/video-ingestion.md §5](../docs/cv/video-ingestion.md#5-overlay-exclusion-pipeline-cv-video-v110) |
 | `video_ingestion.py`, `temporal_analysis.py`, `video_analysis.py` | **[E3-6, E3-7, E3-8]** Video ingestion (validation, metadata, stable frame IDs, sampling, VFR normalization), tracking and temporal metrics, and the resumable end-to-end `python -m cv.video_analysis <video>` CLI. Temporal metrics are unevaluated against ground truth |
 | `cnn_pipeline.py`, `pinn_pipeline.py` | **Unvalidated prototypes** (TensorFlow). Not registered models; see the roadmap scope boundaries |

@@ -15,8 +15,14 @@
 - **Configuration:** Runtime parameters and `configDigest` are recorded in each result's provenance.
 
 ## 3. Evaluation & Performance
-- **Evaluation Dataset:** 10 space experiment frames from `FF-PSI-107` (`ISS018E030336` - `ISS018E030376`), run with v1.1.0. All 10 contain a flame, so false positives were not measured (CV audit, CV-3).
-- **Metrics:** Segmentation accuracy remains `NOT_EVALUATED` pending ground-truth mask integration. See the evaluation report for baseline caveats.
+- **Evaluation set:** `cv_gold_v1`: 150 frames, 56 masks, with a held-out split of 8 unseen BASS-II tests ([docs/cv/evaluation-report.md](../../../docs/cv/evaluation-report.md)). Labels are Claude-drafted and not yet verified by a person.
+- **Held-out results (v1.3.0, 95% intervals over tests):**
+  - false-positive rate 0.30 [0.00, 0.65];
+  - precision 0.68 [0.29, 1.00];
+  - localized recall 0.56 [0.22, 0.91];
+  - mean mask IoU 0.30 [0.10, 0.55].
+- **Before fixes 1–2:** false-positive rate 0.97 and localized recall 0.37.
+- **Main failures:** static bright scenery (cabin views, lit chamber) is called a flame; dim blue flames are missed; small flames below 0.05% of the frame are missed (a v1.3.0 regression, see the report).
 
 ## 4. Hardware Requirements
 - **Hardware:** Runs efficiently on standard CPU architectures; compatible with GPU acceleration environments via OpenCV/NumPy optimizations.
@@ -33,5 +39,6 @@
 - 2D projected spatial measurements without depth correction or scale calibration (`scaleAbsent`).
 
 ## Changelog
+- **v1.3.0 evaluation (2026-11-13):** First evaluation with negatives and a held-out split (`cv_gold_v1`).
 - **v1.3.0 (2026-11-13):** 16-bit input scaled instead of clipped (45 FLEX dark frames were reported as flames); no PRESENT without background or with unstable segmentation; 0.05% minimum region; computed ABSENT confidence. Removed the `[cite: 7]` debris.
 - **v1.2.0 (2026-10-13):** Updated for the restored auto-adaptive pipeline and versioned configuration provenance.
