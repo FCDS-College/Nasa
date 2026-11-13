@@ -898,16 +898,21 @@ def chat(request: Request, body: ChatBody, session: Session = Depends(get_sessio
     answer_text = result["answer"]
     if settings.answer_support_check != "off":
         report = check_answer_support(answer_text, [_passage(i) for i in items], cited_ids=result["evidence_ids"], question=question)
-        if report.unsupported:
+        if report.figures:
             warnings.append("answer_values_not_in_cited_evidence")
-            logger.info("request_id=%s chat_unsupported_values=%s", request.state.request_id, [u.text for u in report.unsupported][:8])
+            logger.info("request_id=%s chat_unsupported_values=%s", request.state.request_id, [u.text for u in report.figures][:8])
             if settings.answer_support_check == "strict":
                 warnings.append("answer_withheld_unsupported_values")
                 answer_text = (
                     "The draft answer stated figures that do not appear in the evidence it cited "
-                    f"({', '.join(dict.fromkeys(u.text for u in report.unsupported[:5]))}), so it is withheld. "
+                    f"({', '.join(dict.fromkeys(u.text for u in report.figures[:5]))}), so it is withheld. "
                     "The evidence Flame found is listed below."
                 )
+        if report.terms:
+            # A named fuel, material, instrument or platform the cited evidence never mentions. A weaker signal than a figure (a paraphrase
+            # can hide one), so it warns in every mode and never withholds the answer.
+            warnings.append("answer_terms_not_in_cited_evidence")
+            logger.info("request_id=%s chat_unsupported_terms=%s", request.state.request_id, [u.text for u in report.terms][:8])
     logger.info(
         "request_id=%s chat passages=%d cited=%d dropped=%d provider=%s locality=%s",
         request.state.request_id, len(items), len(sources), result["dropped_citations"],

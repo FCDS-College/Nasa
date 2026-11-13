@@ -8532,7 +8532,8 @@
           "generation_unavailable",
           "model_fallback_used",
           "answer_values_not_in_cited_evidence",
-          "answer_withheld_unsupported_values"
+          "answer_withheld_unsupported_values",
+          "answer_terms_not_in_cited_evidence"
         ]
       },
       "ChatResponse": {

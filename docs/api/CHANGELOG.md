@@ -9,6 +9,7 @@ Semver applies to `docs/api/openapi.json` `info.version`. Breaking changes need 
 ## Unreleased
 
 **Added**
+- `ChatWarning` value `answer_terms_not_in_cited_evidence` (`/api/chat`): the answer names a fuel, material, oxidizer, instrument or platform (the controlled vocabulary of `ai/rag/nlp/vocab`, with aliases) that none of the cited passages mentions. A weaker signal than a figure: it warns in `warn` and `strict` mode and never withholds the answer; answers with it are not cached.
 - Migration `0012_chunk_search_tsv_keep`: a stopword-free full-text vector so a question about helium (`He`) can match. Read only when `FLAME_LEXICAL_MODE=or_idf`; no response shape changes.
 - Settings `FLAME_LEXICAL_MODE=and|or_idf` and `FLAME_DENSE_GRANULARITY=page|window` (both default to the existing behaviour; no response shape changes) and migration `0011_chunk_window_embedding`. See `docs/ai/retrieval-pipeline.md` §0a–0b.
 - `ChatWarning` values `answer_values_not_in_cited_evidence` and `answer_withheld_unsupported_values` (`/api/chat`): a figure in the answer is in none of the cited passages. Setting `ANSWER_SUPPORT_CHECK=warn|strict|off` (default `warn`: warning only; answers with this warning are not cached). `/api/chat` is excluded from AURA's tools.

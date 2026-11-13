@@ -289,3 +289,16 @@ def test_an_answer_without_figures_is_untouched(client, corpus, monkeypatch):
     _answer_with(monkeypatch, "A cool flame was simulated for n-heptane.")
     body = client.post("/api/chat", json={"query": "How does n-heptane behave in microgravity?"}).json()
     assert body["warnings"] == []
+
+
+def test_a_fuel_the_cited_evidence_never_mentions_adds_a_term_warning_but_strict_does_not_withhold(client, corpus, monkeypatch):
+    _answer_with(monkeypatch, "A cool flame was seen for methane.", answer_support_check="strict")
+    body = client.post("/api/chat", json={"query": "How does n-heptane behave in microgravity?"}).json()
+    assert body["warnings"] == ["answer_terms_not_in_cited_evidence"]
+    assert body["answer"] == "A cool flame was seen for methane."          # a name is a weaker signal than a figure: never withheld
+
+
+def test_a_figure_and_a_name_each_get_their_own_warning(client, corpus, monkeypatch):
+    _answer_with(monkeypatch, "Methane reached 412 K.")
+    body = client.post("/api/chat", json={"query": "How does n-heptane behave in microgravity?"}).json()
+    assert body["warnings"] == ["answer_values_not_in_cited_evidence", "answer_terms_not_in_cited_evidence"]

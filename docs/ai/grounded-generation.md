@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Eman | In review | 0.3.0 | 2026-11-13 | M3, 2H, D1 (Planned parts marked) | `ai/rag/generation/`, `ai/rag/service.py`, `ai/rag/verification/support.py`, `apps/api/flame_api/main.py` (`/api/chat`) |
+| Eman | In review | 0.3.1 | 2026-11-13 | M3, 2H, D1 (Planned parts marked) | `ai/rag/generation/`, `ai/rag/service.py`, `ai/rag/verification/support.py`, `apps/api/flame_api/main.py` (`/api/chat`) |
 
 This document describes the code at commit `9319d65` (composer) and `0fc94c3` (service, branch head). **Planned** marks behaviour that is not in code yet.
 
@@ -47,17 +47,17 @@ Upstream of the composer, retrieval already returns `status="insufficient_eviden
 ## 4a. Answer support check on the served `/api/chat` path (2026-11-13)
 
 `POST /api/chat` (the served path; it does not use the composer) now checks the answer text after the model returns:
-every figure (a number with a unit, a number of two digits or more or with a decimal point, an experiment or report identifier) must occur in the cited passages (all passages when none are cited) or in the question. Units are converted, so `101.3 kPa` is supported by `760 mmHg` (1 % tolerance), and a range supports any value inside it. `ai/rag/verification/support.py`, version `answer-support-1.0.0`.
+every figure (a number with a unit, a number of two digits or more or with a decimal point, an experiment or report identifier) and every name of a fuel, material, oxidizer, instrument or platform (any alias of a controlled-vocabulary entry) must occur in the cited passages (all passages when none are cited) or in the question. Units are converted, so `101.3 kPa` is supported by `760 mmHg` (1 % tolerance), and a range supports any value inside it. `ai/rag/verification/support.py`, version `answer-support-1.0.0`.
 
 | `ANSWER_SUPPORT_CHECK` (`answer_support_check`) | Effect |
 |---|---|
-| `warn` (default) | adds warning `answer_values_not_in_cited_evidence`; the text is unchanged; the answer is not cached |
-| `strict` | also adds `answer_withheld_unsupported_values` and replaces the text with a notice naming the figures; the sources are all retrieved passages |
+| `warn` (default) | adds warning `answer_values_not_in_cited_evidence` for a figure and `answer_terms_not_in_cited_evidence` for a name; the text is unchanged; the answer is not cached |
+| `strict` | also adds `answer_withheld_unsupported_values` and replaces the text with a notice naming the figures; the sources are all retrieved passages. A name alone never withholds: a paraphrase can hide one |
 | `off` | no check |
 
 **What it is not.** It is a traceability check. It cannot tell whether a supported figure is used correctly, and it says nothing about claims with no figure ("X caused Y" passes). A claim-level entailment check needs a model and a passage-level gold set that measures it; `ClaimChecker` is the hook, nothing implements it.
 
-**Self-check on real text** (`python -m ai.rag.evaluation.support_selfcheck docs/research`, 24 committed NTRS PDFs, 1,349 sentences with a checkable figure; each sentence taken as an "answer" and its whole indexed page as the cited passage): flagged as written 0.2 % (95 % CI 0.0–0.5 %); flagged after changing one digit of a figure 69 % (CI 67–72 %). Of the 416 changed sentences that were not flagged, 233 contain a changed figure that occurs elsewhere on the same page (a page holds many numbers, so a wrong figure can coincide with a right one); the other 183 were not examined. These are sentences from reports, not answers a model wrote, so they are not the checker's precision or recall on chat answers.
+**Self-check on real text** (`python -m ai.rag.evaluation.support_selfcheck docs/research`, 24 committed NTRS PDFs, checker `answer-support-1.1.0`; each sentence taken as an "answer" and its whole indexed page as the cited passage). *Figures:* 1,373 sentences with something checkable; flagged as written 0.2 % (95 % CI 0.0–0.5 %); flagged after changing one digit of a figure 68 % (CI 66–71 %). Of the sentences the digit change did not catch, many contain a changed figure that occurs elsewhere on the same page (a page holds many numbers). *Names:* 663 sentences that name a fuel, material, oxidizer, instrument or platform; flagged as written 0.3 % (CI 0.0–0.8 %); flagged after replacing the name with another of the same type that the page never mentions 97.9 % (CI 96.7–98.9 %). These are sentences from reports, not answers a model wrote, so they are not the checker's precision or recall on chat answers; the name swap is an easy test (the page rarely mentions the replacement), and the vocabulary has only 26 names in these five types, so most answers contain none.
 
 **Abstention by retrieval score is not built.** The served path's `score` is the fused rank slot, not the reranker's score (`rerank_score` is not exposed), so a threshold would compare numbers of different scales. A calibrated threshold needs the reranker score exposed and the passage gold set's unanswerable questions (not yet verified).
 
@@ -154,6 +154,7 @@ The model labels "Higher oxygen causes faster flame spread" as `observed`; the c
 
 | Version | Date | Change |
 |---|---|---|
+| 0.3.1 | 2026-11-13 | §4a: names of fuels, materials, oxidizers, instruments and platforms are checked too (`answer-support-1.1.0`), with their own warning. |
 | 0.3.0 | 2026-11-13 | §4a: figure/identifier support check on `/api/chat` (`warn` default), its self-check on real text, and what is not built. |
 | 0.2.0 | 2026-10-14 | Added the proposed degraded-mode wording for 2H (still not produced by code). |
 | 0.1.0 | 2026-10-12 | First version, matching `GroundedAnswerComposer` at `9319d65` and `FlameRAGService` at `0fc94c3`. |
