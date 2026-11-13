@@ -25,6 +25,7 @@ from flame_api.models import (
     IngestionRun,
     SourceRecord,
 )
+from ai.rag.ingestion.normalize import NORMALIZER_VERSION, normalize_document
 from flame_api.seed import seed
 
 logger = logging.getLogger("flame_api.ingest")
@@ -32,7 +33,10 @@ logger = logging.getLogger("flame_api.ingest")
 # 0.2.0: OCR fallback for pages without a text layer; quarantine; NTRS titles. Chunk and evidence IDs
 # are unchanged from 0.1.0 (they depend on file hash and page only), so re-ingestion is idempotent.
 # 0.3.0: a page whose text layer is unreadable (broken font encoding) is OCRed like a page without text.
-PARSER_VERSION = "pymupdf-pages-0.3.0"
+# 0.4.0: the INDEXED text of a text-layer page is normalised (ligatures, hyphen splits, running headers, stacked words;
+# ai/rag/ingestion/normalize.py). The evidence excerpt stays verbatim. Chunk and evidence IDs are unchanged, so
+# re-ingestion updates chunk text in place; run `python -m flame_api.vector_index build` afterwards to re-embed it.
+PARSER_VERSION = "pymupdf-pages-0.4.0"
 HTML_PARSER_VERSION = "html-sections-0.1.0"
 JSON_PARSER_VERSION = "json-paths-0.1.0"
 TABLE_PARSER_VERSION = "psi-tables-0.1.0"
@@ -182,8 +186,11 @@ def _keep_review(session, evidence_id: str, payload: dict) -> None:
         payload["review_status"] = status
 
 
-def _store_passage(session, *, source, file_record, document_id, label, locator, text, method, confidence, parser, now, flags=None):
-    """One evidence row plus its chunk. IDs depend only on the file hash and the locator."""
+def _store_passage(session, *, source, file_record, document_id, label, locator, text, method, confidence, parser, now, flags=None,
+                   index_text=None):
+    """One evidence row plus its chunk. IDs depend only on the file hash and the locator.
+
+    `text` is the evidence excerpt, exactly as extracted. `index_text` (default: the same) is what the search index sees."""
     content_hash = file_record.sha256
     key = locator.get("page") if locator["type"] == "page" else f"s{locator['section']}"
     evidence_id = stable_ulid(f"evidence:{content_hash}:page:{key}" if locator["type"] == "page" else f"evidence:{content_hash}:section:{key}")
@@ -214,7 +221,7 @@ def _store_passage(session, *, source, file_record, document_id, label, locator,
     session.merge(DocumentChunk(
         chunk_id=chunk_id, document_id=document_id, source_id=source.source_id, file_id=file_record.file_id,
         evidence_id=evidence_id, page=locator.get("page"), section=locator.get("label") if locator["type"] == "section" else None,
-        text=text, ingested_at=now,
+        text=text if index_text is None else index_text, ingested_at=now,
     ))
 
 
@@ -244,6 +251,14 @@ def _document_identity(source: SourceRecord, path: Path) -> tuple[str, str, str 
     if source.repository == "NASA NTRS":
         return source.title, "technical_report", source.short_name
     return path.stem.replace("_", " "), _document_type(path), None
+
+
+def _index_texts(passages: list[tuple[int, str, str, float | None, bool]]) -> dict[int, str]:
+    """Page number -> the text to index. Text-layer pages are normalised together (running headers are a property of the
+    whole document); OCR pages are indexed as read."""
+    verbatim = [(page, text) for page, text, method, *_ in passages if method == "verbatim_text"]
+    normalised = dict(zip((page for page, _ in verbatim), normalize_document([text for _, text in verbatim])))
+    return {page: normalised.get(page, text) for page, text, *_ in passages}
 
 
 def _create_document(session: Session, file_record: FileRecord) -> dict[str, int]:
@@ -306,7 +321,7 @@ def _create_document(session: Session, file_record: FileRecord) -> dict[str, int
         pages_without_text=sorted(blank_pages + garbled_pages),
         parser_version=PARSER_VERSION,
         ingested_at=now,
-        payload={"garbled_text_pages": garbled_pages, "ocr": {
+        payload={"garbled_text_pages": garbled_pages, "text_normalization": NORMALIZER_VERSION, "ocr": {
             "status": ocr_status if blank_pages or garbled_pages else "not_needed",
             "engine": ocr_engine,
             "dpi": OCR_DPI if ocr_pages else None,
@@ -315,12 +330,13 @@ def _create_document(session: Session, file_record: FileRecord) -> dict[str, int
             "min_confidence": OCR_MIN_CONFIDENCE,
         }},
     ))
-    _drop_stale_page_chunks(session, document_id, {p: t for p, t, *_ in passages})
+    index_texts = _index_texts(passages)
+    _drop_stale_page_chunks(session, document_id, index_texts)
     for page_number, page_text, method, confidence, low in passages:
         locator = {"type": "page", "page": page_number, "section": None, "row": None, "frame_index": None, "label": f"p. {page_number}"}
         _store_passage(session, source=source, file_record=file_record, document_id=document_id, label=f"p. {page_number}",
                        locator=locator, text=page_text, method=method, confidence=confidence, parser=PARSER_VERSION, now=now,
-                       flags={"low_confidence": True} if low else None)
+                       flags={"low_confidence": True} if low else None, index_text=index_texts[page_number])
     return {"pages": page_count, "chunks": len(passages), "skipped": 0, "ocr_pages": len(ocr_pages),
             "ocr_low_confidence": sum(1 for _, _, m, _, low in passages if m == "ocr" and low)}
 

@@ -367,6 +367,8 @@ Unique: `uq_analysis_idempotency_key` (idempotency_key).
 
 PostgreSQL also has the generated column `search_tsv` (TSVECTOR, migration 0007), not mapped in the ORM.
 
+`text` is the **indexed** text. For text-layer PDF pages (parser `pymupdf-pages-0.4.0` and later) it is normalised (`ai/rag/ingestion/normalize.py`, version in `document.payload.text_normalization`); the verbatim page text is `evidence.excerpt`, which is what a citation points at. After upgrading, re-run `python -m flame_api.ingest` and `python -m flame_api.vector_index build` so chunks are re-indexed and re-embedded.
+
 Indexes: `ix_document_chunk_document_id` (document_id); `ix_document_chunk_evidence_id` (evidence_id); `ix_document_chunk_file_id` (file_id); `ix_document_chunk_source_id` (source_id); `ix_document_chunk_source_page` (source_id, page).
 
 ### `evidence`

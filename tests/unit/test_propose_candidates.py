@@ -46,3 +46,27 @@ def test_reading_pdfs_needs_pymupdf_and_says_so(monkeypatch, tmp_path):
     monkeypatch.setattr(builtins, "__import__", refuse)
     with pytest.raises(SystemExit, match="PyMuPDF"):
         list(propose_candidates.propose(tmp_path))
+
+
+# --- the text annotators must work from ---------------------------------------------------------------------------------
+
+def test_indexed_pages_give_the_verbatim_and_the_indexed_text_of_each_page(tmp_path):
+    import fitz
+
+    from ai.rag.evaluation.propose_candidates import indexed_pages
+
+    pdf = fitz.open()
+    for number in range(1, 5):
+        page = pdf.new_page()
+        page.insert_text((72, 72), "American Institute of Aeronautics and Astronautics", fontsize=9)
+        page.insert_text((72, 120), f"Flame spread was measured on page {number} at 0.1 atm.", fontsize=11)
+        page.insert_text((72, 760), str(number), fontsize=9)
+    path = tmp_path / "paper.pdf"
+    pdf.save(path)
+
+    pages = indexed_pages(path)
+
+    assert [p["page"] for p in pages] == [1, 2, 3, 4]
+    assert all("American Institute" in p["verbatim"] for p in pages)                       # what the evidence excerpt holds
+    assert "American Institute" in pages[0]["indexed"] and "American Institute" not in pages[1]["indexed"]   # what is indexed
+    assert pages[1]["verbatim"].endswith("2") and not pages[1]["indexed"].endswith("2")
