@@ -18,6 +18,7 @@ from ai.providers.contracts.errors import ProviderError
 from ai.providers.contracts.vision import ImageAnalysisRequest
 from ai.routing import NoCompatibleProvider
 from flame_api import ai_runtime
+from flame_api.audio_transcript import transcribe_video_audio
 from flame_api.generation import interpret_analysis
 from flame_api.ids import stable_ulid
 from flame_api.models import AnalysisRecord, EvidenceRecord, ExperimentCondition, FileRecord, VideoCheckpointFrame
@@ -334,8 +335,13 @@ def process_video_analysis(analysis_id: str) -> None:
                 resume_from=_load_checkpoint(analysis_id), on_frame=checkpoint,
             )
             routed = ai_runtime.get_router(settings).route("video.analyze", lambda provider: provider.analyze_video(request))
+            # Speech is best-effort context: it never fails the job (see audio_transcript.py).
+            audio = (transcribe_video_audio(video_path, work, ai_runtime.get_router(settings))
+                     if settings.transcription_enabled else None)
         response = routed.value
         result, pipeline, warnings = _adapt_video_result(response, video_input)
+        if audio is not None:
+            result["audio"] = audio
     except JobCancelled:
         _finish_cancelled(analysis_id)
         return

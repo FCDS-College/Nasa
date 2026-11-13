@@ -6,6 +6,9 @@ import { AnalysisSummary } from "@/lib/api/types";
 import { History, ArrowRight, CheckCircle2, Clock } from "lucide-react";
 import Link from "next/link";
 
+// queued and processing are the only non-terminal states; cancelled and failed are final (AnalysisStatus).
+const inProgress = (status: AnalysisSummary["status"]) => status === "queued" || status === "processing";
+
 export default function HistoryPage() {
   const [history, setHistory] = useState<AnalysisSummary[]>([]);
 
@@ -71,14 +74,17 @@ export default function HistoryPage() {
                     <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
                           style={{
                             background: item.status === "completed" ? 'rgba(16,185,129,0.08)' :
-                                       item.status === "processing" ? 'rgba(59,130,246,0.08)' : 'var(--border-subtle)',
+                                       inProgress(item.status) ? 'rgba(59,130,246,0.08)' :
+                                       item.status === "failed" ? 'rgba(239,68,68,0.08)' : 'var(--border-subtle)',
                             color: item.status === "completed" ? 'var(--accent-success)' :
-                                   item.status === "processing" ? 'var(--accent-flame)' : 'var(--text-muted)',
+                                   inProgress(item.status) ? 'var(--accent-flame)' :
+                                   item.status === "failed" ? 'var(--accent-danger)' : 'var(--text-muted)',
                             border: `1px solid ${item.status === "completed" ? 'rgba(16,185,129,0.15)' :
-                                    item.status === "processing" ? 'rgba(59,130,246,0.15)' : 'var(--border-subtle)'}`,
+                                    inProgress(item.status) ? 'rgba(59,130,246,0.15)' :
+                                    item.status === "failed" ? 'rgba(239,68,68,0.15)' : 'var(--border-subtle)'}`,
                           }}>
                       {item.status === "completed" && <CheckCircle2 className="h-3 w-3" />}
-                      {item.status === "processing" && <Clock className="h-3 w-3 animate-spin" />}
+                      {inProgress(item.status) && <Clock className="h-3 w-3 animate-spin" />}
                       {item.status.toUpperCase()}
                     </span>
                   </td>

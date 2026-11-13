@@ -82,11 +82,14 @@ def test_every_table_row_becomes_an_experiment_with_cited_edges(graph):
     with sessions() as session:
         types = dict(session.execute(select(KnowledgeEntity.entity_type, func.count()).group_by(KnowledgeEntity.entity_type)).all())
         predicates = dict(session.execute(select(KnowledgeRelation.predicate, func.count()).group_by(KnowledgeRelation.predicate)).all())
-        assert types["experiment"] == 840 and types["investigation"] == 4 and types["document"] == 4
+        # 20 PSI combustion investigations with experimental tables (the original 4 + 16 from the Space Apps resources page).
+        assert types["experiment"] == 1958 and types["investigation"] == 20 and types["document"] == 20
         assert types["phenomenon"] == 3   # FLEX test_end: Extinction, Disruption, Completion
-        assert types["fuel"] == 55 and types["condition_variable"] == 45   # as documented in E2-6 §0
-        assert predicates["part_of"] == predicates["uses_fuel"] == 840 and predicates["has_condition"] == 8725
-        assert predicates["observed"] == 274 and predicates["describes"] == 4
+        assert types["fuel"] == 170 and types["condition_variable"] == 133   # after the 5 curated aliases
+        # Every experiment is part of its investigation; 141 rows name no fuel or material (e.g. the ACME Flame Design
+        # inverse-flame table has no fuel column), so they have no uses_fuel edge.
+        assert predicates["part_of"] == 1958 and predicates["uses_fuel"] == 1817 and predicates["has_condition"] == 21346
+        assert predicates["observed"] == 274 and predicates["describes"] == 20
         assert counts["relations"] == sum(predicates.values())
         # Every edge cites an evidence row that exists, and is a deterministic table parse.
         assert _count(session, KnowledgeRelation, KnowledgeRelation.evidence_id.notin_(select(EvidenceRecord.evidence_id))) == 0
@@ -144,7 +147,7 @@ def test_consistency_checks_pass_once_the_reviewed_spelling_variants_resolve(gra
 def test_a_reviewed_variant_resolves_to_its_canonical_entity_and_keeps_its_own_cell(graph):
     sessions, _ = graph
     with sessions() as session:
-        assert len(kg.CURATED_ALIASES) == 4
+        assert len(kg.CURATED_ALIASES) == 5
         for (entity_type, variant), winner in kg.CURATED_ALIASES.items():
             assert session.get(KnowledgeEntity, kg.entity_id(entity_type, variant)) is None
             canonical_entity = session.get(KnowledgeEntity, kg.entity_id(entity_type, winner))
@@ -160,8 +163,11 @@ def test_the_graph_api_lists_and_walks_entities(api):
     listed = api.get("/api/graph/entities", params={"type": "fuel", "q": "heptane"}, headers=READ)
     assert listed.status_code == 200
     assert_contract_component(listed.json(), "GraphEntityListResponse")
-    [heptane] = listed.json()["items"]
-    assert heptane["display_name"] == "Heptane" and heptane["relation_count"] == 117
+    # FLEX's "Heptane", plus FLEX-2's "Heptane (pure)" and its heptane/isooctane mixture.
+    items = {i["display_name"]: i for i in listed.json()["items"]}
+    assert len(items) == 3
+    heptane = items["Heptane"]
+    assert heptane["relation_count"] == 117
 
     walked = api.get(f"/api/graph/entities/{heptane['entity_id']}", params={"depth": 2, "max_edges": 50}, headers=READ)
     assert walked.status_code == 200

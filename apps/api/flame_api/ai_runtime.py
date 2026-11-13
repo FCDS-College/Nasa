@@ -81,6 +81,12 @@ def build_router(settings: Settings) -> Router:
     # FLAME_CV_PROVIDER picks the preferred vision provider; the other one stays as the fallback.
     registry.register(FlameCvProvider(), priority=10 if settings.cv_provider == "local" else 20)
     registry.register(FlameCvVideoProvider(), priority=10)  # local only: video never leaves the machine
+    if settings.transcription_enabled:
+        from ai.providers.local.faster_whisper_transcription import FasterWhisperProvider
+
+        registry.register(FasterWhisperProvider(model_size=settings.transcription_model,
+                                                cache_dir=settings.transcription_cache_dir or settings.embedding_cache_dir,
+                                                offline=models_offline), priority=10)  # local only: audio never leaves the machine
     if settings.cv_hf_space_url:
         registry.register(HfSpaceCvProvider(base_url=settings.cv_hf_space_url, token=_secret(settings.cv_hf_token),
                                             timeout_s=settings.cv_timeout_s, max_upload_bytes=settings.max_upload_bytes),

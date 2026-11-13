@@ -1,5 +1,12 @@
 """
 pinn_pipeline.py - Dynamic Physics-Informed Neural Network (PINN) Pipeline for Flame/Thermal Physics
+
+SUPERSEDED, do not build on this. It solves the 1D heat-conduction equation du/dt = alpha d2u/dx2, which has no
+velocity field, no buoyancy and no reaction term, so it cannot see gravity at all (the central variable of the
+project). It also needs temperature measurements that the project does not have.
+Use physics/buoyant_pinn.py instead: steady 2D variable-density Navier-Stokes + energy with an explicit
+buoyancy coefficient G = -g*Lo/Uo^2, trained on the NASA PSI-115 fields. See physics/README.md.
+Kept only so the existing prototype and docs keep resolving.
 """
 from __future__ import annotations
 

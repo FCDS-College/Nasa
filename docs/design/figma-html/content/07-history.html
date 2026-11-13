@@ -1,0 +1,33 @@
+<style>
+.hi-page{display:flex;flex-direction:column;width:100%;padding:32px;gap:24px}
+.hi-table{width:100%;border-collapse:collapse;text-align:left;font-size:12px;line-height:16px}
+.hi-table th{padding:16px 20px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.15em;color:var(--text-dim);background:var(--border-subtle);border-bottom:1px solid var(--border-subtle)}
+.hi-table td{padding:16px 20px;border-bottom:1px solid var(--border-subtle)}
+.hi-table tr:last-child td{border-bottom:0}
+.hi-pill{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:2px 10px;font-size:11px;font-weight:600}
+.hi-ok{background:rgba(16,185,129,.08);color:var(--accent-success);border:1px solid rgba(16,185,129,.15)}
+.hi-pr{background:rgba(59,130,246,.08);color:var(--accent-flame);border:1px solid rgba(59,130,246,.15)}
+.hi-df{background:var(--border-subtle);color:var(--text-muted);border:1px solid var(--border-subtle)}
+.hi-id{font-family:var(--font-mono);font-weight:600;color:var(--accent-flame)}
+.hi-mono{font-family:var(--font-mono);color:var(--text-secondary)}
+.hi-link{display:inline-flex;align-items:center;gap:4px;font-weight:500;color:var(--accent-flame)}
+</style>
+<div class="hi-page">
+  <div>
+    <h1 style="display:flex;align-items:center;gap:10px;font-size:24px;font-weight:700;letter-spacing:-.025em;line-height:32px">
+      <div style="width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.2)">[[icon:History:16:#3B82F6]]</div>Flame Analysis History</h1>
+    <p style="margin-top:8px;font-size:14px;color:var(--text-muted)">Traceable archive of processed combustion image frames and pipeline executions.</p>
+  </div>
+  <div style="background:var(--bg-card);border:1px solid var(--border-default);border-radius:16px;overflow:hidden;box-shadow:var(--shadow-card)">
+    <table class="hi-table">
+      <thead><tr><th>Analysis ID</th><th>Source Image</th><th>Status</th><th>Flame Area (px²)</th><th>Calibration</th><th>Timestamp</th><th style="text-align:right"></th></tr></thead>
+      <tbody>
+        <tr><td class="hi-id">job_8829...</td><td style="font-weight:500">bass2_flame_frame001.jpg</td><td><span class="hi-pill hi-ok">[[icon:CheckCircle2:12:#22C55E]]COMPLETED</span></td><td class="hi-mono">14,082</td><td style="color:var(--text-dim)">Uncalibrated</td><td style="color:var(--text-dim)">11/13/2026, 9:42:18 AM</td><td style="text-align:right"><span class="hi-link">Inspect [[icon:ArrowRight:14:#3B82F6]]</span></td></tr>
+        <tr><td class="hi-id">job_8830...</td><td style="font-weight:500">bass2_flight_clip.mp4</td><td><span class="hi-pill hi-ok">[[icon:CheckCircle2:12:#22C55E]]COMPLETED</span></td><td class="hi-mono">—</td><td style="color:var(--text-dim)">Uncalibrated</td><td style="color:var(--text-dim)">11/13/2026, 9:30:05 AM</td><td style="text-align:right"><span class="hi-link">Inspect [[icon:ArrowRight:14:#3B82F6]]</span></td></tr>
+        <tr><td class="hi-id">job_8831...</td><td style="font-weight:500">flex2_droplet_frame014.png</td><td><span class="hi-pill hi-pr">[[icon:Clock:12:#3B82F6]]PROCESSING</span></td><td class="hi-mono">—</td><td style="color:var(--text-dim)">Uncalibrated</td><td style="color:var(--text-dim)">11/13/2026, 9:12:47 AM</td><td style="text-align:right"><span class="hi-link">Inspect [[icon:ArrowRight:14:#3B82F6]]</span></td></tr>
+        <tr><td class="hi-id">job_8832...</td><td style="font-weight:500">sofie_burner_frame203.jpg</td><td><span class="hi-pill hi-ok">[[icon:CheckCircle2:12:#22C55E]]COMPLETED</span></td><td class="hi-mono">9,611</td><td style="color:var(--accent-success)">Calibrated</td><td style="color:var(--text-dim)">11/12/2026, 4:55:31 PM</td><td style="text-align:right"><span class="hi-link">Inspect [[icon:ArrowRight:14:#3B82F6]]</span></td></tr>
+        <tr><td class="hi-id">job_8833...</td><td style="font-weight:500">corrupt_upload_017.jpg</td><td><span class="hi-pill hi-df">FAILED</span></td><td class="hi-mono">—</td><td style="color:var(--text-dim)">Uncalibrated</td><td style="color:var(--text-dim)">11/12/2026, 2:08:09 PM</td><td style="text-align:right"><span class="hi-link">Inspect [[icon:ArrowRight:14:#3B82F6]]</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>

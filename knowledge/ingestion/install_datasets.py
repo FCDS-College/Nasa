@@ -5,6 +5,9 @@ Raw data is git-ignored, so a fresh clone has none. This script rebuilds it:
   DSI (solidification)   public s3://nasa-psi bucket, fetched over anonymous HTTPS
   Combustion pilot       BASS-II / FLEX / SAFFIRE-I / SPICE via the psi.nasa.gov API
                          (reuses psi_download.py and datasets/manifests/psi_pilot_selection.csv)
+  Combustion docs+tables experimental tables, ISA-Tab metadata and document PDFs of all 24 PSI combustion
+                         investigations on the Space Apps resources page (~0.74 GB,
+                         datasets/manifests/psi_docs_tables_selection.csv)
 
 Every file is then checked against datasets/checksums/sha256.txt. Re-running skips
 complete files and resumes partial ones, so it is safe to interrupt.
@@ -38,6 +41,7 @@ DATA_DIR = HERE.parents[1] / "datasets"
 METADATA = DATA_DIR / "metadata" / "files.jsonl"
 CHECKSUMS = DATA_DIR / "checksums" / "sha256.txt"
 PILOT = DATA_DIR / "manifests" / "psi_pilot_selection.csv"
+DOCS_TABLES = DATA_DIR / "manifests" / "psi_docs_tables_selection.csv"
 S3_URL = "https://nasa-psi.s3.amazonaws.com/{key}"
 LARGE = 1_000_000_000
 CHUNK = 4 * 1024 * 1024
@@ -110,8 +114,17 @@ def is_table_or_metadata(row):
 
 
 def install_combustion(skip_large, workers, tables_only=False):
-    with PILOT.open(encoding="utf-8", newline="") as fh:
-        rows = list(csv.DictReader(fh))
+    # The 2026-10 media pilot (4 investigations) plus, since 2026-11-13, the experimental tables, ISA-Tab metadata and
+    # document PDFs of all 24 PSI combustion investigations the Space Apps resources page lists (psi_inventory.py --select).
+    rows, seen = [], set()
+    for selection in (PILOT, DOCS_TABLES):
+        if not selection.exists():
+            continue
+        with selection.open(encoding="utf-8", newline="") as fh:
+            for row in csv.DictReader(fh):
+                if row["object_key"] not in seen:
+                    seen.add(row["object_key"])
+                    rows.append(row)
     if tables_only:
         rows = [r for r in rows if is_table_or_metadata(r)]
     if skip_large:
@@ -169,7 +182,7 @@ def main():
         print(f"\n{len(failures)} download(s) failed:")
         for f in failures:
             print(f"  {f}")
-        print("(Known: 3 combustion docs 404 on NASA's side for every version; see docs/data/CV_IMAGE_SOURCES.md)")
+        print("(Known: about a dozen PSI documents 404 or are mis-sized on NASA's side; see docs/data/PSI_COMBUSTION_DATASETS.md)")
     sys.exit(1 if bad else 0)
 
 

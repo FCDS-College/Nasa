@@ -23,7 +23,7 @@ The deck is `flame-in-freefall-3min-pitch.pptx` (7 slides; these words are also 
 ### Slide 2 · The problem today (0:25–0:45)
 
 > Sixty years later, we are choosing new atmospheres again. Orion and lunar landers plan for up to **thirty and thirty-four percent oxygen**, more than the ISS. Commercial stations are being designed this decade.
-> NASA's flight evidence exists: **840 microgravity fire tests and 27 technical reports**. But it is scattered across tables nobody can search in an afternoon, and none of them tell you where the data ends.
+> NASA's flight evidence exists: **1950 microgravity combustion tests and 27 technical reports**. But it is scattered across tables nobody can search in an afternoon, and none of them tell you where the data ends.
 
 ### Slide 3 · It solves (0:45–1:10)
 
@@ -33,8 +33,8 @@ The deck is `flame-in-freefall-3min-pitch.pptx` (7 slides; these words are also 
 ### Slide 4 · It knows when not to answer (1:10–1:45)
 
 > Now we give it Apollo 1's atmosphere. It refuses.
-> **"None of the 840 flight tests cover this atmosphere."**
-> Its oxygen is **2.9 times** the highest ever flown, and it is at Earth gravity, while every test was in microgravity. It shows the nearest real test, and it makes **no estimate**.
+> **"None of the 1950 flight tests cover this atmosphere."**
+> Its oxygen is **2.5 times** the highest ever flown, and it is at Earth gravity, while every test was in microgravity. It shows the nearest real test, and it makes **no estimate**.
 > That is exactly the gap that cost three lives: a decision made in an atmosphere nobody had tested.
 
 ### Slide 5 · What changed, and where the data is (1:45–2:05)

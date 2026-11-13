@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Ask the NASA Corpus — Flame in Freefall</title><meta name="viewport" content="width=1440"><style>
+:root{--bg-primary:#0F1115;--bg-card:#171A21;--bg-elevated:#1F232B;--accent-flame:#3B82F6;--accent-ember:#60A5FA;--accent-success:#22C55E;--accent-warning:#F59E0B;--accent-danger:#EF4444;--accent-cyan:#06B6D4;--accent-violet:#A78BFA;
+--text-primary:#F3F4F6;--text-secondary:#9CA3AF;--text-muted:#6B7280;--text-dim:#4B5563;--border-subtle:rgba(39,43,51,.5);--border-default:#272B33;
+--shadow-card:0 4px 12px rgba(0,0,0,.3);--font-sans:'Inter','Inter Variable',-apple-system,'Segoe UI',sans-serif;--font-mono:'JetBrains Mono','JetBrains Mono Variable',monospace}
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{width:1440px;background:var(--bg-primary);color:var(--text-primary);font-family:var(--font-sans);-webkit-font-smoothing:antialiased;font-size:16px;line-height:1.5}
+h1,h2,h3,h4,p,ul{margin:0;padding:0}ul{list-style:none}
+.app{display:flex;width:1440px;min-height:1024px;background:var(--bg-primary)}
+.sidebar{width:300px;flex:none;background:var(--bg-card);border-right:1px solid var(--border-subtle);display:flex;flex-direction:column;min-height:1024px}
+.sb-head{height:64px;flex:none;display:flex;align-items:center;padding:0 20px;border-bottom:1px solid var(--border-subtle)}
+.sb-logo{display:flex;align-items:center;gap:12px}
+.sb-mark{width:36px;height:36px;border-radius:12px;background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.25);display:flex;align-items:center;justify-content:center;color:var(--accent-flame)}
+.sb-brand{font-size:11px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;line-height:1.35}
+.sb-tag{font-family:var(--font-mono);font-size:10px;font-weight:500;color:var(--accent-flame);opacity:.8;letter-spacing:.025em}
+.sb-nav{padding:12px 12px 0;display:flex;flex-direction:column;gap:2px}
+.nav-item{display:flex;align-items:center;gap:10px;border-radius:8px;padding:8px 12px;font-size:12px;font-weight:500;color:var(--text-secondary);border:1px solid transparent}
+.nav-item svg{color:var(--text-dim)}
+.nav-item.active{background:rgba(59,130,246,.12);border-color:rgba(59,130,246,.25);color:var(--text-primary)}
+.nav-item.active svg{color:var(--accent-flame)}
+.sb-div{margin:12px 16px 0;border-top:1px solid var(--border-subtle)}
+.sb-new{padding:16px 16px 8px}
+.btn-new{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;padding:12px 16px;border-radius:12px;font-size:14px;font-weight:600;background:rgba(59,130,246,.16);border:1px solid rgba(59,130,246,.3);color:var(--text-primary);box-shadow:0 0 15px rgba(59,130,246,.1);font-family:inherit}
+.btn-new svg{color:var(--accent-flame)}
+.sb-search{margin:4px 16px;display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;background:var(--border-subtle);border:1px solid var(--border-subtle);font-size:12px;color:var(--text-muted)}
+.sb-hist-h{display:flex;align-items:center;justify-content:space-between;padding:16px 20px 8px}
+.sb-hist-l{display:flex;align-items:center;gap:6px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.15em;color:var(--text-muted)}
+.sb-count{font-family:var(--font-mono);font-size:9px;background:var(--border-subtle);color:var(--text-secondary);border-radius:999px;padding:2px 6px;margin-left:6px;letter-spacing:0}
+.sb-clear{font-size:10px;font-weight:500;color:var(--text-dim)}
+.sb-list{flex:1;padding:8px 12px;display:flex;flex-direction:column;gap:2px}
+.sb-empty{display:flex;flex-direction:column;align-items:center;text-align:center;padding:64px 16px}
+.sb-empty .box{width:56px;height:56px;border-radius:16px;background:rgba(59,130,246,.08);border:1px solid var(--border-subtle);display:flex;align-items:center;justify-content:center;margin-bottom:16px;color:var(--text-dim)}
+.sb-empty .t{font-size:12px;font-weight:500;color:var(--text-muted)}.sb-empty .s{font-size:11px;color:var(--text-dim);margin-top:4px}
+.sess{display:flex;align-items:center;gap:10px;border-radius:12px;padding:10px 12px;border:1px solid transparent;color:var(--text-secondary)}
+.sess svg{color:var(--text-dim)}
+.sess.active{background:rgba(59,130,246,.08);border-color:rgba(59,130,246,.2);color:var(--text-primary)}
+.sess.active svg{color:var(--accent-flame)}
+.sess .st{font-size:12px;font-weight:500;line-height:1.35}.sess .tm{font-family:var(--font-mono);font-size:10px;color:var(--text-dim);margin-top:2px}
+.sb-foot{padding:16px;border-top:1px solid var(--border-subtle);background:rgba(0,0,0,.05)}
+.sb-foot .card{border-radius:12px;padding:12px;background:var(--border-subtle);border:1px solid var(--border-subtle);font-size:11px}
+.sb-foot .r{display:flex;justify-content:space-between;align-items:center}
+.sb-foot b{color:var(--text-secondary);font-weight:600}
+.sb-foot .yr{font-family:var(--font-mono);font-size:9px;font-weight:600;color:var(--accent-flame);background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.15);border-radius:6px;padding:2px 8px}
+.sb-foot p{font-size:10px;color:var(--text-dim);margin-top:6px}
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.topbar{height:60px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 24px;border-bottom:1px solid var(--border-subtle);background:var(--bg-primary)}
+.tb-l{display:flex;align-items:center;gap:12px}
+.tb-toggle{width:36px;height:36px;border-radius:8px;background:var(--border-subtle);border:1px solid var(--border-subtle);display:flex;align-items:center;justify-content:center;color:var(--accent-flame)}
+.tb-title{font-size:14px;font-weight:600;line-height:1.3}.tb-build{font-family:var(--font-mono);font-size:10px;color:var(--text-dim)}
+.tb-r{display:flex;align-items:center;gap:16px}
+.pill{display:flex;align-items:center;gap:8px;border-radius:999px;padding:6px 12px;background:var(--border-subtle);border:1px solid var(--border-subtle);font-size:12px;font-weight:600;color:var(--text-secondary)}
+.dot{width:8px;height:8px;border-radius:50%;background:rgba(16,185,129,.8);box-shadow:0 0 8px rgba(16,185,129,.8)}
+.ver{font-family:var(--font-mono);font-size:11px;color:var(--text-secondary);background:var(--border-subtle);border:1px solid var(--border-subtle);border-radius:999px;padding:4px 10px}
+.content{flex:1;display:flex;flex-direction:column}
+/* ---- shared building blocks for the page fragments ---- */
+.card{background:var(--bg-card);border:1px solid var(--border-default);border-radius:16px;padding:20px;box-shadow:var(--shadow-card)}
+.elev{background:var(--bg-elevated);border:1px solid var(--border-default);border-radius:12px;padding:16px}
+.badge{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:4px 10px;font-size:11px;font-weight:600;letter-spacing:.025em;background:var(--border-subtle);color:var(--text-secondary);border:1px solid rgba(255,255,255,.1)}
+.badge.success{background:rgba(34,197,94,.1);color:var(--accent-success);border-color:rgba(34,197,94,.25)}
+.badge.warning{background:rgba(245,158,11,.1);color:var(--accent-warning);border-color:rgba(245,158,11,.25)}
+.badge.danger{background:rgba(239,68,68,.1);color:var(--accent-danger);border-color:rgba(239,68,68,.25)}
+.badge.flame{background:rgba(59,130,246,.12);color:var(--accent-flame);border-color:rgba(59,130,246,.25)}
+.badge.ember{background:rgba(96,165,250,.1);color:var(--accent-ember);border-color:rgba(96,165,250,.25)}
+.kind{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:600}
+.kind.measured{color:#22C55E;background:rgba(34,197,94,.1);border:1px solid #22C55E33}
+.kind.model{color:#60A5FA;background:rgba(96,165,250,.1);border:1px solid #60A5FA33}
+.kind.gap{color:#F59E0B;background:rgba(245,158,11,.1);border:1px solid #F59E0B33}
+.btn{display:inline-flex;align-items:center;gap:6px;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;font-family:inherit;background:var(--accent-flame);color:#fff;border:0}
+.btn.secondary{background:var(--bg-elevated);color:var(--text-primary);border:1px solid var(--border-default)}
+.chip{display:inline-flex;align-items:center;gap:4px;border-radius:6px;padding:2px 6px;font-family:var(--font-mono);font-size:11px;background:var(--bg-elevated);border:1px solid var(--border-default);color:var(--accent-ember)}
+.metric{background:var(--bg-card);border:1px solid var(--border-default);border-radius:12px;padding:20px;box-shadow:var(--shadow-card)}
+.metric .l{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:var(--text-muted)}
+.metric .v{font-size:30px;font-weight:700;line-height:1.2;margin-top:8px;color:var(--accent-flame)}
+.metric .d{font-size:12px;color:var(--text-dim);margin-top:6px}
+.state{border-radius:12px;padding:20px;background:var(--border-subtle);border:1px solid var(--border-default)}
+.state h3{font-size:14px;font-weight:600}.state p{font-size:14px;color:var(--text-muted);margin-top:8px;line-height:1.6}
+.state.success{background:rgba(34,197,94,.04);border-color:rgba(34,197,94,.15)}
+.state.warning{background:rgba(245,158,11,.04);border-color:rgba(245,158,11,.15)}
+.state.error{background:rgba(239,68,68,.04);border-color:rgba(239,68,68,.15)}
+.eyebrow{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:var(--text-muted)}
+.mono{font-family:var(--font-mono)}
+.row{display:flex;align-items:center}.col{display:flex;flex-direction:column}.wrap{flex-wrap:wrap}.between{justify-content:space-between}.grow{flex:1;min-width:0}
+.input{background:var(--bg-elevated);border:1px solid var(--border-default);border-radius:8px;padding:6px 8px;color:var(--text-primary);font-size:12px;font-family:inherit}
+</style></head>
+<body><div class="app"><aside class="sidebar">
+<div class="sb-head"><div class="sb-logo"><div class="sb-mark"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 3q1 4 4 6.5t3 5.5a1 1 0 0 1-14 0 5 5 0 0 1 1-3 1 1 0 0 0 5 0c0-2-1.5-3-1.5-5q0-2 2.5-4"/></svg></div><div><div class="sb-brand">Flame in Freefall</div><div class="sb-tag">Fire-Safety Insights</div></div></div></div>
+<nav class="sb-nav"><ul style="display:flex;flex-direction:column;gap:2px"><li><div class="nav-item"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>Fire Safety Dashboard</div></li><li><div class="nav-item"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M14 2v6a2 2 0 0 0 .245.96l5.51 10.08A2 2 0 0 1 18 22H6a2 2 0 0 1-1.755-2.96l5.51-10.08A2 2 0 0 0 10 8V2"/><path d="M6.453 15h11.094"/><path d="M8.5 2h7"/></svg>Flame Outcome Explorer</div></li><li><div class="nav-item"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"/><path d="M20 2v4"/><path d="M22 4h-4"/><circle cx="4" cy="20" r="2"/></svg>Flight Test Browser</div></li><li><div class="nav-item active"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z"/></svg>Ask the NASA Corpus</div></li><li><div class="nav-item"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><circle cx="11.5" cy="14.5" r="2.5"/><path d="M13.3 16.3 15 18"/></svg>Search Evidence</div></li><li><div class="nav-item"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 18h8"/><path d="M3 22h18"/><path d="M14 22a7 7 0 1 0 0-14h-1"/><path d="M9 14h2"/><path d="M9 12a2 2 0 0 1-2-2V6h6v4a2 2 0 0 1-2 2Z"/><path d="M12 6V3a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v3"/></svg>Image &amp; Video Analysis</div></li><li><div class="nav-item"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>Analysis History</div></li><li><div class="nav-item"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/></svg>System Status</div></li></ul></nav><div class="sb-div"></div>
+<div class="sb-new"><div class="btn-new"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M5 12h14"/><path d="M12 5v14"/></svg><span>New Research Chat</span></div></div>
+<div class="sb-search"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>Search history...</div>
+<div class="sb-hist-h"><div class="sb-hist-l"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg><span>Chat History</span><span class="sb-count">3</span></div><span class="sb-clear">Clear all</span></div>
+<div class="sb-list"><div class="sess active"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z"/></svg><div><div class="st">How does oxygen fraction affect flam...</div><div class="tm">2m ago</div></div></div><div class="sess"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z"/></svg><div><div class="st">Summarize NASA FLEX droplet findings</div><div class="tm">1h ago</div></div></div><div class="sess"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z"/></svg><div><div class="st">What is the SoFIE flight test rig?</div><div class="tm">Yesterday</div></div></div></div>
+<div class="sb-foot"><div class="card"><div class="r"><b>NASA Space Apps</b><span class="yr">2026</span></div><p>NASA PSI flight data · NTRS reports</p></div></div>
+</aside><div class="main"><header class="topbar"><div class="tb-l"><div class="tb-toggle"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/></svg></div><div><div class="tb-title">How does oxygen fraction affect flam...</div><div class="tb-build">Build: build-7f8a9b</div></div></div>
+<div class="tb-r"><div class="pill"><span class="dot"></span><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22C55E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/></svg>OK</div><div class="ver">v1.0.0-MVP</div></div></header><main class="content">
+<style>
+.ch-page{display:flex;flex-direction:column;width:100%;padding:20px}
+.ch-shell{display:flex;flex-direction:column;width:100%;border-radius:16px;background:var(--bg-card);border:1px solid var(--border-subtle);box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.ch-msgs{display:flex;flex-direction:column;gap:24px;padding:32px;min-height:50vh}
+.ch-turn{display:flex;flex-direction:column;gap:16px}
+.ch-urow{display:flex;justify-content:flex-end}
+.ch-user{max-width:70%;border-radius:16px 6px 16px 16px;padding:14px 20px;font-size:14px;line-height:20px;color:var(--text-primary);background:linear-gradient(135deg,rgba(59,130,246,.15),rgba(96,165,250,.1));border:1px solid rgba(59,130,246,.25);box-shadow:0 2px 16px rgba(59,130,246,.08)}
+.ch-arow{display:flex;justify-content:flex-start}
+.ch-ai{max-width:85%;border-radius:6px 16px 16px 16px;padding:16px 20px;font-size:14px;line-height:20px;color:var(--text-secondary);background:var(--border-subtle);border:1px solid var(--border-default);box-shadow:var(--shadow-card)}
+.ch-ans{display:flex;flex-direction:column;gap:16px}
+.ch-text{color:var(--text-primary);line-height:22.75px;display:flex;flex-direction:column;gap:12px}
+.ch-ev{margin-top:16px;padding-top:16px;border-top:1px solid var(--border-subtle);display:flex;flex-direction:column;gap:8px}
+.ch-evh{display:flex;align-items:center;gap:6px;font-size:10px;line-height:15px;font-weight:700;text-transform:uppercase;letter-spacing:.15em;color:var(--text-muted)}
+.ch-chips{display:flex;flex-wrap:wrap;gap:8px}
+.ch-chip{display:inline-flex;align-items:center;gap:6px;border-radius:8px;padding:6px 12px;font-size:12px;line-height:16px;color:var(--accent-flame);background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.15)}
+.ch-chip b{font-weight:600}
+.ch-chip .t{max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ch-chip .l{color:var(--text-dim)}
+.ch-meta{margin-top:16px;padding-top:12px;border-top:1px solid var(--border-subtle);display:flex;flex-wrap:wrap;align-items:center;gap:16px;font-family:var(--font-mono);font-size:10px;line-height:15px;color:var(--text-dim)}
+.ch-meta span{display:flex;align-items:center;gap:6px}
+.ch-meta .c{gap:4px;color:var(--accent-aurora,#3B82F6)}
+.ch-meta .m{gap:4px;color:var(--accent-plasma,#3B82F6)}
+.ch-input{padding:20px;background:var(--bg-secondary,#0F1115);border-top:1px solid var(--border-subtle);border-radius:0 0 16px 16px}
+.ch-form{position:relative;display:flex;align-items:center;width:100%;max-width:896px;margin:0 auto}
+.ch-field{width:100%;border-radius:16px;padding:16px 56px 16px 20px;font-size:14px;line-height:20px;color:var(--text-muted);background:var(--border-subtle);border:1px solid var(--border-default)}
+.ch-send{position:absolute;top:8px;bottom:8px;right:8px;aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;border-radius:12px;color:#000;background:linear-gradient(135deg,var(--accent-flame),var(--accent-ember));box-shadow:0 0 12px rgba(59,130,246,.25);opacity:.3}
+.ch-note{margin-top:10px;text-align:center;font-size:11px;line-height:16.5px;font-weight:500;color:var(--text-dim)}
+</style>
+<div class="ch-page"><div class="ch-shell">
+<div class="ch-msgs">
+
+<div class="ch-turn">
+<div class="ch-urow"><div class="ch-user">How does oxygen fraction affect flame spread in microgravity?</div></div>
+<div class="ch-arow"><div class="ch-ai"><div class="ch-ans">
+<div class="ch-text">
+<div>In microgravity, flame spread over solid fuels is strongly governed by oxygen concentration and by the (low) opposed-flow velocity. Increasing the oxygen fraction from 21% to 30% raises the measured spread rate and widens the flammable regime in BASS-II samples [1].</div>
+<div>At low flow velocities the flame can quench through radiative heat loss, so a higher oxygen fraction is needed to sustain spread than in normal gravity; the effect is largest below roughly 5 cm/s [2]. Soot volume fraction also increases because the lack of buoyant acceleration yields wider flames and longer residence times [3].</div>
+</div>
+<div class="ch-ev">
+<h4 class="ch-evh"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--accent-flame)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 5v16"/><path d="M20.001 19A2 2 0 0022 17V5a2 2 0 00-1.999-2L16 3.002A5 5 0 0012 5a5 5 0 00-4-2H4a2 2 0 00-2 2v12a2 2 0 001.999 2H8a5 5 0 014 2 5 5 0 014-2z"/></svg> Grounding Evidence</h4>
+<div class="ch-chips">
+<span class="ch-chip"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4"/><path d="M14 13.12c0 2.38 0 6.38-1 8.88"/><path d="M17.29 21.02c.12-.6.43-2.3.5-3.02"/><path d="M2 12a10 10 0 0 1 18-6"/><path d="M2 16h.01"/><path d="M21.8 16c.2-2 .131-5.354 0-6"/><path d="M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2"/><path d="M8.65 22c.21-.66.45-1.32.57-2"/><path d="M9 6.8a6 6 0 0 1 9 5.2v2"/></svg><b>[1]</b><span class="t">BASS-II flame spread results</span><span class="l">(Page 12, Figure 4)</span></span>
+<span class="ch-chip"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4"/><path d="M14 13.12c0 2.38 0 6.38-1 8.88"/><path d="M17.29 21.02c.12-.6.43-2.3.5-3.02"/><path d="M2 12a10 10 0 0 1 18-6"/><path d="M2 16h.01"/><path d="M21.8 16c.2-2 .131-5.354 0-6"/><path d="M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2"/><path d="M8.65 22c.21-.66.45-1.32.57-2"/><path d="M9 6.8a6 6 0 0 1 9 5.2v2"/></svg><b>[2]</b><span class="t">Microgravity flammability limits</span><span class="l">(Table 3)</span></span>
+<span class="ch-chip"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4"/><path d="M14 13.12c0 2.38 0 6.38-1 8.88"/><path d="M17.29 21.02c.12-.6.43-2.3.5-3.02"/><path d="M2 12a10 10 0 0 1 18-6"/><path d="M2 16h.01"/><path d="M21.8 16c.2-2 .131-5.354 0-6"/><path d="M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2"/><path d="M8.65 22c.21-.66.45-1.32.57-2"/><path d="M9 6.8a6 6 0 0 1 9 5.2v2"/></svg><b>[3]</b><span class="t">Structure and Soot Properties</span><span class="l">(Page 12)</span></span>
+</div>
+</div>
+<div class="ch-meta">
+<span><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></svg>local:qwen2.5-7b-instruct</span>
+<span>Corpus: 2026-10-03</span>
+</div>
+</div></div></div>
+</div>
+
+<div class="ch-turn">
+<div class="ch-urow"><div class="ch-user">What about CO2 and helium diluents in FLEX droplet tests?</div></div>
+<div class="ch-arow"><div class="ch-ai"><div class="ch-ans">
+<div class="ch-text">
+<div>In FLEX, replacing nitrogen with CO2 raises the limiting oxygen index for droplet flame extinction because of CO2's higher heat capacity and radiative absorption, while helium lowers it through higher thermal diffusivity [1].</div>
+<div>Consistent with the earlier discussion of oxygen fraction, extinction in these tests was radiative rather than blow-off driven [2].</div>
+</div>
+<div class="ch-ev">
+<h4 class="ch-evh"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--accent-flame)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 5v16"/><path d="M20.001 19A2 2 0 0022 17V5a2 2 0 00-1.999-2L16 3.002A5 5 0 0012 5a5 5 0 00-4-2H4a2 2 0 00-2 2v12a2 2 0 001.999 2H8a5 5 0 014 2 5 5 0 014-2z"/></svg> Grounding Evidence</h4>
+<div class="ch-chips">
+<span class="ch-chip"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4"/><path d="M14 13.12c0 2.38 0 6.38-1 8.88"/><path d="M17.29 21.02c.12-.6.43-2.3.5-3.02"/><path d="M2 12a10 10 0 0 1 18-6"/><path d="M2 16h.01"/><path d="M21.8 16c.2-2 .131-5.354 0-6"/><path d="M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2"/><path d="M8.65 22c.21-.66.45-1.32.57-2"/><path d="M9 6.8a6 6 0 0 1 9 5.2v2"/></svg><b>[1]</b><span class="t">FLEX diluent extinction results</span><span class="l">(Table 2)</span></span>
+<span class="ch-chip"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4"/><path d="M14 13.12c0 2.38 0 6.38-1 8.88"/><path d="M17.29 21.02c.12-.6.43-2.3.5-3.02"/><path d="M2 12a10 10 0 0 1 18-6"/><path d="M2 16h.01"/><path d="M21.8 16c.2-2 .131-5.354 0-6"/><path d="M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2"/><path d="M8.65 22c.21-.66.45-1.32.57-2"/><path d="M9 6.8a6 6 0 0 1 9 5.2v2"/></svg><b>[2]</b><span class="t">Radiative extinction of droplets</span><span class="l">(Page 7)</span></span>
+</div>
+</div>
+<div class="ch-meta">
+<span><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></svg>local:qwen2.5-7b-instruct</span>
+<span class="c"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M21.801 10A10 10 0 1 1 17 3.335"/><path d="m9 11 3 3L22 4"/></svg> Cached</span>
+<span class="m"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M21.801 10A10 10 0 1 1 17 3.335"/><path d="m9 11 3 3L22 4"/></svg> Session memory used</span>
+<span>Corpus: 2026-10-03</span>
+</div>
+</div></div></div>
+</div>
+
+</div>
+<div class="ch-input">
+<div class="ch-form"><div class="ch-field">Ask a scientific research question...</div><div class="ch-send"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/></svg></div></div>
+<div class="ch-note">Scientific answers are grounded in NASA microgravity combustion publications.</div>
+</div>
+</div></div>
+
+</main></div></div></body></html>

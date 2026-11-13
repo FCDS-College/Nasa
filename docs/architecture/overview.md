@@ -62,7 +62,7 @@ client polls GET /api/analyses/{id}
 |---|---|---|
 | API / contract version | `FLAME_API_VERSION`; `openapi.json` `info.version` (0.2.0) | `meta.api_version`, `/api/health.version` |
 | Corpus / knowledge version | `knowledge_version.publish` (ingest: `corpus-<hash>`; index build: `bge-small-en-v1.5-<rows>-<date>`) | `knowledge_publication`, `vector_index_manifest`, chat `knowledge_version`, dashboard |
-| Parser versions | `ingest.py` (`pymupdf-pages-0.2.0`, `html-sections-0.1.0`, `json-paths-0.1.0`, `psi-tables-0.1.0`) | `document.parser_version`, `ingestion_run.transformation_id`, evidence `transformation_id` |
+| Parser versions | `ingest.py` (`pymupdf-pages-0.5.0`, `html-sections-0.1.0`, `json-paths-0.1.0`, `psi-tables-0.2.0`) | `document.parser_version`, `ingestion_run.transformation_id`, evidence `transformation_id` |
 | OCR engine version | `ingest._ocr_page` (`tesseract-<v>`) | `document.payload.ocr.engine` |
 | Model versions | `ai/routing/model_manifest.json`; provider responses | `model` table, `execution.model/version` |
 | CV pipeline version | `cv/flame_cv.py` `PIPELINE_VERSION` (`cv-opencv-v1.2.0-auto`) | `analysis_result.pipeline_version` |

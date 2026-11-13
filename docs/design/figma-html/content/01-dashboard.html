@@ -1,0 +1,230 @@
+<style>
+.fs-page{width:100%;max-width:1152px;margin:0 auto;padding:32px 24px;display:flex;flex-direction:column;gap:24px}
+.fs-hero{display:flex;flex-direction:column;gap:12px}
+.fs-eyebrow{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.2em;color:var(--accent-ember);line-height:16.5px}
+.fs-h1{font-size:30px;font-weight:700;line-height:37.5px;color:var(--text-primary)}
+.fs-lead{max-width:768px;font-size:14px;line-height:22.75px;color:var(--text-secondary)}
+.fs-sec{display:flex;flex-direction:column}
+.fs-st{margin-bottom:16px;display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+.fs-st h2{font-size:16px;font-weight:600;line-height:24px;color:var(--text-primary)}
+.fs-st p{margin-top:4px;font-size:12px;line-height:19.5px;color:var(--text-muted)}
+.fs-pick{display:flex;flex-wrap:wrap;gap:8px}
+.fs-sc{border-radius:12px;padding:8px 12px;font-size:12px;line-height:16px;background:var(--bg-elevated);border:1px solid var(--border-default);color:var(--text-primary)}
+.fs-sc.on{background:rgba(59,130,246,.16);border-color:rgba(59,130,246,.55)}
+.fs-sc b{display:block;font-weight:600}
+.fs-sc span{display:block;margin-top:2px;color:var(--text-muted);font-family:var(--font-mono)}
+.fs-note{font-size:12px;line-height:19.5px;color:var(--text-muted)}
+.fs-note em{font-style:normal;color:var(--text-secondary)}
+.fs-tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.fs-tile{border-radius:12px;padding:16px;background:var(--bg-card);border:1px solid var(--border-default)}
+.fs-tile .l{display:flex;align-items:center;gap:8px;font-size:11px;line-height:16.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted)}
+.fs-tile .v{margin-top:4px;font-size:20px;line-height:28px;font-weight:700;font-family:var(--font-mono)}
+.fs-tile .n{font-size:11px;line-height:16.5px;color:var(--text-dim)}
+.fs-details{font-size:12px;color:var(--text-muted)}
+.fs-ol{display:flex;flex-direction:column;gap:12px}
+.fs-inv{border-radius:12px;padding:16px;background:var(--bg-elevated);border:1px solid var(--border-default);display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.fs-invl{display:flex;align-items:flex-start;gap:12px;min-width:0}
+.fs-rank{width:32px;height:32px;flex:none;display:flex;align-items:center;justify-content:center;border-radius:8px;font-size:14px;font-weight:700;font-family:var(--font-mono);background:var(--bg-card);border:1px solid var(--border-default)}
+.fs-rank.first{background:rgba(59,130,246,.2)}
+.fs-invt{font-size:14px;font-weight:600;line-height:20px;color:var(--text-primary)}
+.fs-invs{margin-top:2px;font-size:12px;line-height:16px;color:var(--text-muted)}
+.fs-bul{margin-top:8px;list-style:disc;padding-left:16px;font-size:12px;line-height:19.5px;color:var(--text-secondary)}
+.fs-bul li{list-style:disc}
+.fs-rel{width:288px;flex:none;display:flex;flex-direction:column;gap:6px}
+.fs-track{display:flex;align-items:center;gap:8px}
+.fs-bar{display:flex;height:10px;width:100%;overflow:hidden;border-radius:999px;background:var(--border-default)}
+.fs-score{width:40px;text-align:right;font-size:14px;font-weight:600;font-family:var(--font-mono);line-height:20px}
+.fs-leg{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;line-height:16.5px;color:var(--text-muted)}
+.fs-leg span{display:inline-flex;align-items:center;gap:4px}
+.fs-leg i{width:8px;height:8px;border-radius:50%;display:inline-block}
+.fs-ins{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fs-card2{display:flex;flex-direction:column;gap:10px;border-radius:12px;padding:16px;background:var(--bg-elevated);border:1px solid var(--border-default)}
+.fs-card2 .hd{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.fs-card2 h3{font-size:14px;font-weight:600;line-height:20px;color:var(--text-primary)}
+.fs-card2 p{font-size:14px;line-height:22.75px;color:var(--text-secondary)}
+.fs-card2 ul{list-style:disc;padding-left:20px;font-size:12px;line-height:19.5px;color:var(--text-muted)}
+.fs-card2 ul li{list-style:disc}
+.fs-card2 .ft{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.fs-ev{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.fs-ev .t{font-size:11px;color:var(--text-dim)}
+.fs-explain{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--accent-ember)}
+.fs-cta{margin-top:16px;display:flex;flex-wrap:wrap;gap:12px}
+.fs-b1{display:inline-flex;align-items:center;gap:6px;border-radius:12px;padding:8px 16px;font-size:14px;font-weight:600;background:var(--accent-flame);color:#fff}
+.fs-b2{display:inline-flex;align-items:center;gap:6px;border-radius:12px;padding:8px 16px;font-size:14px;font-weight:600;background:var(--bg-elevated);border:1px solid var(--border-default);color:var(--text-primary)}
+.fs-tbl{width:100%;border-collapse:collapse;font-size:12px;line-height:16px;text-align:left}
+.fs-tbl th{padding:8px;font-weight:600;color:var(--text-muted)}
+.fs-tbl thead th{color:var(--text-muted)}
+.fs-tbl tbody th{color:var(--text-primary)}
+.fs-tbl td{padding:8px;color:var(--text-primary)}
+.fs-tbl tbody tr{border-top:1px solid var(--border-default)}
+.fs-tbl td.m{font-family:var(--font-mono)}
+.fs-nc{display:flex;flex-direction:column;gap:8px;font-size:14px;line-height:20px;color:var(--text-secondary)}
+.fs-nc li{display:flex;align-items:flex-start;gap:8px}
+.fs-nc svg{margin-top:2px}
+</style>
+<div class="fs-page">
+
+  <section class="fs-hero">
+    <p class="fs-eyebrow">NASA Space Apps 2026 · Flame in Freefall</p>
+    <h1 class="fs-h1">Which NASA microgravity fire experiments speak to <span style="color:var(--accent-ember)">your</span> spacecraft atmosphere?</h1>
+    <p class="fs-lead">Moon and Mars vehicles plan to run at lower pressure and higher oxygen than the ISS, which makes materials burn more readily. Pick a cabin atmosphere: Flame in Freefall ranks NASA's flight investigations by how directly their data covers it, states what the flight tests measured there (each figure linked to the source row), estimates droplet-flame outcomes with a validated model, and says plainly what the data cannot tell you.</p>
+  </section>
+
+  <section class="card fs-sec">
+    <div class="fs-st"><div><h2>1 · Choose a cabin atmosphere</h2><p>Values quoted or derived from NASA/TM-2008-215260, or your own.</p></div></div>
+    <div class="col" style="gap:12px">
+      <div class="col" style="gap:12px">
+        <div class="fs-pick">
+          <div class="fs-sc on"><b>ISS cabin (nominal)</b><span>21% O₂ · 101.3 kPa</span></div>
+          <div class="fs-sc"><b>Pre-EVA campout</b><span>30% O₂ · 70.3 kPa</span></div>
+          <div class="fs-sc"><b>Orion crew vehicle (max O₂)</b><span>30% O₂ · 71.0 kPa</span></div>
+          <div class="fs-sc"><b>Lunar lander, Altair class (max O₂)</b><span>34% O₂ · 62.7 kPa</span></div>
+          <div class="fs-sc"><b>Custom atmosphere</b><span>set O₂ and pressure</span></div>
+        </div>
+      </div>
+      <p class="fs-note"><em>ISS cabin (nominal):</em> Sea-level air at 14.7 psia, as flown on Skylab, Shuttle and ISS. Source: NASA/TM-2008-215260 (FF-NTRS-20080034883), p. 5.</p>
+    </div>
+  </section>
+
+  <div class="fs-tiles">
+    <div class="fs-tile"><div class="l">[[icon:Database:14]]Flight tests analysed</div><div class="v">615</div><div class="n">rows from 5 NASA PSI tables</div></div>
+    <div class="fs-tile"><div class="l">[[icon:Layers:14]]Investigations with data</div><div class="v">5 of 7</div><div class="n">0 more named by the challenge</div></div>
+    <div class="fs-tile"><div class="l">[[icon:Rocket:14]]Documents in the corpus</div><div class="v">1284</div><div class="n">NTRS reports + NASA metadata</div></div>
+    <div class="fs-tile"><div class="l">[[icon:FlaskConical:14]]Outcome model macro-F1</div><div class="v">0.71</div><div class="n">vs 0.29 majority baseline · split by test day</div></div>
+  </div>
+
+  <section class="card fs-sec">
+    <div class="fs-st"><div><h2>2 · Ranked investigations</h2><p>Evidence relevance to this atmosphere (not a risk score). Hover the bar for each weighted component.</p></div>
+      <div class="fs-details">▸ How is this scored?</div></div>
+    <ol class="fs-ol">
+
+      <li class="fs-inv">
+        <div class="fs-invl"><span class="fs-rank first">1</span>
+          <div style="min-width:0"><div class="fs-invt">FLEX · Flame Extinguishment Experiment</div>
+            <p class="fs-invs">261 flight tests · ISS · liquid-fuel ignition, droplet burning, flammability limits</p>
+            <ul class="fs-bul"><li>O₂ 0.21 is inside the tested range 0.120–0.450.</li><li>Pressure 101.3 kPa is inside the tested range 41–320 kPa.</li><li>58 tests lie within ±0.03 O₂ and ±25% pressure of this atmosphere.</li><li>Each test records its end state.</li></ul></div></div>
+        <div class="fs-rel"><div class="fs-track"><div class="fs-bar"><div style="width:35%;background:#3B82F6"></div><div style="width:25%;background:#06B6D4"></div><div style="width:22%;background:#A78BFA"></div><div style="width:15%;background:#22C55E"></div></div><span class="fs-score">97</span></div>
+          <div class="fs-leg"><span><i style="background:#3B82F6"></i>O₂ match 1.00</span><span><i style="background:#06B6D4"></i>Pressure match 1.00</span><span><i style="background:#A78BFA"></i>Nearby tests 0.88</span><span><i style="background:#22C55E"></i>Outcome data 1.00</span></div></div>
+      </li>
+
+      <li class="fs-inv">
+        <div class="fs-invl"><span class="fs-rank">2</span>
+          <div style="min-width:0"><div class="fs-invt">FLEX-2 · Flame Extinguishment Experiment - 2</div>
+            <p class="fs-invs">184 flight tests · ISS · spacecraft fire safety</p>
+            <ul class="fs-bul"><li>O₂ 0.21 is inside the tested range 0.150–0.350.</li><li>Pressure 101.3 kPa is inside the tested range 50–101 kPa.</li><li>31 tests lie within ±0.03 O₂ and ±25% pressure of this atmosphere.</li><li>Each test records its end state.</li></ul></div></div>
+        <div class="fs-rel"><div class="fs-track"><div class="fs-bar"><div style="width:35%;background:#3B82F6"></div><div style="width:25%;background:#06B6D4"></div><div style="width:18.5%;background:#A78BFA"></div><div style="width:15%;background:#22C55E"></div></div><span class="fs-score">94</span></div>
+          <div class="fs-leg"><span><i style="background:#3B82F6"></i>O₂ match 1.00</span><span><i style="background:#06B6D4"></i>Pressure match 1.00</span><span><i style="background:#A78BFA"></i>Nearby tests 0.74</span><span><i style="background:#22C55E"></i>Outcome data 1.00</span></div></div>
+      </li>
+
+      <li class="fs-inv">
+        <div class="fs-invl"><span class="fs-rank">3</span>
+          <div style="min-width:0"><div class="fs-invt">CFI · Cool Flames Investigation</div>
+            <p class="fs-invs">96 flight tests · ISS · droplets</p>
+            <ul class="fs-bul"><li>O₂ 0.21 is inside the tested range 0.150–0.250.</li><li>Pressure 101.3 kPa is inside the tested range 50–101 kPa.</li><li>12 tests lie within ±0.03 O₂ and ±25% pressure of this atmosphere.</li><li>Only burn duration is recorded, not the end state.</li><li>Flow velocity is not recorded in the table.</li></ul></div></div>
+        <div class="fs-rel"><div class="fs-track"><div class="fs-bar"><div style="width:35%;background:#3B82F6"></div><div style="width:25%;background:#06B6D4"></div><div style="width:13%;background:#A78BFA"></div><div style="width:7.5%;background:#22C55E"></div></div><span class="fs-score">81</span></div>
+          <div class="fs-leg"><span><i style="background:#3B82F6"></i>O₂ match 1.00</span><span><i style="background:#06B6D4"></i>Pressure match 1.00</span><span><i style="background:#A78BFA"></i>Nearby tests 0.52</span><span><i style="background:#22C55E"></i>Outcome data 0.50</span></div></div>
+      </li>
+
+      <li class="fs-inv">
+        <div class="fs-invl"><span class="fs-rank">4</span>
+          <div style="min-width:0"><div class="fs-invt">SAFFIRE-II · Spacecraft Fire Experiment-II</div>
+            <p class="fs-invs">11 flight tests · Cygnus · surface combustion</p>
+            <ul class="fs-bul"><li>O₂ 0.21 is inside the tested range 0.200–0.210 (approximate).</li><li>Pressure is not recorded in the table, so it scores 0.</li><li>11 tests lie within ±0.03 O₂ of this atmosphere.</li><li>Only burn duration is recorded, not the end state.</li></ul></div></div>
+        <div class="fs-rel"><div class="fs-track"><div class="fs-bar"><div style="width:35%;background:#3B82F6"></div><div style="width:0%;background:#06B6D4"></div><div style="width:16%;background:#A78BFA"></div><div style="width:7.5%;background:#22C55E"></div></div><span class="fs-score">59</span></div>
+          <div class="fs-leg"><span><i style="background:#3B82F6"></i>O₂ match 1.00</span><span><i style="background:#06B6D4"></i>Pressure match 0.00</span><span><i style="background:#A78BFA"></i>Nearby tests 0.64</span><span><i style="background:#22C55E"></i>Outcome data 0.50</span></div></div>
+      </li>
+
+      <li class="fs-inv">
+        <div class="fs-invl"><span class="fs-rank">5</span>
+          <div style="min-width:0"><div class="fs-invt">BASS-II · Burning and Suppression of Solids-II</div>
+            <p class="fs-invs">63 flight tests · ISS · solid-material flammability, flame spread, extinction</p>
+            <ul class="fs-bul"><li>O₂ 0.21 is inside the tested range 0.209–0.500.</li><li>Pressure is not recorded in the table, so it scores 0.</li><li>9 tests lie within ±0.03 O₂ of this atmosphere.</li><li>No outcome is recorded in the table (video and report only).</li></ul></div></div>
+        <div class="fs-rel"><div class="fs-track"><div class="fs-bar"><div style="width:35%;background:#3B82F6"></div><div style="width:0%;background:#06B6D4"></div><div style="width:11%;background:#A78BFA"></div><div style="width:0%;background:#22C55E"></div></div><span class="fs-score">46</span></div>
+          <div class="fs-leg"><span><i style="background:#3B82F6"></i>O₂ match 1.00</span><span><i style="background:#06B6D4"></i>Pressure match 0.00</span><span><i style="background:#A78BFA"></i>Nearby tests 0.44</span><span><i style="background:#22C55E"></i>Outcome data 0.00</span></div></div>
+      </li>
+    </ol>
+  </section>
+
+  <section class="card fs-sec">
+    <div class="fs-st"><div><h2>3 · What the flight data says here</h2><p>Measured = computed from flight-test rows · Model estimate = validated FLEX model · Coverage gap = not covered. Click a test ID to see its source row.</p></div></div>
+    <div class="fs-ins">
+
+      <article class="fs-card2">
+        <div class="hd"><h3>Lower oxygen, more self-extinguishing droplet flames</h3><span class="kind measured">[[icon:Calculator:12]] Measured</span></div>
+        <p>In FLEX, 82% of 38 droplet flames at O₂ below 0.16 ended in extinction, versus 11% of 71 at O₂ of 0.30 or more.</p>
+        <ul><li>Raw shares: pressure, diluent and droplet size also differ between these groups; the outcome model separates their effects.</li><li>Evidence lists a sample of the tests' recorded end states (4 per group).</li></ul>
+        <div class="ft"><div class="fs-ev"><span class="t">Evidence:</span><span class="chip">test 0031</span><span class="chip">test 0034</span><span class="chip">test 0047</span><span class="chip">test 0052</span><span class="chip">test 0188</span><span class="chip">test 0192</span><span class="t">+2 more</span></div>
+          <span class="fs-explain">[[icon:MessageSquare:14]] Explain with cited sources</span></div>
+      </article>
+
+      <article class="fs-card2">
+        <div class="hd"><h3>Reduced-pressure droplet tests</h3><span class="kind measured">[[icon:Calculator:12]] Measured</span></div>
+        <p>24 FLEX tests ran at or below 76 kPa (exploration-like pressure); 54% ended in extinction, versus 33% of 142 tests near 1 atm.</p>
+        <ul><li>Oxygen fraction was not held constant between these groups.</li><li>Evidence lists a sample of the tests' recorded end states (4 per group).</li></ul>
+        <div class="ft"><div class="fs-ev"><span class="t">Evidence:</span><span class="chip">test 0209</span><span class="chip">test 0211</span><span class="chip">test 0216</span><span class="chip">test 0220</span><span class="chip">test 0075</span><span class="chip">test 0078</span><span class="t">+2 more</span></div>
+          <span class="fs-explain">[[icon:MessageSquare:14]] Explain with cited sources</span></div>
+      </article>
+
+      <article class="fs-card2">
+        <div class="hd"><h3>Flight tests closest to: ISS cabin (nominal)</h3><span class="kind measured">[[icon:Calculator:12]] Measured</span></div>
+        <p>58 FLEX droplet tests were flown within ±0.03 O₂ and ±25% pressure of this atmosphere (0.21 O₂, 101.3 kPa): 31 completion, 9 disruption, 18 extinction.</p>
+        <ul><li>Droplet combustion only; spacecraft materials are mostly solids.</li></ul>
+        <div class="ft"><div class="fs-ev"><span class="t">Evidence:</span><span class="chip">test 0101</span><span class="chip">test 0102</span><span class="chip">test 0104</span><span class="chip">test 0107</span><span class="chip">test 0110</span><span class="chip">test 0113</span><span class="t">+2 more</span></div>
+          <span class="fs-explain">[[icon:MessageSquare:14]] Explain with cited sources</span></div>
+      </article>
+
+      <article class="fs-card2">
+        <div class="hd"><h3>Solid-material burns and enriched oxygen</h3><span class="kind measured">[[icon:Calculator:12]] Measured</span></div>
+        <p>BASS-II burned 63 solid samples (19 distinct material descriptions in the table) at initial O₂ 0.209–0.500. The scenario's O₂ lies inside that range.</p>
+        <ul><li>The BASS-II table records conditions but no spread rate or extinction outcome; outcomes are in its videos and summary report.</li></ul>
+        <div class="ft"><div class="fs-ev"><span class="t">Evidence:</span><span class="chip">test 41</span><span class="chip">test 42</span><span class="chip">test 47</span><span class="chip">test 48</span></div>
+          <span class="fs-explain">[[icon:MessageSquare:14]] Explain with cited sources</span></div>
+      </article>
+
+      <article class="fs-card2">
+        <div class="hd"><h3>Outcome model estimate for this atmosphere</h3><span class="kind model">[[icon:FlaskConical:12]] Model estimate</span></div>
+        <p>For a 3.00 mm droplet with no added diluent at 0.21 O₂ and 101.3 kPa, the FLEX outcome model gives Heptane: 55% burned to completion, 31% self-extinguished, 14% droplet disruption; Methanol: 48% burned to completion, 40% self-extinguished, 12% droplet disruption.</p>
+        <ul><li>Model flex-outcome-rf-1.2.0: macro-F1 0.71 (baseline 0.29), extinction ROC-AUC 0.89; droplets only.</li><li>Evidence lists the nearest real flight tests and their recorded end state.</li></ul>
+        <div class="ft"><div class="fs-ev"><span class="t">Evidence:</span><span class="chip">test 0102</span><span class="chip">test 0104</span><span class="chip">test 0107</span></div>
+          <span class="fs-explain">[[icon:MessageSquare:14]] Explain with cited sources</span></div>
+      </article>
+
+      <article class="fs-card2">
+        <div class="hd"><h3>What this flight data cannot tell you</h3><span class="kind gap">[[icon:AlertTriangle:12]] Coverage gap</span></div>
+        <p>Every flight test here ran in microgravity; none ran at lunar (1/6 g) or Martian (3/8 g) gravity, so partial-gravity flame behaviour is not covered. BASS-II records test conditions but no outcome in its tables.</p>
+        <div class="ft"><span class="fs-explain">[[icon:MessageSquare:14]] Explain with cited sources</span></div>
+      </article>
+
+    </div>
+    <div class="fs-cta">
+      <span class="fs-b1">[[icon:Flame:16]] Explore droplet-flame outcomes [[icon:ArrowRight:16]]</span>
+      <span class="fs-b2">Ask the NASA corpus a question</span>
+    </div>
+  </section>
+
+  <section class="card fs-sec">
+    <div class="fs-st"><div><h2>4 · Compare investigations</h2><p>What each published table covers. “not recorded” means the table has no such column — never zero.</p></div></div>
+    <table class="fs-tbl">
+      <thead><tr><th>Investigation</th><th>Tests</th><th>O₂ fraction</th><th>Pressure</th><th>Flow</th><th>Fuels / materials</th><th>Outcome in table</th></tr></thead>
+      <tbody>
+        <tr><th>FLEX</th><td class="m">261</td><td class="m">0.120–0.450</td><td class="m">41–320 kPa</td><td class="m">0.00–0.12 m/s</td><td>Heptane, Methanol</td><td>end state per test</td></tr>
+        <tr><th>FLEX-2</th><td class="m">184</td><td class="m">0.150–0.350</td><td class="m">50–101 kPa</td><td class="m">0.00–0.20 m/s</td><td>Heptane, Methanol, Decane +1</td><td>end state per test</td></tr>
+        <tr><th>CFI</th><td class="m">96</td><td class="m">0.150–0.250</td><td class="m">50–101 kPa</td><td class="m">not recorded</td><td>Heptane, Decane</td><td>burn duration only</td></tr>
+        <tr><th>SAFFIRE-II</th><td class="m">11</td><td class="m">0.200–0.210 (approx.)</td><td class="m">not recorded</td><td class="m">0.20–0.40 m/s</td><td>Cotton-fiberglass blend</td><td>burn duration only</td></tr>
+        <tr><th>BASS-II</th><td class="m">63</td><td class="m">0.209–0.500</td><td class="m">not recorded</td><td class="m">0.05–0.40 m/s</td><td>Cotton fabric, PMMA, Nomex +16</td><td>none (video/report only)</td></tr>
+        <tr><th>SAFFIRE-III</th><td class="m">—</td><td class="m">no data yet</td><td class="m">—</td><td class="m">—</td><td>Sample Number, Material</td><td>—</td></tr>
+        <tr><th>ACME-CLD</th><td class="m">—</td><td class="m">no data yet</td><td class="m">—</td><td class="m">—</td><td>Test Type, Test Day</td><td>—</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="card fs-sec">
+    <div class="fs-st"><div><h2>5 · Not covered yet</h2><p>Shown so nobody mistakes an absence of data for an absence of risk.</p></div></div>
+    <ul class="fs-nc">
+      <li>[[icon:ShieldAlert:16:var(--accent-warning)]]<span><strong>SAFFIRE-III</strong> (Spacecraft Fire Experiment-III): registered, but its flight data has not been ingested yet.</span></li>
+      <li>[[icon:ShieldAlert:16:var(--accent-warning)]]<span><strong>ACME-CLD</strong> (Advanced Combustion via Microgravity Experiments / Coflow Laminar Diffusion Flame): registered, but its flight data has not been ingested yet.</span></li>
+      <li>[[icon:ShieldAlert:16:var(--accent-warning)]]<span><strong>Partial gravity.</strong> Every flight test here ran in microgravity; lunar (1/6 g) and Martian (3/8 g) flame behaviour is not covered.</span></li>
+    </ul>
+  </section>
+
+</div>

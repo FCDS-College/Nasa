@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useChat } from "@/lib/context/ChatContext";
+import { CHAT_QUERY_MAX, useChat } from "@/lib/context/ChatContext";
 import {
+  AlertTriangle,
   Send,
   Server,
   CheckCircle,
@@ -63,7 +64,7 @@ export default function ChatPage() {
   // "Explain with cited sources" on the dashboard links here with ?q=…; the question is prefilled, not sent.
   useEffect(() => {
     const q = new URLSearchParams(window.location.search).get("q");
-    if (q) queueMicrotask(() => setQuery(q.slice(0, 1000)));
+    if (q) queueMicrotask(() => setQuery(q.slice(0, CHAT_QUERY_MAX)));
   }, []);
 
   const handleQuickQuestion = (text: string) => {
@@ -314,6 +315,21 @@ export default function ChatPage() {
                           </span>
                         </div>
                       </div>
+                    ) : turn.error ? (
+                      <div role="alert" className="flex items-start gap-2.5" style={{ color: "var(--accent-danger)" }}>
+                        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                        <div className="space-y-1">
+                          <p className="font-medium">No answer: {turn.error.message}</p>
+                          {turn.error.retryAfterS !== undefined && (
+                            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                              You can try again in about {turn.error.retryAfterS} s.
+                            </p>
+                          )}
+                          <p className="text-[10px]" style={{ fontFamily: "var(--font-mono)", color: "var(--text-dim)" }}>
+                            {turn.error.code}
+                          </p>
+                        </div>
+                      </div>
                     ) : null}
                   </div>
                 </div>
@@ -339,6 +355,8 @@ export default function ChatPage() {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              maxLength={CHAT_QUERY_MAX}
+              aria-describedby="chat-input-count"
               placeholder="Ask a scientific research question..."
               disabled={isSending}
               className="w-full rounded-2xl py-4 pl-5 pr-14 text-sm disabled:opacity-60"
@@ -379,6 +397,9 @@ export default function ChatPage() {
             style={{ color: "var(--text-dim)" }}
           >
             Scientific answers are grounded in NASA microgravity combustion publications.
+            <span id="chat-input-count" className="ml-2" style={{ fontFamily: "var(--font-mono)" }}>
+              {query.length}/{CHAT_QUERY_MAX}
+            </span>
           </div>
         </div>
       </div>

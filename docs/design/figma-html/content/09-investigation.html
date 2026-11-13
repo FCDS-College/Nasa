@@ -1,0 +1,152 @@
+<style>
+.iv-page{width:100%;max-width:1024px;margin:0 auto;padding:32px 24px;display:flex;flex-direction:column;gap:20px}
+.iv-back{display:inline-flex;align-items:center;gap:4px;font-size:12px;line-height:16px;color:var(--text-muted)}
+.iv-head{display:flex;flex-direction:column;gap:8px}
+.iv-eyebrow{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.2em;color:var(--accent-ember);line-height:16.5px}
+.iv-h1{font-size:24px;font-weight:700;line-height:32px}
+.iv-meta{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;line-height:16px;color:var(--text-muted)}
+.iv-meta a{display:inline-flex;align-items:center;gap:4px}
+.iv-st{margin-bottom:16px}
+.iv-st h2{font-size:16px;font-weight:600;line-height:24px;color:var(--text-primary)}
+.iv-st p{margin-top:4px;font-size:12px;line-height:19.5px;color:var(--text-muted)}
+.iv-track{display:flex;align-items:center;gap:8px}
+.iv-bar{display:flex;height:10px;width:100%;overflow:hidden;border-radius:999px;background:var(--border-default)}
+.iv-score{width:40px;text-align:right;font-size:14px;font-weight:600;font-family:var(--font-mono);line-height:20px}
+.iv-leg{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;line-height:16.5px;color:var(--text-muted);margin-top:6px}
+.iv-leg span{display:inline-flex;align-items:center;gap:4px}
+.iv-leg i{width:8px;height:8px;border-radius:50%;display:inline-block}
+.iv-bul{margin-top:12px;list-style:disc;padding-left:20px;font-size:12px;line-height:19.5px;color:var(--text-secondary)}
+.iv-bul li{list-style:disc}
+.iv-note{margin-top:12px;font-size:12px;line-height:19.5px;color:var(--text-muted)}
+.iv-note em{font-style:normal;color:var(--text-secondary)}
+.iv-sec{display:flex;flex-direction:column;gap:16px}
+.iv-sec .t{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.iv-sec h3{font-size:14px;font-weight:600;line-height:20px}
+.iv-src{display:inline-flex;align-items:center;gap:4px;font-size:11px;line-height:16.5px;color:var(--accent-ember)}
+.iv-sec p{margin-top:4px;font-size:14px;line-height:22.75px;color:var(--text-secondary)}
+.iv-dl{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;font-size:14px;line-height:20px}
+.iv-dl div{border-radius:8px;padding:12px;background:var(--bg-elevated);border:1px solid var(--border-default)}
+.iv-dl dt{font-size:11px;line-height:16.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted)}
+.iv-dl dd{margin:4px 0 0;font-family:var(--font-mono);color:var(--text-primary)}
+.iv-p12{margin-top:12px;font-size:12px;line-height:19.5px;color:var(--text-muted)}
+.iv-p12.s{color:var(--text-secondary)}
+.iv-grid{display:grid;grid-template-columns:1fr;gap:12px}
+.iv-card2{display:flex;flex-direction:column;gap:10px;border-radius:12px;padding:16px;background:var(--bg-elevated);border:1px solid var(--border-default)}
+.iv-card2 .hd{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.iv-card2 h3{font-size:14px;font-weight:600;line-height:20px;color:var(--text-primary)}
+.iv-card2 p{font-size:14px;line-height:22.75px;color:var(--text-secondary)}
+.iv-card2 ul{list-style:disc;padding-left:20px;font-size:12px;line-height:19.5px;color:var(--text-muted)}
+.iv-card2 ul li{list-style:disc}
+.iv-card2 .ft{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.iv-ev{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.iv-ev .t{font-size:11px;color:var(--text-dim)}
+.iv-explain{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--accent-ember)}
+.iv-pubs{display:flex;flex-direction:column;gap:4px;font-size:12px;line-height:16px}
+.iv-pubs a{color:var(--accent-ember);word-break:break-all}
+</style>
+<div class="iv-page">
+
+  <div class="iv-back">[[icon:ArrowLeft:14]] Back to the dashboard</div>
+
+  <header class="iv-head">
+    <p class="iv-eyebrow">ISS · 2007-08-01 to 2016-07-31</p>
+    <h1 class="iv-h1">FLEX · Flame Extinguishment Experiment</h1>
+    <div class="iv-meta">
+      <span class="mono">doi:10.60555/mbq8-0451</span>
+      <span>License CC0-1.0</span>
+      <a>NASA PSI page [[icon:ExternalLink:12]]</a>
+    </div>
+  </header>
+
+  <section class="card">
+    <div class="iv-st"><h2>Relevance to: ISS cabin (nominal)</h2><p>Evidence relevance, not risk.</p></div>
+    <div class="iv-track"><div class="iv-bar"><div style="width:35%;background:#3B82F6"></div><div style="width:25%;background:#06B6D4"></div><div style="width:22%;background:#A78BFA"></div><div style="width:15%;background:#22C55E"></div></div><span class="iv-score">97</span></div>
+    <div class="iv-leg"><span><i style="background:#3B82F6"></i>O₂ match 1.00</span><span><i style="background:#06B6D4"></i>Pressure match 1.00</span><span><i style="background:#A78BFA"></i>Nearby tests 0.88</span><span><i style="background:#22C55E"></i>Outcome data 1.00</span></div>
+    <ul class="iv-bul"><li>O₂ 0.21 is inside the tested range 0.120–0.450.</li><li>Pressure 101.3 kPa is inside the tested range 41–320 kPa.</li><li>58 tests lie within ±0.03 O₂ and ±25% pressure of this atmosphere.</li><li>Each test records its end state.</li></ul>
+    <p class="iv-note"><em>ISS cabin (nominal):</em> Sea-level air at 14.7 psia, as flown on Skylab, Shuttle and ISS. Source: NASA/TM-2008-215260 (FF-NTRS-20080034883), p. 5.</p>
+  </section>
+
+  <section class="card">
+    <div class="iv-st"><h2>Summary, in NASA's words</h2><p>Verbatim from the investigation's PSI ISA-Tab metadata. Each section links to its evidence row.</p></div>
+    <div class="iv-sec">
+      <section>
+        <div class="t"><h3>Objective</h3><span class="iv-src">[[icon:FileText:12]] source</span></div>
+        <p>The Flame Extinguishment Experiment (FLEX) investigates the burning and extinction of isolated droplets of liquid fuel in microgravity. The objective is to determine how oxygen concentration, diluent type and ambient pressure affect the extinction of spherical droplet flames, and to identify the conditions in which flames can no longer be sustained.</p>
+      </section>
+      <section>
+        <div class="t"><h3>Description</h3><span class="iv-src">[[icon:FileText:12]] source</span></div>
+        <p>Fuel droplets of heptane and methanol are deployed on fibers inside the Multi-user Droplet Combustion Apparatus in the Combustion Integrated Rack aboard the International Space Station. Each droplet is ignited and allowed to burn in a controlled oxygen, nitrogen, carbon dioxide and helium mixture while video and radiometer data are recorded.</p>
+      </section>
+      <section>
+        <div class="t"><h3>Relevance to spacecraft fire safety</h3><span class="iv-src">[[icon:FileText:12]] source</span></div>
+        <p>Results define the limiting oxygen index of droplet flames in low-gravity environments and help set the fire-suppression requirements of future spacecraft.</p>
+      </section>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="iv-st"><h2>What the published flight-test table covers</h2><p>One row per droplet test; every test records its end state (extinction, disruption or completion). Pressure and oxygen are set points of the gas mixture.</p></div>
+    <dl class="iv-dl" style="margin:0">
+      <div><dt>Flight tests</dt><dd>261</dd></div>
+      <div><dt>O₂ fraction</dt><dd>0.120–0.450</dd></div>
+      <div><dt>Pressure</dt><dd>41.0–320.0 kPa</dd></div>
+      <div><dt>Flow velocity</dt><dd>0.00–0.12 m/s</dd></div>
+      <div><dt>Fuels / materials</dt><dd>2 distinct</dd></div>
+      <div><dt>End states</dt><dd>134 self-extinguished, 58 droplet disruption, 69 burned to completion</dd></div>
+    </dl>
+    <p class="iv-p12">Data-quality flags: o2 from gas mix (12), pressure rounded (6).</p>
+    <p class="iv-p12 s">Most tested: Heptane (170) · Methanol (91)</p>
+  </section>
+
+  <section class="card">
+    <div class="iv-st" style="margin-bottom:16px"><h2>Findings from this investigation's data</h2></div>
+    <div class="iv-grid">
+
+      <article class="iv-card2">
+        <div class="hd"><h3>Lower oxygen, more self-extinguishing droplet flames</h3><span class="kind measured">[[icon:Calculator:12]] Measured</span></div>
+        <p>In FLEX, 82% of 38 droplet flames at O₂ below 0.16 ended in extinction, versus 11% of 71 at O₂ of 0.30 or more.</p>
+        <ul><li>Raw shares: pressure, diluent and droplet size also differ between these groups; the outcome model separates their effects.</li><li>Evidence lists a sample of the tests' recorded end states (4 per group).</li></ul>
+        <div class="ft"><div class="iv-ev"><span class="t">Evidence:</span><span class="chip">test 0031</span><span class="chip">test 0034</span><span class="chip">test 0047</span><span class="chip">test 0052</span><span class="chip">test 0188</span><span class="chip">test 0192</span><span class="t">+2 more</span></div>
+          <span class="iv-explain">[[icon:MessageSquare:14]] Explain with cited sources</span></div>
+      </article>
+
+      <article class="iv-card2">
+        <div class="hd"><h3>Reduced-pressure droplet tests</h3><span class="kind measured">[[icon:Calculator:12]] Measured</span></div>
+        <p>24 FLEX tests ran at or below 76 kPa (exploration-like pressure); 54% ended in extinction, versus 33% of 142 tests near 1 atm.</p>
+        <ul><li>Oxygen fraction was not held constant between these groups.</li><li>Evidence lists a sample of the tests' recorded end states (4 per group).</li></ul>
+        <div class="ft"><div class="iv-ev"><span class="t">Evidence:</span><span class="chip">test 0209</span><span class="chip">test 0211</span><span class="chip">test 0216</span><span class="chip">test 0220</span><span class="chip">test 0075</span><span class="chip">test 0078</span><span class="t">+2 more</span></div>
+          <span class="iv-explain">[[icon:MessageSquare:14]] Explain with cited sources</span></div>
+      </article>
+
+      <article class="iv-card2">
+        <div class="hd"><h3>Flight tests closest to: ISS cabin (nominal)</h3><span class="kind measured">[[icon:Calculator:12]] Measured</span></div>
+        <p>58 FLEX droplet tests were flown within ±0.03 O₂ and ±25% pressure of this atmosphere (0.21 O₂, 101.3 kPa): 31 completion, 9 disruption, 18 extinction.</p>
+        <ul><li>Droplet combustion only; spacecraft materials are mostly solids.</li></ul>
+        <div class="ft"><div class="iv-ev"><span class="t">Evidence:</span><span class="chip">test 0101</span><span class="chip">test 0102</span><span class="chip">test 0104</span><span class="chip">test 0107</span><span class="chip">test 0110</span><span class="chip">test 0113</span><span class="t">+2 more</span></div>
+          <span class="iv-explain">[[icon:MessageSquare:14]] Explain with cited sources</span></div>
+      </article>
+
+      <article class="iv-card2">
+        <div class="hd"><h3>Outcome model estimate for this atmosphere</h3><span class="kind model">[[icon:FlaskConical:12]] Model estimate</span></div>
+        <p>For a 3.00 mm droplet with no added diluent at 0.21 O₂ and 101.3 kPa, the FLEX outcome model gives Heptane: 55% burned to completion, 31% self-extinguished, 14% droplet disruption; Methanol: 48% burned to completion, 40% self-extinguished, 12% droplet disruption.</p>
+        <ul><li>Model flex-outcome-rf-1.2.0: macro-F1 0.71 (baseline 0.29), extinction ROC-AUC 0.89; droplets only.</li><li>Evidence lists the nearest real flight tests and their recorded end state.</li></ul>
+        <div class="ft"><div class="iv-ev"><span class="t">Evidence:</span><span class="chip">test 0102</span><span class="chip">test 0104</span><span class="chip">test 0107</span></div>
+          <span class="iv-explain">[[icon:MessageSquare:14]] Explain with cited sources</span></div>
+      </article>
+
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="iv-st"><h2>Publications listed by NASA</h2><p>6 links from the ISA-Tab metadata.</p></div>
+    <ul class="iv-pubs">
+      <li><a>https://doi.org/10.1016/j.proci.2008.06.092</a></li>
+      <li><a>https://doi.org/10.1007/s12217-011-9261-1</a></li>
+      <li><a>https://doi.org/10.1016/j.proci.2014.05.074</a></li>
+      <li><a>https://doi.org/10.1016/j.combustflame.2017.03.021</a></li>
+      <li><a>https://doi.org/10.1007/s12217-018-9633-x</a></li>
+      <li><a>https://ntrs.nasa.gov/citations/20080034883</a></li>
+    </ul>
+  </section>
+
+</div>

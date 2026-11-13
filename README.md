@@ -26,12 +26,12 @@ Pick a spacecraft cabin atmosphere (ISS air, pre-EVA, Orion, a lunar lander, or 
 
 ## Data (all committed, all public)
 
-- **840 flight tests** from four NASA PSI investigations, CC0:
-  - FLEX (droplets), 274;
-  - BASS-II (solids), 129;
-  - SPICE (gas co-flow), 435;
-  - SAFFIRE-I (large-scale fabric), 2.
-- **NASA ISA-Tab metadata** for the same four investigations.
+- **1950 flight tests** from 19 NASA PSI combustion investigations, CC0:
+  - gas flames: SPICE (gas co-flow), 435; ACME CFI-G (normal and inverse flames), 333; ACME Flame Design, 327; ACME-CLD, 32; ACME E-FIELD, 31; ACME BRE, 18; ACME s-Flame, 18; SLICE, 12;
+  - droplets: FLEX, 274; CFI, 79; FLEX-2, 8;
+  - solids: BASS-II, 129; BASS, 122; SAFFIRE-II, 9; SAFFIRE-I, 2; SAFFIRE-III, 2;
+  - smoke: SAME-R, 109; SAME, 8; DAFT, 2.
+- **NASA ISA-Tab metadata** for these investigations (24 documents).
 - **27 NASA NTRS reports** with `PUBLIC_USE_PERMITTED` status, including the Apollo 204 Review Board report.
 - **Flight media:** a BASS-II flight video and SPICE ISS photographs, for computer vision.
 
