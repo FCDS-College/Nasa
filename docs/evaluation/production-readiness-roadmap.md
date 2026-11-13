@@ -108,5 +108,11 @@ The evaluation system is ready when all of the following hold:
 | A larger gold set raises annotation cost. | Grow in stages (38, then 60, then 100); each stage must stay human-reviewed. |
 | CI is advisory on the current plan (EV-19). | Record the decision; rely on the merge checklist until the plan changes. |
 
+## Known limitations
+- The owners and the time estimates are proposals; none has been confirmed by the people named.
+- The defects in §2 were found by reading the code and by running the suite once on 2026-11-13. D1 (the connector's endpoint shape) was not exercised against a running API in this review; confirm it with EV-01.
+- The status table in §1 uses the 2026-11-12 retrieval report and the committed baseline; it has not been refreshed with a new live run.
+- Phase 3 effort depends on EV-07 (annotation) finishing, which this roadmap cannot schedule.
+
 ## Changelog
 - 0.1.0 (2026-11-13): first draft from the full-suite run and a code review of the harness.
