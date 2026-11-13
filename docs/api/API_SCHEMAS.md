@@ -695,7 +695,7 @@ A cabin atmosphere. Quoted or derived values cite NASA/TM-2008-215260 p. 5; `his
 
 ### Coverage
 
-Scenario-level verdict (contract 0.7.0, ADR-013): does any flight test speak to this atmosphere? The relevance score of each investigation can stay above zero for an atmosphere nobody flew, so the dashboard shows this verdict, the nearest real test and the gap before the ranking. `none` when the scenario's gravity was never flown or no test lies within ±0.03 O2 (and ±25% pressure when recorded); `partial` when 1–4 such tests exist or the atmosphere is outside the flown O2 or pressure range; otherwise `covered` (5 or more).
+Scenario-level verdict (contract 0.7.0, ADR-013): does any flight test speak to this atmosphere? The relevance score of each investigation can stay above zero for an atmosphere nobody flew, so the dashboard shows this verdict, the nearest real test and the gap before the ranking. `none` when the scenario's gravity was never flown or no test lies within ±0.03 O2 (and ±25% pressure when recorded); `partial` when 1–4 such tests exist, the atmosphere is outside the flown O2 or pressure range, or fewer than 5 of those tests record a pressure within ±25% (a test with no recorded pressure, such as BASS-II or SAFFIRE, cannot show the scenario's pressure was flown); otherwise `covered`.
 
 | Field | Type | Required | Description |
 |---|---|---|---|

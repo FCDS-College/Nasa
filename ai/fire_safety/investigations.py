@@ -244,7 +244,8 @@ PRESSURE_EVIDENCE = {"FF-PSI-69": "ambient_pressure_mmhg"}
 COVERED_MIN_TESTS = 5
 COVERAGE_METHOD = ("verdict = 'none' when the scenario's gravity was never flown or no flight test lies within +/-0.03 O2 "
                    "(and +/-25% pressure when recorded) of it; 'partial' when 1-4 such tests exist or the atmosphere is "
-                   "outside the flown O2 or pressure range; otherwise 'covered' (5 or more such tests). "
+                   "outside the flown O2 or pressure range or fewer than 5 of those tests record a pressure within +/-25% (a test "
+                   "with no recorded pressure cannot show the scenario's pressure was flown); otherwise 'covered'. "
                    "nearest_test minimises sqrt((dO2/0.05)^2 + (ln(P/P_test)/0.25)^2), the scales of the relevance score.")
 
 
@@ -262,8 +263,14 @@ def coverage(by_source: dict[str, list[Canonical]], scenario: Scenario, flight_g
     nearest real test and the size of the gap, before it shows any ranking.
     """
     tests = [t for ts in by_source.values() for t in ts]
-    per_source = {sid: len(neighbours(ts, scenario)) for sid, ts in sorted(by_source.items()) if ts}
+    near_by_source = {sid: neighbours(ts, scenario) for sid, ts in sorted(by_source.items()) if ts}
+    per_source = {sid: len(near) for sid, near in near_by_source.items()}
     near_total = sum(per_source.values())
+    # Only a neighbour that records its pressure shows this pressure was flown; O2-only neighbours (BASS-II,
+    # SAFFIRE publish no pressure) count as nearby but cannot on their own make an atmosphere 'covered'.
+    pressure_matched = sum(t.pressure_kpa is not None for near in near_by_source.values() for t in near)
+    no_pressure = {sid: sum(t.pressure_kpa is None for t in near) for sid, near in near_by_source.items()}
+    no_pressure = {sid: n for sid, n in no_pressure.items() if n}
     regimes = sorted(set(flight_gravity))
     gravity_flown = scenario.gravity in regimes
     with_o2 = [t for t in tests if t.o2 is not None]
@@ -287,6 +294,10 @@ def coverage(by_source: dict[str, list[Canonical]], scenario: Scenario, flight_g
                        f"{p_range['min']:.1f}–{p_range['max']:.1f} kPa")
     if near_total == 0:
         reasons.append("no flight test lies within ±0.03 O₂ and ±25% pressure of this atmosphere")
+    if near_total and no_pressure and pressure_matched < COVERED_MIN_TESTS:
+        listed = ", ".join(f"{n} {sid}" for sid, n in no_pressure.items())
+        reasons.append(f"{sum(no_pressure.values())} of the nearby tests ({listed}) record no pressure, so they match this "
+                       f"atmosphere on O₂ only; {pressure_matched} record a pressure within ±25% of it")
 
     inside = (o2_range is not None and o2_range["min"] - 1e-9 <= scenario.o2_fraction <= o2_range["max"] + 1e-9
               and (p_range is None or p_range["min"] <= scenario.pressure_kpa <= p_range["max"]))
@@ -300,6 +311,10 @@ def coverage(by_source: dict[str, list[Canonical]], scenario: Scenario, flight_g
     elif near_total < COVERED_MIN_TESTS:
         verdict = "partial"
         headline = f"Only {near_total} of the {len(tests)} flight tests lie near this atmosphere."
+    elif pressure_matched < COVERED_MIN_TESTS:
+        verdict = "partial"
+        headline = (f"{near_total} of the {len(tests)} flight tests lie near this atmosphere on O₂, but only "
+                    f"{pressure_matched} record a pressure near it.")
     else:
         verdict = "covered"
         headline = f"{near_total} of the {len(tests)} flight tests lie near this atmosphere."
