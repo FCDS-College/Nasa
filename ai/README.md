@@ -1,6 +1,6 @@
 # ai/
 
-Evidence-first research intelligence. **Owner:** Engineer 1, with the Lead for deployment and router integration. **Status:** RAG retrieval pipeline, grounded composer, CAG and session MAG implemented; real LLM provider and API wiring pending.
+Evidence-first research intelligence. **Owner:** Engineer 1, with the Lead for deployment and router integration. **Status (2026-11-13):** the API serves `rag/retrieval/search_stack.py` (query rewrite, RRF, rerank), `rag/retrieval/evidence_window.py` and `rag/cache/cag.py`, and generates answers through `routing/` + `providers/` (Ollama, vLLM, llama.cpp, AURA). `rag/retrieval/rag_retrieval_pipeline.py`, the composer, session memory and `rag/nlp/` are library code that no API request reaches. No local language model has been run in the test environment.
 
 | Folder | Status | What goes here |
 |---|---|---|
@@ -12,7 +12,9 @@ Evidence-first research intelligence. **Owner:** Engineer 1, with the Lead for d
 | `rag/query/` | **active** | `rewrite.py`: query rewrite (original + rewritten both kept) |
 | `rag/service.py` | **active** | `FlameRAGService`: rewrite -> memory -> cache -> retrieval -> composer |
 | `interfaces.py` | **active** | ABCs: EmbeddingProvider, Retriever, Reranker, LLMProvider, CacheService, MemoryStore, AnswerComposer |
-| `orchestration/`, `routing/`, `providers/` | planned | MVP plan §14 |
+| `routing/`, `providers/` | **active** | model router (modes, circuit breaker, egress guard) and providers: Ollama, vLLM, llama.cpp, AURA, fastembed embeddings, cross-encoder reranker, CV |
+| `rag/nlp/` | **active (library, not wired)** | D1 rule-based extractors: identifiers, measurements and units, vocabulary, document class, metadata, table/figure association. No gold set yet, so no measured precision or recall |
+| `orchestration/` | planned | MVP plan §14 |
 
 Import as `from ai.rag.retrieval.hybrid_search import HybridSearchService`, running from the repo root. Tests live in `tests/unit/`; design notes live in `docs/ai/`.
 

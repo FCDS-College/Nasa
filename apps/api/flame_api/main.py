@@ -37,6 +37,8 @@ from flame_api import ai_runtime, answer_cache, clients, rate_limit, telemetry
 from flame_api.generation import CHAT_INSTRUCTIONS, answer_question
 from flame_api.knowledge_version import current_knowledge_version
 from flame_api.models import AnalysisRecord, DocumentChunk, DocumentRecord, EvidenceRecord, ExperimentCondition, ExperimentRecord, SourceRecord
+from ai.rag.retrieval.evidence_window import STOPWORDS as _CHAT_STOPWORDS
+from ai.rag.retrieval.evidence_window import best_window
 from ai.rag.retrieval.search_stack import STACK_VERSION, Candidate, RerankUnavailable, SearchStack
 from flame_api.vector_index import VectorUnavailableError, index_status, indexed_chunk_count, search_chunks
 
@@ -697,11 +699,6 @@ class ChatBody(BaseModel):
     conversation_id: str | None = Field(default=None, max_length=128)
 
 
-_CHAT_STOPWORDS = frozenset(
-    "a an and are as at be been by can could did do does for from has have how in into is it its of on or "
-    "that the their there these this to was were what when where which who why will with would about "
-    "between during after before than then them they you your tell explain describe give show find".split()
-)
 _chat_calls: deque[float] = deque()
 _chat_lock = Lock()
 
@@ -766,7 +763,29 @@ def _retrieve_passages(request: Request, session: Session, question: str):
             entry = found.setdefault(evidence_id, {"hits": 0, "order": position * 10 + item["rank"], "item": item})
             entry["hits"] += 1
     ranked = sorted(found.values(), key=lambda entry: (-entry["hits"], entry["order"]))[:6]
-    return [entry["item"] for entry in ranked], knowledge_version
+    return _with_evidence_windows(session, [entry["item"] for entry in ranked], question), knowledge_version
+
+
+def _with_evidence_windows(session: Session, items: list[dict[str, Any]], question: str) -> list[dict[str, Any]]:
+    """Give the model the part of each page that answers the question, not the page's first 400 characters.
+
+    `/api/search` keeps its 400-character snippet (it is the UI preview and part of the contract); only the
+    copies handed to generation are replaced. If the chunk text cannot be read, the snippet is used as before.
+    """
+    ids = [item["evidence_id"] for item in items if item.get("result_type") == "document" and item.get("evidence_id")]
+    if not ids:
+        return items
+    try:
+        texts = dict(session.execute(select(DocumentChunk.evidence_id, DocumentChunk.text).where(DocumentChunk.evidence_id.in_(ids))).all())
+    except SQLAlchemyError:
+        session.rollback()
+        logger.warning("chat_evidence_windows=unavailable")
+        return items
+    return [
+        {**item, "snippet": best_window(texts[item["evidence_id"]], question)}
+        if item.get("result_type") == "document" and item.get("evidence_id") in texts else item
+        for item in items
+    ]
 
 
 @app.post("/api/chat", tags=["Research"])
