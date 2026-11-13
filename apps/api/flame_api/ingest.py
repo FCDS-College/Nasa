@@ -803,6 +803,7 @@ def ingest() -> dict[str, int]:
         session.commit()
         _publish_corpus_version(session, totals)
         _build_knowledge_graph(session, totals)
+        _extract_nlp(session, totals)
         return totals
     except Exception:
         session.rollback()
@@ -825,6 +826,26 @@ def _build_knowledge_graph(session: Session, totals: dict[str, int]) -> None:
         return
     totals["graph_entities"] = counts["entities"]
     totals["graph_relations"] = counts["relations"]
+
+
+def _extract_nlp(session: Session, totals: dict[str, int]) -> None:
+    """Run the source-linked NLP extractors over the ingested chunks, then add their graph edges (D1).
+
+    Derived data, like the graph: a failure is logged and counted and never undoes the ingestion it follows
+    (`python -m flame_api.nlp_extract run` and `python -m flame_api.nlp_graph build` retry it)."""
+    from flame_api import nlp_extract, nlp_graph
+
+    try:
+        counts = nlp_extract.run(session)
+        graph_counts = nlp_graph.build_nlp_edges(session)
+    except Exception:
+        session.rollback()
+        logger.exception("nlp_extract_failed")
+        totals["nlp_extract_failed"] = 1
+        return
+    totals["nlp_records_created"] = counts.get("created", 0)
+    totals["nlp_records_superseded"] = counts.get("superseded", 0)
+    totals["nlp_graph_relations_created"] = graph_counts.get("relations_created", 0)
 
 
 def _publish_corpus_version(session: Session, totals: dict[str, int]) -> None:

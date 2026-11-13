@@ -60,3 +60,17 @@ def test_seed_vocabularies_load_and_have_no_duplicate_aliases():
         for canonical, aliases in entries.items():
             for alias in [canonical, *[a if isinstance(a, str) else a["text"] for a in aliases]]:
                 assert seen.setdefault(alias.lower(), canonical) == canonical, (record_type, alias)
+
+
+def test_an_acronym_that_is_also_a_word_is_only_matched_in_its_own_case():
+    # Investigation names such as SAME or FLEX are common English words in lower case. When the entry gives the canonical name
+    # as a case-sensitive alias, the canonical must not also be matched case-insensitively.
+    vocabulary = {"investigation": {"SAME": [{"text": "SAME", "case_sensitive": True}]}}
+    extractor = VocabularyExtractor(vocabulary, "v")
+    assert extractor.extract(_chunk("The same sample was used in the same run.")) == []
+    assert [r.text for r in extractor.extract(_chunk("The SAME experiment flew."))] == ["SAME"]
+
+
+def test_a_canonical_with_no_explicit_alias_is_still_matched_case_insensitively():
+    extractor = VocabularyExtractor({"fuel": {"methane": []}}, "v")
+    assert [r.text for r in extractor.extract(_chunk("Methane and METHANE"))] == ["Methane", "METHANE"]

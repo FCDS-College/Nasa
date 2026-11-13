@@ -52,7 +52,11 @@ class VocabularyExtractor:
             for case_sensitive in (False, True):
                 lookup: dict[str, str] = {}
                 for canonical, aliases in entries.items():
-                    lookup_entries = [(canonical, False), *(_alias_parts(alias) for alias in aliases)]
+                    parts = [_alias_parts(alias) for alias in aliases]
+                    # The canonical name is matched case-insensitively unless the entry spells it out as a case-sensitive
+                    # alias: an acronym such as SAME or FLEX is also an ordinary word in lower case.
+                    explicit = {text.lower() for text, sensitive in parts if sensitive}
+                    lookup_entries = ([] if canonical.lower() in explicit else [(canonical, False)]) + parts
                     for text, sensitive in lookup_entries:
                         if sensitive == case_sensitive:
                             lookup[text if case_sensitive else text.lower()] = canonical

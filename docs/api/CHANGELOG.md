@@ -8,6 +8,9 @@ Semver applies to `docs/api/openapi.json` `info.version`. Breaking changes need 
 
 ## Unreleased
 
+**Added**
+- Graph entity types `platform` and `instrument`, and predicates `ran_on` and `measured_with` (`GraphEntityType`, `GraphPredicate`). They appear only on edges with `extraction_method` `nlp_extraction` (migration `0010_nlp_record`), which are `unreviewed` co-occurrence associations within one page, each citing that page's evidence. Clients that switch on a predicate or entity type should treat unknown values as "other". `document describes investigation` edges can now also come from NLP (a report naming exactly one investigation on its first page).
+
 **Changed**
 - `retrieval.query_rewrite.rewriter_version` is now `1.0.1` (was `1.0.0`). The query rewriter no longer expands `psi` when it directly follows a number (`14.7 psi` is a pressure, not NASA's PSI programme). The shape of the response is unchanged.
 

@@ -10426,9 +10426,11 @@
           "fuel",
           "condition_variable",
           "phenomenon",
-          "document"
+          "document",
+          "platform",
+          "instrument"
         ],
-        "description": "E2-6 entity types. `fuel` covers fuels and solid materials, as written in the source tables."
+        "description": "E2-6 entity types. `fuel` covers fuels and solid materials, as written in the source tables. `platform` and `instrument` come only from NLP extraction (`extraction_method` `nlp_extraction`, always unreviewed until a person reviews them)."
       },
       "GraphPredicate": {
         "type": "string",
@@ -10437,7 +10439,9 @@
           "uses_fuel",
           "has_condition",
           "observed",
-          "describes"
+          "describes",
+          "ran_on",
+          "measured_with"
         ]
       },
       "GraphReviewStatus": {
