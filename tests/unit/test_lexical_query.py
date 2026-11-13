@@ -31,3 +31,7 @@ def test_the_or_query_text_is_quoted_and_cannot_inject_operators():
     assert or_tsquery_text(["flame", "n-heptane"]) == "'flame' | 'n-heptane'"
     assert or_tsquery_text(["a'b", "c|d", "e&f", "(x)"]) == "'a b' | 'c d' | 'e f' | 'x'"
     assert or_tsquery_text([]) == ""
+
+
+def test_idf_is_never_negative_even_if_the_cached_total_is_stale():
+    assert bm25_idf(5, 1) >= 0 and bm25_idf(1000, 10) >= 0

@@ -16,12 +16,13 @@ from ai.rag.retrieval.lexical_query import bm25_idf, or_tsquery_text, query_term
 
 CACHE_SECONDS = 300
 _CACHE: dict[str, tuple[float, int | None]] = {}     # term -> (when, document frequency; None = the term is a stopword)
-_TOTAL: list = [0.0, 0]
+_TOTAL: list = [None, 0]                               # [when counted (None = never), chunk count]
 
 
 def _total_chunks(session: Session) -> int:
     now = time.monotonic()
-    if now - _TOTAL[0] > CACHE_SECONDS:
+    # `None`, not 0.0: time.monotonic() counts from boot, so on a freshly started machine 0.0 would look recent.
+    if _TOTAL[0] is None or now - _TOTAL[0] > CACHE_SECONDS:
         _TOTAL[:] = [now, session.execute(text("SELECT count(*) FROM document_chunk")).scalar_one()]
     return _TOTAL[1]
 
@@ -42,7 +43,7 @@ def _document_frequency(session: Session, term: str) -> int | None:
 
 def clear_cache() -> None:
     _CACHE.clear()
-    _TOTAL[0] = 0.0
+    _TOTAL[:] = [None, 0]
 
 
 def match(session: Session, query: str):
