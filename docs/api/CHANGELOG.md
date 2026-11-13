@@ -8,7 +8,9 @@ Semver applies to `docs/api/openapi.json` `info.version`. Breaking changes need 
 
 ## Unreleased
 
-Nothing yet.
+**Added**
+- `ChatWarning` value `low_evidence_score` and setting `FLAME_CHAT_ABSTAIN_BELOW` (default unset = off): when set, `/api/chat` returns "too weak to answer from" with the closest sources, calls no model and is not cached, if the best fused score of the search for the whole question is below the value. Calibrate it with `ai.rag.evaluation.run_passage_gold`; no value is recommended until the passage gold set is verified.
+- `ChatWarning` value `answer_terms_not_in_cited_evidence` (`/api/chat`): the answer names a fuel, material, oxidizer, instrument or platform (the controlled vocabulary of `ai/rag/nlp/vocab`, with aliases) that none of the cited passages mentions. A weaker signal than a figure: it warns in `warn` and `strict` mode and never withholds the answer; answers with it are not cached.
 
 ## 0.7.0 (2026-11-13)
 
