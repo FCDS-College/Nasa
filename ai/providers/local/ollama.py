@@ -12,10 +12,15 @@ from ai.providers.http import parse_json_object, probe, request_json
 
 
 def messages_with_context(request: ChatRequest) -> list[dict[str, str]]:
-    """System messages first, then the fenced evidence as its own system message, then the rest."""
+    """Instructions (system) first, then the fenced evidence as a *user* message, then the rest.
+
+    Retrieved text never gets system privileges: a document that tries to give orders is data in a user turn,
+    escaped and fenced by ``render_context``. The evidence turn also guarantees the conversation ends with a
+    user message when a request carries only system instructions and context.
+    """
     system = [m for m in request.messages if m.role == "system"]
     rest = [m for m in request.messages if m.role != "system"]
-    ordered: list[ChatMessage] = [*system, ChatMessage("system", render_context(request.context)), *rest]
+    ordered: list[ChatMessage] = [*system, ChatMessage("user", render_context(request.context)), *rest]
     return [{"role": m.role, "content": m.content} for m in ordered]
 
 
