@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "NlpGoldCase",
+  "description": "One annotated chunk (a page of a committed NTRS PDF) for scoring the D1 NLP extractors. See docs/evaluation/annotation-guidelines.md section 4.",
+  "type": "object",
+  "properties": {
+    "gold_id": { "type": "string", "pattern": "^NG-[0-9]{3}$" },
+    "split": { "type": "string", "enum": ["dev", "validation", "holdout"] },
+    "document_id": { "type": "string", "minLength": 1 },
+    "page": { "type": ["integer", "null"], "minimum": 1 },
+    "chunk_text": { "type": "string", "minLength": 1 },
+    "annotations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "record_type": { "type": "string", "minLength": 1 },
+          "char_start": { "type": "integer", "minimum": 0 },
+          "char_end": { "type": "integer", "minimum": 1 },
+          "text": { "type": "string", "minLength": 1 },
+          "normalized": { "type": ["string", "null"] }
+        },
+        "required": ["record_type", "char_start", "char_end", "text"],
+        "additionalProperties": false
+      }
+    },
+    "annotator": { "type": "string", "minLength": 1 },
+    "rubric_version": { "type": "string" }
+  },
+  "required": ["gold_id", "split", "document_id", "page", "chunk_text", "annotations", "annotator", "rubric_version"],
+  "additionalProperties": false
+}
