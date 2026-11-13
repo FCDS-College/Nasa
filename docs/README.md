@@ -14,6 +14,7 @@
 |---|---|---|---|
 | L-1 | [ADRs 001–012](architecture/adr/README.md) | 001–012 Accepted; 006–009 built in PR #29 (index 1.4.0 lists what is still open); all signed off 2026-11-07 (Lead's confirmation) | 2026-11-12 |
 | L-2 | [Architecture overview](architecture/overview.md) | In review | 2026-10-12 |
+| — | [Workflow diagrams](architecture/WORKFLOW_DIAGRAMS.md) | Draft (20 sections, Mermaid) | 2026-11-13 |
 | L-3 | delivered as H-2 + H-4 | In review | 2026-10-12 |
 | L-4 | [openapi.json](api/openapi.json) 0.6.0, [API_SCHEMAS.md](api/API_SCHEMAS.md), [CHANGELOG](api/CHANGELOG.md) | Current | 2026-11-12 |
 | L-5 | [Index synchronization contract](architecture/index-sync-contract.md) | In review | 2026-10-12 |
