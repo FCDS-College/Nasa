@@ -48,7 +48,12 @@ def test_mirrored_psi_tables_are_ingested_with_provenance_and_stable_ids():
                 _create_table_experiments(session, file_record)
         session.commit()
         after = session.query(func.count(ExperimentRecord.experiment_id)).scalar()
-        assert after == before == 840
+        # 840 from the original four + 1118 from the 16 investigations added from the Space Apps resources page.
+        per_source = dict(session.query(ExperimentRecord.source_id, func.count()).group_by(ExperimentRecord.source_id).all())
+        assert per_source["FF-PSI-159"] == 333   # CFI-G: 154 inverse + 179 normal flames; 861 blank rows skipped
+        assert per_source["FF-PSI-99"] == 9      # SAFFIRE-II: camera-legend and note rows skipped
+        assert per_source["FF-PSI-10"] == 327    # ACME Flame Design: 120 inverse + 207 normal flames
+        assert after == before == 1958
     engine.dispose()
 
 
@@ -110,12 +115,14 @@ def test_pdf_ingestion_records_page_evidence_and_non_text_pages(tmp_path, monkey
     engine.dispose()
 
 def test_committed_psi_tables_are_present_so_a_fresh_clone_has_experiments():
-    """The 4 CC0 experimental tables and 4 ISA-Tab zips are committed (.gitignore exception)."""
+    """The CC0 experimental tables (22, from 20 investigations) and ISA-Tab zips (one per each of the 24 registered PSI
+    combustion investigations) are committed (.gitignore exception)."""
     root = Path(__file__).resolve().parents[3] / "datasets" / "raw" / "psi_api"
     tables = sorted(root.glob("PSI-*/Experimental table/*.csv"))
     metadata = sorted(root.glob("PSI-*/metadata/*.zip"))
-    assert [p.parent.parent.name for p in tables] == ["PSI-107", "PSI-25", "PSI-69", "PSI-98"]
-    assert len(metadata) == 4
+    assert len(tables) == 22
+    assert {"PSI-107", "PSI-25", "PSI-69", "PSI-98", "PSI-102", "PSI-101", "PSI-26", "PSI-159"} <= {p.parent.parent.name for p in tables}
+    assert len(metadata) == 24
 
 
 def test_isatab_metadata_becomes_a_citable_investigation_document():

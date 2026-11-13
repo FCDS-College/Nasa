@@ -457,6 +457,11 @@
         "derivedChecksum": {
           "title": "Derivedchecksum",
           "type": "string"
+        },
+        "sourceBitDepth": {
+          "default": 8,
+          "title": "Sourcebitdepth",
+          "type": "integer"
         }
       },
       "required": [
@@ -801,7 +806,7 @@
   "additionalProperties": false,
   "properties": {
     "schemaVersion": {
-      "default": "1.1.0",
+      "default": "1.3.0",
       "title": "Schemaversion",
       "type": "string"
     },
@@ -881,7 +886,7 @@
     "scientificInterpretation",
     "provenance"
   ],
-  "title": "AnalysisResult v1.1.0",
+  "title": "AnalysisResult v1.3.0",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema"
 }

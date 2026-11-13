@@ -1,5 +1,5 @@
 """
-flame_cv.py - Flame in Freefall: computer-vision pipeline (Engineer 3), v1.1.0
+flame_cv.py - Flame in Freefall: computer-vision pipeline (Engineer 3), v1.3.0
 
 Image -> Validation -> Letterbox preprocessing -> Segmentation -> Features
       -> Confidence / quality flags -> AnalysisResult (+ mask/overlay artifacts)
@@ -34,11 +34,11 @@ from pydantic import BaseModel, ConfigDict, Field
 # --------------------------------------------------------------------------------------
 # Versions
 # --------------------------------------------------------------------------------------
-SCHEMA_VERSION = "1.2.0"
-PIPELINE_VERSION = "cv-opencv-v1.2.0-auto"
-PREPROCESS_VERSION = "letterbox-lanczos-auto-v1"
+SCHEMA_VERSION = "1.3.0"
+PIPELINE_VERSION = "cv-opencv-v1.3.0-auto"
+PREPROCESS_VERSION = "letterbox-lanczos-auto-v2"  # v2: 16-bit input scaled, not clipped
 SEGMENTER_NAME = "otsu-contour-adaptive"
-SEGMENTER_VERSION = "1.2.0"
+SEGMENTER_VERSION = "1.3.0"
 
 DEFAULT_OPTIONS = {
     "runSegmentation": True,
@@ -59,18 +59,27 @@ class CVConfig:
     max_pixels: int = 100_000_000
     min_dim: int = 64
     allowed_formats: Tuple[str, ...] = ("jpeg", "png")
+    # 16-bit input is scaled linearly to 8 bits over 0..2**input_bit_depth-1 (default: the full 16-bit
+    # range). Set it when the sensor's real depth is known (e.g. 12); never stretched per image, which
+    # would turn a dark frame's readout noise into contrast.
+    input_bit_depth: Optional[int] = None
     # segmentation
     blur_kernel: Optional[int] = None
     min_threshold: Optional[int] = None  # legacy explicit floor applied on top of Otsu
     min_threshold_offset: float = 0.0
     min_area_px: Optional[int] = None  # legacy explicit minimum in processed pixels
-    min_area_ratio: float = 0.0001
+    # 0.05% of the image: above the edge specks seen in empty BASS-II frames (<= 0.031%) and below the
+    # smallest real flame in the samples (TEST_B1 ignition kernel, 0.094%). See the CV audit, CV-2.
+    min_area_ratio: float = 0.0005
     multi_flame_ratio: float = 0.20  # a 2nd blob >= 20% of the largest counts as another flame
     stability_delta: float = 0.10    # +/-10% threshold perturbation for stability IoU
     # detection decision
     min_contrast: Optional[float] = None  # legacy fixed contrast threshold
     min_contrast_factor: float = 0.1
     present_score: float = 0.60
+    min_present_stability: float = 0.5   # threshold-stability IoU required for PRESENT (real SPICE flames >= 0.56)
+    min_background_fraction: float = 0.05  # content left outside the region; below it contrast is not estimable
+    absent_confidence_cap: float = 0.9
     score_contrast_weight: float = 0.5
     score_area_weight: float = 0.3
     score_stability_weight: float = 0.2
@@ -199,6 +208,8 @@ class _M(BaseModel):
 
 
 class BoundingBox(_M):
+    """Original-image pixel coordinates."""
+
     ymin: Optional[float] = None
     xmin: Optional[float] = None
     ymax: Optional[float] = None
@@ -221,6 +232,7 @@ class PreprocessingInfo(_M):
     denoising: str
     derivedUri: str
     derivedChecksum: str
+    sourceBitDepth: int = 8
 
 
 class Detection(_M):
@@ -404,7 +416,7 @@ class ImageIntakeRecord(_M):
     derived: DerivedInfo
     source: Optional[SourceInfo] = None
     license: Optional[str] = None
-    groupId: Optional[str] = Field(default=None)
+    groupId: Optional[str] = Field(default=None, description="Experiment/run id. Split by group, never by frame, to avoid leakage.")
     split: Literal["dev", "validation", "holdout", "unassigned"] = "unassigned"
     groundTruthMaskUri: Optional[str] = None
     ingestedAt: str
@@ -579,11 +591,31 @@ def letterbox_geometry(w: int, h: int, target: int) -> Letterbox:
     return Letterbox(s, (target - nw) // 2, (target - nh) // 2, nw, nh, w, h, target)
 
 
+_SIXTEEN_BIT_MODES = ("I;16", "I;16B", "I;16L", "I;16N", "I")
+
+
+def source_bit_depth(path: Any) -> int:
+    with Image.open(path) as im:
+        return 16 if im.mode in _SIXTEEN_BIT_MODES else 8
+
+
+def _to_rgb8(im: Image.Image, cfg: CVConfig) -> Image.Image:
+    """RGB, 8 bits per channel. 16-bit greyscale is scaled linearly; ``convert("RGB")`` would clip it to white."""
+    if im.mode not in _SIXTEEN_BIT_MODES:
+        return im.convert("RGB")
+    depth = cfg.input_bit_depth or 16
+    if not 1 <= depth <= 16:
+        raise InvalidRequestError("input_bit_depth must be between 1 and 16.")
+    values = np.asarray(im, dtype=np.float64)
+    scaled = np.clip(np.round(values * 255.0 / (2 ** depth - 1)), 0, 255).astype(np.uint8)
+    return Image.fromarray(scaled, "L").convert("RGB")
+
+
 def preprocess_image(
     path: Any, out_dir: Any, cfg: CVConfig
 ) -> Tuple[np.ndarray, Letterbox, str, str]:
     with Image.open(path) as im:
-        im = ImageOps.exif_transpose(im).convert("RGB")
+        im = _to_rgb8(ImageOps.exif_transpose(im), cfg)
         orig_w, orig_h = im.size
         target_size = cfg.target_size or compute_auto_target_size(orig_w, orig_h)
         lb = letterbox_geometry(orig_w, orig_h, target_size)
@@ -634,7 +666,7 @@ def _find_main(gray_blur: np.ndarray, lb: Letterbox, cfg: CVConfig, thr: Optiona
     binm = cv2.morphologyEx(binm, cv2.MORPH_OPEN, k)
     binm = cv2.morphologyEx(binm, cv2.MORPH_CLOSE, k)
     n, labels, stats, _ = cv2.connectedComponentsWithStats(binm, connectivity=8)
-    res = {"main": None, "contour": None, "n_significant": 0, "otsu": float(otsu), "threshold": t,
+    res = {"main": None, "contour": None, "binary": binm, "n_significant": 0, "otsu": float(otsu), "threshold": t,
            "largest_area": 0}
     if n <= 1:
         return res
@@ -763,33 +795,55 @@ def _compute(req: Dict[str, Any], intake: Dict[str, Any], cfg: CVConfig, options
     elif main is not None:
         d = cfg.stability_delta
         t = seg_info["threshold"]
-        hi = _find_main(gb, lb, cfg, thr=t * (1 + d))["main"]
-        lo = _find_main(gb, lb, cfg, thr=t * (1 - d))["main"]
-        seg_conf = _iou(hi, lo)
+        # Stability of THIS region: full masks at threshold +/-d, compared inside the region's (padded) box.
+        # Comparing only the largest component would score 0 whenever two similar blobs (e.g. the two lobes
+        # of a BASS-II flame) swap places as the largest, although the segmentation itself is stable.
+        hi = _find_main(gb, lb, cfg, thr=t * (1 + d))["binary"]
+        lo = _find_main(gb, lb, cfg, thr=t * (1 - d))["binary"]
+        bx, by, bw, bh = cv2.boundingRect(cnt)
+        px, py = max(2, bw // 10), max(2, bh // 10)
+        win = (slice(max(0, by - py), by + bh + py), slice(max(0, bx - px), bx + bw + px))
+        seg_conf = _iou(hi[win], lo[win])
 
         sel = main > 0
         ring = cv2.dilate(main, np.ones((7, 7), np.uint8), iterations=2)
         outside_sel = (content > 0) & (ring == 0)
         inside_mean = float(gray[sel].mean())
-        outside_mean = float(gray[outside_sel].mean()) if outside_sel.any() else 0.0
-        contrast = inside_mean - outside_mean
-        background_std = float(gray[outside_sel].std()) if outside_sel.any() else 10.0
-        min_contrast = cfg.min_contrast if cfg.min_contrast is not None else max(
-            15.0, background_std * cfg.min_contrast_factor)
         area_frac = float(sel.sum()) / float(lb.new_w * lb.new_h)
-        score = (
-            cfg.score_contrast_weight * _clip01(contrast / 120.0)
-            + cfg.score_area_weight * _clip01(area_frac / 0.002)
-            + cfg.score_stability_weight * seg_conf
-        )
+        background_frac = float(outside_sel.sum()) / float(lb.new_w * lb.new_h)
+        area_and_stability = (cfg.score_area_weight * _clip01(area_frac / 0.002)
+                              + cfg.score_stability_weight * seg_conf)
 
-        if score >= cfg.present_score and contrast >= min_contrast:
-            status, det_conf = "PRESENT", _clip01(score)
-        elif contrast >= min_contrast / 2:
-            status, det_conf = "UNCERTAIN", _clip01(score)
-            warnings.append("Detection UNCERTAIN: low contrast or small/unstable region; treat measurements with caution.")
+        contrast: Optional[float] = None
+        if background_frac < cfg.min_background_fraction:
+            # Nothing left to compare against: contrast is not estimable, so the region cannot be called a flame.
+            spread = p995 - float(np.percentile(content_gray, 100.0 - cfg.lowlight_percentile_threshold))
+            if spread < 15.0:
+                status = "ABSENT"
+                det_conf = min(cfg.absent_confidence_cap,
+                               _clip01(1 - cfg.score_contrast_weight * _clip01(spread / 120.0)))
+                warnings.append(f"The image is nearly uniform ({spread:.0f} gray levels between the 0.5th and 99.5th "
+                                "percentiles): no region stands out from a background.")
+            else:
+                status, det_conf = "UNCERTAIN", _clip01(area_and_stability)
+                warnings.append(f"Detection UNCERTAIN: the bright region fills {100 * (1 - background_frac):.0f}% of "
+                                "the image, leaving no background to measure contrast against.")
         else:
-            status, det_conf = "ABSENT", min(0.9, _clip01(1 - score))
+            contrast = inside_mean - float(gray[outside_sel].mean())
+            min_contrast = cfg.min_contrast if cfg.min_contrast is not None else max(
+                15.0, float(gray[outside_sel].std()) * cfg.min_contrast_factor)
+            score = cfg.score_contrast_weight * _clip01(contrast / 120.0) + area_and_stability
+            if score >= cfg.present_score and contrast >= min_contrast and seg_conf >= cfg.min_present_stability:
+                status, det_conf = "PRESENT", _clip01(score)
+            elif score >= cfg.present_score and contrast >= min_contrast:
+                status, det_conf = "UNCERTAIN", _clip01(score)
+                warnings.append(f"Detection UNCERTAIN: the region is not stable under a +/-{100 * d:.0f}% threshold "
+                                f"change (IoU {seg_conf:.2f} < {cfg.min_present_stability:g}).")
+            elif contrast >= min_contrast / 2:
+                status, det_conf = "UNCERTAIN", _clip01(score)
+                warnings.append("Detection UNCERTAIN: low contrast or small/unstable region; treat measurements with caution.")
+            else:
+                status, det_conf = "ABSENT", min(cfg.absent_confidence_cap, _clip01(1 - score))
 
         edge = main.astype(np.int16) - cv2.erode(main, np.ones((3, 3), np.uint8)).astype(np.int16)
         gx = cv2.Sobel(gray.astype(np.float32), cv2.CV_32F, 1, 0, ksize=3) / 8.0
@@ -804,14 +858,17 @@ def _compute(req: Dict[str, Any], intake: Dict[str, Any], cfg: CVConfig, options
                    x + w >= lb.pad_x + lb.new_w - m or y + h >= lb.pad_y + lb.new_h - m)
         flags.update(blur=bgrad < cfg.blur_gradient_min, saturationClipping=clip_frac > cfg.clip_fraction,
                      occlusion=bool(touches))
-        metrics.update(boundaryGradient=round(bgrad, 2), flameContrast=round(contrast, 2),
+        metrics.update(boundaryGradient=round(bgrad, 2),
+                       flameContrast=round(contrast, 2) if contrast is not None else None,
                        clippedFraction=round(clip_frac, 4))
     else:
-        det_conf = 0.9
+        # No candidate region. Confidence that nothing is there falls with the brightest content left in
+        # the frame (the same contrast term the detector would have scored).
+        clutter = cfg.score_contrast_weight * _clip01((p995 - median_intensity) / 120.0)
+        det_conf = min(cfg.absent_confidence_cap, _clip01(1 - clutter))
 
     if status == "ABSENT":
         main = cnt = None
-        det_conf = det_conf or 0.9
         seg_conf = 0.0
         warnings.append("No flame-like bright region detected; no measurements were produced.")
 
@@ -872,7 +929,8 @@ def _compute(req: Dict[str, Any], intake: Dict[str, Any], cfg: CVConfig, options
             padX=lb.pad_x, padY=lb.pad_y, originalWidth=lb.orig_w, originalHeight=lb.orig_h,
             contentWidth=lb.new_w, contentHeight=lb.new_h,
             denoising=f"none on derived image; segmentation uses a {k}x{k} Gaussian on a copy",
-            derivedUri=derived_path, derivedChecksum=derived_sha),
+            derivedUri=derived_path, derivedChecksum=derived_sha,
+            sourceBitDepth=source_bit_depth(intake["originalPath"])),
         detection=Detection(status=status, confidence=round(det_conf, 3), boundingBox=bbox, modelName=SEGMENTER_NAME,
                             modelVersion=SEGMENTER_VERSION, modelDigest=cfg.digest()),
         segmentation=seg,
@@ -883,7 +941,8 @@ def _compute(req: Dict[str, Any], intake: Dict[str, Any], cfg: CVConfig, options
             qualityMetrics=QualityMetrics(brightnessP995=round(p995, 2),
                                           significantComponents=int(seg_info["n_significant"]), **metrics)),
         scientificInterpretation=ScientificInterpretation(
-            classification="MEASURED", calibrationState="SCALE_ONLY" if mm is not None else "ABSENT",
+            classification="MEASURED" if geometry is not None else "INFERRED",
+            calibrationState="SCALE_ONLY" if mm is not None else "ABSENT",
             fieldLabels=labels, warnings=warnings),
         provenance=Provenance(
             inputUri=intake["originalPath"], inputChecksum=intake["sha256"], pipelineVersion=PIPELINE_VERSION,

@@ -6,7 +6,7 @@
 
 ## 1. Scope
 
-Only the Otsu/contour baseline (`cv/flame_cv.py`) and the video pipeline built on it are supported capabilities. The CNN (`cv/cnn_pipeline.py`) and PINN (`cv/pinn_pipeline.py`) modules are **unvalidated prototypes**: they are optional in the manifest and are not registered models. Video ingestion, temporal analysis, resumable processing and audio transcription are **not implemented** and not in scope here.
+Only the Otsu/contour baseline (`cv/flame_cv.py`) and the video pipeline built on it are supported capabilities. The CNN (`cv/cnn_pipeline.py`) and PINN (`cv/pinn_pipeline.py`) modules are **unvalidated prototypes**: they are optional in the manifest and are not registered models. Video ingestion, temporal analysis and resumable processing are implemented (see [video-ingestion.md](video-ingestion.md)). Audio transcription is implemented but optional and off by default (`FLAME_TRANSCRIPTION_ENABLED`); with no cached model it reports `model_missing` and never downloads offline ([audio-transcription.md](audio-transcription.md)).
 
 The baseline uses no network, no external CV provider and no downloaded weights. RGB values do not establish calibrated temperature; a local language model may interpret documented measurements but must not replace or override CV computation.
 

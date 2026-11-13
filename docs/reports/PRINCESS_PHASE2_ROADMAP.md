@@ -86,7 +86,7 @@ The weeks below follow the sequence and due-week labels in the requirements docu
 - [ ] **E3-10:** Create `docs/cv/offline-operation.md` with every CV/video dependency, offline installation and verification procedures, weight checksums/sizes, OpenCV/PyTorch builds, codecs, local-provider enforcement, missing/corrupt capability behavior, resource limits, and controlled errors.
 - [ ] Specify resumable video processing checkpoints, restart behavior, and recoverable job states in coordination with the Lead's job infrastructure.
 - [ ] State that local language models may interpret documented measurements but cannot replace or override CV computation; RGB does not establish calibrated temperature.
-- [ ] Record whether local audio extraction/transcription is in scope; if it is not, state that explicitly.
+- [x] Record whether local audio extraction/transcription is in scope; if it is not, state that explicitly. (2026-11-13: in scope as an optional, off-by-default step; 11 of 17 BASS-II videos carry operator speech. See `docs/cv/audio-transcription.md`.)
 - [ ] Update E3-1 provider selection/offline behavior, E3-5 offline install details, E3-6 local paths and resumability, and E3-9 CPU/offline measurements.
 - [ ] **H-1:** Review and sign off the CV dependency-audit entries.
 - [ ] **H-3:** Supply and sign off the CV model-registry entries.

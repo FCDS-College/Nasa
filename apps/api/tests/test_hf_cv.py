@@ -109,8 +109,14 @@ def test_hf_space_endpoint_returns_analysis_and_artifacts(tmp_path, monkeypatch)
     sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
     from cv.hf_space.app import app
 
+    from PIL import ImageDraw
+
+    # A flame-shaped blob on a dark background. A frame filled edge to edge with one colour has no
+    # background to measure contrast against, so it is (correctly) not reported as a flame.
+    flame = Image.new("RGB", (64, 64), (8, 8, 12))
+    ImageDraw.Draw(flame).ellipse((20, 14, 44, 50), fill=(255, 90, 15))
     image = io.BytesIO()
-    Image.new("RGB", (64, 64), (255, 90, 15)).save(image, format="PNG")
+    flame.save(image, format="PNG")
     response = TestClient(app).post(
         "/api/analyze",
         files={"image": ("flame.png", image.getvalue(), "image/png")},

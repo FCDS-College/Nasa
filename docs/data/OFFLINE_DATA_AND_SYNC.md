@@ -58,9 +58,11 @@ docker compose -f infrastructure/compose.yaml exec -T postgres pg_dump -U flame 
 # restore into a fresh database
 docker compose -f infrastructure/compose.yaml exec -T postgres createdb -U flame flame_restore
 docker compose -f infrastructure/compose.yaml exec -T postgres pg_restore -U flame -d flame_restore --no-owner < flame-YYYY-MM-DD.dump
-# MinIO bucket
-docker run --rm --network flame-in-freefall_default -v "$PWD/minio-backup:/backup" minio/mc:RELEASE.2025-02-08T19-14-21Z \
-  sh -c 'mc alias set l http://minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" && mc mirror l/flame-artifacts /backup'
+# S3 artifact bucket (the `minio` service is SeaweedFS's S3 gateway; same image as `minio-init`)
+docker run --rm --network flame-in-freefall_default -v "$PWD/s3-backup:/backup" \
+  -e AWS_ACCESS_KEY_ID="$MINIO_ROOT_USER" -e AWS_SECRET_ACCESS_KEY="$MINIO_ROOT_PASSWORD" -e AWS_DEFAULT_REGION=us-east-1 \
+  amazon/aws-cli@sha256:acc32af784911165a8e78b63950625d174ba79b800a66a436c974689c87cd755 \
+  --endpoint-url http://minio:9000 s3 sync s3://flame-artifacts /backup
 # Model volumes (H-6 §4)
 docker run --rm -v flame-in-freefall_model-cache:/m -v "$PWD:/b" alpine tar cf /b/model-cache.tar /m
 docker run --rm -v flame-in-freefall_ollama-models:/m -v "$PWD:/b" alpine tar cf /b/ollama-models.tar /m

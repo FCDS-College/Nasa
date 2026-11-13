@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "VideoAnalysisResult v1.3.0",
+  "title": "VideoAnalysisResult v1.4.0",
   "type": "object",
   "properties": {
     "schemaVersion": {
@@ -50,6 +50,79 @@
         "durationSeconds",
         "resolution"
       ]
+    },
+    "overlayMask": {
+      "type": "object",
+      "description": "v1.4.0: burned-in text overlay excluded before segmentation (cv/overlay_mask.py). Masked pixels are set to black on a copy of each frame; the source video is never modified.",
+      "required": [
+        "enabled",
+        "method",
+        "lines",
+        "pixelFraction"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "method": {
+          "type": "string"
+        },
+        "lines": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "xmin",
+              "ymin",
+              "xmax",
+              "ymax"
+            ],
+            "properties": {
+              "xmin": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "ymin": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "xmax": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "ymax": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "glyphs": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        },
+        "pixelFraction": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "threshold": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "sampledFrames": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "uri": {
+          "type": "string"
+        },
+        "checksum": {
+          "type": "string"
+        }
+      }
     },
     "frameMeasurements": {
       "type": "array",

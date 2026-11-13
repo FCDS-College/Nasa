@@ -88,7 +88,7 @@ Local models (optional) ── Ollama / llama.cpp / vLLM behind ai/routing (mode
 
 ## 5. Contracts and integrations
 
-- **REST contract.** `docs/api/openapi.json` 0.6.0 is hand-authored (ADR-010). Route ↔ contract parity and schema validation of live responses are tested. Changelog: `docs/api/CHANGELOG.md`.
+- **REST contract.** `docs/api/openapi.json` 0.7.0 is hand-authored (ADR-010). Route ↔ contract parity and schema validation of live responses are tested. Changelog: `docs/api/CHANGELOG.md`.
 - **AURA (Link 2).** AURA's OpenAPI discovery compiles the GET operations into tools. At the pinned AURA revision `667c7c4` (AURA `main`, 2026-11-12; `d696fad` before), 16 tools are accepted, including `api_list_investigations`, `api_get_investigation`, `api_list_insights`, `api_estimate_flex_outcome` and the two knowledge-graph reads. Chat, cancel and admin operations carry `x-aura-exclude` (10 operations).
 - **AURA (Link 1).** Flame's evidence travels in AURA's `context`, which AURA classifies as SENSITIVE. Only an AURA model allowed SENSITIVE content can answer: a local one by default. Otherwise AURA returns 503 `capability_unavailable` and Flame falls back. Flame skips AURA while AURA reports `local_healthy: false` and Flame requires local ([integration README](docs/integration/README.md) §5).
 - **Model routing.** `ai/routing` routes chat, embeddings and vision to local or cloud providers with health checks, circuit breakers and audited mode switches.

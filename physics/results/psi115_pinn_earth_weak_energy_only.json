@@ -1,0 +1,102 @@
+{
+  "case": "psi115-case1-earth",
+  "buoyancy": -6.164299488067627,
+  "expected_buoyancy": -6.744375000000001,
+  "inverse_peclet": 0.054626673460006714,
+  "nominal_inverse_peclet": 0.06315922440472431,
+  "rmse": {
+    "u": 0.026561956852674484,
+    "v": 0.02103295549750328,
+    "T": 0.008071915246546268
+  },
+  "history": [
+    {
+      "step": 500,
+      "data_loss": 0.005800346378237009,
+      "physics_loss": 0.0,
+      "buoyancy": 0.0,
+      "inverse_peclet": 0.09999999403953552
+    },
+    {
+      "step": 1000,
+      "data_loss": 0.0025266220327466726,
+      "physics_loss": 0.0,
+      "buoyancy": 0.0,
+      "inverse_peclet": 0.09999999403953552
+    },
+    {
+      "step": 1500,
+      "data_loss": 0.0013793722027912736,
+      "physics_loss": 0.0,
+      "buoyancy": 0.0,
+      "inverse_peclet": 0.09999999403953552
+    },
+    {
+      "step": 2000,
+      "data_loss": 0.0010140474187210202,
+      "physics_loss": 0.050580985844135284,
+      "buoyancy": -4.871583938598633,
+      "inverse_peclet": 0.05618895962834358
+    },
+    {
+      "step": 2500,
+      "data_loss": 0.0007998508517630398,
+      "physics_loss": 0.06058775261044502,
+      "buoyancy": -5.897047996520996,
+      "inverse_peclet": 0.051992837339639664
+    },
+    {
+      "step": 3000,
+      "data_loss": 0.0006149469991214573,
+      "physics_loss": 0.06429911404848099,
+      "buoyancy": -6.04760217666626,
+      "inverse_peclet": 0.05132643133401871
+    },
+    {
+      "step": 3500,
+      "data_loss": 0.000597591744735837,
+      "physics_loss": 0.06046367064118385,
+      "buoyancy": -6.129373073577881,
+      "inverse_peclet": 0.05002829432487488
+    },
+    {
+      "step": 4000,
+      "data_loss": 0.0006241193041205406,
+      "physics_loss": 0.0467725433409214,
+      "buoyancy": -6.150546073913574,
+      "inverse_peclet": 0.05338761582970619
+    },
+    {
+      "step": 4500,
+      "data_loss": 0.0005350366700440645,
+      "physics_loss": 0.024657612666487694,
+      "buoyancy": -6.164299488067627,
+      "inverse_peclet": 0.054626673460006714
+    }
+  ],
+  "config": {
+    "hidden": 64,
+    "layers": 5,
+    "n_data": 4096,
+    "n_colloc": 2048,
+    "energy_form": "weak",
+    "n_cells": 512,
+    "cell_half_width": [
+      0.25,
+      0.6
+    ],
+    "warmup_steps": 1500,
+    "steps": 3000,
+    "lr": 0.002,
+    "coeff_lr": 0.02,
+    "data_weight": 10.0,
+    "physics_weight": 0.05,
+    "viscosity_exponent": 0.7,
+    "infer_buoyancy": true,
+    "infer_peclet": true,
+    "init_buoyancy": 0.0,
+    "init_inverse_peclet": 0.1,
+    "seed": 0,
+    "log_every": 500
+  }
+}

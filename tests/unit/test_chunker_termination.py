@@ -2,12 +2,15 @@
 
 Before the fix, a short word followed by a long unbroken token sent `start` negative and the loop never advanced.
 """
+import faulthandler
 import random
 import signal
 
 import pytest
 
 from ai.rag.ingestion.chunker import SimpleChunker
+
+TIMEOUT_S = 5
 
 
 class _Hang(Exception):
@@ -16,15 +19,25 @@ class _Hang(Exception):
 
 @pytest.fixture(autouse=True)
 def _fail_instead_of_hanging():
-    """A regression must fail this test, not freeze the suite (POSIX only; CI runs on Linux)."""
-    def handler(signum, frame):
-        raise _Hang("SimpleChunker did not terminate within 5 s")
+    """A regression must fail this test, not freeze the suite.
 
-    previous = signal.signal(signal.SIGALRM, handler)
-    signal.alarm(5)
-    yield
-    signal.alarm(0)
-    signal.signal(signal.SIGALRM, previous)
+    POSIX (CI runs on Linux): SIGALRM raises inside the test, so only that test fails.
+    Windows has no SIGALRM: faulthandler dumps every thread's traceback and ends the run instead,
+    which still turns an infinite loop into a visible failure rather than a frozen suite.
+    """
+    if hasattr(signal, "SIGALRM"):
+        def handler(signum, frame):
+            raise _Hang(f"SimpleChunker did not terminate within {TIMEOUT_S} s")
+
+        previous = signal.signal(signal.SIGALRM, handler)
+        signal.alarm(TIMEOUT_S)
+        yield
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, previous)
+    else:
+        faulthandler.dump_traceback_later(TIMEOUT_S, exit=True)
+        yield
+        faulthandler.cancel_dump_traceback_later()
 
 
 def _chunk(text, size=500, overlap=50):
