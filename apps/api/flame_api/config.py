@@ -114,6 +114,11 @@ class Settings(BaseSettings):
     # `python -m flame_api.vector_index build-windows`, falls back to "page" when there are no windows. Default "page" until the
     # passage-level gold set (>= 20 verified questions) shows a difference.
     dense_granularity: Literal["page", "window"] = "page"
+    # Roadmap item 8 (abstention). None: no gate. A number: `/api/chat` answers "too weak" without calling a model when the best fused score of
+    # the search for the whole question is below it. That score is the agreement of the lexical and dense legs (at most about 0.033), not a
+    # relevance probability. Choose it with `ai.rag.evaluation.run_passage_gold run --mode chat` and `calibrate`, which need 20 verified
+    # answerable and 8 verified unanswerable passage-gold cases; do not set it from a guess.
+    chat_abstain_below: float | None = Field(default=None, ge=0, le=1)
     otel_enabled: bool = False
     otel_service_name: str = "flame-api"
     cv_provider: Literal["local", "hf_space"] = "local"

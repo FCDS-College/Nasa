@@ -37,6 +37,30 @@ def _perturb(sentence: str) -> str | None:
     return None
 
 
+def _swap_term(sentence: str, page_text: str) -> str | None:
+    """Replace the first controlled-vocabulary name in `sentence` with another name of the same type that the page never mentions."""
+    from ai.rag.verification.support import _default_term_extractor
+
+    extractor = _default_term_extractor()
+    records = extractor.extract(_chunk_of(sentence))
+    if not records:
+        return None
+    first = records[0]
+    page_lower = page_text.lower()
+    from ai.rag.nlp.vocab import load_vocabulary
+
+    candidates = [name for name in load_vocabulary()[first.record_type] if name != first.normalized and name.lower() not in page_lower]
+    if not candidates:
+        return None
+    return sentence[:first.char_start] + sorted(candidates)[0] + sentence[first.char_end:]
+
+
+def _chunk_of(text: str):
+    from ai.rag.nlp.records import ChunkInput
+
+    return ChunkInput("selfcheck", "selfcheck", "v1", None, text)
+
+
 def sentences(text: str) -> list[str]:
     flat = re.sub(r"\s+", " ", text)
     return [s.strip() for s in re.split(r"(?<=[.!?])\s+(?=[A-Z])", flat) if 25 <= len(s) <= 400 and _FIGURE.search(s)]
@@ -60,13 +84,27 @@ def run(pdf_dir: Path, limit: int | None = None) -> dict:
                     break
             if limit and n >= limit:
                 break
+    term_written, term_swapped = [], []
+    for path in sorted(Path(pdf_dir).glob("*.pdf")):
+        for page in indexed_pages(path):
+            passage = [{"id": "P", "text": page["indexed"]}]
+            for sentence in re.split(r"(?<=[.!?])\s+(?=[A-Z])", re.sub(r"\s+", " ", page["indexed"])):
+                if not 25 <= len(sentence) <= 400:
+                    continue
+                swapped = _swap_term(sentence, page["indexed"])
+                if swapped is None:
+                    continue
+                term_written.append(1.0 if check_answer_support(sentence, passage, cited_ids=["P"]).terms else 0.0)
+                term_swapped.append(1.0 if check_answer_support(swapped, passage, cited_ids=["P"]).terms else 0.0)
     def summary(values: list[float]) -> dict:
         if not values:
             return {"rate": None}
         low, high = bootstrap_ci(values)
         return {"rate": round(sum(values) / len(values), 4), "ci95": [round(low, 4), round(high, 4)]}
     return {"checker": CHECK_VERSION, "sentences": n, "false_positive_rate": summary(flagged_as_written),
-            "detection_rate_on_perturbed_figures": summary(flagged_perturbed)}
+            "detection_rate_on_perturbed_figures": summary(flagged_perturbed),
+            "term_sentences": len(term_written), "term_false_positive_rate": summary(term_written),
+            "term_detection_rate_on_swapped_names": summary(term_swapped)}
 
 
 def main(argv: list[str]) -> int:

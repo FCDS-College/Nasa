@@ -21,8 +21,9 @@ import numpy as np
 
 from cv.flame_cv import (CVError, DecodeError, FileMissingError, FileTooLargeError, InvalidRequestError,
                          UnsupportedMediaError, posix)
+from cv.overlay_mask import OverlayMaskConfig
 
-VIDEO_PIPELINE_VERSION = "cv-video-v1.0.0"
+VIDEO_PIPELINE_VERSION = "cv-video-v1.1.0"
 ALLOWED_EXTENSIONS = (".mp4", ".avi", ".mov")
 ALLOWED_CODECS = ("avc1", "h264", "x264", "hev1", "hvc1", "hevc", "h265")
 
@@ -40,6 +41,8 @@ class VideoConfig:
     sample_every: int = 1
     max_frames: Optional[int] = None
     vfr_tolerance_frames: float = 0.5
+    # Burned-in text overlays are excluded before segmentation (cv/overlay_mask.py).
+    overlay: OverlayMaskConfig = field(default_factory=OverlayMaskConfig)
 
 
 @dataclass

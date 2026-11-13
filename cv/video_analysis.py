@@ -19,14 +19,16 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
 import cv2
+import numpy as np
 
 from cv.flame_cv import (PIPELINE_VERSION, CVConfig, CVError, ErrorDetail, ErrorResponse, analyze_image_safe,
                          atomic_write_text, posix, sha256_file, utc_now)
+from cv.overlay_mask import apply_overlay_mask, build_overlay_mask
 from cv.temporal_analysis import TemporalConfig, summarize
 from cv.video_ingestion import (VIDEO_PIPELINE_VERSION, VideoConfig, iter_frames, probe_video, public_record,
                                 sampled_indexes)
 
-VIDEO_SCHEMA_VERSION = "1.3.0"
+VIDEO_SCHEMA_VERSION = "1.4.0"
 FrameAnalyzer = Callable[..., Dict[str, Any]]
 # Called once when the run starts ({"event": "start", ...}) and after each frame is checkpointed
 # ({"event": "frame", "row": ...}); both carry videoId, digest, total and done. An exception raised
@@ -61,6 +63,21 @@ def _measurement(frame, result: Dict[str, Any]) -> Dict[str, Any]:
     if all(box.get(k) is not None for k in ("xmin", "ymin", "xmax", "ymax")):
         rec["boundingBox"] = {k: box[k] for k in ("xmin", "ymin", "xmax", "ymax")}
     return rec
+
+
+def _overlay_mask(video_path: Any, record: Dict[str, Any], vcfg: VideoConfig, job_dir: Path):
+    """Build the overlay mask from frames sampled across the whole video; write it as an artifact."""
+    ocfg = vcfg.overlay
+    if not ocfg.enabled:
+        return None, build_overlay_mask(np.zeros((1, 1, 1), np.uint8), ocfg)[1]
+    every = max(1, record["frameCount"] // max(1, ocfg.sample_frames))
+    sampler = VideoConfig(allowed_codecs=None, sample_every=every, max_frames=ocfg.sample_frames)
+    gray = np.stack([cv2.cvtColor(f.image, cv2.COLOR_BGR2GRAY) for f in iter_frames(video_path, record, sampler)])
+    mask, info = build_overlay_mask(gray, ocfg)
+    mask_path = job_dir / "overlay_mask.png"
+    cv2.imwrite(str(mask_path), mask)
+    info.update(uri=posix(mask_path), checksum=sha256_file(mask_path))
+    return (mask if mask.any() else None), info
 
 
 def _load_checkpoint(path: Path) -> List[Dict[str, Any]]:
@@ -113,6 +130,9 @@ def analyze_video(video_path: Any, work_dir: Any, cfg: Optional[CVConfig] = None
     atomic_write_text(state_path, json.dumps({"digest": digest, "status": "RUNNING", "videoId": record["videoId"],
                                               "updatedAt": utc_now()}, indent=2))
 
+    # Deterministic for a given video and config (both are in the digest), so a resumed run rebuilds the same mask.
+    overlay_mask, overlay_info = _overlay_mask(video_path, record, video_cfg, job_dir)
+
     total = len(sampled_indexes(record["frameCount"], video_cfg))
     done_idx = {r["frameIndex"] for r in done}
     progress = {"videoId": record["videoId"], "digest": digest, "total": total}
@@ -125,7 +145,8 @@ def analyze_video(video_path: Any, work_dir: Any, cfg: Optional[CVConfig] = None
         with open(ckpt_path, "a", encoding="utf-8") as f:
             for frame in iter_frames(video_path, record, video_cfg, skip=done_idx):
                 img_path = frames_dir / f"{frame.frameId}.png"
-                cv2.imwrite(str(img_path), frame.image)
+                image = frame.image if overlay_mask is None else apply_overlay_mask(frame.image, overlay_mask)
+                cv2.imwrite(str(img_path), image)
                 result = analyzer({"requestId": frame.frameId, "imageId": frame.frameId, "imagePath": str(img_path)},
                                   cv_dir, masks_dir, cfg=cfg)
                 row = _measurement(frame, result)
@@ -147,6 +168,7 @@ def analyze_video(video_path: Any, work_dir: Any, cfg: Optional[CVConfig] = None
         "lineage": {k: v for k, v in public_record(record).items()
                     if k in ("checksum", "sourcePath", "sizeBytes", "container", "codec", "sourceFrameCount",
                              "timestamps", "sampling")},
+        "overlayMask": overlay_info,
         "frameMeasurements": measurements,
         "temporalSummary": summary,
         "provenance": {"createdAt": utc_now(), "cvPipelineVersion": PIPELINE_VERSION,

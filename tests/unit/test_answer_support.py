@@ -76,3 +76,43 @@ def test_the_self_check_perturbs_a_figure_and_splits_sentences():
     assert _perturb("No figures here.") is None
     assert sentences("Too short 5. The flame speed was measured as 3.2 cm/s in the chamber. Next one!") == [
         "The flame speed was measured as 3.2 cm/s in the chamber."]
+
+
+# --- named things (fuels, materials, oxidizers, instruments, platforms), not just figures --------------------------------------
+
+def test_a_fuel_named_in_the_answer_but_absent_from_the_cited_evidence_is_flagged():
+    passages = [{"id": "E9", "text": "Methane flames were imaged with a high-speed camera in the drop tower."}]
+    report = check_answer_support("Propane burned more slowly.", passages, cited_ids=["E9"])
+    assert [(u.text, u.kind) for u in report.unsupported] == [("Propane", "term")]
+    assert check_answer_support("Methane burned more slowly.", passages, cited_ids=["E9"]).supported
+
+
+def test_an_alias_of_a_supported_name_is_supported():
+    passages = [{"id": "E9", "text": "Samples of PMMA were burned."}]
+    assert check_answer_support("The acrylic samples burned.", passages, cited_ids=["E9"]).supported
+    assert not check_answer_support("The cellulose samples burned.", passages, cited_ids=["E9"]).supported
+
+
+def test_a_name_in_the_question_or_only_in_an_uncited_passage():
+    passages = [{"id": "E1", "text": "Ethanol pool fires were studied."}, {"id": "E2", "text": "Hydrogen jets were studied."}]
+    assert check_answer_support("Hydrogen was not covered.", passages, cited_ids=["E1"], question="What about hydrogen?").supported
+    assert [u.text for u in check_answer_support("Hydrogen was used.", passages, cited_ids=["E1"]).unsupported] == ["Hydrogen"]
+
+
+def test_generic_words_and_physical_quantities_are_not_checked_as_names():
+    passages = [{"id": "E1", "text": "The flame was photographed."}]
+    assert check_answer_support("Ignition and extinction pressure were discussed; the temperature rose.", passages, cited_ids=["E1"]).supported
+
+
+def test_report_separates_figures_from_names():
+    report = check_answer_support("Propane burned at 9.9 cm/s.", [{"id": "E1", "text": "Methane burned at 3.2 cm/s."}], cited_ids=["E1"])
+    assert {u.kind for u in report.unsupported} == {"term", "measurement"}
+    assert [u.text for u in report.figures] == ["9.9 cm/s"] and [u.text for u in report.terms] == ["Propane"]
+
+
+def test_the_self_check_swaps_a_name_for_one_the_page_never_mentions():
+    from ai.rag.evaluation.support_selfcheck import _swap_term
+
+    swapped = _swap_term("Methane flames were imaged.", "Methane flames were imaged with a camera.")
+    assert swapped is not None and "Methane" not in swapped and swapped.endswith("flames were imaged.")
+    assert _swap_term("No named thing here.", "anything") is None

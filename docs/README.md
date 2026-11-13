@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Lead (Anas) | Current; kept current on every PR (PR template checkbox) | 1.3.0 | 2026-11-13 | G-1, G-3 | — |
+| Lead (Anas) | Current; kept current on every PR (PR template checkbox) | 1.3.1 | 2026-11-13 | G-1, G-3 | — |
 
 **Status key:** Draft → In review → Approved. "Due Wn" means the document doesn't exist yet and is due in Phase 2 week n. "On branch X" means it exists only on that engineer's branch. Requirements per engineer:
 - `docs/reports/DOC_REQUIREMENTS_Lead.md` and `DOC_REQUIREMENTS_Anas.md` on `main`;
@@ -68,8 +68,9 @@
 |---|---|---|
 | **Apollo 1 scenario and pitch (2026-11-13):** [analysis](reports/APOLLO1_SCENARIO_ANALYSIS.md), [3-minute deck](presentations/flame-in-freefall-3min-pitch.pptx) (built by [build_pitch_deck.py](presentations/build_pitch_deck.py)), [English script](presentations/PITCH_SCRIPT_3MIN.md), [Arabic rehearsal script](presentations/PITCH_SCRIPT_3MIN.ar.md), [business plan](business/BUSINESS_PLAN.md) (draft) | Current | Lead |
 | **Final challenge deliverables (2026-11-07, updated 2026-11-12 for PR #27–#32 and 2026-11-13 for the Apollo 1 scenario):** [status](../FINAL_PROJECT_STATUS.md), [architecture](../FINAL_ARCHITECTURE.md), [test report](../FINAL_TEST_REPORT.md), [demo runbook](../DEMO_RUNBOOK.md), [presentation](../FINAL_CHALLENGE_PRESENTATION.md) | Current | Lead |
-| [FLEX outcome model card and evaluation](evaluation/reports/flex-outcome-model.md), [retrieval evaluation](evaluation/reports/retrieval-2026-11-07.md), [significance of retrieval differences](evaluation/reports/retrieval-significance-2026-11-13.md), [embedder and reranker comparison](evaluation/reports/model-comparison-2026-11-13.md) | Current (human review pending: Ziad, Eman) | Lead |
+| [FLEX outcome model card and evaluation](evaluation/reports/flex-outcome-model.md), [retrieval evaluation](evaluation/reports/retrieval-2026-11-07.md), [significance of retrieval differences](evaluation/reports/retrieval-significance-2026-11-13.md), [embedder and reranker comparison](evaluation/reports/model-comparison-2026-11-13.md), [passage gold drafts pre-screen](evaluation/reports/passage-gold-drafts-prescreen-2026-11-13.md) | Current (human review pending: Ziad, Eman) | Lead |
 | [Evaluation production-readiness roadmap](evaluation/production-readiness-roadmap.md) (EV-01..EV-25) | Proposed (needs Lead sign-off) | Ziad |
+| [RAG audit](reviews/RAG_AUDIT_2026-11-13.md) (2026-11-13): status of the NLP-audit findings, 16 new findings, ordered fixes | In review | Lead |
 | 2026-10-30 system audit: [status audit](reviews/SYSTEM_STATUS_AUDIT.md), [roadmap](plan/IMPLEMENTATION_ROADMAP.md), [implementation changelog](reviews/IMPLEMENTATION_CHANGELOG.md) | Current | Lead |
 | [Readiness report](reviews/FINAL_SYSTEM_READINESS_REPORT.md) (2026-10-30 assessment, with a 2026-11-12 status update in §11) | Historical snapshot | Lead |
 | [Phase 2 plan](plan/PHASE2_PLAN.md) | Current | Lead |
@@ -116,3 +117,4 @@ Taken from each engineer's requirements file. Every document also gets the Lead'
 - 1.2.1 (2026-11-12): final deliverables updated for the merged PR #30 and AURA-AI #232.
 - 1.2.2 (2026-11-12): final deliverables cover PR #32; the readiness report is listed as a historical snapshot with its 2026-11-12 update.
 - 1.3.0 (2026-11-13): the Apollo 1 scenario: ADR-013 (L-1), contract 0.7.0 (L-4), NTRS report 1.2.0 (E2-9), the analysis, pitch deck and scripts, and the business plan.
+- 1.3.1 (2026-11-13): the RAG audit.

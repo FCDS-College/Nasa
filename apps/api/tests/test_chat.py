@@ -289,3 +289,49 @@ def test_an_answer_without_figures_is_untouched(client, corpus, monkeypatch):
     _answer_with(monkeypatch, "A cool flame was simulated for n-heptane.")
     body = client.post("/api/chat", json={"query": "How does n-heptane behave in microgravity?"}).json()
     assert body["warnings"] == []
+
+
+def test_a_fuel_the_cited_evidence_never_mentions_adds_a_term_warning_but_strict_does_not_withhold(client, corpus, monkeypatch):
+    _answer_with(monkeypatch, "A cool flame was seen for methane.", answer_support_check="strict")
+    body = client.post("/api/chat", json={"query": "How does n-heptane behave in microgravity?"}).json()
+    assert body["warnings"] == ["answer_terms_not_in_cited_evidence"]
+    assert body["answer"] == "A cool flame was seen for methane."          # a name is a weaker signal than a figure: never withheld
+
+
+def test_a_figure_and_a_name_each_get_their_own_warning(client, corpus, monkeypatch):
+    _answer_with(monkeypatch, "Methane reached 412 K.")
+    body = client.post("/api/chat", json={"query": "How does n-heptane behave in microgravity?"}).json()
+    assert body["warnings"] == ["answer_values_not_in_cited_evidence", "answer_terms_not_in_cited_evidence"]
+
+
+def _calls(monkeypatch):
+    calls = []
+
+    def fake_urlopen(request, timeout):
+        calls.append(request)
+        return FakeResponse(aura_reply("A cool flame was simulated for n-heptane.", [EVIDENCE_ID]))
+
+    monkeypatch.setattr(provider_http, "urlopen", fake_urlopen)
+    return calls
+
+
+def test_the_abstention_gate_is_off_by_default(client, corpus, monkeypatch):
+    monkeypatch.setattr(main, "settings", chat_settings())
+    calls = _calls(monkeypatch)
+    assert client.post("/api/chat", json={"query": "How does n-heptane behave in microgravity?"}).json()["warnings"] == []
+    assert len(calls) == 1
+
+
+def test_a_top_score_below_the_threshold_abstains_without_calling_a_model(client, corpus, monkeypatch):
+    monkeypatch.setattr(main, "settings", chat_settings(chat_abstain_below=0.9))      # no fused score reaches 0.9
+    calls = _calls(monkeypatch)
+    body = client.post("/api/chat", json={"query": "n-heptane droplets"}).json()
+    assert calls == [] and body["warnings"] == ["low_evidence_score"] and body["model"]["name"] == "retrieval-only"
+    assert "too weak" in body["answer"] and body["sources"] and body["execution"] is None
+
+
+def test_a_top_score_at_or_above_the_threshold_answers_normally(client, corpus, monkeypatch):
+    monkeypatch.setattr(main, "settings", chat_settings(chat_abstain_below=0.000001))
+    calls = _calls(monkeypatch)
+    body = client.post("/api/chat", json={"query": "n-heptane droplets"}).json()
+    assert len(calls) == 1 and body["warnings"] == []
