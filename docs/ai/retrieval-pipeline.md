@@ -41,6 +41,15 @@ Sections 1–9 describe the code as of October and are kept as the design record
 - **Cost:** on the 240 indexable pages of the 24 committed NTRS PDFs the split gives 812 windows (mean 3.4 per page, median 4, maximum 8), so about 3.4× the vectors of the page index (counted with `split_windows` over `indexed_pages`, 2026-11-13).
 
 
+### 0c. Table-aware indexing — measured, **not wired into ingest** (2026-11-13)
+
+`ai/rag/ingestion/tables.py` renders a PyMuPDF `find_tables` table as `Header=value; Header=value` rows with a strict gate (at least 3 rows, 2 columns, unique header names, 90 % of cells free of split lines). It is tested (`tests/unit/test_table_text.py`) but **ingest does not call it**, because on the corpus we have it does not help.
+
+`python -m ai.rag.evaluation.table_probe docs/research --show 3` (24 committed NTRS PDFs, 284 pages, 2026-11-13): `find_tables` reports **41 tables on 30 pages**; **12 pass the gate, on 9 pages**. The ones that pass are not data tables: they are the preprint notice and the NASA Center for AeroSpace Information address block, which PyMuPDF reads as a grid (rendered, for example, as `This report=of changes that; of a paper=be made`). The real data tables fail the gate for a reason visible in their cells: the text layer splits decimal points onto a second line (`165` / `.` for 16.5) and merges cells. Rendering those would state wrong values as `He=165`. So the feature would add noise to 9 pages and no usable tables.
+
+What would change this: PDFs with a clean text layer, a table extractor that works on scans (layout model or OCR-aware), or the source tables in a structured form. Enabling it then is a small change in `ingest._index_texts` (append `table_texts(page)` to the page's index text, keep the evidence excerpt verbatim, bump `PARSER_VERSION`), measured first on a passage gold set that includes table questions.
+
+
 ## 1. Where things stood on 2026-10-12
 
 | Stack | What it does | Where |
@@ -182,7 +191,7 @@ The API also returns `retrieval.searched_but_empty`, which separates "searched a
 
 | Version | Date | Change |
 |---|---|---|
-| 0.5.0 | 2026-11-13 | Rewriter 1.0.1 (psi after a number); §0a lexical OR with IDF behind `FLAME_LEXICAL_MODE` (default off); §0b window-level dense index behind `FLAME_DENSE_GRANULARITY` (default off). |
+| 0.5.0 | 2026-11-13 | Rewriter 1.0.1 (psi after a number); §0a lexical OR with IDF behind `FLAME_LEXICAL_MODE` (default off); §0b window-level dense index behind `FLAME_DENSE_GRANULARITY` (default off); §0c table-aware indexing measured, not wired. |
 | 0.4.1 | 2026-11-12 | Reranker on by default, fastembed ONNX, depth 10. |
 | 0.4.0 | 2026-11-12 | Section 0: ADR-006 built: one search stack in `ai/rag` (rewrite, RRF, reranker through the router, paging), the API's inline ranking retired after the benchmark gate. |
 | 0.3.0 | 2026-10-14 | `/api/search` now fuses lexical and dense rankings with RRF. |

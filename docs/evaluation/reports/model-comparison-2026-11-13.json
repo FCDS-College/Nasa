@@ -1,0 +1,133 @@
+{
+  "baseline": "bge-small-en-v1.5+ms-marco-MiniLM-L-6-v2",
+  "n_questions": 26,
+  "n_pages": 240,
+  "rerank_depth": 10,
+  "configs": [
+    {
+      "label": "bge-small-en-v1.5+ms-marco-MiniLM-L-6-v2",
+      "mean": {
+        "rr@10": 0.8974358974358974,
+        "hit@1": 0.8846153846153846,
+        "hit@3": 0.9230769230769231
+      },
+      "rr@10_ci95": [
+        0.782051282051282,
+        1.0
+      ],
+      "seconds": 47.3,
+      "vs_baseline": null
+    },
+    {
+      "label": "bge-small-en-v1.5+none",
+      "mean": {
+        "rr@10": 0.842948717948718,
+        "hit@1": 0.8076923076923077,
+        "hit@3": 0.8846153846153846
+      },
+      "rr@10_ci95": [
+        0.7019230769230769,
+        0.9615384615384616
+      ],
+      "seconds": 0.0,
+      "vs_baseline": {
+        "delta_rr@10": -0.05448717948717949,
+        "ci95": [
+          -0.16346153846153846,
+          0.025641025641025644
+        ],
+        "improved": 1,
+        "worse": 3
+      }
+    },
+    {
+      "label": "bge-small-en-v1.5+bge-reranker-base",
+      "mean": {
+        "rr@10": 0.8397435897435896,
+        "hit@1": 0.7692307692307693,
+        "hit@3": 0.9230769230769231
+      },
+      "rr@10_ci95": [
+        0.7115384615384616,
+        0.9551282051282051
+      ],
+      "seconds": 75.6,
+      "vs_baseline": {
+        "delta_rr@10": -0.057692307692307696,
+        "ci95": [
+          -0.11538461538461539,
+          0.0
+        ],
+        "improved": 0,
+        "worse": 3
+      }
+    },
+    {
+      "label": "bge-base-en-v1.5+ms-marco-MiniLM-L-6-v2",
+      "mean": {
+        "rr@10": 0.9038461538461539,
+        "hit@1": 0.8846153846153846,
+        "hit@3": 0.9230769230769231
+      },
+      "rr@10_ci95": [
+        0.7884615384615384,
+        1.0
+      ],
+      "seconds": 93.3,
+      "vs_baseline": {
+        "delta_rr@10": 0.006410256410256411,
+        "ci95": [
+          0.0,
+          0.019230769230769232
+        ],
+        "improved": 1,
+        "worse": 0
+      }
+    },
+    {
+      "label": "bge-base-en-v1.5+none",
+      "mean": {
+        "rr@10": 0.8493589743589743,
+        "hit@1": 0.8076923076923077,
+        "hit@3": 0.8846153846153846
+      },
+      "rr@10_ci95": [
+        0.717948717948718,
+        0.9615384615384616
+      ],
+      "seconds": 0.0,
+      "vs_baseline": {
+        "delta_rr@10": -0.04807692307692308,
+        "ci95": [
+          -0.1346153846153846,
+          0.012820512820512822
+        ],
+        "improved": 1,
+        "worse": 2
+      }
+    },
+    {
+      "label": "bge-base-en-v1.5+bge-reranker-base",
+      "mean": {
+        "rr@10": 0.8846153846153846,
+        "hit@1": 0.8461538461538461,
+        "hit@3": 0.9230769230769231
+      },
+      "rr@10_ci95": [
+        0.7692307692307693,
+        0.9807692307692307
+      ],
+      "seconds": 70.6,
+      "vs_baseline": {
+        "delta_rr@10": -0.01282051282051282,
+        "ci95": [
+          -0.057692307692307696,
+          0.019230769230769232
+        ],
+        "improved": 1,
+        "worse": 1
+      }
+    }
+  ],
+  "caveat": "Indicative only: a few dozen document-level questions on 24 committed reports. Intervals that contain 0 mean the difference is not distinguishable from noise with this sample, not that the models are equal."
+}
