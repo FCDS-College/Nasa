@@ -44,6 +44,8 @@ The schema is extended only when real research needs justify it (D1).
 |---|---|---|---|
 | Identifier extraction | rule (regular expression) | n/a, rule set version | 1.0 for an exact pattern match, else not produced |
 | Unit and quantity extraction | rule + unit table | unit table version | 1.0 when the number and unit parse; otherwise dropped |
+
+Unit table `units-1.1.0` (measurement-rules 1.1.0): `g` is both grams and gravity in this corpus, so it is resolved from context. "700 g of fuel" is mass; "1g" written against the number is standard gravity (9.80665 m/s²); any other bare `g` keeps the dimension `gravity_or_mass` and is never converted. The grammar also reads `mm Hg`, `°F`, `m/s^2`, `5 × 10^-3` and `1,000`; it skips areas (`cm^2`), OCR'd clock times (`23:30:3g.5`) and descending hyphen "ranges" such as `10-6 g`, which are flattened superscript exponents.
 | Entity recognition | model | not chosen yet | model probability for the span; **not calibrated** until measured |
 | Relation, claim, contradiction | LLM with schema output | not chosen yet (local first, see 2H) | self-reported plus a check that the cited span exists; **not calibrated** |
 | Query classification, query expansion | rule first, model second | not chosen yet | label probability |
