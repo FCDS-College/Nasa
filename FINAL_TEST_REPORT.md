@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Lead (Anas), run by Claude Code | Current | 1.4.0 | 2026-11-12 | T7, ADR-006–009 | whole repository |
+| Lead (Anas), run by Claude Code | Current | 1.5.0 | 2026-11-13 | T7, ADR-006–009, ADR-013 | whole repository |
 
 Every result below was produced by a command run on 2026-11-07 on branch `anas/vibrant-sagan-fsnckf`. "Not run" means it was not run.
 
@@ -184,6 +184,31 @@ What changed in AURA that matters to Flame:
 - AURA's GitHub Actions were not assigning runners on 2026-11-12 (account-level); AURA-AI #232 merged on locally run checks.
 - No AURA deployment was reachable on 2026-11-12 (§11), so neither link was run live.
 
+## 12. Apollo 1 historical scenario, coverage verdict and gravity (2026-11-13, ADR-013, contract 0.7.0)
+
+Run on branch `ccr-93d3f1f0-bf65vh`: Python 3.13, PostgreSQL 16 + pgvector (apt), Redis 7, `moto_server` as S3, Tesseract installed, no Docker, no language model.
+
+| Check | Command | Result |
+|---|---|---|
+| Full test suite | `python -m pytest` | **661 passed, 31 skipped, 1 xfailed, 0 failed** |
+| Lint | `ruff check .` | All checks passed |
+| Web | `npm run lint && npm run typecheck && npm run build` | all exit 0 |
+| Contract docs fresh | `python docs/tools/render_api_schemas.py --check` | exit 0 (contract 0.7.0) |
+| Registry | `python knowledge/ingestion/validate_registry.py` | 35 sources checked, 0 problems |
+| Checksums | `python knowledge/ingestion/install_datasets.py --verify-only` | 35 ok, 0 mismatched |
+| New NTRS reports | `python knowledge/ingestion/fetch_ntrs.py --dry-run`, then without the flag | 3 accepted (8.4 MB), all public-use, registered |
+| Ingest on PostgreSQL | `python -m flame_api.ingest`, then `vector_index build` | 840 experiments, 27 PDF documents, 486 pages, 480 chunks, 48 OCR pages, 0 quarantined; 515 chunks embedded |
+| Browser journey | `npm run smoke -- http://127.0.0.1:3000 <dir>` | **11/11 PASS**, `Demo journey passed.` (02b Apollo 1 refusal, 02c Orion alternative) |
+| FLEX model unchanged | `python -m ai.fire_safety.train_flex_outcome --check` | `artefact current`, exit 0 |
+| AURA Link 2 dry run at 0.7.0 | `tests/integration/aura_blueprint_dryrun.py` | **not run here** (no AURA checkout); CI job `aura-link2-contract` runs it on the PR |
+
+New tests:
+- `tests/unit/test_historical_scenarios.py` (8): the schema; every cited page exists in a registered, committed report, and each quote appears verbatim on its page; loader rejection; custom gravity; the verdict (`none` with the nearest test and the gap, gravity alone, `partial`).
+- `apps/api/tests/test_fire_safety_api.py` (+6): Apollo 1 verdict `none` over all 840 tests with cited nearest-test cells; the model refuses it with O₂ and gravity reasons; Earth-gravity air is refused; Orion is the alternative and is covered and estimated; the history endpoint is page-cited and returns 404 for mission scenarios; the sweep reaches 100 % O₂ while the in-range grid is unchanged; mission verdicts.
+- `apps/api/tests/test_ingestion_adapters.py`: NTRS count 24 → 27, pages 284 → 486.
+
+Found and fixed during the browser run: the Knowledge Graph page threw `Cannot read properties of undefined (reading 'toLowerCase')`. PR #43's NLP graph returns `platform` and `instrument` entities (contract-listed since 0.6.0), and the web client's type list lacked them. The cause predates this branch, and none of the affected edges come from the new reports.
+
 ## Changelog
 - 1.0.0 (2026-11-07): first version.
 - 1.1.0 (2026-11-12): §8, verification of the ADR-006 to 009 builds.
@@ -191,3 +216,4 @@ What changed in AURA that matters to Flame:
 - 1.3.0 (2026-11-12): §10, the Knowledge Graph page.
 - 1.3.1 (2026-11-12): §10 CI results on PR #32's merged head.
 - 1.4.0 (2026-11-12): §11, the AURA integration re-checked against AURA `main` `667c7c4`.
+- 1.5.0 (2026-11-13): §12, the Apollo 1 scenario, coverage verdict and gravity (ADR-013, contract 0.7.0).

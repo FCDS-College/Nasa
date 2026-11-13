@@ -236,6 +236,100 @@ def rank(investigations: list[dict]) -> list[dict]:
     return scored + [i for i in investigations if not i.get("relevance")]
 
 
+# ---------------------------------------------------------------------------------------------- coverage verdict
+
+O2_EVIDENCE = {"FF-PSI-69": "o_initial_ambient_composition_mole_fraction", "FF-PSI-25": "calibrated_initial_o2_by_vol",
+               "FF-PSI-98": "percent_o2"}
+PRESSURE_EVIDENCE = {"FF-PSI-69": "ambient_pressure_mmhg"}
+COVERED_MIN_TESTS = 5
+COVERAGE_METHOD = ("verdict = 'none' when the scenario's gravity was never flown or no flight test lies within +/-0.03 O2 "
+                   "(and +/-25% pressure when recorded) of it; 'partial' when 1-4 such tests exist or the atmosphere is "
+                   "outside the flown O2 or pressure range; otherwise 'covered' (5 or more such tests). "
+                   "nearest_test minimises sqrt((dO2/0.05)^2 + (ln(P/P_test)/0.25)^2), the scales of the relevance score.")
+
+
+def _distance(t: Canonical, scenario: Scenario) -> float:
+    d_o2 = (t.o2 - scenario.o2_fraction) / 0.05
+    d_p = 0.0 if t.pressure_kpa is None else math.log(scenario.pressure_kpa / t.pressure_kpa) / 0.25
+    return math.hypot(d_o2, d_p)
+
+
+def coverage(by_source: dict[str, list[Canonical]], scenario: Scenario, flight_gravity: Iterable[str] = ("microgravity",)) -> dict:
+    """Scenario-level answer to 'does any flight test speak to this atmosphere?' (ADR-013).
+
+    The per-investigation relevance score can stay well above zero for an atmosphere nobody flew (a matching
+    pressure range and recorded outcomes still score), so the dashboard needs this explicit verdict, the
+    nearest real test and the size of the gap, before it shows any ranking.
+    """
+    tests = [t for ts in by_source.values() for t in ts]
+    per_source = {sid: len(neighbours(ts, scenario)) for sid, ts in sorted(by_source.items()) if ts}
+    near_total = sum(per_source.values())
+    regimes = sorted(set(flight_gravity))
+    gravity_flown = scenario.gravity in regimes
+    with_o2 = [t for t in tests if t.o2 is not None]
+    # Prefer tests that record both O2 and pressure: a test without pressure cannot show how close it is.
+    pool = [t for t in with_o2 if t.pressure_kpa is not None] or with_o2
+    nearest = min(pool, key=lambda t: _distance(t, scenario)) if pool else None
+    o2_range = _range(t.o2 for t in tests)
+    p_range = _range(t.pressure_kpa for t in tests)
+
+    reasons: list[str] = []
+    if not gravity_flown:
+        reasons.append(f"every flight test here was flown in {' and '.join(regimes) or 'an unrecorded gravity regime'}; "
+                       f"this scenario is at {'1 g (Earth)' if scenario.gravity == 'earth' else scenario.gravity + ' gravity'}")
+    if o2_range and scenario.o2_fraction > o2_range["max"] + 1e-9:
+        reasons.append(f"O₂ {scenario.o2_fraction:.2f} is {scenario.o2_fraction / o2_range['max']:.1f}× the highest O₂ "
+                       f"flown ({o2_range['max']:.2f})")
+    elif o2_range and scenario.o2_fraction < o2_range["min"] - 1e-9:
+        reasons.append(f"O₂ {scenario.o2_fraction:.2f} is below the lowest O₂ flown ({o2_range['min']:.2f})")
+    if p_range and not (p_range["min"] <= scenario.pressure_kpa <= p_range["max"]):
+        reasons.append(f"pressure {scenario.pressure_kpa:.1f} kPa is outside the flown range "
+                       f"{p_range['min']:.1f}–{p_range['max']:.1f} kPa")
+    if near_total == 0:
+        reasons.append("no flight test lies within ±0.03 O₂ and ±25% pressure of this atmosphere")
+
+    inside = (o2_range is not None and o2_range["min"] - 1e-9 <= scenario.o2_fraction <= o2_range["max"] + 1e-9
+              and (p_range is None or p_range["min"] <= scenario.pressure_kpa <= p_range["max"]))
+    if not gravity_flown or near_total == 0:
+        verdict = "none"
+        headline = f"None of the {len(tests)} flight tests cover this atmosphere."
+    elif not inside:
+        verdict = "partial"
+        headline = (f"{near_total} of the {len(tests)} flight tests lie near this atmosphere, but it is outside the "
+                    "range that was flown.")
+    elif near_total < COVERED_MIN_TESTS:
+        verdict = "partial"
+        headline = f"Only {near_total} of the {len(tests)} flight tests lie near this atmosphere."
+    else:
+        verdict = "covered"
+        headline = f"{near_total} of the {len(tests)} flight tests lie near this atmosphere."
+
+    nearest_out = gap = None
+    if nearest is not None:
+        evidence = [e for e in (nearest.evidence(O2_EVIDENCE.get(nearest.row.source_id, "")),
+                                nearest.evidence(PRESSURE_EVIDENCE.get(nearest.row.source_id, ""))) if e]
+        nearest_out = {"investigation_id": nearest.row.source_id, "experiment_id": nearest.row.experiment_id,
+                       "test_id": nearest.row.test_id, "o2_fraction": round(nearest.o2, 4),
+                       "pressure_kpa": None if nearest.pressure_kpa is None else round(nearest.pressure_kpa, 2),
+                       "end_state": nearest.end_state, "evidence": evidence}
+        gap = {"o2_delta": round(scenario.o2_fraction - nearest.o2, 4),
+               "o2_ratio": round(scenario.o2_fraction / nearest.o2, 3) if nearest.o2 else None,
+               "pressure_ratio": None if nearest.pressure_kpa is None else round(scenario.pressure_kpa / nearest.pressure_kpa, 3)}
+    return {
+        "verdict": verdict,
+        "headline": headline,
+        "tests_total": len(tests),
+        "neighbourhood_tests": near_total,
+        "neighbourhood_by_investigation": per_source,
+        "gravity": {"scenario": scenario.gravity, "flight_tests": regimes, "covered": gravity_flown},
+        "tested_range": {"o2_fraction": o2_range, "pressure_kpa": p_range},
+        "nearest_test": nearest_out,
+        "gap": gap,
+        "reasons": reasons,
+        "method": COVERAGE_METHOD,
+    }
+
+
 # ---------------------------------------------------------------------------------------------- insights
 
 def _evidence(tests: list[Canonical], variable: str, limit: int = 8) -> list[dict]:

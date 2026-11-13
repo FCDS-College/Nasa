@@ -3,7 +3,7 @@
   "jsonSchemaDialect": "https://spec.openapis.org/oas/3.1/dialect/base",
   "info": {
     "title": "Flame in Freefall API",
-    "version": "0.6.0",
+    "version": "0.7.0",
     "summary": "Frontend-facing REST contract for the Flame in Freefall scientific dashboard.",
     "description": "Contract-first specification (MVP plan §12, DAY2_TASKS Lead deliverable). The FastAPI implementation is in `apps/api` and serves this document at `/api/openapi.json`; `x-implementation-status` records implementation state. API bearer authentication is required: use a key with the read scope for GET/HEAD, the write scope for other mutations and the admin scope for `/api/admin/*`. AURA Track AP compatibility is checked from this contract against a pinned AURA revision by `tests/integration/aura_blueprint_dryrun.py`.\n\nConventions: snake_case JSON; RFC 3339 UTC timestamps; ULID resource IDs; nullable means 'not present or not established' (never 0 for missing); every JSON success body has `meta`; every error body is `ErrorResponse`.\n\nScientific rules encoded in the schema: no temperature field exists; pixel measurements are `measured`, scale-derived physical sizes are `estimated`; AI interpretation is separate from measurements and limited to inferred/hypothesized/unsupported claim classes; evidence is only source content or deterministic calculation.\n\nAURA boundary (ADR-004, contract 0.2.0): operations marked `x-aura-exclude: true` (chat, AI status, admin writes) are skipped by AURA's OpenAPI discovery, so AURA can never compile a tool that calls back into Flame's model path. Changes: docs/api/CHANGELOG.md.\n\nCredentials and rate limits (P2-1, P2-2): each caller has its own API key (`python -m flame_api.clients create NAME --scopes read|write|admin [--owner PERSON]`), stored hashed and revocable. `read` scope allows GET/HEAD and `POST /api/chat`; `write` scope allows every other method outside `/api/admin/`; `admin` scope (ADR-009 step 2, contract 0.6.0) allows every `/api/admin/` operation, reads included, and an admin key always names the person who holds it. Scopes are independent: `admin` implies neither `read` nor `write`. A valid key without the needed scope gets 403 `FORBIDDEN`; while the database is unreachable a client key cannot be checked and gets 503 `DATABASE_UNAVAILABLE`. The legacy `FLAME_READ_API_TOKEN` / `FLAME_WRITE_API_TOKEN` are deprecated but still accepted with their old meaning, so the write token still reaches `/api/admin/` (a token used for the wrong kind of request stays 401). Every authenticated `/api/*` operation except `/api/health` is rate-limited per client, with separate per-minute budgets for reads, writes and chat (chat is the strictest); over the budget the response is 429 `RATE_LIMITED` with `Retry-After` in seconds. One client exhausting its budget does not affect another's.",
     "license": {
@@ -3366,7 +3366,7 @@
             "name": "scenario",
             "in": "query",
             "required": false,
-            "description": "Scenario ID (default `iss_nominal`): iss_nominal, pre_eva, orion_max_o2, lunar_lander_max_o2.",
+            "description": "Scenario ID (default `iss_nominal`): iss_nominal, pre_eva, orion_max_o2, lunar_lander_max_o2, apollo1_pad_1967 (historical).",
             "schema": {
               "type": "string",
               "maxLength": 40
@@ -3392,6 +3392,21 @@
               "type": "number",
               "minimum": 5,
               "maximum": 400
+            }
+          },
+          {
+            "name": "gravity",
+            "in": "query",
+            "required": false,
+            "description": "Gravity of a custom atmosphere (contract 0.7.0; with o2_fraction and pressure_kpa, default microgravity). Every flight test is microgravity, so any other value yields coverage verdict `none` and no model estimate.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "microgravity",
+                "lunar",
+                "martian",
+                "earth"
+              ]
             }
           }
         ],
@@ -3420,7 +3435,9 @@
                         "basis": "derived",
                         "note": "Altair maximum 34% O₂; total pressure from the normoxic curve. Gravity in the cabin on the lunar surface is 1/6 g, which no flight test here covers.",
                         "citation": "NASA/TM-2008-215260 (FF-NTRS-20080034883), p. 5",
-                        "ppo2_kpa": 21.3
+                        "ppo2_kpa": 21.3,
+                        "gravity": "microgravity",
+                        "kind": "mission"
                       },
                       "scenarios": [
                         {
@@ -3431,7 +3448,9 @@
                           "basis": "quoted",
                           "note": "Sea-level air at 14.7 psia, as flown on Skylab, Shuttle and ISS.",
                           "citation": "NASA/TM-2008-215260 (FF-NTRS-20080034883), p. 5",
-                          "ppo2_kpa": 21.28
+                          "ppo2_kpa": 21.28,
+                          "gravity": "microgravity",
+                          "kind": "mission"
                         },
                         {
                           "scenario_id": "pre_eva",
@@ -3441,7 +3460,9 @@
                           "basis": "quoted",
                           "note": "Brief pre-EVA atmosphere; many ISS materials are only rated to it.",
                           "citation": "NASA/TM-2008-215260 (FF-NTRS-20080034883), p. 5",
-                          "ppo2_kpa": 21.1
+                          "ppo2_kpa": 21.1,
+                          "gravity": "microgravity",
+                          "kind": "mission"
                         },
                         {
                           "scenario_id": "orion_max_o2",
@@ -3451,7 +3472,9 @@
                           "basis": "derived",
                           "note": "Orion maximum 30% O₂; total pressure from the normoxic curve (ppO₂ 3.09 psia).",
                           "citation": "NASA/TM-2008-215260 (FF-NTRS-20080034883), p. 5",
-                          "ppo2_kpa": 21.3
+                          "ppo2_kpa": 21.3,
+                          "gravity": "microgravity",
+                          "kind": "mission"
                         },
                         {
                           "scenario_id": "lunar_lander_max_o2",
@@ -3461,10 +3484,64 @@
                           "basis": "derived",
                           "note": "Altair maximum 34% O₂; total pressure from the normoxic curve. Gravity in the cabin on the lunar surface is 1/6 g, which no flight test here covers.",
                           "citation": "NASA/TM-2008-215260 (FF-NTRS-20080034883), p. 5",
-                          "ppo2_kpa": 21.3
+                          "ppo2_kpa": 21.3,
+                          "gravity": "microgravity",
+                          "kind": "mission"
                         }
                       ],
                       "ranking_method": "relevance = 0.35*oxygen_match + 0.25*pressure_match + 0.25*evidence_density + 0.15*outcome_data; oxygen_match = 1 inside the tested O2 range else exp(-gap/0.05); pressure_match = 1 inside the tested pressure range else exp(-|ln(P/P_nearest)|/0.25); evidence_density = min(1, ln(1+n)/ln(31)) for n tests within +/-0.03 O2 (and +/-25% pressure when recorded); outcome_data = 1 end state recorded, 0.5 duration only, 0 none; unrecorded variables score 0 and are listed in 'not_recorded'.",
+                      "coverage": {
+                        "verdict": "partial",
+                        "headline": "9 of the 840 flight tests lie near this atmosphere, but it is outside the range that was flown.",
+                        "tests_total": 840,
+                        "neighbourhood_tests": 9,
+                        "neighbourhood_by_investigation": {
+                          "FF-PSI-107": 0,
+                          "FF-PSI-25": 0,
+                          "FF-PSI-69": 9,
+                          "FF-PSI-98": 0
+                        },
+                        "gravity": {
+                          "scenario": "microgravity",
+                          "flight_tests": [
+                            "microgravity"
+                          ],
+                          "covered": true
+                        },
+                        "tested_range": {
+                          "o2_fraction": {
+                            "min": 0.12,
+                            "max": 0.34,
+                            "n": 405
+                          },
+                          "pressure_kpa": {
+                            "min": 70.167572,
+                            "max": 309.294607,
+                            "n": 273
+                          }
+                        },
+                        "nearest_test": {
+                          "investigation_id": "FF-PSI-69",
+                          "experiment_id": "0VR27W38B06TFWHWYE17G8J33X",
+                          "test_id": "220R001",
+                          "o2_fraction": 0.34,
+                          "pressure_kpa": 71.23,
+                          "end_state": "Disruption",
+                          "evidence": [
+                            "2KV1WGJS1XRBNAXY3HW6F5DG00",
+                            "2QCEESPZZ2Q8XB3Q54FCMCVVCG"
+                          ]
+                        },
+                        "gap": {
+                          "o2_delta": 0.0,
+                          "o2_ratio": 1.0,
+                          "pressure_ratio": 0.88
+                        },
+                        "reasons": [
+                          "pressure 62.7 kPa is outside the flown range 70.2–309.3 kPa"
+                        ],
+                        "method": "verdict = 'none' when the scenario's gravity was never flown or no flight test lies within +/-0.03 O2 (and +/-25% pressure when recorded) of it; 'partial' when 1-4 such tests exist or the atmosphere is outside the flown O2 or pressure range; otherwise 'covered' (5 or more such tests). nearest_test minimises sqrt((dO2/0.05)^2 + (ln(P/P_test)/0.25)^2), the scales of the relevance score."
+                      },
                       "items": [
                         {
                           "investigation_id": "FF-PSI-69",
@@ -3760,7 +3837,7 @@
             "name": "scenario",
             "in": "query",
             "required": false,
-            "description": "Scenario ID (default `iss_nominal`): iss_nominal, pre_eva, orion_max_o2, lunar_lander_max_o2.",
+            "description": "Scenario ID (default `iss_nominal`): iss_nominal, pre_eva, orion_max_o2, lunar_lander_max_o2, apollo1_pad_1967 (historical).",
             "schema": {
               "type": "string",
               "maxLength": 40
@@ -3786,6 +3863,21 @@
               "type": "number",
               "minimum": 5,
               "maximum": 400
+            }
+          },
+          {
+            "name": "gravity",
+            "in": "query",
+            "required": false,
+            "description": "Gravity of a custom atmosphere (contract 0.7.0; with o2_fraction and pressure_kpa, default microgravity). Every flight test is microgravity, so any other value yields coverage verdict `none` and no model estimate.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "microgravity",
+                "lunar",
+                "martian",
+                "earth"
+              ]
             }
           }
         ],
@@ -4029,7 +4121,9 @@
                         "basis": "quoted",
                         "note": "Brief pre-EVA atmosphere; many ISS materials are only rated to it.",
                         "citation": "NASA/TM-2008-215260 (FF-NTRS-20080034883), p. 5",
-                        "ppo2_kpa": 21.1
+                        "ppo2_kpa": 21.1,
+                        "gravity": "microgravity",
+                        "kind": "mission"
                       },
                       "meta": {
                         "request_id": "req_cca3b1ea850f4c4781663a319acfdaa9",
@@ -4112,7 +4206,7 @@
             "name": "scenario",
             "in": "query",
             "required": false,
-            "description": "Scenario ID (default `iss_nominal`): iss_nominal, pre_eva, orion_max_o2, lunar_lander_max_o2.",
+            "description": "Scenario ID (default `iss_nominal`): iss_nominal, pre_eva, orion_max_o2, lunar_lander_max_o2, apollo1_pad_1967 (historical).",
             "schema": {
               "type": "string",
               "maxLength": 40
@@ -4138,6 +4232,21 @@
               "type": "number",
               "minimum": 5,
               "maximum": 400
+            }
+          },
+          {
+            "name": "gravity",
+            "in": "query",
+            "required": false,
+            "description": "Gravity of a custom atmosphere (contract 0.7.0; with o2_fraction and pressure_kpa, default microgravity). Every flight test is microgravity, so any other value yields coverage verdict `none` and no model estimate.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "microgravity",
+                "lunar",
+                "martian",
+                "earth"
+              ]
             }
           }
         ],
@@ -4166,7 +4275,9 @@
                         "basis": "quoted",
                         "note": "Brief pre-EVA atmosphere; many ISS materials are only rated to it.",
                         "citation": "NASA/TM-2008-215260 (FF-NTRS-20080034883), p. 5",
-                        "ppo2_kpa": 21.1
+                        "ppo2_kpa": 21.1,
+                        "gravity": "microgravity",
+                        "kind": "mission"
                       },
                       "items": [
                         {
@@ -5245,6 +5356,217 @@
             }
           }
         }
+      }
+    },
+    "/api/scenarios/{scenario_id}/history": {
+      "get": {
+        "operationId": "getScenarioHistory",
+        "summary": "Cited history of a historical cabin atmosphere",
+        "description": "Contract 0.7.0 (ADR-013). For a `historical` scenario (today `apollo1_pad_1967`): the story, the lesson, a timeline of what changed afterwards and the data-covered alternative scenario to load next, every statement with NTRS source pages (and the ingested page's evidence ID when available). Read-only; no language model.",
+        "tags": [
+          "Fire safety"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestIdHeader"
+          },
+          {
+            "name": "scenario_id",
+            "in": "path",
+            "required": true,
+            "description": "A historical scenario ID.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z0-9_]{3,40}$"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cited history.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenarioHistoryResponse"
+                },
+                "examples": {
+                  "live": {
+                    "summary": "Real response from the test stack (PSI tables ingested, NTRS pages not ingested, so evidence_id is null); timeline trimmed.",
+                    "value": {
+                      "scenario": {
+                        "scenario_id": "apollo1_pad_1967",
+                        "name": "Apollo 1: pure-O₂ ground test (1967)",
+                        "o2_fraction": 1.0,
+                        "pressure_kpa": 115.14,
+                        "basis": "historical",
+                        "note": "Plugs-out test on the launch pad, 27 January 1967: 100% oxygen at 16.7 psia (115.1 kPa), at 1 g. Historical atmosphere; no crewed vehicle uses it today.",
+                        "citation": "Report of Apollo 204 Review Board, NASA-TM-108667 (FF-NTRS-19930078717), p. 189",
+                        "gravity": "earth",
+                        "kind": "historical",
+                        "ppo2_kpa": 115.14
+                      },
+                      "year": 1967,
+                      "story": "During a ground test the Apollo 204 command module was filled with 100% oxygen at 16.7 psia. An electrical arc was the most probable ignition source. The fire spread through combustible materials, pressure rose until the cabin ruptured, and the inner hatch could not be opened against the internal pressure. Command Pilot Virgil I. Grissom, Senior Pilot Edward H. White II and Pilot Roger B. Chaffee died.",
+                      "lesson": "None of our flight tests comes near this atmosphere, so the system does not guess. In 1967 the cabin materials were exposed to a 100% oxygen atmosphere in which they had never been tested; the Review Board called the test conditions extremely hazardous.",
+                      "lesson_sources": [
+                        {
+                          "source_id": "FF-NTRS-20070021223",
+                          "page": 2,
+                          "quote": "the state-of-the-art materials were exposed to 16.2 psia 100% oxygen environment in which they had never been tested",
+                          "title": null,
+                          "short_name": null,
+                          "access_url": null,
+                          "evidence_id": null
+                        },
+                        {
+                          "source_id": "FF-NTRS-19930078717",
+                          "page": 189,
+                          "quote": "The test was conducted with a 16.7 pounds per square inch absolute, 100 percent oxygen atmosphere. DETERMINATION: The test conditions were extremely hazardous.",
+                          "title": null,
+                          "short_name": null,
+                          "access_url": null,
+                          "evidence_id": null
+                        }
+                      ],
+                      "timeline": [
+                        {
+                          "date": "1961–1966",
+                          "title": "Pure-oxygen cabins",
+                          "text": "Mercury, Gemini and Apollo were all designed for a 100% oxygen environment; in flight the cabin ran at about 34.5 kPa (5 psia).",
+                          "sources": [
+                            {
+                              "source_id": "FF-NTRS-20070021223",
+                              "page": 2,
+                              "quote": null,
+                              "title": null,
+                              "short_name": null,
+                              "access_url": null,
+                              "evidence_id": null
+                            },
+                            {
+                              "source_id": "FF-NTRS-20070010766",
+                              "page": 8,
+                              "quote": null,
+                              "title": "Technology Development for Fire Safety in Exploration Spacecraft and Habitats",
+                              "short_name": "Ruff et al. 2006",
+                              "access_url": "https://ntrs.nasa.gov/citations/20070010766",
+                              "evidence_id": null
+                            }
+                          ]
+                        },
+                        {
+                          "date": "27 Jan 1967",
+                          "title": "The plugs-out test",
+                          "text": "On the pad the cabin held 100% oxygen at 16.7 psia, above sea-level pressure. The Board found many combustible materials next to possible ignition sources; the most probable initiator was an electrical arc.",
+                          "sources": [
+                            {
+                              "source_id": "FF-NTRS-19930078717",
+                              "page": 189,
+                              "quote": null,
+                              "title": null,
+                              "short_name": null,
+                              "access_url": null,
+                              "evidence_id": null
+                            }
+                          ]
+                        }
+                      ],
+                      "alternative": {
+                        "scenario": {
+                          "scenario_id": "orion_max_o2",
+                          "name": "Orion crew vehicle (max O₂)",
+                          "o2_fraction": 0.3,
+                          "pressure_kpa": 71.02,
+                          "basis": "derived",
+                          "note": "Orion maximum 30% O₂; total pressure from the normoxic curve (ppO₂ 3.09 psia).",
+                          "citation": "NASA/TM-2008-215260 (FF-NTRS-20080034883), p. 5",
+                          "gravity": "microgravity",
+                          "kind": "mission",
+                          "ppo2_kpa": 21.3
+                        },
+                        "headline": "Where flight data does exist: NASA's exploration atmosphere",
+                        "rationale": "Orion's design limit, 30% O₂ on the normoxic curve (about 10.3 psia), sits inside the FLEX flight envelope, so the system can show measured flight tests and an estimate there. Covered by data does not mean safe: 30% oxygen is more flammable than air.",
+                        "sources": [
+                          {
+                            "source_id": "FF-NTRS-20080034883",
+                            "page": 5,
+                            "quote": null,
+                            "title": "Microgravity Flame Spread in Exploration Atmospheres: Pressure, Oxygen, and Velocity Effects on Opposed and Concurrent Flame Spread",
+                            "short_name": "NASA/TM-2008-215260",
+                            "access_url": "https://ntrs.nasa.gov/citations/20080034883",
+                            "evidence_id": null
+                          }
+                        ]
+                      },
+                      "claim_class": "cited_history",
+                      "meta": {
+                        "request_id": "req_576eac03abbc4fd98de1c60d1bc91aa6",
+                        "generated_at": "2026-11-13T20:44:33.532981Z",
+                        "api_version": "0.6.0"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "description": "A dependency is unavailable. Codes: DATABASE_UNAVAILABLE.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not a historical scenario. Code: SCENARIO_HISTORY_NOT_FOUND.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-implementation-status": "implemented"
       }
     }
   },
@@ -9461,7 +9783,7 @@
       },
       "Scenario": {
         "type": "object",
-        "description": "A cabin atmosphere. Quoted or derived values cite NASA/TM-2008-215260 p. 5; `user` is a custom query.",
+        "description": "A cabin atmosphere. Quoted or derived values cite NASA/TM-2008-215260 p. 5; `historical` scenarios (contract 0.7.0, ADR-013) are past atmospheres with a cited story at `GET /api/scenarios/{scenario_id}/history`; `user` is a custom query. `gravity` is the gravity the atmosphere exists in: every flight test in this corpus is microgravity, so any other value is outside the flight data.",
         "required": [
           "scenario_id",
           "name",
@@ -9470,7 +9792,9 @@
           "ppo2_kpa",
           "basis",
           "note",
-          "citation"
+          "citation",
+          "gravity",
+          "kind"
         ],
         "additionalProperties": false,
         "properties": {
@@ -9494,7 +9818,8 @@
             "enum": [
               "quoted",
               "derived",
-              "user"
+              "user",
+              "historical"
             ]
           },
           "note": {
@@ -9504,6 +9829,23 @@
             "type": [
               "string",
               "null"
+            ]
+          },
+          "gravity": {
+            "type": "string",
+            "enum": [
+              "microgravity",
+              "lunar",
+              "martian",
+              "earth"
+            ]
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "mission",
+              "historical",
+              "custom"
             ]
           }
         }
@@ -9856,6 +10198,7 @@
           "scenario",
           "scenarios",
           "ranking_method",
+          "coverage",
           "items",
           "not_acquired",
           "totals",
@@ -9899,6 +10242,9 @@
           },
           "meta": {
             "$ref": "#/components/schemas/ResponseMeta"
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/Coverage"
           }
         }
       },
@@ -10804,6 +11150,375 @@
                 "$ref": "#/components/schemas/GraphConsistencyCheck"
               }
             }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        }
+      },
+      "Coverage": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Scenario-level verdict (contract 0.7.0, ADR-013): does any flight test speak to this atmosphere? The relevance score of each investigation can stay above zero for an atmosphere nobody flew, so the dashboard shows this verdict, the nearest real test and the gap before the ranking. `none` when the scenario's gravity was never flown or no test lies within ±0.03 O2 (and ±25% pressure when recorded); `partial` when 1–4 such tests exist or the atmosphere is outside the flown O2 or pressure range; otherwise `covered` (5 or more).",
+        "required": [
+          "verdict",
+          "headline",
+          "tests_total",
+          "neighbourhood_tests",
+          "neighbourhood_by_investigation",
+          "gravity",
+          "tested_range",
+          "nearest_test",
+          "gap",
+          "reasons",
+          "method"
+        ],
+        "properties": {
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "covered",
+              "partial",
+              "none"
+            ]
+          },
+          "headline": {
+            "type": "string"
+          },
+          "tests_total": {
+            "type": "integer"
+          },
+          "neighbourhood_tests": {
+            "type": "integer"
+          },
+          "neighbourhood_by_investigation": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer"
+            }
+          },
+          "gravity": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "scenario",
+              "flight_tests",
+              "covered"
+            ],
+            "properties": {
+              "scenario": {
+                "type": "string",
+                "enum": [
+                  "microgravity",
+                  "lunar",
+                  "martian",
+                  "earth"
+                ]
+              },
+              "flight_tests": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "covered": {
+                "type": "boolean"
+              }
+            }
+          },
+          "tested_range": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "o2_fraction",
+              "pressure_kpa"
+            ],
+            "properties": {
+              "o2_fraction": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "required": [
+                  "min",
+                  "max",
+                  "n"
+                ],
+                "properties": {
+                  "min": {
+                    "type": "number"
+                  },
+                  "max": {
+                    "type": "number"
+                  },
+                  "n": {
+                    "type": "integer"
+                  }
+                }
+              },
+              "pressure_kpa": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "required": [
+                  "min",
+                  "max",
+                  "n"
+                ],
+                "properties": {
+                  "min": {
+                    "type": "number"
+                  },
+                  "max": {
+                    "type": "number"
+                  },
+                  "n": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          },
+          "nearest_test": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "required": [
+              "investigation_id",
+              "experiment_id",
+              "test_id",
+              "o2_fraction",
+              "pressure_kpa",
+              "end_state",
+              "evidence"
+            ],
+            "properties": {
+              "investigation_id": {
+                "type": "string"
+              },
+              "experiment_id": {
+                "type": "string"
+              },
+              "test_id": {
+                "type": "string"
+              },
+              "o2_fraction": {
+                "type": "number"
+              },
+              "pressure_kpa": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "end_state": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "evidence": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Evidence IDs of the O2 (and pressure) cells."
+              }
+            }
+          },
+          "gap": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "required": [
+              "o2_delta",
+              "o2_ratio",
+              "pressure_ratio"
+            ],
+            "properties": {
+              "o2_delta": {
+                "type": "number"
+              },
+              "o2_ratio": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "pressure_ratio": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            }
+          },
+          "reasons": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "method": {
+            "type": "string"
+          }
+        }
+      },
+      "CitedSource": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "An NTRS report page. `evidence_id` is the ingested page (null until the report is ingested).",
+        "required": [
+          "source_id",
+          "page",
+          "quote",
+          "title",
+          "short_name",
+          "access_url",
+          "evidence_id"
+        ],
+        "properties": {
+          "source_id": {
+            "type": "string"
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "short_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "access_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "evidence_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "ScenarioHistoryResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "A historical scenario (contract 0.7.0): its cited story, timeline and the data-covered alternative to show after the refusal. Every statement carries NTRS pages.",
+        "required": [
+          "scenario",
+          "year",
+          "story",
+          "lesson",
+          "lesson_sources",
+          "timeline",
+          "alternative",
+          "claim_class",
+          "meta"
+        ],
+        "properties": {
+          "scenario": {
+            "$ref": "#/components/schemas/Scenario"
+          },
+          "year": {
+            "type": "integer"
+          },
+          "story": {
+            "type": "string"
+          },
+          "lesson": {
+            "type": "string"
+          },
+          "lesson_sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CitedSource"
+            }
+          },
+          "timeline": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "date",
+                "title",
+                "text",
+                "sources"
+              ],
+              "properties": {
+                "date": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "text": {
+                  "type": "string"
+                },
+                "sources": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "$ref": "#/components/schemas/CitedSource"
+                  }
+                }
+              }
+            }
+          },
+          "alternative": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "scenario",
+              "headline",
+              "rationale",
+              "sources"
+            ],
+            "properties": {
+              "scenario": {
+                "$ref": "#/components/schemas/Scenario"
+              },
+              "headline": {
+                "type": "string"
+              },
+              "rationale": {
+                "type": "string"
+              },
+              "sources": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CitedSource"
+                }
+              }
+            }
+          },
+          "claim_class": {
+            "type": "string",
+            "enum": [
+              "cited_history"
+            ]
           },
           "meta": {
             "$ref": "#/components/schemas/ResponseMeta"

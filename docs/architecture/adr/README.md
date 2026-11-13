@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Lead (Anas) | Current | 1.4.2 | 2026-11-12 | M12, L-1 | — |
+| Lead (Anas) | Current | 1.5.0 | 2026-11-13 | M12, L-1 | — |
 
 Template: **Title, Status (proposed/accepted/superseded), Date, Context, Decision, Alternatives considered, Consequences, Links.**
 ADRs are immutable. A changed decision gets a new ADR that supersedes the old one, and the old one's status is changed to `superseded by ADR-NNN`; nothing else in it is edited.
@@ -21,6 +21,7 @@ ADRs are immutable. A changed decision gets a new ADR that supersedes the old on
 | [010](ADR-010-contract-first-openapi.md) | Contract-first OpenAPI with a route-parity test | Accepted | Belal (E4) | Signed off 2026-11-07 |
 | [011](ADR-011-scenario-relevance-ranking.md) | Rank investigations by evidence relevance to a cabin atmosphere | Accepted (implemented in PR #24) | Ziad (E5), Anas (E2) | Signed off 2026-11-07 |
 | [012](ADR-012-commit-psi-tables.md) | Commit the PSI experimental tables and ISA-Tab metadata to Git | Accepted (implemented in PR #24) | Princess (E3), Ziad (E5) | Signed off 2026-11-07 |
+| [013](ADR-013-historical-scenarios-coverage-verdict.md) | Historical scenarios, a gravity dimension and a scenario-level coverage verdict | Proposed (implemented on branch `ccr-93d3f1f0-bf65vh`) | Ziad (E5), Anas (E2) | Pending |
 
 "Accepted" means the decision is approved and binding. For ADR-001 to 005, 010, 011 and 012 it also describes what is built: ADR-001 to 005 and 010 on branch `ccr-c6a5a263-498la9` (PR #14), ADR-011 and 012 on `main` (PR #24). ADR-006 to 009 were accepted on 2026-11-07 before they were fully built, and built on 2026-11-12 (below).
 
@@ -52,3 +53,4 @@ The 1.3.0 table listed what was missing on `main` at `73b014b`. Each item is now
 - 1.4.0 (2026-11-12): ADR-006 to 009 built (PR #29); the implementation table now records what was built and what is still open.
 - 1.4.1 (2026-11-12): reranker on by default; reviewed spelling aliases in the graph (951 entities).
 - 1.4.2 (2026-11-12): ADR-007's built column names the Knowledge Graph page (PR #32).
+- 1.5.0 (2026-11-13): ADR-013 (historical scenarios, gravity, coverage verdict), Proposed.

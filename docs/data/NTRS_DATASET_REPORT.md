@@ -1,8 +1,8 @@
-# E2-9: NTRS dataset report (24 technical reports)
+# E2-9: NTRS dataset report (27 technical reports)
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Anas (E2) | In review (peer sign-off: Ziad E5) | 1.1.0 | 2026-11-07 | M9, E2-9 | `docs/research/*.pdf`, registry rows `FF-NTRS-*`, `datasets/metadata/files.jsonl`, `knowledge/ingestion/fetch_ntrs.py` |
+| Anas (E2) | In review (peer sign-off: Ziad E5) | 1.2.0 | 2026-11-13 | M9, E2-9 | `docs/research/*.pdf`, registry rows `FF-NTRS-*`, `datasets/metadata/files.jsonl`, `knowledge/ingestion/fetch_ntrs.py` |
 
 ## 1. What the source is
 
@@ -110,9 +110,32 @@ All 21 have `distribution=PUBLIC`, `containsThirdPartyMaterial=false` and `expor
 - Pages without a text layer: `19990063738` pp. 17–18 and `20120015928` pp. 24–27 and 44, besides the known pp. 14–15 of `20080034883`. OCR was not available on this host.
 - **Licence of the original three reports:** their NTRS records were read in this pass. They are `GOV_PUBLIC_USE_PERMITTED` (20000034017 and 20040053557) and `PUBLIC_USE_PERMITTED` (20080034883). Their registry `license` is still `null`, because their rows were not edited in this pass.
 
+## 6. Apollo 1 historical scenario, 2026-11-13: 3 more NTRS reports
+
+**Why.** The Apollo 1 scenario (ADR-013) cites every statement to a NASA page. None of the 24 reports was about the Apollo 1 fire, so three public reports were added with the same script and gates (`knowledge/ingestion/fetch_ntrs.py`, selection group c).
+
+| source_id | Title | Pages | Bytes | Permission |
+|---|---|---|---|---|
+| `FF-NTRS-19930078717` | Report of Apollo 204 Review Board (NASA-TM-108667), 1967 | 192 | 8,011,148 | `GOV_PUBLIC_USE_PERMITTED` |
+| `FF-NTRS-20170008542` | Flame Retardant Fibers for Human Space Exploration: Past, Present, and Future | 6 | 370,944 | `GOV_PUBLIC_USE_PERMITTED` |
+| `FF-NTRS-20070021223` | Crew Exploration Vehicle Environmental Control and Life Support Fire Protection Approach | 4 | 27,699 | `PUBLIC_USE_PERMITTED` |
+
+All three records are `distribution=PUBLIC`, with `containsThirdPartyMaterial=false` and no export control. SHA-256 hashes are in `datasets/checksums/sha256.txt`, and `install_datasets.py --verify-only` passes.
+
+**The size exception.** The Review Board report is a 192-page 1967 scan of 8.0 MB, over the 6 MB per-report cap. It is the primary record of the fire's findings (p. 189, Part VI). The only other NTRS copies are separate appendices: `20160013596` is Appendix F, an inventory of physical evidence with none of the findings. `MAX_BYTES_EXCEPTIONS` in the script allows this one report up to 9 MB and states why. The total stays well under the 60 MB cap.
+
+**Ingestion check (2026-11-13, PostgreSQL 16 + pgvector, Tesseract installed).** `python -m flame_api.ingest` reported `pdf_documents=27`, `pdf_pages=486`, `pdf_chunks=480`, `ocr_pages=48` and 0 quarantined. `vector_index build` embedded 515 chunks (knowledge version `bge-small-en-v1.5-515-20261113`).
+
+**Use.** The pages cited by `ai/fire_safety/historical/apollo1_pad_1967.json` are checked in CI by `tests/unit/test_historical_scenarios.py`: the page must exist, and each quote must appear verbatim, ignoring layout. `GET /api/scenarios/apollo1_pad_1967/history` resolves each cited page to its evidence ID once ingested.
+
+**Data notes.**
+- The scan's OCR is good enough for its findings pages, but has artefacts elsewhere (for example "16.7 _pounds"). The registry short name is curated as "Apollo 204 Review Board 1967 (NASA-TM-108667)", because the NTRS record has no authors.
+- Two corpus reports disagree on the Apollo in-flight pressure: 24 kPa (20000034017 p. 9) against 34.5 kPa (20070010766 p. 8). The scenario timeline shows both.
+
 ## Known limitations
 See §2 and §4. The record pages and licences must be verified when connected.
 
 ## Changelog
+- 1.2.0 (2026-11-13): 3 NTRS reports for the Apollo 1 historical scenario (§6), with a documented size exception for the Apollo 204 Review Board report.
 - 1.1.0 (2026-11-07): 21 more NTRS reports (§5), selected from the PSI ISA-Tab citations and NTRS API searches; every one has a public-use permission determination.
 - 1.0.0 (2026-10-12): first report; the sources are registered and ingested.
