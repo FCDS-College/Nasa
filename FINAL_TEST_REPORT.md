@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Lead (Anas), run by Claude Code | Current | 1.3.1 | 2026-11-12 | T7, ADR-006–009 | whole repository |
+| Lead (Anas), run by Claude Code | Current | 1.4.0 | 2026-11-12 | T7, ADR-006–009 | whole repository |
 
 Every result below was produced by a command run on 2026-11-07 on branch `anas/vibrant-sagan-fsnckf`. "Not run" means it was not run.
 
@@ -154,6 +154,26 @@ Not run: the browser smoke test against the reranked search, Docker Compose, Rai
 | Phone (iPhone 13 emulation) | Playwright | 0 px horizontal overflow; after a tap the details scroll into view (top at 181 px, was 631 px before the fix) |
 | CI (PR #32) | — | all four jobs green on the merged head `8277c85` (Python lint and tests, web lint/typecheck/build, migrations with seed and ingest on PostgreSQL + pgvector, secret scan); merged to `main` as `3ce2d69`. The AURA Link 2 contract job did not run: it runs only when `apps/api/`, the contract or the dry run changes, and PR #32 changed none of them |
 
+## 11. AURA integration re-checked against AURA `main` (2026-11-12)
+
+AURA `main` was at `667c7c4`, 218 commits after the pinned `d696fad`. Between the two revisions these are byte-for-byte unchanged:
+- AURA's OpenAPI connector and adaptation pipeline;
+- service keys and caller context;
+- idempotency;
+- the `/api/v3/chat` request model, apart from one optional desktop field.
+
+| Check | Command | Result |
+|---|---|---|
+| Link 2 dry run, CI's own setup | Python 3.12 venv with only `PyYAML==6.0.3`; `AURA_BACKEND=<AURA 667c7c4>/aura_backend python tests/integration/aura_blueprint_dryrun.py` | **16 ACCEPTED**, 10 excluded, no `not reachable` lines, exit 0. The CI pin moved to `667c7c4` |
+| AURA's Flame-facing tests, AURA's locked environment | Python 3.11 venv from `requirements.lock` + `requirements-dev.lock` (hashes checked; no drift warning); 11 files: caller context, image turns, adaptation compiler/connectors/discovery, HTTP idempotency, service keys, structured output, data classification, kernel degradation, provider wire contracts | **389 passed** |
+| AURA's context guards on Flame's evidence | AURA's `default_context_guards()` from `d696fad` and from `667c7c4`, chained as AURA's pipeline does, over every `evidence.excerpt` in Flame's database (first 2000 characters, as Flame sends) | Both revisions: **10,562 passed, 0 dropped**. 67 PDF passages Unicode-normalised (`encoding` redact: NFKC), none quarantined |
+| Flame changes | `pytest apps/api/tests/test_aura_integration.py`, `test_health.py`; then the full suite | 6 new tests (AURA error slug kept and logged, a non-identifier slug not echoed, `local_healthy` with and without `require_local`, an older AURA without the field) and 1 health test; full suite **429 passed, 6 skipped**; `ruff` clean; contract docs current |
+| AURA's live targets | `GET /health/ready` on `aureon-ai.tech` and `aura-ai-production-03a4.up.railway.app`, 15:54 UTC | Both **404 "Application not found"** from Railway's edge. No live AURA to run either link against |
+
+What changed in AURA that matters to Flame:
+- **A new error.** AURA added 503 `capability_unavailable` (`retryable: false`) for a turn that no permitted model could answer. Flame already mapped it to `unavailable` and fell back. It now also keeps the slug in the error and logs it as `upstream=…`.
+- **A gap that was always there.** AURA classifies caller `context` as SENSITIVE, which was already true at `d696fad`. A hosted-only AURA therefore cannot answer Flame unless its operator raises a slot's data ceiling and Flame stops requiring local. Neither Flame's nor AURA's docs said so; [docs/integration/README.md](docs/integration/README.md) §5 now does.
+
 ## Unresolved
 
 - The garbled-text heuristic is tuned on this English corpus; a reference-list or non-English page could be mis-flagged in future documents (see §7).
@@ -162,6 +182,7 @@ Not run: the browser smoke test against the reranked search, Docker Compose, Rai
 - Generated-answer evaluation: **not run** (no language model in this environment).
 - Gold set and model labels: human review pending.
 - AURA's GitHub Actions were not assigning runners on 2026-11-12 (account-level); AURA-AI #232 merged on locally run checks.
+- No AURA deployment was reachable on 2026-11-12 (§11), so neither link was run live.
 
 ## Changelog
 - 1.0.0 (2026-11-07): first version.
@@ -169,3 +190,4 @@ Not run: the browser smoke test against the reranked search, Docker Compose, Rai
 - 1.2.0 (2026-11-12): §8 CI results; §9, verification of PR #30 and AURA-AI #232.
 - 1.3.0 (2026-11-12): §10, the Knowledge Graph page.
 - 1.3.1 (2026-11-12): §10 CI results on PR #32's merged head.
+- 1.4.0 (2026-11-12): §11, the AURA integration re-checked against AURA `main` `667c7c4`.

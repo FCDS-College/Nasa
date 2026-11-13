@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Lead (Anas) | Current | 1.1.3 | 2026-11-12 | T7, ADR-006–009 | whole repository |
+| Lead (Anas) | Current | 1.1.4 | 2026-11-12 | T7, ADR-006–009 | whole repository |
 
 Detailed, older material: [docs/architecture/overview.md](docs/architecture/overview.md) (Phase 2, Part A), [ADRs](docs/architecture/adr/README.md), [hybrid AI](docs/hybrid-ai/PHASE_2_HYBRID_AI_ARCHITECTURE.md). This file describes the system that answers the Space Apps challenge.
 
@@ -89,7 +89,8 @@ Local models (optional) ── Ollama / llama.cpp / vLLM behind ai/routing (mode
 ## 5. Contracts and integrations
 
 - **REST contract.** `docs/api/openapi.json` 0.6.0 is hand-authored (ADR-010). Route ↔ contract parity and schema validation of live responses are tested. Changelog: `docs/api/CHANGELOG.md`.
-- **AURA (Link 2).** AURA's OpenAPI discovery compiles the GET operations into tools. At the pinned AURA revision `d696fad`, 16 tools are accepted, including `api_list_investigations`, `api_get_investigation`, `api_list_insights`, `api_estimate_flex_outcome` and the two knowledge-graph reads. Chat, cancel and admin operations carry `x-aura-exclude` (10 operations).
+- **AURA (Link 2).** AURA's OpenAPI discovery compiles the GET operations into tools. At the pinned AURA revision `667c7c4` (AURA `main`, 2026-11-12; `d696fad` before), 16 tools are accepted, including `api_list_investigations`, `api_get_investigation`, `api_list_insights`, `api_estimate_flex_outcome` and the two knowledge-graph reads. Chat, cancel and admin operations carry `x-aura-exclude` (10 operations).
+- **AURA (Link 1).** Flame's evidence travels in AURA's `context`, which AURA classifies as SENSITIVE. Only an AURA model allowed SENSITIVE content can answer: a local one by default. Otherwise AURA returns 503 `capability_unavailable` and Flame falls back. Flame skips AURA while AURA reports `local_healthy: false` and Flame requires local ([integration README](docs/integration/README.md) §5).
 - **Model routing.** `ai/routing` routes chat, embeddings and vision to local or cloud providers with health checks, circuit breakers and audited mode switches.
 
 ## Known limitations
@@ -101,7 +102,8 @@ Local models (optional) ── Ollama / llama.cpp / vLLM behind ai/routing (mode
 ## Changelog
 - 1.0.0 (2026-11-07): first version.
 - 1.0.1 (2026-11-07): ADR-006 is Accepted and only partly implemented (ADR index 1.3.0).
-- 1.1.3 (2026-11-12): the Knowledge Graph page.
-- 1.1.2 (2026-11-12): states the merged revision; reranking in the system diagram.
-- 1.1.1 (2026-11-12): reranker on by default; reviewed graph aliases.
 - 1.1.0 (2026-11-12): ADR-006 to 009 built (PR #29): contract 0.6.0, admin scope, video checkpoints and cancel, the ai/rag search stack, the knowledge graph.
+- 1.1.1 (2026-11-12): reranker on by default; reviewed graph aliases.
+- 1.1.2 (2026-11-12): states the merged revision; reranking in the system diagram.
+- 1.1.3 (2026-11-12): the Knowledge Graph page.
+- 1.1.4 (2026-11-12): AURA pin `667c7c4`; Link 1 data classification and `local_healthy`.

@@ -37,7 +37,8 @@ def _aura_only(settings: Settings) -> Router:
 
 
 def check_aura_ready(settings: Settings, *, timeout_s: float = 2.0) -> tuple[str, float]:
-    status = AuraProvider(base_url=settings.aura_base_url, service_token="", timeout_s=timeout_s).health(timeout_s)
+    status = AuraProvider(base_url=settings.aura_base_url, service_token="", timeout_s=timeout_s,
+                          require_local=settings.aura_require_local).health(timeout_s)
     return ("up" if status.state == "up" else "down"), status.latency_ms or 0.0
 
 
