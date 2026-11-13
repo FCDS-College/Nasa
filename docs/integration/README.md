@@ -46,7 +46,7 @@ AURA compiles **GET operations only**, and skips any operation marked `x-aura-ex
 |---|---|---|
 | `api_get_health` | `GET /api/health` | Is Flame up? Which AI providers and mode? |
 | `api_get_dashboard_counts` | `GET /api/dashboard/counts` | Corpus size and knowledge version |
-| `api_search` | `GET /api/search` | Hybrid search over 24 NASA reports, NASA investigation metadata and 840 flight tests; every hit has an `evidence_id` and a page or row locator |
+| `api_search` | `GET /api/search` | Hybrid search over 27 NASA reports, NASA investigation metadata and 840 flight tests; every hit has an `evidence_id` and a page or row locator |
 | `api_list_documents`, `api_get_document` | `GET /api/documents[/{id}]` | Corpus documents |
 | `api_list_experiments`, `api_get_experiment` | `GET /api/experiments[/{id}]` | Flight tests with their published conditions, each cell with an `evidence_id` |
 | `api_get_evidence` | `GET /api/evidence/{id}` | The citation: source, file checksum, locator and excerpt |

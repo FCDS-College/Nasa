@@ -1,10 +1,13 @@
-// Knowledge-graph client (contract 0.6.0, tag "Knowledge graph", ADR-007). Read-only, through the
+// Knowledge-graph client (contract 0.7.0, tag "Knowledge graph", ADR-007). Read-only, through the
 // same-origin proxy (app/api/[...path]). The graph holds what NASA's PSI tables and ISA-Tab records
 // state; every edge carries the evidence ID of the cell it was read from.
 import { get } from "./fireSafety";
 
-export type GraphEntityType = "investigation" | "experiment" | "fuel" | "condition_variable" | "phenomenon" | "document";
-export type GraphPredicate = "part_of" | "uses_fuel" | "has_condition" | "observed" | "describes";
+// platform/instrument and ran_on/measured_with come from the NLP graph (D1, roadmap 15); the contract has had them since
+// 0.6.0. Every type the API can return must be listed here, or the Knowledge Graph page cannot label it.
+export type GraphEntityType = "investigation" | "experiment" | "fuel" | "condition_variable" | "phenomenon" | "document"
+  | "platform" | "instrument";
+export type GraphPredicate = "part_of" | "uses_fuel" | "has_condition" | "observed" | "describes" | "ran_on" | "measured_with";
 export type GraphReviewStatus = "unreviewed" | "human_verified" | "rejected";
 
 export interface GraphEntity {
@@ -62,19 +65,22 @@ export const ENTITY_TYPES: { value: GraphEntityType; label: string }[] = [
   { value: "condition_variable", label: "Conditions" },
   { value: "document", label: "NASA records" },
   { value: "experiment", label: "Flight tests" },
+  { value: "platform", label: "Platforms" },
+  { value: "instrument", label: "Instruments" },
 ];
 
 export const TYPE_LABEL: Record<GraphEntityType, string> = {
   investigation: "Investigation", experiment: "Flight test", fuel: "Fuel / material",
-  condition_variable: "Condition", phenomenon: "Outcome", document: "NASA record",
+  condition_variable: "Condition", phenomenon: "Outcome", document: "NASA record", platform: "Platform", instrument: "Instrument",
 };
 
 // How an edge reads from its subject to its object.
 export const PREDICATE_LABEL: Record<GraphPredicate, string> = {
   part_of: "is part of", uses_fuel: "burned", has_condition: "recorded", observed: "ended in", describes: "describes",
+  ran_on: "ran on", measured_with: "measured with",
 };
 
-export const ALL_PREDICATES: GraphPredicate[] = ["part_of", "uses_fuel", "has_condition", "observed", "describes"];
+export const ALL_PREDICATES: GraphPredicate[] = ["part_of", "uses_fuel", "has_condition", "observed", "describes", "ran_on", "measured_with"];
 
 export function listEntities(query: { type?: GraphEntityType; q?: string; page?: number; page_size?: number }) {
   return get<GraphEntityList>("graph/entities", query);

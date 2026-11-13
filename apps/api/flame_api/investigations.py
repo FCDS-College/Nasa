@@ -4,6 +4,7 @@
     GET /api/investigations/{id}            one investigation: NASA's own summary sections + data envelope
     GET /api/insights                       computed, cited fire-safety statements for a cabin atmosphere
     GET /api/insights/flex-outcome          FLEX outcome model: probabilities, applicability, similar flight tests
+    GET /api/scenarios/{id}/history         a historical scenario's cited story, timeline and data-covered alternative
 
 All read-only and deterministic. Numbers come from ingested flight-test rows (ai.fire_safety); text
 summaries are NASA's ISA-Tab metadata, verbatim and cited. Nothing here calls a language model.
@@ -96,11 +97,17 @@ def reset_cache() -> None:
         _cache.clear()
 
 
-def _scenario(request: Request, scenario: str | None, o2_fraction: float | None, pressure_kpa: float | None):
+Gravity = Literal["microgravity", "lunar", "martian", "earth"]
+
+
+def _scenario(request: Request, scenario: str | None, o2_fraction: float | None, pressure_kpa: float | None,
+              gravity: str | None = None):
     if o2_fraction is not None or pressure_kpa is not None:
         if o2_fraction is None or pressure_kpa is None:
             return None, _bad(request, "o2_fraction", "o2_fraction and pressure_kpa must be given together")
-        return scenarios.custom(o2_fraction, pressure_kpa), None
+        return scenarios.custom(o2_fraction, pressure_kpa, gravity or scenarios.FLIGHT_GRAVITY), None
+    if gravity is not None:
+        return None, _bad(request, "gravity", "gravity applies to a custom atmosphere (o2_fraction and pressure_kpa)")
     chosen = scenarios.BY_ID.get(scenario or "iss_nominal")
     if chosen is None:
         return None, _bad(request, "scenario", f"unknown scenario; use one of {', '.join(scenarios.BY_ID)}")
@@ -160,12 +167,13 @@ def list_investigations(
     scenario: Annotated[str | None, Query(max_length=40)] = None,
     o2_fraction: Annotated[float | None, Query(ge=0.05, le=1.0)] = None,
     pressure_kpa: Annotated[float | None, Query(ge=5.0, le=400.0)] = None,
+    gravity: Gravity | None = None,
     session: Session = Depends(get_session),
 ):
-    chosen, error = _scenario(request, scenario, o2_fraction, pressure_kpa)
+    chosen, error = _scenario(request, scenario, o2_fraction, pressure_kpa, gravity)
     if error:
         return error
-    registry, by_source, isatab, sources, _ = _load(session)
+    registry, by_source, isatab, sources, regimes = _load(session)
     items = [_summary(row, isatab.get(sid), sources, by_source.get(sid, []), chosen)
              for sid, row in registry.items() if sid != "FF-PSI-DSI" and (row.get("domain") or "combustion") != "non_combustion"
              and row.get("experiment_family") != "DECLIC-DSI"]
@@ -174,6 +182,8 @@ def list_investigations(
         "scenario": chosen.as_dict(),
         "scenarios": [s.as_dict() for s in scenarios.SCENARIOS],
         "ranking_method": analytics.FORMULA,
+        "coverage": analytics.coverage({sid: ts for sid, ts in by_source.items() if sid in {i["investigation_id"] for i in ranked}},
+                                       chosen, _flight_regimes(regimes)),
         "items": ranked,
         "not_acquired": list(CHALLENGE_NOT_ACQUIRED),
         "totals": {"investigations": len(ranked), "with_data": sum(1 for i in ranked if i["status"] == "ingested"),
@@ -189,9 +199,10 @@ def get_investigation(
     scenario: Annotated[str | None, Query(max_length=40)] = None,
     o2_fraction: Annotated[float | None, Query(ge=0.05, le=1.0)] = None,
     pressure_kpa: Annotated[float | None, Query(ge=5.0, le=400.0)] = None,
+    gravity: Gravity | None = None,
     session: Session = Depends(get_session),
 ):
-    chosen, error = _scenario(request, scenario, o2_fraction, pressure_kpa)
+    chosen, error = _scenario(request, scenario, o2_fraction, pressure_kpa, gravity)
     if error:
         return error
     registry, by_source, isatab, sources, regimes = _load(session)
@@ -211,6 +222,11 @@ def get_investigation(
     return {"investigation": item, "scenario": chosen.as_dict(), "meta": response_meta(request)}
 
 
+def _flight_regimes(regimes: set[str]) -> list[str]:
+    """Gravity regimes recorded for the flight tests; 'unknown' rows say nothing about gravity."""
+    return sorted(r for r in regimes if r and r != "unknown") or [scenarios.FLIGHT_GRAVITY]
+
+
 def _names(registry: dict) -> dict[str, str]:
     return {sid: (r.get("short_name") or sid) for sid, r in registry.items()}
 
@@ -228,13 +244,14 @@ def list_insights(
     scenario: Annotated[str | None, Query(max_length=40)] = None,
     o2_fraction: Annotated[float | None, Query(ge=0.05, le=1.0)] = None,
     pressure_kpa: Annotated[float | None, Query(ge=5.0, le=400.0)] = None,
+    gravity: Gravity | None = None,
     session: Session = Depends(get_session),
 ):
-    chosen, error = _scenario(request, scenario, o2_fraction, pressure_kpa)
+    chosen, error = _scenario(request, scenario, o2_fraction, pressure_kpa, gravity)
     if error:
         return error
     registry, by_source, _, _, regimes = _load(session)
-    estimate = _scenario_model_insight(by_source.get("FF-PSI-69", []), chosen)
+    estimate = _scenario_model_insight(by_source.get("FF-PSI-69", []), chosen, _flight_regimes(regimes))
     items = analytics.insights(by_source, chosen, _names(registry), estimate, regimes)
     return {"scenario": chosen.as_dict(), "items": items, "meta": response_meta(request)}
 
@@ -303,12 +320,23 @@ def _features(fuel: str, o2: float, pressure_kpa: float, co2: float, he: float, 
             "heptane": 1.0 if fuel == "Heptane" else 0.0}
 
 
-def _sweep(fuel, pressure_kpa, co2, he, d0, tests) -> list[dict]:
+def _sweep_grid(lo: float, hi: float, requested: float | None) -> list[float]:
+    """12 points over the trained O2 range, extended (out of domain) to reach a requested O2 outside it,
+    so the chart can show how far beyond the flight data an atmosphere such as Apollo 1's pure oxygen lies."""
+    grid = [float(x) for x in np.round(np.linspace(lo, hi, 12), 4)]
+    if requested is not None and requested > hi + 1e-9:
+        grid += [float(x) for x in np.round(np.linspace(hi, min(requested, 1.0), 7)[1:], 4)]
+    if requested is not None and requested < lo - 1e-9:
+        grid = [float(x) for x in np.round(np.linspace(max(requested, 0.0), lo, 4)[:-1], 4)] + grid
+    return grid
+
+
+def _sweep(fuel, pressure_kpa, co2, he, d0, tests, requested_o2: float | None = None) -> list[dict]:
     model = outcome_model.load()
     lo, hi = model.domain["feature_ranges"]["o2"]["min"], model.domain["feature_ranges"]["o2"]["max"]
     training = _flex_training(tests, model)
     points = []
-    for o2 in np.round(np.linspace(lo, hi, 12), 4):
+    for o2 in _sweep_grid(lo, hi, requested_o2):
         f = _features(fuel, float(o2), pressure_kpa, co2, he, d0)
         z = model.standardized(model.vector(f))
         nearest = min((float(np.sqrt(((zt - z) ** 2).sum())) for _, _, zt in training), default=None)
@@ -340,7 +368,7 @@ def flex_outcome(
         "input": {"fuel": fuel, "o2_fraction": o2_fraction, "pressure_kpa": pressure_kpa, "co2_fraction": co2_fraction,
                   "he_fraction": he_fraction, "droplet_diameter_mm": droplet_diameter_mm},
         **result,
-        "o2_sweep": _sweep(fuel, pressure_kpa, co2_fraction, he_fraction, droplet_diameter_mm, tests),
+        "o2_sweep": _sweep(fuel, pressure_kpa, co2_fraction, he_fraction, droplet_diameter_mm, tests, o2_fraction),
         "model": _evaluation_summary(),
         "claim_class": "estimated",
         "scope": ("Estimated from 261 FLEX droplet tests (methanol, heptane) in microgravity. It does not describe solid "
@@ -349,14 +377,26 @@ def flex_outcome(
     }
 
 
-def _scenario_model_insight(tests: list[analytics.Canonical], scenario) -> dict | None:
+def _gravity_reason(scenario, flight_regimes: list[str]) -> str | None:
+    if scenario.gravity in flight_regimes:
+        return None
+    where = "1 g (Earth)" if scenario.gravity == "earth" else f"{scenario.gravity} gravity"
+    return f"every FLEX test was flown in {' and '.join(flight_regimes)}; this atmosphere is at {where}"
+
+
+def _scenario_model_insight(tests: list[analytics.Canonical], scenario, flight_regimes: list[str] | None = None) -> dict | None:
     if not tests:
         return None
     model = outcome_model.load()
     d0 = float(np.median([f["d0_mm"] for _, f, _ in _flex_training(tests, model)]))
+    gravity_reason = _gravity_reason(scenario, flight_regimes or [scenarios.FLIGHT_GRAVITY])
     rows = {}
     for fuel in flex.FUELS:
         rows[fuel] = predict(_features(fuel, scenario.o2_fraction, scenario.pressure_kpa, 0.0, 0.0, d0), tests, k=5)
+        if gravity_reason:   # the model has no gravity input: a regime nobody flew is outside its domain
+            app = rows[fuel]["applicability"]
+            rows[fuel].update(probabilities=None, predicted_end_state=None,
+                              applicability={**app, "in_domain": False, "reasons": [*app["reasons"], gravity_reason]})
     in_domain = {f: r["applicability"]["in_domain"] for f, r in rows.items()}
     parts = []
     for fuel, r in rows.items():
@@ -385,3 +425,59 @@ def _scenario_model_insight(tests: list[analytics.Canonical], scenario) -> dict 
                     "Evidence lists the nearest real flight tests and their recorded end state."],
     }
 
+
+
+# ------------------------------------------------------------------------------------- historical scenarios
+
+SCENARIO_ID_PATTERN = r"^[a-z0-9_]{3,40}$"
+
+
+def _page_evidence(session: Session, source_ids: set[str]) -> dict[tuple[str, int], str]:
+    """(source_id, page) -> evidence_id for the ingested pages of these reports."""
+    out: dict[tuple[str, int], str] = {}
+    for evidence_id, source_id, locator in session.query(EvidenceRecord.evidence_id, EvidenceRecord.source_id,
+                                                         EvidenceRecord.locator) \
+            .filter(EvidenceRecord.source_id.in_(sorted(source_ids))):
+        if isinstance(locator, dict) and locator.get("type") == "page" and isinstance(locator.get("page"), int):
+            out.setdefault((source_id, locator["page"]), evidence_id)
+    return out
+
+
+def _cite(source: dict, registry: dict[str, dict], pages: dict[tuple[str, int], str]) -> dict:
+    row = registry.get(source["source_id"], {})
+    return {"source_id": source["source_id"], "page": source["page"], "quote": source.get("quote"),
+            "title": row.get("title"), "short_name": row.get("short_name"), "access_url": row.get("access_url"),
+            "evidence_id": pages.get((source["source_id"], source["page"]))}
+
+
+@router.get("/api/scenarios/{scenario_id}/history", tags=["Fire safety"])
+def scenario_history(
+    request: Request,
+    scenario_id: Annotated[str, ApiPath(pattern=SCENARIO_ID_PATTERN)],
+    session: Session = Depends(get_session),
+):
+    """A historical atmosphere's story, page-cited timeline, lesson and the data-covered alternative to show next."""
+    history = scenarios.HISTORIES.get(scenario_id)
+    if history is None:
+        return JSONResponse(status_code=404, content=error_body(
+            request, "SCENARIO_HISTORY_NOT_FOUND", "No history is published for this scenario.",
+            details={"scenario_id": scenario_id, "historical_scenarios": sorted(scenarios.HISTORIES)}))
+    cited = {s["source_id"] for s in history.lesson_sources} | {s["source_id"] for s in history.alternative["sources"]} \
+        | {s["source_id"] for e in history.timeline for s in e["sources"]}
+    registry = {r["source_id"]: r for r in read_registry() if r["source_id"] in cited}
+    pages = _page_evidence(session, cited)
+    alternative = scenarios.BY_ID[history.alternative["scenario_id"]]
+    return {
+        "scenario": scenarios.BY_ID[scenario_id].as_dict(),
+        "year": history.year,
+        "story": history.story,
+        "lesson": history.lesson,
+        "lesson_sources": [_cite(s, registry, pages) for s in history.lesson_sources],
+        "timeline": [{"date": e["date"], "title": e["title"], "text": e["text"],
+                      "sources": [_cite(s, registry, pages) for s in e["sources"]]} for e in history.timeline],
+        "alternative": {"scenario": alternative.as_dict(), "headline": history.alternative["headline"],
+                        "rationale": history.alternative["rationale"],
+                        "sources": [_cite(s, registry, pages) for s in history.alternative["sources"]]},
+        "claim_class": "cited_history",
+        "meta": response_meta(request),
+    }

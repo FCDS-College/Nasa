@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Lead (Anas) | Current | 1.1.4 | 2026-11-12 | T7, ADR-006–009 | whole repository |
+| Lead (Anas) | Current | 1.2.0 | 2026-11-13 | T7, ADR-006–009, ADR-013 | whole repository |
 
 Detailed, older material: [docs/architecture/overview.md](docs/architecture/overview.md) (Phase 2, Part A), [ADRs](docs/architecture/adr/README.md), [hybrid AI](docs/hybrid-ai/PHASE_2_HYBRID_AI_ARCHITECTURE.md). This file describes the system that answers the Space Apps challenge.
 
@@ -11,16 +11,16 @@ Detailed, older material: [docs/architecture/overview.md](docs/architecture/over
 ```
 NASA PSI (CC0)   ┐  datasets/raw/psi_api/*/Experimental table/*.csv  (4 tables, 876 rows)
                  │  datasets/raw/psi_api/*/metadata/*.zip            (ISA-Tab: objective, hypothesis…)
-NASA NTRS        ┤  docs/research/*.pdf                              (24 public-use reports)
+NASA NTRS        ┤  docs/research/*.pdf                              (27 public-use reports)
 BASS-II / SPICE  ┘  datasets/samples/cv/                             (flight video, ISS photos)
         │  seed → ingest (table parser, ISA-Tab parser, PDF + OCR fallback) → vector_index build
         ▼
 PostgreSQL + pgvector ── experiment, experiment_condition, evidence, document, document_chunk, chunk_embedding,
         │                 knowledge_entity / knowledge_relation (graph, rebuilt at every ingest), video_checkpoint_frame
         │
-FastAPI apps/api (contract docs/api/openapi.json 0.6.0, per-client keys with read/write/admin scopes, rate limits)
+FastAPI apps/api (contract docs/api/openapi.json 0.7.0, per-client keys with read/write/admin scopes, rate limits)
   ├─ Fire safety  /api/investigations · /api/investigations/{id} · /api/insights · /api/insights/flex-outcome
-  │                └─ ai/fire_safety: canonical features, scenarios, ranking, insights, FLEX model (numpy)
+  │                └─ ai/fire_safety: canonical features, scenarios (+ historical/*.json), coverage verdict, ranking, insights, FLEX model (numpy)
   ├─ Research     /api/search (SQL candidates → ai/rag search stack: rewrite, RRF, cross-encoder reranking of the top 10) · /api/chat (grounded, citation-filtered) · documents · experiments · evidence
   ├─ Graph        /api/graph/entities · /api/graph/entities/{id} (recursive-CTE neighbourhood, every edge cited)
   └─ Analysis     /api/analyses (image + video) → S3 original → RQ worker → cv/ (OpenCV) → measurements + evidence;
@@ -107,3 +107,4 @@ Local models (optional) ── Ollama / llama.cpp / vLLM behind ai/routing (mode
 - 1.1.2 (2026-11-12): states the merged revision; reranking in the system diagram.
 - 1.1.3 (2026-11-12): the Knowledge Graph page.
 - 1.1.4 (2026-11-12): AURA pin `667c7c4`; Link 1 data classification and `local_healthy`.
+- 1.2.0 (2026-11-13): contract 0.7.0; historical scenarios as data files and the coverage verdict (ADR-013); 27 NTRS reports.

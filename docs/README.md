@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Lead (Anas) | Current; kept current on every PR (PR template checkbox) | 1.2.2 | 2026-11-12 | G-1, G-3 | — |
+| Lead (Anas) | Current; kept current on every PR (PR template checkbox) | 1.3.0 | 2026-11-13 | G-1, G-3 | — |
 
 **Status key:** Draft → In review → Approved. "Due Wn" means the document doesn't exist yet and is due in Phase 2 week n. "On branch X" means it exists only on that engineer's branch. Requirements per engineer:
 - `docs/reports/DOC_REQUIREMENTS_Lead.md` and `DOC_REQUIREMENTS_Anas.md` on `main`;
@@ -12,10 +12,10 @@
 
 | ID | Document | Status | Last updated |
 |---|---|---|---|
-| L-1 | [ADRs 001–012](architecture/adr/README.md) | 001–012 Accepted; 006–009 built in PR #29 (index 1.4.0 lists what is still open); all signed off 2026-11-07 (Lead's confirmation) | 2026-11-12 |
+| L-1 | [ADRs 001–013](architecture/adr/README.md) | 001–012 Accepted; 006–009 built in PR #29 (index 1.4.0 lists what is still open); all signed off 2026-11-07 (Lead's confirmation). [ADR-013](architecture/adr/ADR-013-historical-scenarios-coverage-verdict.md) (historical scenarios, gravity, coverage verdict) Proposed, implemented | 2026-11-13 |
 | L-2 | [Architecture overview](architecture/overview.md) | In review | 2026-10-12 |
 | L-3 | delivered as H-2 + H-4 | In review | 2026-10-12 |
-| L-4 | [openapi.json](api/openapi.json) 0.6.0, [API_SCHEMAS.md](api/API_SCHEMAS.md), [CHANGELOG](api/CHANGELOG.md) | Current | 2026-11-12 |
+| L-4 | [openapi.json](api/openapi.json) 0.7.0, [API_SCHEMAS.md](api/API_SCHEMAS.md), [CHANGELOG](api/CHANGELOG.md) | Current | 2026-11-13 |
 | L-5 | [Index synchronization contract](architecture/index-sync-contract.md) | In review | 2026-10-12 |
 | L-6 | [Background jobs](architecture/background-jobs.md) | In review (1.1.0: video checkpoints, cancellation) | 2026-11-12 |
 | L-7 | [CI/CD and testing](operations/CI_CD.md) | In review | 2026-10-12 |
@@ -49,7 +49,7 @@
 | E2-6 | [Knowledge graph schema](data/KNOWLEDGE_GRAPH_SCHEMA.md) | Current (0.6.0: built from the PSI tables, ADR-007) | 2026-11-12 |
 | E2-7 | [Data quality scoring](data/DATA_QUALITY_SCORING.md) | Draft (method authority: Ziad's rubrics, due W4) | 2026-10-12 |
 | E2-8 | [Admin data operations](data/ADMIN_DATA_OPERATIONS.md) | Draft (0.7.0: admin scope) | 2026-11-12 |
-| E2-9 | [NTRS report](data/NTRS_DATASET_REPORT.md), [NIST WebBook report](data/NIST_WEBBOOK_DATASET_REPORT.md), [DSI report](data/DSI_DATASET_REPORT.md) | In review | 2026-10-12 |
+| E2-9 | [NTRS report](data/NTRS_DATASET_REPORT.md) (1.2.0: 27 reports), [NIST WebBook report](data/NIST_WEBBOOK_DATASET_REPORT.md), [DSI report](data/DSI_DATASET_REPORT.md) | In review | 2026-11-13 |
 | E2-10 | [Offline data and sync](data/OFFLINE_DATA_AND_SYNC.md) | Draft (restore drill Pending) | 2026-10-12 |
 | — | [Weekly note](reports/WEEKLY_Anas_E2.md) | Current | 2026-10-12 |
 
@@ -66,7 +66,8 @@
 
 | Document | Status | Owner |
 |---|---|---|
-| **Final challenge deliverables (2026-11-07, updated 2026-11-12 for PR #27–#32):** [status](../FINAL_PROJECT_STATUS.md), [architecture](../FINAL_ARCHITECTURE.md), [test report](../FINAL_TEST_REPORT.md), [demo runbook](../DEMO_RUNBOOK.md), [presentation](../FINAL_CHALLENGE_PRESENTATION.md) | Current | Lead |
+| **Apollo 1 scenario and pitch (2026-11-13):** [analysis](reports/APOLLO1_SCENARIO_ANALYSIS.md), [3-minute deck](presentations/flame-in-freefall-3min-pitch.pptx) (built by [build_pitch_deck.py](presentations/build_pitch_deck.py)), [English script](presentations/PITCH_SCRIPT_3MIN.md), [Arabic rehearsal script](presentations/PITCH_SCRIPT_3MIN.ar.md), [business plan](business/BUSINESS_PLAN.md) (draft) | Current | Lead |
+| **Final challenge deliverables (2026-11-07, updated 2026-11-12 for PR #27–#32 and 2026-11-13 for the Apollo 1 scenario):** [status](../FINAL_PROJECT_STATUS.md), [architecture](../FINAL_ARCHITECTURE.md), [test report](../FINAL_TEST_REPORT.md), [demo runbook](../DEMO_RUNBOOK.md), [presentation](../FINAL_CHALLENGE_PRESENTATION.md) | Current | Lead |
 | [FLEX outcome model card and evaluation](evaluation/reports/flex-outcome-model.md), [retrieval evaluation](evaluation/reports/retrieval-2026-11-07.md), [significance of retrieval differences](evaluation/reports/retrieval-significance-2026-11-13.md), [embedder and reranker comparison](evaluation/reports/model-comparison-2026-11-13.md) | Current (human review pending: Ziad, Eman) | Lead |
 | [Evaluation production-readiness roadmap](evaluation/production-readiness-roadmap.md) (EV-01..EV-25) | Proposed (needs Lead sign-off) | Ziad |
 | 2026-10-30 system audit: [status audit](reviews/SYSTEM_STATUS_AUDIT.md), [roadmap](plan/IMPLEMENTATION_ROADMAP.md), [implementation changelog](reviews/IMPLEMENTATION_CHANGELOG.md) | Current | Lead |
@@ -114,3 +115,4 @@ Taken from each engineer's requirements file. Every document also gets the Lead'
 - 1.2.0 (2026-11-12): ADR-006 to 009 built (PR #29): L-1, L-4, L-6, L-10, L-12, E2-3, E2-6 and E2-8 rows.
 - 1.2.1 (2026-11-12): final deliverables updated for the merged PR #30 and AURA-AI #232.
 - 1.2.2 (2026-11-12): final deliverables cover PR #32; the readiness report is listed as a historical snapshot with its 2026-11-12 update.
+- 1.3.0 (2026-11-13): the Apollo 1 scenario: ADR-013 (L-1), contract 0.7.0 (L-4), NTRS report 1.2.0 (E2-9), the analysis, pitch deck and scripts, and the business plan.

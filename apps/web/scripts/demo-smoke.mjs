@@ -45,12 +45,36 @@ await step("01-dashboard", async () => {
   await visible("Ranked investigations");
   await visible("FLEX · Flame Extinguishment Experiment");
   await visible("Lower oxygen, more self-extinguishing droplet flames");
+  // ISS air first: the system solves (pitch order: success before refusal).
+  await visible("of the 840 flight tests lie near this atmosphere");
 });
 
 await step("02-lunar-scenario", async () => {
   await page.getByRole("radio", { name: /Lunar lander/ }).click();
   await visible("scenario pressure 62.7 kPa is outside the tested range");
   await visible("Solid-material burns and enriched oxygen");
+});
+
+// Apollo 1 (ADR-013): the system knows when not to answer, says why, and shows where data does exist.
+await step("02b-apollo1-refusal", async () => {
+  await page.getByRole("radio", { name: /Apollo 1/ }).click();
+  await visible("None of the 840 flight tests cover this atmosphere.");
+  await visible("this scenario is at 1 g (Earth)");
+  await page.locator('[data-verdict="none"]').waitFor();
+  await page.locator('[data-testid="sweep-out-of-domain"]').first().waitFor();   // red zone out to 100% O2
+  await page.locator('[data-testid="history-timeline"] li').nth(5).waitFor();    // at least 6 cited events
+  const uncited = await page.locator('[data-testid="history-timeline"] li').evaluateAll(
+    (items) => items.filter((li) => !li.querySelector('a[href^="https://ntrs.nasa.gov/"], a[href^="/evidence?id="]')).length);
+  if (uncited) throw new Error(`${uncited} timeline event(s) without a source link`);
+  await visible("extremely hazardous");
+  await page.locator('[data-testid="history-alternative"]').waitFor();
+});
+
+await step("02c-apollo1-alternative", async () => {
+  await page.getByRole("button", { name: /Show the flight data for/ }).click();
+  await page.locator('[data-verdict="covered"]').waitFor({ timeout: 20000 });
+  await page.getByRole("radio", { name: /Orion/, checked: true }).waitFor();
+  await visible("Outcome model estimate for this atmosphere");
 });
 
 await step("03-investigation", async () => {
@@ -71,6 +95,8 @@ await step("05-explorer", async () => {
   await visible("Inside the flight-tested domain");
   await page.getByRole("button", { name: /Lunar lander/ }).click();
   await visible("No estimate: these conditions were never flown");
+  await page.getByRole("button", { name: /Apollo 1 pad/ }).click();
+  await visible("O₂ mole fraction 1 is outside the flight-tested range");
 });
 
 await step("06-chat", async () => {

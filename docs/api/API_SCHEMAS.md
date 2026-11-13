@@ -1,6 +1,6 @@
 # Flame in Freefall: API Response Schemas
 
-**Generated from [`openapi.json`](openapi.json)** (OpenAPI 3.1.0, API 0.6.0) by `docs/tools/render_api_schemas.py`. Do not edit by hand.
+**Generated from [`openapi.json`](openapi.json)** (OpenAPI 3.1.0, API 0.7.0) by `docs/tools/render_api_schemas.py`. Do not edit by hand.
 Endpoint behaviour, examples and display rules: [`FRONTEND_API_CONTRACT.md`](FRONTEND_API_CONTRACT.md).
 
 Reading the tables: *Required = yes* means the key is always present. A nullable field (`| null`) is still present, with value `null`, which means "not present or not established" and is never a stand-in for `0`. The only optional keys in responses are those of [`ErrorDetails`](#errordetails).
@@ -37,6 +37,7 @@ Reading the tables: *Required = yes* means the key is always present. A nullable
 | GET | `/api/graph/entities` | 200 [`GraphEntityListResponse`](#graphentitylistresponse) | 400, 401, 403, 429, 500, 503 |
 | GET | `/api/graph/entities/{entity_id}` | 200 [`GraphEntityResponse`](#graphentityresponse) | 400, 401, 403, 404, 429, 500, 503 |
 | GET | `/api/admin/graph/consistency` | 200 [`GraphConsistencyResponse`](#graphconsistencyresponse) | 400, 401, 403, 429, 500, 503 |
+| GET | `/api/scenarios/{scenario_id}/history` | 200 [`ScenarioHistoryResponse`](#scenariohistoryresponse) | 400, 401, 403, 404, 429, 500, 503 |
 
 ## 2. Object schemas
 
@@ -224,6 +225,7 @@ All counts are exact `COUNT(*)` reads at `meta.generated_at`. On failure the end
 | `not_acquired` | [`NotAcquiredInvestigation`](#notacquiredinvestigation)[] | yes |  |
 | `totals` | object | yes |  |
 | `meta` | [`ResponseMeta`](#responsemeta) | yes |  |
+| `coverage` | [`Coverage`](#coverage) | yes |  |
 
 ### InvestigationResponse
 
@@ -283,6 +285,22 @@ FLEX outcome model estimate (claim class `estimated`). `probabilities` is null o
 | `ok` | boolean | yes |  |
 | `extractor_version` | string | yes |  |
 | `checks` | object | yes |  |
+| `meta` | [`ResponseMeta`](#responsemeta) | yes |  |
+
+### ScenarioHistoryResponse
+
+A historical scenario (contract 0.7.0): its cited story, timeline and the data-covered alternative to show after the refusal. Every statement carries NTRS pages.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `scenario` | [`Scenario`](#scenario) | yes |  |
+| `year` | integer | yes |  |
+| `story` | string | yes |  |
+| `lesson` | string | yes |  |
+| `lesson_sources` | [`CitedSource`](#citedsource)[] | yes |  |
+| `timeline` | object[] | yes |  |
+| `alternative` | object | yes |  |
+| `claim_class` | `"cited_history"` | yes |  |
 | `meta` | [`ResponseMeta`](#responsemeta) | yes |  |
 
 ### VersionInfo
@@ -627,7 +645,7 @@ One append-only audit_event row (B6).
 
 ### Scenario
 
-A cabin atmosphere. Quoted or derived values cite NASA/TM-2008-215260 p. 5; `user` is a custom query.
+A cabin atmosphere. Quoted or derived values cite NASA/TM-2008-215260 p. 5; `historical` scenarios (contract 0.7.0, ADR-013) are past atmospheres with a cited story at `GET /api/scenarios/{scenario_id}/history`; `user` is a custom query. `gravity` is the gravity the atmosphere exists in: every flight test in this corpus is microgravity, so any other value is outside the flight data.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
@@ -636,9 +654,11 @@ A cabin atmosphere. Quoted or derived values cite NASA/TM-2008-215260 p. 5; `use
 | `o2_fraction` | number | yes |  |
 | `pressure_kpa` | number | yes |  |
 | `ppo2_kpa` | number | yes |  |
-| `basis` | `"quoted"` \| `"derived"` \| `"user"` | yes |  |
+| `basis` | `"quoted"` \| `"derived"` \| `"user"` \| `"historical"` | yes |  |
 | `note` | string | yes |  |
 | `citation` | string \| `null` | yes |  |
+| `gravity` | `"microgravity"` \| `"lunar"` \| `"martian"` \| `"earth"` | yes |  |
+| `kind` | `"mission"` \| `"historical"` \| `"custom"` | yes |  |
 
 ### InvestigationSummary
 
@@ -672,6 +692,24 @@ A cabin atmosphere. Quoted or derived values cite NASA/TM-2008-215260 p. 5; `use
 | `acronym` | string | yes |  |
 | `title` | string | yes |  |
 | `note` | string | yes |  |
+
+### Coverage
+
+Scenario-level verdict (contract 0.7.0, ADR-013): does any flight test speak to this atmosphere? The relevance score of each investigation can stay above zero for an atmosphere nobody flew, so the dashboard shows this verdict, the nearest real test and the gap before the ranking. `none` when the scenario's gravity was never flown or no test lies within ±0.03 O2 (and ±25% pressure when recorded); `partial` when 1–4 such tests exist or the atmosphere is outside the flown O2 or pressure range; otherwise `covered` (5 or more).
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `verdict` | `"covered"` \| `"partial"` \| `"none"` | yes |  |
+| `headline` | string | yes |  |
+| `tests_total` | integer | yes |  |
+| `neighbourhood_tests` | integer | yes |  |
+| `neighbourhood_by_investigation` | object | yes |  |
+| `gravity` | object | yes |  |
+| `tested_range` | object | yes |  |
+| `nearest_test` | object \| `null` | yes |  |
+| `gap` | object \| `null` | yes |  |
+| `reasons` | string[] | yes |  |
+| `method` | string | yes |  |
 
 ### Insight
 
@@ -741,6 +779,20 @@ A cabin atmosphere. Quoted or derived values cite NASA/TM-2008-215260 p. 5; `use
 | `count` | integer (minimum=0) | yes |  |
 | `blocking` | boolean | yes | A blocking check with a non-zero count makes `ok` false; a non-blocking one lists candidates for human review. |
 | `examples` | object[] (maxItems=20) | yes |  |
+
+### CitedSource
+
+An NTRS report page. `evidence_id` is the ingested page (null until the report is ingested).
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `source_id` | string | yes |  |
+| `page` | integer (minimum=1) | yes |  |
+| `quote` | string \| `null` | yes |  |
+| `title` | string \| `null` | yes |  |
+| `short_name` | string \| `null` | yes |  |
+| `access_url` | string \| `null` | yes |  |
+| `evidence_id` | string \| `null` | yes |  |
 
 ### ServiceHealth
 
