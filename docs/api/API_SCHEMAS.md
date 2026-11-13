@@ -1,6 +1,6 @@
 # Flame in Freefall: API Response Schemas
 
-**Generated from [`openapi.json`](openapi.json)** (OpenAPI 3.1.0, API 0.6.0) by `docs/tools/render_api_schemas.py`. Do not edit by hand.
+**Generated from [`openapi.json`](openapi.json)** (OpenAPI 3.1.0, API 0.7.0) by `docs/tools/render_api_schemas.py`. Do not edit by hand.
 Endpoint behaviour, examples and display rules: [`FRONTEND_API_CONTRACT.md`](FRONTEND_API_CONTRACT.md).
 
 Reading the tables: *Required = yes* means the key is always present. A nullable field (`| null`) is still present, with value `null`, which means "not present or not established" and is never a stand-in for `0`. The only optional keys in responses are those of [`ErrorDetails`](#errordetails).
@@ -918,7 +918,7 @@ Structured value for table/measurement evidence.
 
 ### FlameVideoAnalysisResult
 
-Result of a flame_video analysis (0.3.0). Pixel units only; no temperature.
+Result of a flame_video analysis (0.3.0). Pixel units only; no temperature. `audio` (0.7.0) is present only when the deployment runs with FLAME_TRANSCRIPTION_ENABLED=true.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
@@ -927,6 +927,7 @@ Result of a flame_video analysis (0.3.0). Pixel units only; no temperature.
 | `frames` | [`VideoFrameMeasurement`](#videoframemeasurement)[] | yes | Sampled frames in time order; temporal order is preserved. |
 | `temporal_summary` | [`VideoTemporalSummary`](#videotemporalsummary) | yes |  |
 | `observations` | [`Statement`](#statement)[] | yes |  |
+| `audio` | [`VideoAudioTranscript`](#videoaudiotranscript) | no |  |
 
 ### Interpretation
 
@@ -1168,6 +1169,24 @@ Thresholds and configuration are in docs/cv/temporal-analysis.md.
 | `method` | string | yes |  |
 | `tracking_note` | string \| `null` | yes | Why tracking metrics are null, e.g. sampled frames are further apart than the 0.5 s tracking gap. |
 
+### VideoAudioTranscript
+
+Operator speech from a flame_video analysis's audio track (0.7.0). Context only: not measurement, not evidence, and not used by AI interpretation.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `status` | `"no_audio_track"` \| `"silent"` \| `"transcribed"` \| `"no_speech"` \| `"unavailable"` | yes | `silent` means the track exists but its loudest second is at or below -55 dBFS, so no model was run. `unavailable` means transcription could not run (see `failure_code`); the video analysis itself is unaffected. |
+| `language` | string \| `null` | yes | Detected language code, e.g. `en`. |
+| `duration_s` | number \| `null` (minimum=0) | yes |  |
+| `rms_dbfs` | number \| `null` | yes |  |
+| `loudest_second_dbfs` | number \| `null` | yes | RMS level of the loudest one-second window of the audio track, in dBFS. |
+| `segments` | [`VideoAudioSegment`](#videoaudiosegment)[] | yes | Time-ordered. Empty unless status is `transcribed`. |
+| `classification` | `"machine_transcribed"` | yes | Never `measured` and never evidence: this is machine speech-to-text of operator audio. |
+| `method` | string | yes |  |
+| `note` | string | yes | The caveat to show next to the text. |
+| `failure_code` | string \| `null` | yes | Set when status is `unavailable`: a provider error code such as `model_missing`, or `decode_failed`, `no_provider`, `transcription_failed`. |
+| `execution` | [`ExecutionMetadata`](#executionmetadata) \| `null` | yes | Which local provider produced the transcript; null when none ran. |
+
 ### ConditionRange
 
 | Field | Type | Required | Description |
@@ -1232,6 +1251,16 @@ Projected physical size from the caller-supplied spatial scale. A 2-D projection
 | `mean_intensity` | [`MeasuredValue`](#measuredvalue) | yes | Mean luma inside the mask, unit intensity_8bit. |
 | `saturated_fraction` | [`MeasuredValue`](#measuredvalue) | yes | Fraction of mask pixels at sensor maximum in any channel, unit fraction. |
 | `physical_interpretation` | `"none"` | yes | Constant. Image-derived colour/intensity statistics are not physical state variables; in particular they are NOT temperature (MVP plan §10). |
+
+### VideoAudioSegment
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `start_s` | number (minimum=0) | yes | Seconds from the start of the audio track. Approximate to a few seconds: voice-activity detection merges speech into long chunks. |
+| `end_s` | number (minimum=0) | yes |  |
+| `text` | string | yes | Machine speech-to-text. Untrusted text; words can be wrong. |
+| `avg_logprob` | number \| `null` | yes | Whisper's average token log-probability for the chunk the segment belongs to; closer to 0 is more confident. |
+| `no_speech_prob` | number \| `null` (minimum=0, maximum=1) | yes | Whisper's probability that the chunk is not speech; high values suggest noise. |
 
 ### MeasuredValue
 

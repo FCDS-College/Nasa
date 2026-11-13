@@ -240,3 +240,31 @@ def test_ocr_status_stays_applied_when_a_later_page_cannot_be_read(session, tmp_
     session.commit()
 
     assert session.query(DocumentRecord).one().payload["ocr"]["status"] == "applied"
+
+
+def test_a_restart_skips_files_already_parsed_from_the_same_bytes_by_the_same_parser(session, tmp_path, monkeypatch):
+    """ingest() skips (file, sha256, parser version) triples it already has, so a container restart does not re-OCR
+    the corpus; a changed file or a new parser version is parsed again."""
+    monkeypatch.setattr(ingest, "_ocr_page", lambda page: None)
+    record = add_file(session, make_pdf(tmp_path / "report.pdf", ["Opposed flow flame spread in microgravity."]))
+    assert ingest._transformation_for(record) == ingest.PARSER_VERSION
+    assert (record.file_id, record.sha256, ingest.PARSER_VERSION) not in ingest._already_ingested(session)
+
+    assert ingest.ingest_file(session, record)[0] == "ingested"
+    session.commit()
+    done = ingest._already_ingested(session)
+    assert (record.file_id, record.sha256, ingest.PARSER_VERSION) in done
+    # A new parser version (or new bytes) is a different triple, so it would be parsed again.
+    assert (record.file_id, record.sha256, "pymupdf-pages-9.9.9") not in done
+    assert (record.file_id, "0" * 64, ingest.PARSER_VERSION) not in done
+
+
+def test_large_format_drawings_are_ocred_at_a_capped_resolution(tmp_path):
+    """A 34x44 in engineering drawing at 300 DPI is 10200x13200 px, which Tesseract needs tens of minutes for."""
+    pdf = fitz.open()
+    pdf.new_page(width=612, height=792)
+    pdf.new_page(width=2448, height=3168)
+    letter, drawing = pdf[0], pdf[1]
+    assert ingest.ocr_dpi(letter) == ingest.OCR_DPI == 300
+    assert ingest.ocr_dpi(drawing) == 150
+    assert max(drawing.rect.width, drawing.rect.height) / 72 * ingest.ocr_dpi(drawing) <= ingest.OCR_MAX_SIDE_PX

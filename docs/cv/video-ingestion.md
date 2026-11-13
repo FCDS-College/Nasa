@@ -8,7 +8,7 @@ Implemented in `cv/video_ingestion.py` (`probe_video`, `iter_frames`) and driven
 
 ## 1. Scope and Accepted Formats
 - **Containers:** `.mp4`, `.avi`, `.mov`. Anything else raises `UNSUPPORTED_MEDIA_TYPE`.
-- **Codecs:** the stream FourCC must be one of H.264 (`avc1`, `h264`, `x264`) or HEVC (`hev1`, `hvc1`, `hevc`, `h265`); other codecs raise `UNSUPPORTED_MEDIA_TYPE`. `VideoConfig.allowed_codecs=None` disables this check (tests only). Audio is ignored: no audio extraction or transcription is performed.
+- **Codecs:** the stream FourCC must be one of H.264 (`avc1`, `h264`, `x264`) or HEVC (`hev1`, `hvc1`, `hevc`, `h265`); other codecs raise `UNSUPPORTED_MEDIA_TYPE`. `VideoConfig.allowed_codecs=None` disables this check (tests only). The frame pipeline ignores audio. Speech in the audio track is handled by a separate, optional step: [audio-transcription.md](audio-transcription.md).
 - **Limits:** 500 MB (`FILE_TOO_LARGE`) and 600 s (`VIDEO_TOO_LONG`). Missing files raise `FILE_NOT_FOUND`; unopenable, undecodable or truncated streams raise `DECODE_FAILED`. `analyze_video_safe` returns these as the shared `ErrorResponse` envelope (the project's RFC 7807-style `code`/`message`/`retryable`/`httpStatus`).
 - Decoding is OpenCV (`cv2.VideoCapture`); codec support therefore depends on the local OpenCV build.
 

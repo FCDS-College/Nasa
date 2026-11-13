@@ -21,11 +21,11 @@
 
 | Adapter | Version | Triggers on | Output unit | Notes |
 |---|---|---|---|---|
-| PDF | `pymupdf-pages-0.2.0` | `.pdf` | one chunk per page with ≥ 12 chars of text | NTRS sources take the title and report number from the registry row |
+| PDF | `pymupdf-pages-0.4.0` (OCR render capped at 6,600 px, 300 s per page) | `.pdf` | one chunk per page with ≥ 12 chars of text | NTRS sources take the title and report number from the registry row |
 | OCR fallback | engine `tesseract-<version>`, 300 dpi | a PDF page with < 12 chars of native text | the page's OCR text, `extraction_method = ocr`, `extraction_confidence` = mean word confidence / 100 | Needs `apps/api[ocr]` and the `tesseract` binary. Both are installed in the API image and in CI, where `test_real_tesseract_reads_a_scanned_page` OCRs a real image-only page with no mocks. A page with mean confidence < 60 is flagged: evidence `payload.low_confidence = true` and `document.payload.ocr.low_confidence_pages`. If OCR is unavailable, `document.payload.ocr.status = "unavailable"` and the page stays in `pages_without_text`. |
 | HTML | `html-sections-0.1.0` | `.html`, `.htm` | one chunk per section, split at `h1`–`h3` | `script`, `style`, `noscript`, `template` and `head` are dropped; UTF-8 only |
 | JSON | `json-paths-0.1.0` | `.json` | one chunk per top-level key (or array item), as `path: value` lines | stdlib parser; ≤ 20 000 chars per section |
-| PSI tables | `psi-tables-0.1.0` | `.csv` whose path contains "experimental table" | experiments + one evidence row per condition cell | duplicate test IDs counted (`spice_duplicates`) |
+| PSI tables | `psi-tables-0.2.0` | `.csv` whose path contains "experimental table" | experiments + one evidence row per condition cell | duplicate test IDs counted (`spice_duplicates`) |
 
 `text_layer` describes the PDF itself: `full`, `partial` or `none`. OCR doesn't change it.
 

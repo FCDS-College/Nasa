@@ -2,14 +2,31 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { ChatRequest, ChatResponse } from "@/lib/api/types";
-import { searchResearch, submitChat } from "@/lib/api/client";
+import { ChatError, searchResearch, submitChat } from "@/lib/api/client";
+
+/** Why a turn has no answer: the API's own error, shown as an error, never dressed up as a model answer. */
+export interface ChatTurnError {
+  code: string;
+  message: string;
+  retryAfterS?: number;
+}
 
 export interface ChatTurn {
   id: string;
   req: ChatRequest;
   res?: ChatResponse;
+  error?: ChatTurnError;
   loading?: boolean;
   timestamp: number;
+}
+
+export const CHAT_QUERY_MAX = 500; // = ChatRequest.query.maxLength in docs/api/openapi.json
+
+function toTurnError(err: unknown): ChatTurnError {
+  if (err instanceof ChatError) {
+    return { code: err.code, message: err.message, retryAfterS: err.retryAfterS ?? undefined };
+  }
+  return { code: "CHAT_FAILED", message: err instanceof Error && err.message ? err.message : "The chat request failed." };
 }
 
 export interface ChatSession {
@@ -234,7 +251,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         } catch (err) {
           // No language model on this deployment (503 CHAT_UNAVAILABLE): still give the user what works,
           // the evidence hybrid retrieval finds for the question, clearly marked as not generated.
-          if (!(err instanceof Error) || err.name !== "CHAT_UNAVAILABLE") throw err;
+          if (!(err instanceof ChatError) || err.code !== "CHAT_UNAVAILABLE") throw err;
           const found = await searchResearch(cleanQuery, { domain: "all" });
           const top = found.results.filter((r) => r.evidence_id).slice(0, 6);
           res = {
@@ -269,30 +286,13 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         );
       } catch (err) {
         console.error("Chat submission error:", err);
+        const error = toTurnError(err);
         setSessions((prev) =>
           prev.map((s) => {
             if (s.id === currentId) {
               return {
                 ...s,
-                turns: s.turns.map((t) =>
-                  t.id === turnId
-                    ? {
-                        ...t,
-                        loading: false,
-                        res: {
-                          request_id: "err_" + Date.now(),
-                          answer:
-                            "An error occurred while connecting to the scientific inference service. Please verify server status.",
-                          sources: [],
-                          memory_used: false,
-                          cache_hit: false,
-                          model: { provider: "error", name: "offline", version: "0.0" },
-                          knowledge_version: "unversioned",
-                          warnings: ["Inference timeout or connection failed"],
-                        },
-                      }
-                    : t
-                ),
+                turns: s.turns.map((t) => (t.id === turnId ? { ...t, loading: false, error } : t)),
               };
             }
             return s;

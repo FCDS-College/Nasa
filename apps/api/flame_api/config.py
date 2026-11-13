@@ -106,6 +106,12 @@ class Settings(BaseSettings):
     cv_hf_space_url: str | None = None
     cv_hf_token: SecretStr | None = None
     cv_timeout_s: float = Field(default=300.0, gt=0, le=600)
+    # Operator speech in flight video (docs/cv/audio-transcription.md). Off by default: it needs the
+    # faster-whisper model cached (`python -m ai.providers.local.faster_whisper_transcription prepare`).
+    # Transcription runs locally only; it never leaves the machine and a failure never fails the video job.
+    transcription_enabled: bool = False
+    transcription_model: str = "small"
+    transcription_cache_dir: str | None = None
 
     @model_validator(mode="after")
     def require_distinct_api_tokens(self):

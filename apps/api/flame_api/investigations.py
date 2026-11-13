@@ -33,11 +33,9 @@ from flame_api.registry import read_registry
 router = APIRouter()
 INVESTIGATION_ID_PATTERN = r"^FF-[A-Z0-9][A-Z0-9-]{1,40}$"
 EVALUATION_REPORT = Path(outcome_model.ARTIFACT).with_name("flex_outcome_evaluation.json")
-# Named in the challenge statement (BASS, Saffire, SAME, FLEX, ACME) but not in our registry yet.
-CHALLENGE_NOT_ACQUIRED = (
-    {"investigation_id": "SAME", "acronym": "SAME", "title": "Smoke Aerosol Measurement Experiment",
-     "note": "Named in the Space Apps challenge statement; not yet acquired from NASA PSI, so no data is shown."},
-)
+# Named in the challenge statement (BASS, Saffire, SAME, FLEX, ACME) but not in our registry yet. Empty since
+# 2026-11-13: every PSI combustion investigation the challenge's resources page lists is registered (SAME = FF-PSI-102).
+CHALLENGE_NOT_ACQUIRED: tuple[dict, ...] = ()
 SUMMARY_SECTIONS = ("Objective", "Hypothesis", "Approach", "Research impacts")
 _cache_lock = Lock()
 _cache: dict[str, tuple] = {}

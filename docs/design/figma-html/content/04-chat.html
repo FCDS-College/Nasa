@@ -1,0 +1,82 @@
+<style>
+.ch-page{display:flex;flex-direction:column;width:100%;padding:20px}
+.ch-shell{display:flex;flex-direction:column;width:100%;border-radius:16px;background:var(--bg-card);border:1px solid var(--border-subtle);box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.ch-msgs{display:flex;flex-direction:column;gap:24px;padding:32px;min-height:50vh}
+.ch-turn{display:flex;flex-direction:column;gap:16px}
+.ch-urow{display:flex;justify-content:flex-end}
+.ch-user{max-width:70%;border-radius:16px 6px 16px 16px;padding:14px 20px;font-size:14px;line-height:20px;color:var(--text-primary);background:linear-gradient(135deg,rgba(59,130,246,.15),rgba(96,165,250,.1));border:1px solid rgba(59,130,246,.25);box-shadow:0 2px 16px rgba(59,130,246,.08)}
+.ch-arow{display:flex;justify-content:flex-start}
+.ch-ai{max-width:85%;border-radius:6px 16px 16px 16px;padding:16px 20px;font-size:14px;line-height:20px;color:var(--text-secondary);background:var(--border-subtle);border:1px solid var(--border-default);box-shadow:var(--shadow-card)}
+.ch-ans{display:flex;flex-direction:column;gap:16px}
+.ch-text{color:var(--text-primary);line-height:22.75px;display:flex;flex-direction:column;gap:12px}
+.ch-ev{margin-top:16px;padding-top:16px;border-top:1px solid var(--border-subtle);display:flex;flex-direction:column;gap:8px}
+.ch-evh{display:flex;align-items:center;gap:6px;font-size:10px;line-height:15px;font-weight:700;text-transform:uppercase;letter-spacing:.15em;color:var(--text-muted)}
+.ch-chips{display:flex;flex-wrap:wrap;gap:8px}
+.ch-chip{display:inline-flex;align-items:center;gap:6px;border-radius:8px;padding:6px 12px;font-size:12px;line-height:16px;color:var(--accent-flame);background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.15)}
+.ch-chip b{font-weight:600}
+.ch-chip .t{max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ch-chip .l{color:var(--text-dim)}
+.ch-meta{margin-top:16px;padding-top:12px;border-top:1px solid var(--border-subtle);display:flex;flex-wrap:wrap;align-items:center;gap:16px;font-family:var(--font-mono);font-size:10px;line-height:15px;color:var(--text-dim)}
+.ch-meta span{display:flex;align-items:center;gap:6px}
+.ch-meta .c{gap:4px;color:var(--accent-aurora,#3B82F6)}
+.ch-meta .m{gap:4px;color:var(--accent-plasma,#3B82F6)}
+.ch-input{padding:20px;background:var(--bg-secondary,#0F1115);border-top:1px solid var(--border-subtle);border-radius:0 0 16px 16px}
+.ch-form{position:relative;display:flex;align-items:center;width:100%;max-width:896px;margin:0 auto}
+.ch-field{width:100%;border-radius:16px;padding:16px 56px 16px 20px;font-size:14px;line-height:20px;color:var(--text-muted);background:var(--border-subtle);border:1px solid var(--border-default)}
+.ch-send{position:absolute;top:8px;bottom:8px;right:8px;aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;border-radius:12px;color:#000;background:linear-gradient(135deg,var(--accent-flame),var(--accent-ember));box-shadow:0 0 12px rgba(59,130,246,.25);opacity:.3}
+.ch-note{margin-top:10px;text-align:center;font-size:11px;line-height:16.5px;font-weight:500;color:var(--text-dim)}
+</style>
+<div class="ch-page"><div class="ch-shell">
+<div class="ch-msgs">
+
+<div class="ch-turn">
+<div class="ch-urow"><div class="ch-user">How does oxygen fraction affect flame spread in microgravity?</div></div>
+<div class="ch-arow"><div class="ch-ai"><div class="ch-ans">
+<div class="ch-text">
+<div>In microgravity, flame spread over solid fuels is strongly governed by oxygen concentration and by the (low) opposed-flow velocity. Increasing the oxygen fraction from 21% to 30% raises the measured spread rate and widens the flammable regime in BASS-II samples [1].</div>
+<div>At low flow velocities the flame can quench through radiative heat loss, so a higher oxygen fraction is needed to sustain spread than in normal gravity; the effect is largest below roughly 5 cm/s [2]. Soot volume fraction also increases because the lack of buoyant acceleration yields wider flames and longer residence times [3].</div>
+</div>
+<div class="ch-ev">
+<h4 class="ch-evh">[[icon:BookOpen:12:var(--accent-flame)]] Grounding Evidence</h4>
+<div class="ch-chips">
+<span class="ch-chip">[[icon:Fingerprint:14]]<b>[1]</b><span class="t">BASS-II flame spread results</span><span class="l">(Page 12, Figure 4)</span></span>
+<span class="ch-chip">[[icon:Fingerprint:14]]<b>[2]</b><span class="t">Microgravity flammability limits</span><span class="l">(Table 3)</span></span>
+<span class="ch-chip">[[icon:Fingerprint:14]]<b>[3]</b><span class="t">Structure and Soot Properties</span><span class="l">(Page 12)</span></span>
+</div>
+</div>
+<div class="ch-meta">
+<span>[[icon:Server:14]]local:qwen2.5-7b-instruct</span>
+<span>Corpus: 2026-10-03</span>
+</div>
+</div></div></div>
+</div>
+
+<div class="ch-turn">
+<div class="ch-urow"><div class="ch-user">What about CO2 and helium diluents in FLEX droplet tests?</div></div>
+<div class="ch-arow"><div class="ch-ai"><div class="ch-ans">
+<div class="ch-text">
+<div>In FLEX, replacing nitrogen with CO2 raises the limiting oxygen index for droplet flame extinction because of CO2's higher heat capacity and radiative absorption, while helium lowers it through higher thermal diffusivity [1].</div>
+<div>Consistent with the earlier discussion of oxygen fraction, extinction in these tests was radiative rather than blow-off driven [2].</div>
+</div>
+<div class="ch-ev">
+<h4 class="ch-evh">[[icon:BookOpen:12:var(--accent-flame)]] Grounding Evidence</h4>
+<div class="ch-chips">
+<span class="ch-chip">[[icon:Fingerprint:14]]<b>[1]</b><span class="t">FLEX diluent extinction results</span><span class="l">(Table 2)</span></span>
+<span class="ch-chip">[[icon:Fingerprint:14]]<b>[2]</b><span class="t">Radiative extinction of droplets</span><span class="l">(Page 7)</span></span>
+</div>
+</div>
+<div class="ch-meta">
+<span>[[icon:Server:14]]local:qwen2.5-7b-instruct</span>
+<span class="c">[[icon:CheckCircle:14]] Cached</span>
+<span class="m">[[icon:CheckCircle:14]] Session memory used</span>
+<span>Corpus: 2026-10-03</span>
+</div>
+</div></div></div>
+</div>
+
+</div>
+<div class="ch-input">
+<div class="ch-form"><div class="ch-field">Ask a scientific research question...</div><div class="ch-send">[[icon:Send:16:#000000]]</div></div>
+<div class="ch-note">Scientific answers are grounded in NASA microgravity combustion publications.</div>
+</div>
+</div></div>

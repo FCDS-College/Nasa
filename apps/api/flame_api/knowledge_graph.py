@@ -69,6 +69,8 @@ CURATED_ALIASES: dict[tuple[str, str], str] = {
     ("fuel", '1/4 clear rod'): '1/4" clear rod',     # BASS-II: 1 test vs 15, inch mark missing
     ("fuel", '3/8"clear rod'): '3/8" clear rod',     # BASS-II: 2 tests vs 5, space missing
     ("fuel", "75% propylene"): "75 % propylene",     # SPICE: 16 tests vs 115, space before %
+    # Added 2026-11-13 with the 16 new PSI investigations, by the same rule; pending the Lead's review.
+    ("fuel", "100%c2h4"): "100% c2h4",               # ACME BRE: 3 tests vs 15 (BRE, CLD, E-FIELD, SLICE), space missing
 }
 
 
@@ -205,6 +207,17 @@ class _Builder:
             self.counts["entities_removed"] += 1
 
 
+def _identity_variables(source_id: str) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """(test-ID variables, fuel variables) for one investigation, from the same column map the table parser uses
+    (flame_api.ingest.TEST_ID_COLUMNS / FUEL_COLUMNS, slugged), so the graph and the parser never disagree.
+    Investigations without a mapping fall back to the generic TEST_ID_VARIABLES / FUEL_VARIABLES."""
+    from flame_api.ingest import FUEL_COLUMNS, TEST_ID_COLUMNS, _slug
+
+    tests = tuple(_slug(c) for c in TEST_ID_COLUMNS.get(source_id, ())) or TEST_ID_VARIABLES
+    fuels = tuple(_slug(c) for c in FUEL_COLUMNS.get(source_id, ())) or FUEL_VARIABLES
+    return tests, fuels
+
+
 def build_graph(session: Session, knowledge_version: str | None = None) -> dict[str, int]:
     """(Re)build the table-derived graph from the ingested experiments and ISA-Tab records. Commits."""
     if knowledge_version is None:
@@ -219,10 +232,11 @@ def build_graph(session: Session, knowledge_version: str | None = None) -> dict[
     investigations: dict[str, str] = {}
     for experiment in experiments:
         cells = conditions[experiment.experiment_id]
-        fuel_cell = next((c for c in cells if c.variable in FUEL_VARIABLES and c.value_text is not None
+        test_variables, fuel_variables = _identity_variables(experiment.source_id)
+        fuel_cell = next((c for c in cells if c.variable in fuel_variables and c.value_text is not None
                           and experiment.fuel_or_material is not None
                           and c.value_text.strip() == experiment.fuel_or_material.strip()), None)
-        test_cell = next((c for v in TEST_ID_VARIABLES for c in cells if c.variable == v), None) or fuel_cell
+        test_cell = next((c for v in test_variables for c in cells if c.variable == v), None) or fuel_cell
         if not experiment.investigation or test_cell is None:
             builder.counts["experiments_without_investigation_or_test_cell"] += 1
             continue
@@ -244,7 +258,7 @@ def build_graph(session: Session, knowledge_version: str | None = None) -> dict[
         elif experiment.fuel_or_material:
             builder.counts["fuels_without_a_cell"] += 1
         for cell in cells:
-            if cell.variable in TEST_ID_VARIABLES or cell.variable in FUEL_VARIABLES:
+            if cell.variable in test_variables or cell.variable in fuel_variables:
                 continue   # already the experiment's identity and its fuel edge
             variable = builder.entity("condition_variable", cell.variable,
                                       properties={"unit_si": cell.unit_si} if cell.unit_si else None)

@@ -63,11 +63,11 @@ export const mockSearchResults: SearchResponse = {
 export const mockEvidence: Record<string, EvidenceRecord> = {
   "01J9Z3N5B8C1E3G5J7M9P1R3T5": {
     id: "01J9Z3N5B8C1E3G5J7M9P1R3T5",
-    kind: "observed",
+    kind: "document_passage",
     citation: "Urban, D. L. et al. (2015). NASA NTRS",
     extraction_method: "semantic_chunking_v2",
     transformation_id: "tx_9921",
-    review_status: "verified",
+    review_status: "human_verified",
     excerpt: "Under microgravity conditions, the lack of buoyant acceleration leads to wider flames, lower strain rates, and consequently, enhanced soot volume fractions in the flame region.",
     locator: { type: "pdf_page", label: "Page 12", section: "2.1 Microgravity Effects" },
     file: { sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", original_filename: "ntrs-20150001.pdf", size_bytes: 4192000 },

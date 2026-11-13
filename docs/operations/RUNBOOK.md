@@ -16,9 +16,11 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"   # run twice
 docker compose -f infrastructure/compose.yaml up --build -d
 ```
 
-The `api` container runs these, in order: `alembic upgrade head`, `python -m flame_api.seed`, `python -m flame_api.ingest`, then uvicorn.
+The `api` container runs `alembic upgrade head`, then uvicorn, so it is healthy in seconds. Loading data is the one-off `ingest` service: once the API is healthy it runs `python -m flame_api.ingest` (which seeds first), then `python -m flame_api.vector_index build`, and exits. The API serves what is already in the database meanwhile and picks up the new data when the ingest commits. Files already parsed from the same bytes by the same parser version are skipped, so a re-run takes seconds; the first parse of new scanned PDFs can take hours (OCR).
 
-**Vector index.** Run `docker compose -f infrastructure/compose.yaml exec api python -m flame_api.vector_index build`. This needs the `vector` extra, which the image installs.
+**Re-run the data load** after acquiring files: `docker compose -f infrastructure/compose.yaml run --rm ingest`. Add `--force` to re-parse everything: `docker compose -f infrastructure/compose.yaml run --rm ingest python -m flame_api.ingest --force`. Follow it with `docker compose -f infrastructure/compose.yaml logs -f ingest` when started by `up`.
+
+**Vector index.** The `ingest` service builds it. To rebuild it alone: `docker compose -f infrastructure/compose.yaml exec api python -m flame_api.vector_index build`. This needs the `vector` extra, which the image installs.
 
 **Local LLM.** Set `COMPOSE_PROFILES=local-llm` and `FLAME_OLLAMA_BASE_URL=http://ollama:11434` in `.env`, then run `docker compose -f infrastructure/compose.yaml --profile local-llm-setup run --rm ollama-pull` once while connected.
 

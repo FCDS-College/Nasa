@@ -9,7 +9,34 @@ import {
   DashboardData,
   AnalysisSummary,
   ExperimentRecord,
+  ReviewStatus,
+  AnalysisStatus,
+  REVIEW_STATUSES,
+  ANALYSIS_STATUSES,
 } from "./types";
+
+// An unknown or missing review state is treated as unreviewed, never as verified.
+export function toReviewStatus(value: unknown): ReviewStatus {
+  return (REVIEW_STATUSES as readonly unknown[]).includes(value) ? (value as ReviewStatus) : "raw";
+}
+
+// An unknown status is shown as queued (not finished) rather than guessed as completed or failed.
+export function toAnalysisStatus(value: unknown): AnalysisStatus {
+  return (ANALYSIS_STATUSES as readonly unknown[]).includes(value) ? (value as AnalysisStatus) : "queued";
+}
+
+/** A failed chat request, carrying the API's error code, message, HTTP status and retry delay. */
+export class ChatError extends Error {
+  constructor(
+    public code: string,
+    message: string,
+    public status: number | null,
+    public retryAfterS: number | null,
+  ) {
+    super(message);
+    this.name = code;
+  }
+}
 
 // Every call goes through the same-origin /api proxy (app/api/[...path]), which
 // holds the Flame API read token server-side.
@@ -72,17 +99,28 @@ export async function fetchDashboardData(): Promise<DashboardData> {
 
 // Flame retrieves its own evidence and has AURA's model write the answer from it.
 export async function submitChat(req: ChatRequest): Promise<ChatResponse> {
-  const res = await fetch(`${API_BASE}/api/chat`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ query: req.query, conversation_id: req.conversation_id }),
-    cache: "no-store",
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: req.query, conversation_id: req.conversation_id }),
+      cache: "no-store",
+    });
+  } catch {
+    throw new ChatError("NETWORK_ERROR", "The dashboard server could not be reached. Check your connection and try again.", null, null);
+  }
   const body: Json = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const error = new Error(body?.error?.message ?? `Chat failed (${res.status})`);
-    error.name = body?.error?.code ?? "CHAT_FAILED";
-    throw error;
+    const retry = Number(res.headers.get("retry-after") ?? body?.error?.details?.retry_after_s);
+    throw new ChatError(
+      body?.error?.code ?? "CHAT_FAILED",
+      body?.error?.field_errors?.length
+        ? body.error.field_errors.map((f: Json) => f.message).join("; ")
+        : body?.error?.message ?? `The chat request failed (HTTP ${res.status}).`,
+      res.status,
+      Number.isFinite(retry) && retry > 0 ? retry : null,
+    );
   }
   return body as ChatResponse;
 }
@@ -122,7 +160,7 @@ export async function fetchEvidence(id: string): Promise<EvidenceRecord | null> 
       citation: e.source?.short_name || e.source?.title || e.source?.repository || "Unknown source",
       extraction_method: e.origin ?? "unknown",
       transformation_id: e.transformation_id ?? e.file?.file_id ?? "—",
-      review_status: e.review_status ?? "pending",
+      review_status: toReviewStatus(e.review_status),
       excerpt: e.excerpt ?? undefined,
       value: e.value?.numeric != null || e.value?.text ? { text: String(e.value.numeric ?? e.value.text), unit: e.value.unit ?? "" } : undefined,
       measurement_or_claim_type: e.measurement_or_claim_type ?? undefined,
@@ -165,7 +203,8 @@ export async function fetchAnalysis(id?: string): Promise<AnalysisResult | null>
     const { analysis: a } = await getJson(`analyses/${analysisId}`);
     return {
       id: a.analysis_id,
-      status: a.status === "completed" ? "completed" : a.status === "failed" ? "failed" : "pending",
+      status: toAnalysisStatus(a.status),
+      failure_message: a.failure?.message ?? undefined,
       image_id: a.input?.original_filename ?? a.analysis_id,
       pipeline_version: a.pipeline?.pipeline_version ?? "—",
       model_version: a.pipeline?.detector ? `${a.pipeline.detector.name} ${a.pipeline.detector.version}` : "—",
@@ -194,7 +233,7 @@ export async function fetchAnalysesHistory(): Promise<AnalysisSummary[]> {
       analysis_id: i.analysis_id,
       analysis_type: i.analysis_type ?? "flame_image",
       original_filename: i.original_filename,
-      status: i.status === "completed" || i.status === "failed" ? i.status : "processing",
+      status: toAnalysisStatus(i.status),
       flame_area_px: i.flame_area_px ?? undefined,
       calibration_state: i.calibration_state,
       created_at: i.created_at,

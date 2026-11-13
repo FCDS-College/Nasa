@@ -18,7 +18,7 @@ BASS-II / SPICE  ┘  datasets/samples/cv/                             (flight v
 PostgreSQL + pgvector ── experiment, experiment_condition, evidence, document, document_chunk, chunk_embedding,
         │                 knowledge_entity / knowledge_relation (graph, rebuilt at every ingest), video_checkpoint_frame
         │
-FastAPI apps/api (contract docs/api/openapi.json 0.6.0, per-client keys with read/write/admin scopes, rate limits)
+FastAPI apps/api (contract docs/api/openapi.json 0.7.0, per-client keys with read/write/admin scopes, rate limits)
   ├─ Fire safety  /api/investigations · /api/investigations/{id} · /api/insights · /api/insights/flex-outcome
   │                └─ ai/fire_safety: canonical features, scenarios, ranking, insights, FLEX model (numpy)
   ├─ Research     /api/search (SQL candidates → ai/rag search stack: rewrite, RRF, cross-encoder reranking of the top 10) · /api/chat (grounded, citation-filtered) · documents · experiments · evidence
@@ -88,7 +88,7 @@ Local models (optional) ── Ollama / llama.cpp / vLLM behind ai/routing (mode
 
 ## 5. Contracts and integrations
 
-- **REST contract.** `docs/api/openapi.json` 0.6.0 is hand-authored (ADR-010). Route ↔ contract parity and schema validation of live responses are tested. Changelog: `docs/api/CHANGELOG.md`.
+- **REST contract.** `docs/api/openapi.json` 0.7.0 is hand-authored (ADR-010). Route ↔ contract parity and schema validation of live responses are tested. Changelog: `docs/api/CHANGELOG.md`.
 - **AURA (Link 2).** AURA's OpenAPI discovery compiles the GET operations into tools. At the pinned AURA revision `d696fad`, 16 tools are accepted, including `api_list_investigations`, `api_get_investigation`, `api_list_insights`, `api_estimate_flex_outcome` and the two knowledge-graph reads. Chat, cancel and admin operations carry `x-aura-exclude` (10 operations).
 - **Model routing.** `ai/routing` routes chat, embeddings and vision to local or cloud providers with health checks, circuit breakers and audited mode switches.
 

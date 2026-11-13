@@ -1,0 +1,155 @@
+<style>
+.ex-page{width:100%;max-width:1152px;margin:0 auto;padding:32px 24px;display:flex;flex-direction:column;gap:20px}
+.ex-head{display:flex;flex-direction:column;gap:8px}
+.ex-eyebrow{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.2em;color:var(--accent-ember);line-height:16.5px}
+.ex-h1{font-size:24px;font-weight:700;line-height:32px}
+.ex-lead{max-width:768px;font-size:14px;line-height:22.75px;color:var(--text-secondary)}
+.ex-grid{display:grid;grid-template-columns:340px 1fr;gap:20px;align-items:start}
+.ex-right{display:flex;flex-direction:column;gap:20px;min-width:0}
+.ex-st{margin-bottom:16px}
+.ex-st h2{font-size:16px;font-weight:600;line-height:24px;color:var(--text-primary)}
+.ex-st p{margin-top:4px;font-size:12px;line-height:19.5px;color:var(--text-muted)}
+.ex-presets{display:flex;flex-wrap:wrap;gap:8px}
+.ex-preset{border-radius:8px;padding:6px 10px;font-size:11px;line-height:16.5px;background:var(--bg-elevated);border:1px solid var(--border-default);color:var(--text-primary)}
+.ex-fuel{display:flex;flex-direction:column;gap:4px}
+.ex-fuel .lg{font-size:12px;line-height:16px;color:var(--text-secondary)}
+.ex-fuel .opts{display:flex;gap:8px}
+.ex-opt{display:flex;align-items:center;gap:6px;border-radius:8px;padding:6px 12px;font-size:12px;line-height:16px;background:var(--bg-elevated);border:1px solid var(--border-default);color:var(--text-primary)}
+.ex-opt.on{background:rgba(59,130,246,.16)}
+.ex-radio{width:13px;height:13px;border-radius:50%;border:1px solid #6B7280;background:#fff;display:inline-block;position:relative}
+.ex-radio.on{border:4px solid var(--accent-flame);background:#fff}
+.ex-sl{display:flex;flex-direction:column;gap:4px;font-size:12px;line-height:16px;color:var(--text-secondary)}
+.ex-sl .r{display:flex;justify-content:space-between}
+.ex-sl .r .v{font-family:var(--font-mono);color:var(--text-primary)}
+.ex-trk{position:relative;height:16px;width:100%}
+.ex-trk .t{position:absolute;left:0;right:0;top:6px;height:4px;border-radius:999px;background:#4B5563}
+.ex-trk .f{position:absolute;left:0;top:6px;height:4px;border-radius:999px;background:var(--accent-flame)}
+.ex-trk .k{position:absolute;top:0;width:16px;height:16px;border-radius:50%;background:var(--accent-flame);border:2px solid #fff;box-sizing:border-box;margin-left:-8px}
+.ex-pb{display:flex;flex-direction:column;gap:8px}
+.ex-pr{display:flex;align-items:center;gap:12px;font-size:14px;line-height:20px}
+.ex-pr .n{width:176px;flex:none;color:var(--text-secondary)}
+.ex-pr .b{height:12px;flex:1;overflow:hidden;border-radius:999px;background:var(--border-default)}
+.ex-pr .b div{height:100%}
+.ex-pr .p{width:48px;text-align:right;font-weight:600;font-family:var(--font-mono)}
+.ex-ok{display:flex;align-items:center;gap:6px;font-size:12px;line-height:16px;color:var(--accent-success)}
+.ex-leg{display:flex;flex-wrap:wrap;gap:12px;font-size:11px;line-height:16.5px;color:var(--text-muted)}
+.ex-leg span{display:inline-flex;align-items:center;gap:4px}
+.ex-leg i{width:12px;height:8px;border-radius:2px;display:inline-block}
+.ex-tbl{width:100%;border-collapse:collapse;font-size:12px;line-height:16px;text-align:left}
+.ex-tbl th{padding:8px;font-weight:600;color:var(--text-muted)}
+.ex-tbl td{padding:6px 8px;font-family:var(--font-mono);color:var(--text-primary)}
+.ex-tbl tbody tr{border-top:1px solid var(--border-default)}
+.ex-tbl td.id{color:var(--accent-ember)}
+.ex-st3{display:inline-flex;align-items:center;gap:4px}
+.ex-st3 i{width:8px;height:8px;border-radius:50%;display:inline-block}
+.ex-tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.ex-tile{border-radius:8px;padding:12px;background:var(--bg-elevated);border:1px solid var(--border-default)}
+.ex-tile .k{font-size:11px;line-height:16.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted)}
+.ex-tile .v{margin-top:4px;font-size:18px;line-height:28px;font-weight:700;font-family:var(--font-mono)}
+.ex-tile .n{font-size:11px;line-height:16.5px;color:var(--text-dim)}
+.ex-foot{margin-top:12px;font-size:12px;line-height:19.5px;color:var(--text-muted)}
+.ex-foot code{font-family:var(--font-mono)}
+</style>
+<div class="ex-page">
+
+  <header class="ex-head">
+    <p class="ex-eyebrow">FLEX outcome model</p>
+    <h1 class="ex-h1">Will a droplet flame put itself out?</h1>
+    <p class="ex-lead">Trained on 261 real FLEX droplet tests flown on the ISS. Set the atmosphere and droplet; the model estimates how the flame ends, shows the most similar real flight tests, and refuses to answer outside the conditions NASA actually flew.</p>
+  </header>
+
+  <div class="ex-grid">
+
+    <section class="card">
+      <div class="ex-st"><h2>Conditions</h2></div>
+      <div class="col" style="gap:16px">
+        <div class="ex-presets">
+          <span class="ex-preset">ISS air (21% O₂, 101 kPa)</span>
+          <span class="ex-preset">Pre-EVA (30% O₂, 70.3 kPa)</span>
+          <span class="ex-preset">Lunar lander (34% O₂, 62.7 kPa)</span>
+          <span class="ex-preset">Low O₂ (15%, 101 kPa)</span>
+        </div>
+        <div class="ex-fuel"><div class="lg">Fuel</div>
+          <div class="opts">
+            <span class="ex-opt on"><span class="ex-radio on"></span> Heptane</span>
+            <span class="ex-opt"><span class="ex-radio"></span> Methanol</span>
+          </div></div>
+        <div class="ex-sl"><div class="r"><span>O₂ mole fraction</span><span class="v">0.21</span></div><div class="ex-trk"><div class="t"></div><div class="f" style="width:35.1%"></div><div class="k" style="left:35.1%"></div></div></div>
+        <div class="ex-sl"><div class="r"><span>Total pressure</span><span class="v">101.3 kPa</span></div><div class="ex-trk"><div class="t"></div><div class="f" style="width:21.9%"></div><div class="k" style="left:21.9%"></div></div></div>
+        <div class="ex-sl"><div class="r"><span>CO₂ diluent (mole fraction)</span><span class="v">0</span></div><div class="ex-trk"><div class="t"></div><div class="f" style="width:0%"></div><div class="k" style="left:8px"></div></div></div>
+        <div class="ex-sl"><div class="r"><span>He diluent (mole fraction)</span><span class="v">0</span></div><div class="ex-trk"><div class="t"></div><div class="f" style="width:0%"></div><div class="k" style="left:8px"></div></div></div>
+        <div class="ex-sl"><div class="r"><span>Initial droplet diameter</span><span class="v">3 mm</span></div><div class="ex-trk"><div class="t"></div><div class="f" style="width:50%"></div><div class="k" style="left:50%"></div></div></div>
+      </div>
+    </section>
+
+    <div class="ex-right">
+
+      <section class="card">
+        <div class="ex-st"><h2>Estimated end state</h2><p>Claim class: estimated. Green = the flame self-extinguished (the fire-safe outcome).</p></div>
+        <div class="col" style="gap:12px">
+          <div class="ex-pb">
+            <div class="ex-pr"><span class="n">Self-extinguished</span><div class="b"><div style="width:31%;background:#22C55E"></div></div><span class="p">31%</span></div>
+            <div class="ex-pr"><span class="n">Droplet disruption</span><div class="b"><div style="width:14%;background:#F59E0B"></div></div><span class="p">14%</span></div>
+            <div class="ex-pr"><span class="n">Burned to completion</span><div class="b"><div style="width:55%;background:#EF4444"></div></div><span class="p">55%</span></div>
+          </div>
+          <p class="ex-ok">[[icon:CheckCircle2:14]] Inside the flight-tested domain (nearest real test at distance 0.14, limit 0.55).</p>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="ex-st"><h2>How oxygen changes the outcome</h2><p>Your other conditions held fixed; only O₂ varies across the flight-tested range.</p></div>
+        <div class="col" style="gap:8px">
+          <svg width="690" height="271" viewBox="0 0 560 220" xmlns="http://www.w3.org/2000/svg" font-family="Inter, sans-serif">
+            <line x1="44" x2="548" y1="186" y2="186" stroke="#272B33" stroke-width="1"/><text x="38" y="190" text-anchor="end" font-size="10" fill="#6B7280">0%</text>
+            <line x1="44" x2="548" y1="142.5" y2="142.5" stroke="#272B33" stroke-width="1"/><text x="38" y="146.5" text-anchor="end" font-size="10" fill="#6B7280">25%</text>
+            <line x1="44" x2="548" y1="99" y2="99" stroke="#272B33" stroke-width="1"/><text x="38" y="103" text-anchor="end" font-size="10" fill="#6B7280">50%</text>
+            <line x1="44" x2="548" y1="55.5" y2="55.5" stroke="#272B33" stroke-width="1"/><text x="38" y="59.5" text-anchor="end" font-size="10" fill="#6B7280">75%</text>
+            <line x1="44" x2="548" y1="12" y2="12" stroke="#272B33" stroke-width="1"/><text x="38" y="16" text-anchor="end" font-size="10" fill="#6B7280">100%</text>
+            <rect x="38" y="12" width="12" height="174" fill="rgba(245,158,11,0.08)"/>
+            <polyline points="89.8,50.3 135.6,95.5 181.5,132.1 227.3,151.2 273.1,161.6 318.9,168.6 364.7,173.8 410.5,175.6 456.4,177.3 502.2,179.0 548.0,179.0" fill="none" stroke="#22C55E" stroke-width="2.5" stroke-linejoin="round"/>
+            <polyline points="89.8,168.6 135.6,158.2 181.5,161.6 227.3,165.1 273.1,168.6 318.9,168.6 364.7,170.3 410.5,172.1 456.4,172.1 502.2,173.8 548.0,173.8" fill="none" stroke="#F59E0B" stroke-width="2.5" stroke-linejoin="round"/>
+            <polyline points="89.8,165.1 135.6,130.3 181.5,90.3 227.3,67.7 273.1,53.8 318.9,46.8 364.7,39.8 410.5,36.4 456.4,34.6 502.2,31.1 548.0,31.1" fill="none" stroke="#EF4444" stroke-width="2.5" stroke-linejoin="round"/>
+            <line x1="181.5" x2="181.5" y1="12" y2="186" stroke="#9CA3AF" stroke-dasharray="4 3"/>
+            <text x="44" y="202" text-anchor="middle" font-size="10" fill="#6B7280">0.12</text>
+            <text x="296" y="202" text-anchor="middle" font-size="10" fill="#6B7280">0.28</text>
+            <text x="548" y="202" text-anchor="middle" font-size="10" fill="#6B7280">0.45</text>
+            <text x="296" y="216" text-anchor="middle" font-size="11" fill="#9CA3AF">O₂ mole fraction</text>
+          </svg>
+          <div class="ex-leg">
+            <span><i style="background:#22C55E"></i>Self-extinguished</span>
+            <span><i style="background:#F59E0B"></i>Droplet disruption</span>
+            <span><i style="background:#EF4444"></i>Burned to completion</span>
+            <span><i style="background:rgba(245,158,11,0.3)"></i>outside the flight-tested domain (no estimate)</span>
+            <span>dashed line: your O₂</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="ex-st"><h2>Most similar real flight tests</h2><p>What actually happened on the ISS. Click a test for its source row.</p></div>
+        <table class="ex-tbl">
+          <thead><tr><th>Test</th><th>Fuel</th><th>O₂</th><th>Pressure</th><th>CO₂</th><th>He</th><th>Droplet</th><th>Recorded end state</th></tr></thead>
+          <tbody>
+            <tr><td class="id">0102</td><td>Heptane</td><td>0.210</td><td>101.3 kPa</td><td>0.00</td><td>0.00</td><td>3.02 mm</td><td><span class="ex-st3"><i style="background:#EF4444"></i>Burned to completion</span></td></tr>
+            <tr><td class="id">0104</td><td>Heptane</td><td>0.209</td><td>100.8 kPa</td><td>0.00</td><td>0.00</td><td>2.95 mm</td><td><span class="ex-st3"><i style="background:#EF4444"></i>Burned to completion</span></td></tr>
+            <tr><td class="id">0107</td><td>Heptane</td><td>0.211</td><td>101.5 kPa</td><td>0.00</td><td>0.00</td><td>3.10 mm</td><td><span class="ex-st3"><i style="background:#22C55E"></i>Self-extinguished</span></td></tr>
+            <tr><td class="id">0110</td><td>Methanol</td><td>0.210</td><td>101.3 kPa</td><td>0.00</td><td>0.00</td><td>2.88 mm</td><td><span class="ex-st3"><i style="background:#22C55E"></i>Self-extinguished</span></td></tr>
+            <tr><td class="id">0113</td><td>Heptane</td><td>0.215</td><td>99.9 kPa</td><td>0.00</td><td>0.00</td><td>3.25 mm</td><td><span class="ex-st3"><i style="background:#F59E0B"></i>Droplet disruption</span></td></tr>
+            <tr><td class="id">0118</td><td>Heptane</td><td>0.205</td><td>101.3 kPa</td><td>0.05</td><td>0.00</td><td>3.00 mm</td><td><span class="ex-st3"><i style="background:#22C55E"></i>Self-extinguished</span></td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="card">
+        <div class="ex-st"><h2>How good is this model?</h2><p>flex-outcome-rf-1.2.0 · 261 tests on 17 test days</p></div>
+        <div class="ex-tiles">
+          <div class="ex-tile"><div class="k">Macro-F1</div><div class="v">0.71 ± 0.06</div><div class="n">majority-class baseline 0.29</div></div>
+          <div class="ex-tile"><div class="k">Extinction ROC-AUC</div><div class="v">0.89 ± 0.04</div><div class="n">self-extinguish vs not; 0.5 = chance</div></div>
+          <div class="ex-tile"><div class="k">Balanced accuracy</div><div class="v">72%</div><div class="n">3 classes; 33% = chance</div></div>
+        </div>
+        <p class="ex-foot">[[icon:Info:14]] Leave-one-test-day-out cross-validation: no test day is ever in both the training and the scoring set. Most important inputs (drop in macro-F1 when shuffled, on held-out days): O₂ mole fraction 0.21; Total pressure 0.12; CO₂ diluent 0.07. Estimates cover heptane and methanol droplet flames flown on the ISS only; they say nothing about solid materials or partial gravity. Full report: <code>docs/reports/FLEX_OUTCOME_MODEL.md</code>.</p>
+      </section>
+
+    </div>
+  </div>
+</div>

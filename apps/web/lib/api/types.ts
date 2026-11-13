@@ -67,13 +67,21 @@ export interface SearchResult {
   locator?: { label: string; page?: string; section?: string };
 }
 
+// Enums copied from docs/api/openapi.json (contract 0.7.0). Keep them in step with the contract.
+export const REVIEW_STATUSES = ["raw", "machine_extracted", "human_verified", "rejected"] as const;
+export type ReviewStatus = (typeof REVIEW_STATUSES)[number];
+
+export const ANALYSIS_STATUSES = ["queued", "processing", "completed", "failed", "cancelled"] as const;
+export type AnalysisStatus = (typeof ANALYSIS_STATUSES)[number];
+
 export interface EvidenceRecord {
   id: string;
-  kind: "observed" | "measured" | "estimated" | "inferred" | "hypothesized";
+  // EvidenceKind in the contract: document_passage, experiment_condition, dataset_file, image_measurement, video_measurement.
+  kind: string;
   citation: string;
   extraction_method: string;
   transformation_id: string;
-  review_status: "verified" | "pending" | "rejected";
+  review_status: ReviewStatus;
   excerpt?: string;
   value?: { text: string; unit: string };
   measurement_or_claim_type?: string;
@@ -84,7 +92,8 @@ export interface EvidenceRecord {
 
 export interface AnalysisResult {
   id: string;
-  status: "pending" | "completed" | "failed";
+  status: AnalysisStatus;
+  failure_message?: string;
   image_id: string;
   pipeline_version: string;
   model_version: string;
@@ -132,7 +141,7 @@ export interface AnalysisSummary {
   analysis_id: string;
   analysis_type?: "flame_image" | "flame_video";
   original_filename: string;
-  status: "completed" | "processing" | "failed";
+  status: AnalysisStatus;
   flame_area_px?: number;
   calibration_state: string;
   created_at: string;

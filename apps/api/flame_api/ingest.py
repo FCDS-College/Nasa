@@ -32,13 +32,19 @@ logger = logging.getLogger("flame_api.ingest")
 # 0.2.0: OCR fallback for pages without a text layer; quarantine; NTRS titles. Chunk and evidence IDs
 # are unchanged from 0.1.0 (they depend on file hash and page only), so re-ingestion is idempotent.
 # 0.3.0: a page whose text layer is unreadable (broken font encoding) is OCRed like a page without text.
-PARSER_VERSION = "pymupdf-pages-0.3.0"
+# 0.4.0: OCR render size capped for large-format pages (ocr_dpi) and a per-page Tesseract timeout. Letter/A4
+# pages render exactly as in 0.3.0.
+PARSER_VERSION = "pymupdf-pages-0.4.0"
 HTML_PARSER_VERSION = "html-sections-0.1.0"
 JSON_PARSER_VERSION = "json-paths-0.1.0"
-TABLE_PARSER_VERSION = "psi-tables-0.1.0"
+# 0.2.0: per-investigation test-ID/fuel columns for all 24 PSI combustion investigations; blank spreadsheet rows
+# skipped; SAFFIRE-II/III legend rows skipped. Rows of the original four tables parse exactly as in 0.1.0.
+TABLE_PARSER_VERSION = "psi-tables-0.2.0"
 ISATAB_PARSER_VERSION = "isatab-investigation-0.1.0"
 OCR_MIN_CONFIDENCE = 60.0        # mean word confidence (0-100) below which an OCR page is flagged
 OCR_DPI = 300
+OCR_MAX_SIDE_PX = 6600           # 2x a letter page's long side at 300 DPI
+OCR_TIMEOUT_S = 300              # per page; a page Tesseract cannot finish counts as not OCR-able
 MIN_PAGE_CHARS = 12
 NOT_INGESTED_SOURCES = frozenset({"FF-PSI-DSI"})   # DSI is non-combustion; its frames are image assets
 ROOT = Path(__file__).resolve().parents[3]
@@ -149,6 +155,14 @@ def text_layer_is_garbled(text: str) -> bool:
     return sum(t in _FUNCTION_WORDS for t in tokens) / len(tokens) < GARBLED_MAX_FUNCTION_WORD_SHARE
 
 
+def ocr_dpi(page) -> int:
+    """OCR_DPI, lowered for large-format pages so the longest rendered side is at most OCR_MAX_SIDE_PX.
+    A letter/A4 page keeps 300 DPI; a 34x44 in engineering drawing (ACME, SAME) renders at 150 DPI instead of a
+    134-megapixel image that Tesseract needs tens of minutes for."""
+    longest_in = max(page.rect.width, page.rect.height) / 72
+    return max(72, min(OCR_DPI, int(OCR_MAX_SIDE_PX / longest_in))) if longest_in else OCR_DPI
+
+
 def _ocr_page(page) -> tuple[str, float, str] | None:
     """(text, mean confidence 0-100, engine version) for one PDF page, or None when OCR is unavailable.
 
@@ -162,10 +176,10 @@ def _ocr_page(page) -> tuple[str, float, str] | None:
         return None
     try:
         version = f"tesseract-{pytesseract.get_tesseract_version()}"
-        pixmap = page.get_pixmap(dpi=OCR_DPI)
+        pixmap = page.get_pixmap(dpi=ocr_dpi(page))
         image = Image.frombytes("RGB", (pixmap.width, pixmap.height), pixmap.samples)
-        data = pytesseract.image_to_data(image, output_type=pytesseract.Output.DICT)
-    except Exception:  # tesseract binary missing or failed on this page
+        data = pytesseract.image_to_data(image, output_type=pytesseract.Output.DICT, timeout=OCR_TIMEOUT_S)
+    except Exception:  # tesseract binary missing, failed, or timed out on this page
         return None
     words = [(w, float(c)) for w, c in zip(data.get("text", []), data.get("conf", [])) if str(w).strip() and float(c) >= 0]
     if not words:
@@ -310,6 +324,7 @@ def _create_document(session: Session, file_record: FileRecord) -> dict[str, int
             "status": ocr_status if blank_pages or garbled_pages else "not_needed",
             "engine": ocr_engine,
             "dpi": OCR_DPI if ocr_pages else None,
+            "max_render_side_px": OCR_MAX_SIDE_PX if ocr_pages else None,
             "page_confidence": ocr_pages,
             "low_confidence_pages": sorted(int(p) for p, c in ocr_pages.items() if c < OCR_MIN_CONFIDENCE),
             "min_confidence": OCR_MIN_CONFIDENCE,
@@ -525,26 +540,67 @@ def _document_type(path: Path) -> str:
     return "other"
 
 
+# Per investigation: which column names a test, and which names its fuel or material (first non-empty wins).
+# Headers are matched after stripping, so "Sample Number " is "Sample Number". Docs: docs/data/PSI_COMBUSTION_DATASETS.md.
+TEST_ID_COLUMNS = {
+    "FF-PSI-10": ("Test",),                          # ACME Flame Design (normal + inverse tables)
+    "FF-PSI-20": (),                                 # ACME BRE: one row per test day, no ID column
+    "FF-PSI-21": ("Test Day",),                      # ACME CLD Flame (YYDDD)
+    "FF-PSI-22": ("Test Day",),                      # ACME E-FIELD
+    "FF-PSI-23": ("Test Day*",),                     # ACME s-Flame
+    "FF-PSI-25": ("Test #",),
+    "FF-PSI-26": ("Test #", "As Run Test #"),        # BASS
+    "FF-PSI-39": ("Flex Number", "CIR"),             # CFI
+    "FF-PSI-47": ("Session Name",),                  # DAFT
+    "FF-PSI-68": ("Sample (Fuel Type)",),            # FLEX-2 test matrix
+    "FF-PSI-69": ("FLEX Identifier", "FLEX Test #"),
+    "FF-PSI-98": ("Sample Number",),
+    "FF-PSI-99": ("Sample Number",),                 # SAFFIRE-II
+    "FF-PSI-100": ("Sample Number",),                # SAFFIRE-III
+    "FF-PSI-101": ("SAME Test #",),                  # SAME-R
+    "FF-PSI-102": ("Sample #",),                     # SAME
+    "FF-PSI-106": ("Test Date",),                    # SLICE
+    "FF-PSI-107": ("Test ID", "Test #"),
+    "FF-PSI-142": ("Data ID",),
+    "FF-PSI-159": ("Test",),                         # ACME CFI-G (normal + inverse tables)
+}
+FUEL_COLUMNS = {
+    "FF-PSI-10": ("Fuel",),                          # the inverse-flame table has no fuel column (ethylene, XC2H4)
+    "FF-PSI-20": ("Fuel Bottle",),
+    "FF-PSI-21": ("Fuel Bottle",),
+    "FF-PSI-22": ("Fuel Bottle",),
+    "FF-PSI-23": ("Fuel Bottle",),
+    "FF-PSI-25": ("Fuel Sample Material",),
+    "FF-PSI-26": ("Fuel Sample Material",),
+    "FF-PSI-39": ("Fuel",),
+    "FF-PSI-47": ("Sample Material",),
+    "FF-PSI-68": ("Sample (Fuel Type)",),
+    "FF-PSI-69": ("Fuel",),
+    "FF-PSI-98": ("Material",),
+    "FF-PSI-99": ("Material",),
+    "FF-PSI-100": ("Material",),
+    "FF-PSI-101": ("Sample Type",),
+    "FF-PSI-102": ("Sample Material",),
+    "FF-PSI-106": ("Fuel Type",),
+    "FF-PSI-107": ("Fuel",),
+    "FF-PSI-159": ("Fuel",),
+}
+# SAFFIRE tables end with camera-legend and note rows ("F1C1/F1C2", "Note 1"); real samples look like these.
+SAFFIRE_SAMPLE = {"FF-PSI-98": r"[A-Za-z]\d+", "FF-PSI-99": r"\d+-\d+", "FF-PSI-100": r"[A-Za-z]\d+"}
+
+
 def _test_id(source_id: str, row: dict[str, str], row_number: int) -> str:
-    candidates = {
-        "FF-PSI-25": ("Test #",),
-        "FF-PSI-69": ("FLEX Identifier", "FLEX Test #"),
-        "FF-PSI-98": ("Sample Number",),
-        "FF-PSI-107": ("Test ID", "Test #"),
-    }.get(source_id, ())
-    for key in candidates:
+    for key in TEST_ID_COLUMNS.get(source_id, ()):
         if row.get(key, "").strip():
             return row[key].strip()
     return f"row-{row_number:05d}"
 
 
-def _fuel_column(source_id: str) -> str:
-    return {
-        "FF-PSI-25": "Fuel Sample Material",
-        "FF-PSI-69": "Fuel",
-        "FF-PSI-98": "Material",
-        "FF-PSI-107": "Fuel",
-    }.get(source_id, "")
+def _fuel(source_id: str, row: dict[str, str]) -> str | None:
+    for key in FUEL_COLUMNS.get(source_id, ()):
+        if row.get(key, "").strip():
+            return row[key].strip()
+    return None
 
 
 def _unit(header: str) -> str | None:
@@ -569,10 +625,10 @@ def _table_file_encoding(source_id: str) -> str:
 
 
 def _is_legend_row(source_id: str, row: dict[str, str], test_column: str) -> bool:
-    if source_id != "FF-PSI-98":
+    pattern = SAFFIRE_SAMPLE.get(source_id)
+    if pattern is None:
         return False
-    test_id = row.get(test_column, "").strip()
-    return not test_id or "/" in test_id or not test_id[0].isalpha() or not test_id[1:].isdigit()
+    return not re.fullmatch(pattern, row.get(test_column, "").strip())
 
 
 def _create_table_experiments(session: Session, file_record: FileRecord) -> dict[str, int]:
@@ -585,16 +641,14 @@ def _create_table_experiments(session: Session, file_record: FileRecord) -> dict
     with path.open("r", encoding=_table_file_encoding(source.source_id), newline="") as stream:
         reader = csv.DictReader(stream)
         headers = [header.strip() for header in (reader.fieldnames or [])]
-        test_column = {
-            "FF-PSI-25": "Test #",
-            "FF-PSI-69": "FLEX Identifier",
-            "FF-PSI-98": "Sample Number",
-        }.get(source.source_id, "")
+        test_column = (TEST_ID_COLUMNS.get(source.source_id) or ("",))[0]
         seen_rows: set[tuple[str, ...]] = set()
         now = _utc_now()
         experiments = evidence_count = duplicates = valid_rows = 0
         for row_number, raw_row in enumerate(reader, start=1):
             row = {key.strip(): (value or "").strip() for key, value in raw_row.items() if key}
+            if not any(row.values()):          # spreadsheet padding (861 blank rows in the CFI-G inverse table)
+                continue
             if _is_legend_row(source.source_id, row, test_column):
                 continue
             signature = tuple(row.get(header, "") for header in headers)
@@ -605,8 +659,7 @@ def _create_table_experiments(session: Session, file_record: FileRecord) -> dict
             valid_rows += 1
             test_id = _test_id(source.source_id, row, row_number)
             experiment_id = stable_ulid(f"experiment:{source.source_id}:{file_record.sha256}:{test_id}:{hashlib.sha256(json.dumps(row, sort_keys=True).encode()).hexdigest()[:12]}")
-            fuel_header = _fuel_column(source.source_id)
-            fuel = row.get(fuel_header) or None
+            fuel = _fuel(source.source_id, row)
             condition_ids = []
             searchable_values = [test_id, source.short_name or "", fuel or ""]
             # Evidence and conditions reference the experiment, so it must exist before they are inserted.
@@ -752,12 +805,41 @@ def ingest_file(session: Session, file_record: FileRecord) -> tuple[str, dict]:
     return "ingested", counts
 
 
-def ingest() -> dict[str, int]:
+def _transformation_for(file_record: FileRecord) -> str | None:
+    """The parser version ingest_file would apply to this file now (None: no parser)."""
+    path = Path(file_record.local_path or "")
+    suffix = path.suffix.lower()
+    if suffix == ".pdf":
+        return PARSER_VERSION
+    if suffix in {".html", ".htm"}:
+        return HTML_PARSER_VERSION
+    if suffix == ".json":
+        return JSON_PARSER_VERSION
+    if suffix == ".csv" and "experimental table" in str(path).lower():
+        return TABLE_PARSER_VERSION
+    if suffix == ".zip" and path.parent.name.lower() == "metadata":
+        return ISATAB_PARSER_VERSION
+    return None
+
+
+def _already_ingested(session: Session) -> set[tuple[str, str, str]]:
+    """(file_id, input sha256, transformation) of every completed parse. Output IDs depend only on these, so
+    parsing the same bytes with the same parser version again reproduces exactly the same rows."""
+    return set(session.execute(
+        select(IngestionRun.file_id, IngestionRun.input_sha256, IngestionRun.transformation_id)
+        .where(IngestionRun.transformation_id != "quarantine")
+    ).all())
+
+
+def ingest(force: bool = False) -> dict[str, int]:
+    """Parse every registered file. A file already parsed from the same bytes by the same parser version is skipped
+    (counted as `unchanged`), so a container restart does not re-OCR the whole corpus; `force` re-parses everything.
+    A new parser version or a changed file is always parsed again."""
     seed()
     session = SessionLocal()
     totals = {"pdf_documents": 0, "pdf_pages": 0, "pdf_chunks": 0, "ocr_pages": 0, "ocr_low_confidence": 0,
               "text_documents": 0, "text_chunks": 0, "experiments": 0, "table_evidence": 0, "spice_duplicates": 0,
-              "skipped": 0, "quarantined": 0}
+              "skipped": 0, "quarantined": 0, "unchanged": 0}
     try:
         files = (
             session.query(FileRecord)
@@ -765,7 +847,13 @@ def ingest() -> dict[str, int]:
             .order_by(FileRecord.source_id, FileRecord.file_id)
             .all()
         )
+        done = set() if force else _already_ingested(session)
         for file_record in files:
+            transformation = _transformation_for(file_record)
+            if transformation and file_record.status != "quarantined" \
+                    and (file_record.file_id, file_record.sha256, transformation) in done:
+                totals["unchanged"] += 1
+                continue
             outcome, counts = ingest_file(session, file_record)
             if outcome != "ingested":
                 totals[outcome] += 1
@@ -828,4 +916,8 @@ def _publish_corpus_version(session: Session, totals: dict[str, int]) -> None:
 
 
 if __name__ == "__main__":
-    print(json.dumps(ingest(), sort_keys=True))
+    import os
+    import sys
+
+    force = "--force" in sys.argv[1:] or os.environ.get("FLAME_INGEST_FORCE") == "1"
+    print(json.dumps(ingest(force=force), sort_keys=True))

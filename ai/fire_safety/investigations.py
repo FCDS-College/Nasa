@@ -123,7 +123,64 @@ def canonical(row: TestRow) -> Canonical:
                 c.flags.append("negative_air_rate_sensor_offset")
             else:
                 c.flow_m_s = flow.si
+    elif sid == "FF-PSI-10":                                 # ACME Flame Design: normal (XO2 (init)) and inverse (XO2) flames
+        c.o2 = _ambient_o2(row, "xo2_init", "xo2", c.flags)
+        atm = _num(row, "pmean_atm")
+        c.pressure_kpa = None if atm is None else atm * KPA_PER_ATM
+        if c.material is None and "xc2h4_initial" in row.conditions:
+            c.material = "C2H4"                              # the inverse-flame table burns ethylene; it has no fuel column
+    elif sid == "FF-PSI-159":                                # ACME CFI-G: normal and inverse flames
+        c.o2 = _ambient_o2(row, "xo2_before_test", "xo2", c.flags)
+        bar = _num(row, "approx_p_bar")
+        c.pressure_kpa = None if bar is None else bar * 100
+        c.end_state = CFIG_END_STATES.get((_text(row, "self_ext_or_flow_term") or "").upper())
+        c.duration_s = _num(row, "burn_time_sec")
+    elif sid == "FF-PSI-39":                                 # CFI droplets: Oxygen is a mole fraction, Pressure is text ("1.25 atm")
+        c.o2 = _num(row, "oxygen")
+        atm = _leading_number(_text(row, "pressure"))
+        c.pressure_kpa = None if atm is None else atm * KPA_PER_ATM
+    elif sid == "FF-PSI-99":                                 # SAFFIRE-II: '~ 21.5' / '22.1 to 22.0' % O2, '20 cm/s'
+        c.o2, c.o2_approximate = _parse_percent_text(_text(row, "percent_o2_note_1"))
+        c.flow_m_s = _cm_s_text(_text(row, "air_flow_cm_s"))
+        c.duration_s = _leading_number(_text(row, "burn_time_s"))   # 'Insignificant' -> not recorded
+    elif sid == "FF-PSI-100":                                # SAFFIRE-III: '30 cm/s'; O2 not in the table
+        c.flow_m_s = _cm_s_text(_text(row, "air_flow"))
+    elif sid == "FF-PSI-101":                                # SAME-R smoke generation
+        flow = row.conditions.get("inlet_velocity_cm_s")
+        c.flow_m_s = flow.si if flow else None
+        c.duration_s = _num(row, "duration_sec")
+    elif sid == "FF-PSI-102":                                # SAME smoke generation
+        flow = row.conditions.get("air_flow_cm_s")
+        c.flow_m_s = flow.si if flow else None
     return c
+
+
+KPA_PER_ATM = 101.325
+# CFI-G "Self-ext or flow term": SE = the flame self-extinguished, FT = the run ended by flow termination.
+CFIG_END_STATES = {"SE": "self_extinguished", "FT": "flow_terminated"}
+
+
+def _ambient_o2(row: TestRow, normal: str, inverse: str, flags: list[str]) -> float | None:
+    """ACME tables hold normal flames (fuel jet into an O2 atmosphere: XO2 is the cabin-like ambient) and inverse
+    flames (oxidizer jet into fuel: XO2 is the burner stream, up to 0.85). Only the first speaks to a cabin O2."""
+    if (_text(row, "flame_type") or "").strip().lower() == "inverse":
+        if _num(row, inverse) is not None:
+            flags.append("inverse_flame_o2_is_burner_stream")
+        return None
+    return _num(row, normal)
+
+
+def _leading_number(text: str | None) -> float | None:
+    match = re.search(r"\d+(?:\.\d+)?", text or "")
+    return float(match.group()) if match else None
+
+
+def _cm_s_text(text: str | None) -> float | None:
+    """'20 cm/s' -> 0.2 m/s; a bare number in a '(cm/s)' column also counts; anything else -> None."""
+    if not text or ("cm/s" not in text and not re.fullmatch(r"\s*\d+(?:\.\d+)?\s*", text)):
+        return None
+    value = _leading_number(text)
+    return None if value is None else value * 0.01
 
 
 def _range(values: Iterable[float | None]) -> dict | None:

@@ -13,6 +13,7 @@ Usage:
 """
 import argparse
 import csv
+import re
 import sys
 import time
 import urllib.request
@@ -37,7 +38,13 @@ def local_path(row):
     prefix = f"psi-data/{row['psi_id']}/"
     if not row["object_key"].startswith(prefix):
         raise ValueError(f"unexpected key {row['object_key']}")
-    return RAW_ROOT / row["psi_id"] / row["object_key"][len(prefix):]
+    return RAW_ROOT / row["psi_id"] / safe_relative(row["object_key"][len(prefix):])
+
+
+def safe_relative(relative: str) -> str:
+    """The object path as a local path. Characters Windows forbids in names (e.g. ':' in a PSI PDF title) become '_';
+    record_provenance.py maps local names back to object keys with the same function."""
+    return "/".join(re.sub(r'[<>:"\\|?*]', "_", part) for part in relative.split("/"))
 
 
 def download(row):

@@ -3,7 +3,7 @@
   "jsonSchemaDialect": "https://spec.openapis.org/oas/3.1/dialect/base",
   "info": {
     "title": "Flame in Freefall API",
-    "version": "0.6.0",
+    "version": "0.7.0",
     "summary": "Frontend-facing REST contract for the Flame in Freefall scientific dashboard.",
     "description": "Contract-first specification (MVP plan §12, DAY2_TASKS Lead deliverable). The FastAPI implementation is in `apps/api` and serves this document at `/api/openapi.json`; `x-implementation-status` records implementation state. API bearer authentication is required: use a key with the read scope for GET/HEAD, the write scope for other mutations and the admin scope for `/api/admin/*`. AURA Track AP compatibility is checked from this contract against a pinned AURA revision by `tests/integration/aura_blueprint_dryrun.py`.\n\nConventions: snake_case JSON; RFC 3339 UTC timestamps; ULID resource IDs; nullable means 'not present or not established' (never 0 for missing); every JSON success body has `meta`; every error body is `ErrorResponse`.\n\nScientific rules encoded in the schema: no temperature field exists; pixel measurements are `measured`, scale-derived physical sizes are `estimated`; AI interpretation is separate from measurements and limited to inferred/hypothesized/unsupported claim classes; evidence is only source content or deterministic calculation.\n\nAURA boundary (ADR-004, contract 0.2.0): operations marked `x-aura-exclude: true` (chat, AI status, admin writes) are skipped by AURA's OpenAPI discovery, so AURA can never compile a tool that calls back into Flame's model path. Changes: docs/api/CHANGELOG.md.\n\nCredentials and rate limits (P2-1, P2-2): each caller has its own API key (`python -m flame_api.clients create NAME --scopes read|write|admin [--owner PERSON]`), stored hashed and revocable. `read` scope allows GET/HEAD and `POST /api/chat`; `write` scope allows every other method outside `/api/admin/`; `admin` scope (ADR-009 step 2, contract 0.6.0) allows every `/api/admin/` operation, reads included, and an admin key always names the person who holds it. Scopes are independent: `admin` implies neither `read` nor `write`. A valid key without the needed scope gets 403 `FORBIDDEN`; while the database is unreachable a client key cannot be checked and gets 503 `DATABASE_UNAVAILABLE`. The legacy `FLAME_READ_API_TOKEN` / `FLAME_WRITE_API_TOKEN` are deprecated but still accepted with their old meaning, so the write token still reaches `/api/admin/` (a token used for the wrong kind of request stays 401). Every authenticated `/api/*` operation except `/api/health` is rate-limited per client, with separate per-minute budgets for reads, writes and chat (chat is the strictest); over the budget the response is 429 `RATE_LIMITED` with `Retry-After` in seconds. One client exhausting its budget does not affect another's.",
     "license": {
@@ -4800,7 +4800,7 @@
                       "meta": {
                         "request_id": "req_9feae9d17a0545d6a412f36f06be627b",
                         "generated_at": "2026-11-12T05:55:47.928985Z",
-                        "api_version": "0.6.0"
+                        "api_version": "0.7.0"
                       }
                     }
                   }
@@ -5076,7 +5076,7 @@
                       "meta": {
                         "request_id": "req_1b9f4a02c79c4055869a32a4f5d2659b",
                         "generated_at": "2026-11-12T05:55:47.971169Z",
-                        "api_version": "0.6.0"
+                        "api_version": "0.7.0"
                       }
                     }
                   }
@@ -5203,7 +5203,7 @@
                       "meta": {
                         "request_id": "req_17ea0d6d1ad04aedbedba7e3482a61a9",
                         "generated_at": "2026-11-12T10:20:57.805367Z",
-                        "api_version": "0.6.0"
+                        "api_version": "0.7.0"
                       }
                     }
                   }
@@ -9076,9 +9076,151 @@
             "items": {
               "$ref": "#/components/schemas/Statement"
             }
+          },
+          "audio": {
+            "$ref": "#/components/schemas/VideoAudioTranscript"
           }
         },
-        "description": "Result of a flame_video analysis (0.3.0). Pixel units only; no temperature."
+        "description": "Result of a flame_video analysis (0.3.0). Pixel units only; no temperature. `audio` (0.7.0) is present only when the deployment runs with FLAME_TRANSCRIPTION_ENABLED=true."
+      },
+      "VideoAudioSegment": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "start_s",
+          "end_s",
+          "text",
+          "avg_logprob",
+          "no_speech_prob"
+        ],
+        "properties": {
+          "start_s": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Seconds from the start of the audio track. Approximate to a few seconds: voice-activity detection merges speech into long chunks."
+          },
+          "end_s": {
+            "type": "number",
+            "minimum": 0
+          },
+          "text": {
+            "type": "string",
+            "description": "Machine speech-to-text. Untrusted text; words can be wrong."
+          },
+          "avg_logprob": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Whisper's average token log-probability for the chunk the segment belongs to; closer to 0 is more confident."
+          },
+          "no_speech_prob": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Whisper's probability that the chunk is not speech; high values suggest noise."
+          }
+        }
+      },
+      "VideoAudioTranscript": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "status",
+          "language",
+          "duration_s",
+          "rms_dbfs",
+          "loudest_second_dbfs",
+          "segments",
+          "classification",
+          "method",
+          "note",
+          "failure_code",
+          "execution"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "no_audio_track",
+              "silent",
+              "transcribed",
+              "no_speech",
+              "unavailable"
+            ],
+            "description": "`silent` means the track exists but its loudest second is at or below -55 dBFS, so no model was run. `unavailable` means transcription could not run (see `failure_code`); the video analysis itself is unaffected."
+          },
+          "language": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Detected language code, e.g. `en`."
+          },
+          "duration_s": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "rms_dbfs": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "loudest_second_dbfs": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "RMS level of the loudest one-second window of the audio track, in dBFS."
+          },
+          "segments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VideoAudioSegment"
+            },
+            "description": "Time-ordered. Empty unless status is `transcribed`."
+          },
+          "classification": {
+            "type": "string",
+            "enum": [
+              "machine_transcribed"
+            ],
+            "description": "Never `measured` and never evidence: this is machine speech-to-text of operator audio."
+          },
+          "method": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string",
+            "description": "The caveat to show next to the text."
+          },
+          "failure_code": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Set when status is `unavailable`: a provider error code such as `model_missing`, or `decode_failed`, `no_provider`, `transcription_failed`."
+          },
+          "execution": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExecutionMetadata"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Which local provider produced the transcript; null when none ran."
+          }
+        },
+        "description": "Operator speech from a flame_video analysis's audio track (0.7.0). Context only: not measurement, not evidence, and not used by AI interpretation."
       },
       "FileStatus": {
         "type": "string",

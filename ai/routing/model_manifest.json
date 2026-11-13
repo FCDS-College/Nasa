@@ -130,6 +130,27 @@
       "notes": "Resumable frame sampling, per-frame flame_cv analysis and temporal summary (Princess, E3). No weights; local only. Spec: docs/cv/video-ingestion.md, docs/cv/temporal-analysis.md."
     },
     {
+      "model_id": "faster_whisper:small",
+      "capability": "transcription",
+      "provider": "faster_whisper",
+      "runtime": "ctranslate2",
+      "name": "faster-whisper-small",
+      "version": "Systran/faster-whisper-small@536b0662742c02347bc0e980a01041f333bce120",
+      "quantization": "int8 at load (weights stored as float16)",
+      "license": "MIT",
+      "source_url": "https://huggingface.co/Systran/faster-whisper-small",
+      "sha256": "3e305921506d8872816023e4c273e75d2419fb89b24da97b4fe7bce14170d671",
+      "size_bytes": 483546902,
+      "locality": "local",
+      "context_window": null,
+      "status": "candidate",
+      "model_card": "docs/hybrid-ai/PHASE_2_LOCAL_MODEL_REGISTRY.md#transcription",
+      "ram_mb": 1000,
+      "vram_mb": null,
+      "cpu_only": true,
+      "notes": "Operator speech in BASS-II flight video (docs/cv/audio-transcription.md). Off unless FLAME_TRANSCRIPTION_ENABLED=true; cache-only when offline. sha256 is of model.bin. RAM is an estimate. Not yet reviewed by a model owner."
+    },
+    {
       "model_id": "hf_space:flame_cv",
       "capability": "vision",
       "provider": "hf_space",

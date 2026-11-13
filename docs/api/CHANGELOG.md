@@ -6,6 +6,17 @@
 
 Semver applies to `docs/api/openapi.json` `info.version`. Breaking changes need a minor bump while we are pre-1.0, an entry here, and one release of deprecation where practical.
 
+## 0.7.0 (2026-11-13)
+
+Operator speech for video analyses. Additive and off by default: nothing changes for a deployment that does not set `FLAME_TRANSCRIPTION_ENABLED=true`.
+
+**Added**
+- `FlameVideoAnalysisResult.audio` (`VideoAudioTranscript`), optional and present only when `FLAME_TRANSCRIPTION_ENABLED=true`. It holds the speech from the video's audio track, transcribed locally with faster-whisper (`docs/cv/audio-transcription.md`).
+  - `status`: `transcribed`, `no_speech`, `silent` (the track exists but its loudest second is at or below -55 dBFS, so no model ran), `no_audio_track`, or `unavailable` (with `failure_code`; the video analysis still completes).
+  - `segments[]` (`VideoAudioSegment`): `start_s`, `end_s`, `text`, `avg_logprob`, `no_speech_prob`. Timestamps are approximate to a few seconds.
+  - `classification` is always `machine_transcribed`. It is not a measurement and not evidence: no evidence kind, observation or warning code was added, and AI interpretation does not read it. `note` carries the caveat to show beside the text.
+- Settings `FLAME_TRANSCRIPTION_ENABLED` (default `false`), `FLAME_TRANSCRIPTION_MODEL` (default `small`) and `FLAME_TRANSCRIPTION_CACHE_DIR`.
+
 ## 0.6.0 (2026-11-12)
 
 ADR-006 to 009 built. Additive for read clients; read **Changed** before upgrading a deployment that uses client keys for admin work. AURA's Link 2 dry run at the pinned AURA revision `d696fad`: **16 tools accepted, 10 operations excluded**, exit 0.

@@ -15,7 +15,7 @@
 | L-1 | [ADRs 001–012](architecture/adr/README.md) | 001–012 Accepted; 006–009 built in PR #29 (index 1.4.0 lists what is still open); all signed off 2026-11-07 (Lead's confirmation) | 2026-11-12 |
 | L-2 | [Architecture overview](architecture/overview.md) | In review | 2026-10-12 |
 | L-3 | delivered as H-2 + H-4 | In review | 2026-10-12 |
-| L-4 | [openapi.json](api/openapi.json) 0.6.0, [API_SCHEMAS.md](api/API_SCHEMAS.md), [CHANGELOG](api/CHANGELOG.md) | Current | 2026-11-12 |
+| L-4 | [openapi.json](api/openapi.json) 0.7.0, [API_SCHEMAS.md](api/API_SCHEMAS.md), [CHANGELOG](api/CHANGELOG.md) | Current | 2026-11-13 |
 | L-5 | [Index synchronization contract](architecture/index-sync-contract.md) | In review | 2026-10-12 |
 | L-6 | [Background jobs](architecture/background-jobs.md) | In review (1.1.0: video checkpoints, cancellation) | 2026-11-12 |
 | L-7 | [CI/CD and testing](operations/CI_CD.md) | In review | 2026-10-12 |

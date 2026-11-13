@@ -1,0 +1,4 @@
+# Optional: only the PINN (physics/buoyant_pinn.py) needs PyTorch. The loader and the finite-difference
+# baseline use numpy alone. CI does not install this file; the torch tests skip when torch is absent.
+torch>=2.3.0
+numpy>=1.26.0

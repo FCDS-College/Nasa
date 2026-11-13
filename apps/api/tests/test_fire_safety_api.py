@@ -26,7 +26,7 @@ def ingested(session_factory):
     files = session.query(FileRecord).filter(or_(
         FileRecord.original_filename.like("%Experimental table%"), FileRecord.original_filename.like("%metadata%.zip"),
     )).all()
-    assert len(files) == 8
+    assert len(files) == 46     # 22 experimental tables + 24 ISA-Tab zips
     for record in files:
         if record.source_id != "FF-PSI-DSI":
             ingest_file(session, record)
@@ -42,15 +42,23 @@ def test_investigations_are_ranked_for_the_lunar_lander_atmosphere(client, inges
     body = response.json()
     assert_contract_component(body, "InvestigationListResponse")
     items = {i["acronym"]: i for i in body["items"]}
-    assert body["totals"]["flight_tests"] == 840
-    assert items["FLEX"]["rank"] == 1 and items["FLEX"]["data"]["tests"] == 274
+    # 19 flight investigations (the 5 PSI ground studies are documentation, not flight tests).
+    assert body["totals"] == {"investigations": 19, "with_data": 19, "flight_tests": 1950}
+    # ACME CFI-G's normal flames span 18-40% O2 at 50-331 kPa, so they speak most directly to a 34% O2 cabin.
+    assert items["ACME CFI-G"]["rank"] == 1
+    assert items["FLEX"]["rank"] == 2 and items["FLEX"]["data"]["tests"] == 274
+    # An inverse flame's XO2 is the burner's oxidizer stream, never a cabin O2: those tests carry no O2 and a flag.
+    assert items["ACME CFI-G"]["data"]["o2_fraction"]["n"] == 179
+    assert items["ACME CFI-G"]["data"]["quality_flags"] == {"inverse_flame_o2_is_burner_stream": 154}
     # BASS-II never flew above 22.2% O2, so it cannot speak to a 34% O2 cabin.
     assert items["BASS-II"]["data"]["o2_fraction"]["max"] == pytest.approx(0.222)
     assert items["BASS-II"]["relevance"]["components"]["oxygen_match"] < 0.2
     assert items["BASS-II"]["relevance"]["not_recorded"] == ["pressure"]
-    # Investigations without ingested data are listed but not ranked.
-    assert items["ACME-CLD"]["status"] == "metadata_only" and items["ACME-CLD"]["rank"] is None
-    assert body["not_acquired"][0]["acronym"] == "SAME"
+    # A table that records no O2 or pressure per test (ACME CLD lists test days) is ranked, but scores 0 on atmosphere.
+    assert items["ACME-CLD"]["status"] == "ingested" and items["ACME-CLD"]["relevance"]["components"]["oxygen_match"] == 0
+    # Every investigation the challenge names (BASS, Saffire, SAME, FLEX, ACME) is now acquired.
+    assert body["not_acquired"] == []
+    assert items["SAME"]["data"]["tests"] == 8 and items["SAME-R"]["data"]["tests"] == 109
     # NASA's own objective text, cited to its evidence row.
     objective = items["FLEX"]["objective"]
     assert "flammability limits" in objective["text"]
