@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Flame in Freefall — Abstract Paper</title>
+<style>
+  @page { size: A4; margin: 18mm 17mm 18mm; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; color: #111; background: #fff; }
+  body { font-family: "Bitstream Charter", "Liberation Serif", serif; font-size: 10.2pt; line-height: 1.42; }
+  .head { text-align: center; }
+  .venue { font-family: "Inter", sans-serif; font-size: 8.2pt; letter-spacing: .14em; text-transform: uppercase; color: #b4510f; font-weight: 700; }
+  h1 { font-size: 17pt; text-wrap: balance; line-height: 1.2; margin: 6pt 0 6pt; font-weight: 700; }
+  .authors { font-size: 10.5pt; }
+  .affil { font-size: 9pt; color: #444; font-style: italic; margin-top: 2pt; }
+  .abstract { margin: 14pt 6mm 8pt; padding: 9pt 12pt; border-top: 1.2pt solid #111; border-bottom: 1.2pt solid #111; font-size: 9.8pt; text-align: justify; hyphens: auto; }
+  .abstract b.lbl { font-variant: small-caps; letter-spacing: .04em; }
+  .kw { margin: 0 6mm 12pt; font-size: 9pt; }
+  .kw b { font-variant: small-caps; }
+  .cols { column-count: 2; column-gap: 7mm; text-align: justify; hyphens: auto; }
+  h2 { font-size: 10.6pt; font-weight: 700; margin: 9pt 0 3pt; break-after: avoid; }
+  h2 span { margin-right: 4pt; }
+  p { margin: 0 0 5pt; }
+  ul { margin: 0 0 5pt; padding-left: 13pt; }
+  li { margin: 1pt 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 8.6pt; margin: 5pt 0 3pt; break-inside: avoid; }
+  th, td { text-align: left; padding: 2.4pt 3pt; vertical-align: top; }
+  thead th { border-top: 1pt solid #111; border-bottom: .6pt solid #111; font-weight: 700; }
+  tbody tr:last-child td { border-bottom: 1pt solid #111; }
+  .cap { font-size: 8.4pt; color: #333; margin-bottom: 6pt; text-align: left; }
+  .refs { font-size: 8.4pt; line-height: 1.35; padding-left: 14pt; text-align: left; hyphens: none; }
+  .refs li { margin: 2pt 0; }
+  .note { text-align: left; font-size: 8pt; color: #555; margin-top: 8pt; border-top: .5pt solid #bbb; padding-top: 4pt; }
+  sub { line-height: 0; }
+</style>
+</head>
+<body>
+
+<div class="head">
+  <div class="venue">NASA Space Apps Challenge 2026 · Flame in Freefall</div>
+  <h1>Flame in Freefall: Turning NASA Microgravity Combustion Data into Sourced Fire-Safety Answers for Spacecraft Cabins</h1>
+  <div class="authors">Team Flame in Freefall</div>
+  <div class="affil">FCDS College · November 2026</div>
+</div>
+
+<div class="abstract">
+  <b class="lbl">Abstract.</b>
+  Fire behaves differently in a spacecraft. Without buoyancy, flames are driven only by ventilation, can persist at lower oxygen
+  and spread in ways that ground tests do not predict, while the next exploration vehicles plan richer atmospheres: up to 30&nbsp;% (Orion)
+  and 34&nbsp;% (Altair) oxygen at reduced pressure, against 21&nbsp;% on the ISS. NASA has flown decades of microgravity combustion
+  experiments, but their results are scattered across experiment tables, metadata records and technical reports, so a mission designer
+  cannot get a direct, sourced answer to the question <i>“what do we know about fire in my cabin atmosphere?”</i>
+  We present <b>Flame in Freefall</b>, a fire-safety dashboard that, for any chosen cabin atmosphere, <b>ranks</b> NASA flight investigations
+  by how directly their data covers it, <b>summarizes</b> each in NASA’s own words, <b>explains</b> what the flight tests measured with
+  every number linked to its source table cell, <b>estimates</b> droplet-flame outcomes with a validated model that refuses to extrapolate,
+  and states what the data <b>cannot</b> tell. Built on 840 flight tests from four NASA Physical Sciences Informatics investigations
+  (FLEX, BASS-II, SPICE, SAFFIRE-I) and 24 public-use NTRS reports, the system reaches a macro-F1 of 0.54 (baseline 0.27) and an
+  extinction ROC-AUC of 0.86 for flame outcomes, and a retrieval hit@1 of 0.88 on a 26-question gold set. Treating the absence of data
+  as a reported gap, never as absence of risk, it gives designers sourced evidence and visible testing gaps before an atmosphere is chosen.
+</div>
+<div class="kw"><b>Keywords:</b> microgravity combustion; spacecraft fire safety; cabin atmosphere; evidence ranking; retrieval-augmented generation; applicability domain; NASA PSI.</div>
+
+<div class="cols">
+  <h2><span>1</span>Problem</h2>
+  <p>Spacecraft fire safety depends on how materials and fuels burn in the cabin’s own atmosphere and gravity. In microgravity there is
+  no rising plume: flames are pushed only by ventilation, can survive at lower oxygen, and spread differently from ground tests [1].
+  Exploration vehicles shift the atmosphere as well; NASA/TM-2008-215260 records up to 30&nbsp;% and 34&nbsp;% O<sub>2</sub> at reduced
+  pressure for Orion and Altair designs, compared with 21&nbsp;% at 14.7&nbsp;psia on the ISS [1]. Higher oxygen makes materials burn
+  more readily.</p>
+  <p>The relevant evidence exists, from flight programmes such as BASS, FLEX, Saffire, SPICE and ACME, but it is fragmented: one table
+  row per test, ISA-Tab metadata per investigation, and hundreds of reports, some with unreadable text layers. Nothing connects this
+  evidence to an atmosphere a designer is considering, and nothing shows where the evidence stops.</p>
+
+  <h2><span>2</span>Objective</h2>
+  <p>To summarize, rank and explain NASA microgravity combustion results so that they inform fire safety for Moon and Mars missions.
+  The question is framed around the <i>atmosphere</i> rather than the experiment: given O<sub>2</sub> fraction and total pressure
+  (four NASA-sourced presets or a custom value), which flight data covers it, what did it show, and what remains untested?</p>
+
+  <h2><span>3</span>Approach</h2>
+  <ul>
+    <li><b>Data.</b> 840 CC0 flight tests (FLEX 274, BASS-II 129, SPICE 435, SAFFIRE-I 2), their ISA-Tab metadata, 24 NTRS reports and flight media [2, 3]. Every value keeps the identifier of its source cell; OCR recovers 35 garbled report pages.</li>
+    <li><b>Ranking.</b> A transparent evidence-relevance score with four visible components: O<sub>2</sub> coverage, pressure coverage, nearby tests and outcome data. It is presented as relevance, never as risk.</li>
+    <li><b>Outcome model.</b> Multinomial logistic regression on O<sub>2</sub>, pressure, ppO<sub>2</sub>, CO<sub>2</sub>, He, droplet size and fuel, trained on 261 FLEX tests over 80 test days and selected over random forest and kNN by repeated grouped cross-validation. A strict applicability domain makes it refuse outside flown conditions.</li>
+    <li><b>Retrieval and chat.</b> PostgreSQL full-text and pgvector search fused by reciprocal rank fusion, then reranked by a cross-encoder; answers may cite only retrieved evidence.</li>
+    <li><b>Knowledge graph.</b> 951 entities and 10,683 edges extracted deterministically from the tables, each citing its NASA cell.</li>
+  </ul>
+
+  <h2><span>4</span>Results</h2>
+  <table>
+    <thead><tr><th>Measure</th><th>Result</th></tr></thead>
+    <tbody>
+      <tr><td>Outcome model, macro-F1</td><td>0.54 ± 0.02 (baseline 0.27)</td></tr>
+      <tr><td>Extinction ROC-AUC</td><td>0.86</td></tr>
+      <tr><td>Retrieval hit@1 / hit@5 / MRR@10</td><td>0.88 / 0.96 / 0.91</td></tr>
+      <tr><td>FLEX self-extinction, O<sub>2</sub> &lt; 0.16</td><td>94 % of 48 tests</td></tr>
+      <tr><td>FLEX self-extinction, O<sub>2</sub> ≥ 0.30</td><td>8 % of 24 tests</td></tr>
+    </tbody>
+  </table>
+  <div class="cap">Table 1. Measured results. Model validated on held-out test days; retrieval on 26 corpus-grounded questions.</div>
+  <p>For a lunar-lander atmosphere (34&nbsp;% O<sub>2</sub>, 62.7&nbsp;kPa), FLEX ranks first with nine tests flown nearby; BASS-II’s
+  solid-material tests stop at 22.2&nbsp;% O<sub>2</sub> and are reported as a coverage gap; and the outcome model declines to estimate,
+  because 62.7&nbsp;kPa lies below the lowest FLEX test pressure (70.2&nbsp;kPa). Oxygen is the dominant model driver, followed by
+  He and CO<sub>2</sub> diluents, with physically expected signs.</p>
+
+  <h2><span>5</span>Limitations</h2>
+  <p>Outcomes are modelled for droplets only; no partial-gravity (Moon, Mars) data is included; SAME, ACME and FLEX-2 are not yet
+  ingested; generated chat answers were not evaluated; and the ranking weights and gold set await expert review.</p>
+
+  <h2><span>6</span>Conclusion</h2>
+  <p>Flame in Freefall converts scattered NASA flight evidence into ranked, cited answers for a specific cabin atmosphere, and reports
+  the limits of that evidence explicitly. Future work will extract BASS-II spread and extinction from flight video, add Saffire&nbsp;II–VI
+  and ACME, and calibrate the relevance weights against expert judgement.</p>
+
+  <h2>References</h2>
+  <ol class="refs">
+    <li>“Microgravity Flame Spread in Exploration Atmospheres: Pressure, Oxygen, and Velocity Effects on Opposed and Concurrent Flame Spread,” NASA/TM-2008-215260, NASA Glenn Research Center, 2008 (NTRS 20080034883).</li>
+    <li>NASA Physical Sciences Informatics (PSI): FLEX, BASS-II, SPICE and SAFFIRE-I flight data and ISA-Tab metadata (CC0).</li>
+    <li>NASA Technical Reports Server (NTRS): 24 reports with public-use-permitted status.</li>
+  </ol>
+  <div class="note">Figures from the project documentation (FINAL_CHALLENGE_PRESENTATION.md v1.0.3, FINAL_PROJECT_STATUS.md v1.3.1) and the accompanying presentation deck.</div>
+</div>
+
+</body>
+</html>

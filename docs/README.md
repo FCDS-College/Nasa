@@ -66,7 +66,7 @@
 
 | Document | Status | Owner |
 |---|---|---|
-| **Final challenge deliverables (2026-11-07, updated 2026-11-12 for PR #27–#32):** [status](../FINAL_PROJECT_STATUS.md), [architecture](../FINAL_ARCHITECTURE.md), [test report](../FINAL_TEST_REPORT.md), [demo runbook](../DEMO_RUNBOOK.md), [presentation](../FINAL_CHALLENGE_PRESENTATION.md), [objective & problem deck (PDF)](presentations/flame-in-freefall-objective-and-problem.pdf) | Current | Lead |
+| **Final challenge deliverables (2026-11-07, updated 2026-11-12 for PR #27–#32):** [status](../FINAL_PROJECT_STATUS.md), [architecture](../FINAL_ARCHITECTURE.md), [test report](../FINAL_TEST_REPORT.md), [demo runbook](../DEMO_RUNBOOK.md), [presentation](../FINAL_CHALLENGE_PRESENTATION.md), [objective & problem deck (PDF)](presentations/flame-in-freefall-objective-and-problem.pdf), [abstract paper (PDF)](presentations/flame-in-freefall-abstract.pdf) | Current | Lead |
 | [FLEX outcome model card and evaluation](evaluation/reports/flex-outcome-model.md), [retrieval evaluation](evaluation/reports/retrieval-2026-11-07.md) | Current (human review pending: Ziad, Eman) | Lead |
 | 2026-10-30 system audit: [status audit](reviews/SYSTEM_STATUS_AUDIT.md), [roadmap](plan/IMPLEMENTATION_ROADMAP.md), [implementation changelog](reviews/IMPLEMENTATION_CHANGELOG.md) | Current | Lead |
 | [Readiness report](reviews/FINAL_SYSTEM_READINESS_REPORT.md) (2026-10-30 assessment, with a 2026-11-12 status update in §11) | Historical snapshot | Lead |
