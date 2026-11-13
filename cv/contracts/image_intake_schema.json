@@ -217,7 +217,7 @@
     "derived",
     "ingestedAt"
   ],
-  "title": "ImageIntakeRecord v1.1.0",
+  "title": "ImageIntakeRecord v1.3.0",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "x-intakePolicy": {
@@ -231,9 +231,9 @@
     "checksum": "sha256 (streamed)",
     "exifPolicy": "apply orientation, strip metadata in derived image",
     "preprocess": {
-      "version": "letterbox-lanczos-v1",
+      "version": "letterbox-lanczos-auto-v2",
       "rule": "aspect-preserving Lanczos resize + black padding",
-      "targetSize": 512,
+      "targetSize": null,
       "derivedFormat": "PNG (lossless)"
     },
     "splitPolicy": "split by groupId (experiment/run), never by frame",

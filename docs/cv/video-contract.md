@@ -1,6 +1,6 @@
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Princess & Lead | Draft | 1.3.0 | 2026-10-14 | A4 | `cv/contracts/video_analysis_result.schema.json`, `cv/video_analysis.py` |
+| Princess & Lead | Draft | 1.4.0 | 2026-11-13 | A4 | `cv/contracts/video_analysis_result.schema.json`, `cv/video_analysis.py` |
 
 # Video Analysis Result Contract (A4)
 
@@ -11,7 +11,7 @@ API exposure (contract 0.3.0): `POST /api/analyses` with a `video` part creates 
 
 ## 2. Backward-Compatibility and Versioning
 - Any breaking structural modification requires a major version increment in `schemaVersion`.
-- Optional fields may be added under minor versions without disrupting existing API consumers. v1.3.0 only adds optional fields, so v1.2.0 payloads (the example below) remain valid.
+- Optional fields may be added under minor versions without disrupting existing API consumers. v1.3.0 and v1.4.0 only add optional fields, so v1.2.0 payloads (the example below) remain valid.
 - The schema does not restrict `schemaVersion` to a constant; consumers should read it and ignore unknown optional fields.
 
 ## 3. Fields
@@ -20,6 +20,7 @@ API exposure (contract 0.3.0): `POST /api/analyses` with a `video` part creates 
 | `videoId` | `vid_` + first 16 hex characters of the source SHA-256. |
 | `videoMetadata` | `fps` (constant frame rate used for timestamps), `frameCount`, `durationSeconds`, `resolution` `[width, height]`. |
 | `lineage` (v1.3.0) | Source checksum, container, codec, source frame count, timestamp/VFR handling and sampling policy. |
+| `overlayMask` (v1.4.0) | Burned-in text excluded before segmentation: `enabled`, `method`, `lines[]` (`xmin`, `ymin`, `xmax`, `ymax` in original pixels, `glyphs`), `pixelFraction`, `threshold`, `sampledFrames`, and the mask image `uri` and `checksum`. See [video-ingestion.md §5](video-ingestion.md#5-overlay-exclusion-pipeline-cv-video-v110). |
 | `frameMeasurements[]` | `frameIndex`, `timestamp` (= `frameIndex / fps`), `detectionStatus`, `pixelArea` (null when not present). Optional: `frameId` (`{videoId}_frame_{index:06d}`), `sourceFrameIndex`, `sourceTimestamp`, `centroid`, `boundingBox`, `qualityFlags`, `detectionConfidence`, `error` (a frame whose analysis failed is reported as `UNCERTAIN` with the error code). |
 | `temporalSummary` | `persistenceRate`, `flickerFrequencyHz` (number, or the string `"not estimable"`). Optional: `flickerStatus`, `flickerNote` (reason), `persistenceWindow`, `areaChangeRate`, `trackingStability`, `trackSessions`, `aggregationConfig`. |
 | `artifacts` | Repo-relative `summaryUri` and its `checksum`. |
@@ -64,6 +65,7 @@ Flicker validity conditions are specified in [temporal-analysis.md](temporal-ana
 - Error responses use the shared `ErrorResponse` envelope (`status: "ERROR"`), which is not described by this schema.
 
 ## Changelog
+- **v1.4.0 (2026-11-13):** Added the optional `overlayMask` block (pipeline `cv-video-v1.1.0`).
 - **v1.3.0 (2026-10-14):** Added optional lineage, frame ID, centroid, bounding box, quality flags and extended temporal summary fields; documented the fields; closed the example's code fence and replaced its absolute path.
 - **v1.2.0 (2026-10-12):** Updated to align with auto-adaptive pipeline v1.2.0.
 - **v1.0.0:** Initial creation of video analysis result contract and schema.
