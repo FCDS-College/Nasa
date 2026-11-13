@@ -88,12 +88,12 @@
       "notes": "In use by default: FLAME_RERANKER_ENABLED defaults to true (config.py). The provider runs fastembed's ONNX export Xenova/ms-marco-MiniLM-L-6-v2 (about 90 MB, same scores to three decimals), not the sentence-transformers class; model_id keeps its original prefix because it is a registry key. Compared only on the 26-question retrieval gold, without confidence intervals, so status stays candidate."
     },
     {
-      "model_id": "flame_cv:cv-opencv-v1.2.0-auto",
+      "model_id": "flame_cv:cv-opencv-v1.3.0-auto",
       "capability": "vision",
       "provider": "flame_cv",
       "runtime": "opencv",
       "name": "flame_cv",
-      "version": "cv-opencv-v1.2.0-auto",
+      "version": "cv-opencv-v1.3.0-auto",
       "quantization": null,
       "license": "project code",
       "source_url": "cv/flame_cv.py",
@@ -135,7 +135,7 @@
       "provider": "hf_space",
       "runtime": "hf_space",
       "name": "flame_cv@hf_space",
-      "version": "cv-opencv-v1.2.0-auto (only once the Space is redeployed from this commit)",
+      "version": "cv-opencv-v1.3.0-auto (only once the Space is redeployed from this commit)",
       "quantization": null,
       "license": "project code",
       "source_url": "cv/hf_space/",

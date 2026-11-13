@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from cv.flame_cv import (AnalysisCache, AnalysisResult, CVConfig, DecodeError, FileMissingError, ImageTooSmallError,
+from cv.flame_cv import (PIPELINE_VERSION, PREPROCESS_VERSION, SEGMENTER_VERSION, AnalysisCache, AnalysisResult, CVConfig, DecodeError, FileMissingError, ImageTooSmallError,
                       IntakeManifest, UnsupportedMediaError, analyze_image, analyze_image_safe, dedupe_legacy_manifest,
                       compute_auto_blur_kernel, compute_auto_target_size, export_schemas,
                       flame_analysis_api_adapter, ingest_image, make_synthetic_flame,
@@ -131,7 +131,7 @@ def test_deterministic_and_reproducible(tmp_path, dirs):
     for r in (a, b):
         r["provenance"].pop("createdAt")
     assert a == b and a["analysisId"].startswith("an_")
-    assert a["pipelineVersion"] == "cv-opencv-v1.2.0-auto" and "pytorch" not in a["pipelineVersion"]
+    assert a["pipelineVersion"] == PIPELINE_VERSION and "pytorch" not in a["pipelineVersion"]
     assert a["provenance"]["configDigest"] and a["provenance"]["libraries"]["opencv"]
 
 
@@ -148,9 +148,9 @@ def test_cache_hit_miss_and_invalidation(tmp_path, dirs):
     assert r3["cache"]["hit"] is False and r3["cache"]["key"] != r1["cache"]["key"]
     # explicit invalidation of entries made with other versions
     current_config = replace(CVConfig(), target_size=compute_auto_target_size(3008, 2000))
-    removed = cache.invalidate_stale({"pipelineVersion": "cv-opencv-v1.2.0-auto",
-                                      "preprocessVersion": "letterbox-lanczos-auto-v1",
-                                      "segmenterVersion": "1.2.0", "configDigest": current_config.digest()})
+    removed = cache.invalidate_stale({"pipelineVersion": PIPELINE_VERSION,
+                                      "preprocessVersion": PREPROCESS_VERSION,
+                                      "segmenterVersion": SEGMENTER_VERSION, "configDigest": current_config.digest()})
     assert removed == 1
 
 
