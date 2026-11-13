@@ -109,12 +109,12 @@
       "notes": "Heuristic Otsu-contour pipeline with auto-adaptive preprocessing (v1.2.0, Princess, ported from branch Princess @ 1b32326), no weights. v1.1.0 is kept in cv/oldversion/. M10 evaluation: docs/cv/evaluation-report.md (draft)."
     },
     {
-      "model_id": "flame_cv_video:cv-video-v1.0.0",
+      "model_id": "flame_cv_video:cv-video-v1.1.0",
       "capability": "video",
       "provider": "flame_cv_video",
       "runtime": "opencv",
       "name": "flame_cv_video",
-      "version": "cv-video-v1.0.0",
+      "version": "cv-video-v1.1.0",
       "quantization": null,
       "license": "project code",
       "source_url": "cv/video_analysis.py",
