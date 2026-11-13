@@ -14,6 +14,7 @@ const PRESETS: { label: string; input: Partial<FlexInput> }[] = [
   { label: "Pre-EVA (30% O₂, 70.3 kPa)", input: { o2_fraction: 0.30, pressure_kpa: 70.3 } },
   { label: "Lunar lander (34% O₂, 62.7 kPa)", input: { o2_fraction: 0.34, pressure_kpa: 62.7 } },
   { label: "Low O₂ (15%, 101 kPa)", input: { o2_fraction: 0.15, pressure_kpa: 101.3 } },
+  { label: "Apollo 1 pad, 1967 (100% O₂, 115 kPa)", input: { o2_fraction: 1.0, pressure_kpa: 115.1, co2_fraction: 0, he_fraction: 0 } },   // pure O₂: no diluent
 ];
 
 const DEFAULT: FlexInput = { fuel: "Heptane", o2_fraction: 0.21, pressure_kpa: 101.3, co2_fraction: 0, he_fraction: 0, droplet_diameter_mm: 3 };
@@ -90,7 +91,7 @@ export default function OutcomeExplorer() {
                 </label>
               ))}
             </fieldset>
-            <Slider label="O₂ mole fraction" value={input.o2_fraction} min={0.08} max={0.45} step={0.01} onChange={(v) => set({ o2_fraction: v })} />
+            <Slider label="O₂ mole fraction" value={input.o2_fraction} min={0.08} max={1} step={0.01} onChange={(v) => set({ o2_fraction: v })} />
             <Slider label="Total pressure" value={input.pressure_kpa} min={40} max={320} step={0.5} unit="kPa" onChange={(v) => set({ pressure_kpa: v })} />
             <Slider label="CO₂ diluent (mole fraction)" value={input.co2_fraction} min={0} max={0.7} step={0.01} onChange={(v) => set({ co2_fraction: v })} />
             <Slider label="He diluent (mole fraction)" value={input.he_fraction} min={0} max={0.5} step={0.01} onChange={(v) => set({ he_fraction: v })} />
@@ -126,7 +127,7 @@ export default function OutcomeExplorer() {
 
           {result && (
             <Card>
-              <SectionTitle title="How oxygen changes the outcome" subtitle="Your other conditions held fixed; only O₂ varies across the flight-tested range." />
+              <SectionTitle title="How oxygen changes the outcome" subtitle="Your other conditions held fixed; only O₂ varies across the flight-tested range (and out to your O₂ when it lies beyond it)." />
               <SweepChart points={result.o2_sweep} marker={input.o2_fraction} />
             </Card>
           )}

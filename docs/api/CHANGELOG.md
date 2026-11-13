@@ -2,11 +2,34 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Lead (Anas) | Current | — | 2026-11-12 | L-4, M6 | `docs/api/openapi.json`, `apps/api/flame_api/` |
+| Lead (Anas) | Current | — | 2026-11-13 | L-4, M6 | `docs/api/openapi.json`, `apps/api/flame_api/` |
 
 Semver applies to `docs/api/openapi.json` `info.version`. Breaking changes need a minor bump while we are pre-1.0, an entry here, and one release of deprecation where practical.
 
 ## Unreleased
+
+Nothing yet.
+
+## 0.7.0 (2026-11-13)
+
+Historical scenarios, a gravity dimension and a scenario-level coverage verdict (ADR-013). The Apollo 1 pure-oxygen atmosphere is the first historical scenario. Response shapes gain **required** fields: clients that validate strictly must take this contract (AURA re-discovery; the `aura-link2-contract` job checks the dry run).
+
+**Added (ADR-013)**
+- `Scenario.gravity` (`microgravity | lunar | martian | earth`) and `Scenario.kind` (`mission | historical | custom`); `basis` gains `historical`. Mission scenarios are `microgravity` / `mission`, as before.
+- Scenario `apollo1_pad_1967`: 100 % O₂ at 16.7 psia (115.14 kPa), `gravity: earth`, cited to the Apollo 204 Review Board report (FF-NTRS-19930078717 p. 189).
+- `InvestigationListResponse.coverage` (schema `Coverage`): `verdict` `covered | partial | none`, headline, reasons, the nearest real flight test with its evidence cells, the gap, the flown ranges and the method. For Apollo 1: `none`, "None of the 840 flight tests cover this atmosphere."
+- `GET /api/scenarios/{scenario_id}/history` (`getScenarioHistory`, `ScenarioHistoryResponse`, `CitedSource`): story, lesson, a page-cited timeline and the data-covered alternative scenario (`orion_max_o2`). 404 `SCENARIO_HISTORY_NOT_FOUND` for non-historical scenarios.
+- Query parameter `gravity` on `GET /api/investigations`, `GET /api/investigations/{investigation_id}` and `GET /api/insights`, for a custom atmosphere only (400 with a named scenario).
+
+**Changed**
+- The scenario model estimate (`flex_model_scenario_estimate`) is refused (`coverage_gap`, no probabilities) when the scenario's gravity is not among the flight tests' regimes. The reason is added to its statement.
+- `FlexOutcomeResponse.o2_sweep` extends past the trained O₂ range to a requested O₂ outside it (up to 6 extra points, all `in_domain: false`, `probabilities: null`). For a requested O₂ inside the range, the 12 points are unchanged.
+- `Coverage` verdict `partial` also covers an atmosphere outside the flown O₂ or pressure range (the lunar lander: 9 neighbouring tests, but 62.7 kPa is below every flown pressure).
+
+**Corpus**
+- 3 NTRS reports added for the citations (27 in total): FF-NTRS-19930078717 (Apollo 204 Review Board report), FF-NTRS-20170008542 (flame-retardant fibres) and FF-NTRS-20070021223 (Orion ECLSS fire protection).
+
+**Also in this release** (merged after 0.6.0)
 
 **Added**
 - Migration `0012_chunk_search_tsv_keep`: a stopword-free full-text vector so a question about helium (`He`) can match. Read only when `FLAME_LEXICAL_MODE=or_idf`; no response shape changes.

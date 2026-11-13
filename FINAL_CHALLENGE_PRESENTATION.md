@@ -2,9 +2,11 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Team Flame in Freefall | Current (submission, facts updated) | 1.0.3 | 2026-11-12 | T7 | `apps/web`, `apps/api`, `ai/fire_safety` |
+| Team Flame in Freefall | Current (submission, facts updated) | 1.1.0 | 2026-11-13 | T7, ADR-013 | `apps/web`, `apps/api`, `ai/fire_safety` |
 
 NASA Space Apps Challenge 2026 · Challenge: *Flame in Freefall*
+
+**3-minute pitch:** [deck (PPTX)](docs/presentations/flame-in-freefall-3min-pitch.pptx) · [English script](docs/presentations/PITCH_SCRIPT_3MIN.md) · [Arabic rehearsal script](docs/presentations/PITCH_SCRIPT_3MIN.ar.md). It opens with the Apollo 1 hook (§3a).
 
 ![Ranked investigations for a lunar-lander cabin atmosphere](docs/presentations/screenshots/1-dashboard-ranking.png)
 
@@ -23,12 +25,13 @@ NASA has flown decades of combustion experiments (BASS, FLEX, Saffire, SPICE, AC
 
 **A fire-safety dashboard that summarizes, ranks and explains NASA's microgravity combustion results for any cabin atmosphere, and shows its sources at every step.**
 
-1. **Choose an atmosphere.** Four are sourced from NASA (ISS nominal, pre-EVA, Orion maximum O₂, lunar lander maximum O₂), or set O₂ and pressure yourself.
+1. **Choose an atmosphere.** Four are sourced from NASA (ISS nominal, pre-EVA, Orion maximum O₂, lunar lander maximum O₂), plus one historical atmosphere (**Apollo 1, 1967**), or set O₂ and pressure yourself.
+   The first answer is a **coverage verdict**: does any flight test lie near this atmosphere, and if not, which real test is nearest and how big is the gap?
 2. **Rank.** Every investigation is scored by how directly its flight data covers that atmosphere. The score has four visible components: O₂ coverage, pressure coverage, nearby tests and outcome data. It is evidence relevance, never presented as risk.
 3. **Summarize.** Each investigation's objective, hypothesis, approach and impact appear in NASA's own words, from the PSI ISA-Tab metadata, with a source link.
 4. **Explain.** The dashboard states what the flight tests measured there; every number comes with the IDs of the NASA table cells it came from. It also states **what the data cannot tell you**.
 5. **Estimate.** A validated model estimates whether a droplet flame would self-extinguish, and shows the most similar real ISS tests next to it. It **refuses** outside the conditions NASA actually flew.
-6. **Ask.** A chat answers questions over 24 NASA reports and 4 investigation records. Answers may only cite retrieved evidence; without a language model, the chat shows that evidence directly.
+6. **Ask.** A chat answers questions over 27 NASA reports and 4 investigation records. Answers may only cite retrieved evidence; without a language model, the chat shows that evidence directly.
 7. **Connect.** A knowledge graph links investigations, tests, fuels, conditions and outcomes, every link citing the NASA cell it came from. Example: which fuels did the tests that ended in extinction burn? In the web app's Knowledge Graph page, through the API, and as two AURA agent tools.
 
 ![Computed, cited insights for the pre-EVA atmosphere](docs/presentations/screenshots/2-insights.png)
@@ -37,8 +40,23 @@ NASA has flown decades of combustion experiments (BASS, FLEX, Saffire, SPICE, AC
 
 - **The question is the atmosphere, not the experiment.** We turn decades of experiment records into an answer to the designer's actual question: which flight data covers *this* cabin, and what did it show?
 - **Honesty is a feature.** Coverage-gap cards are first-class results. Example: *"No solid-material test in BASS-II is at 34 % O₂"*. So is the model's refusal to answer for the lunar-lander pressure. Absence of data is never shown as absence of risk.
+- **It knows when not to answer, and says why.** See §3a.
 - **Every claim is one click from NASA's own cell.** The dashboard ↔ evidence ↔ source table chain is enforced in code and tested.
 - **The same API serves people and AI agents.** The four fire-safety operations compile into AURA agent tools (16 tools accepted by AURA's contract dry run, including two knowledge-graph reads).
+
+## 3a. The Apollo 1 scenario: the refusal as the story
+
+On 27 January 1967, Apollo 1's cabin held **100 % oxygen at 16.7 psia** during a ground test on the pad. The Apollo 204 Review Board called the test conditions "extremely hazardous" (NTRS 19930078717, p. 189), and a later NASA paper notes that the cabin materials had been exposed to an atmosphere "in which they had never been tested" (NTRS 20070021223, p. 2). Three astronauts died.
+
+The preset **"Apollo 1: pure-O₂ ground test (1967)"** goes through four steps:
+1. **The verdict:** "None of the 840 flight tests cover this atmosphere." Its O₂ is 2.9× the highest ever flown (34 %), and it is at 1 g, while every test was in microgravity.
+2. **The evidence:** the nearest real test (FLEX 196F003), an envelope map, and an O₂ sweep that turns red past the flight data. The model gives no estimate.
+3. **What changed after:** Beta cloth, limited pad oxygen, worst-case materials testing, and the move to air. Each line links to its NASA page.
+4. **Where data does exist:** NASA's exploration atmosphere, Orion at 30 % O₂, is inside the flight envelope, with 8 real tests and an estimate. It is labelled "covered by data", not "safe".
+
+![Apollo 1: the system refuses](docs/presentations/screenshots/pitch-2-apollo1-refusal.png)
+
+The design and its sources are in the [Apollo 1 analysis](docs/reports/APOLLO1_SCENARIO_ANALYSIS.md) and [ADR-013](docs/architecture/adr/ADR-013-historical-scenarios-coverage-verdict.md). The business case is in the [business plan](docs/business/BUSINESS_PLAN.md).
 
 ## 4. Workflow
 
@@ -46,7 +64,7 @@ NASA has flown decades of combustion experiments (BASS, FLEX, Saffire, SPICE, AC
 NASA PSI tables + ISA-Tab metadata + NTRS reports + flight video
    → ingest (cell-level evidence, OCR for broken PDFs) → PostgreSQL + pgvector
    → fire-safety analytics (canonical variables, ranking, insights, outcome model)
-   → REST API (contract 0.6.0) → dashboard / outcome explorer / cited chat / AURA tools
+   → REST API (contract 0.7.0) → dashboard / outcome explorer / cited chat / AURA tools
 ```
 
 ## 5. AI and analytical methods
@@ -54,7 +72,7 @@ NASA PSI tables + ISA-Tab metadata + NTRS reports + flight video
 | Component | Method | Evidence of quality |
 |---|---|---|
 | Flame-outcome model (FLEX, 261 ISS tests, 80 test days) | Multinomial logistic regression on O₂, pressure, ppO₂, CO₂, He, droplet size, fuel; chosen over random forest and kNN by repeated grouped CV; exported to JSON, run with numpy | Macro-F1 **0.54 ± 0.02** vs 0.27 baseline; extinction ROC-AUC **0.86**; split by test day; strict applicability domain |
-| Retrieval | PostgreSQL full-text + pgvector (`bge-small-en-v1.5`), fused with reciprocal rank fusion, then the top 10 reranked by a local cross-encoder | 26 corpus-grounded questions: hit@1 **0.88**, hit@5 **0.96**, MRR@10 **0.91** (fusion alone: 0.81 / 0.96 / 0.86; lexical-only 0.31) |
+| Retrieval | PostgreSQL full-text + pgvector (`bge-small-en-v1.5`), fused with reciprocal rank fusion, then the top 10 reranked by a local cross-encoder | 26 corpus-grounded questions (measured on the 24-report corpus): hit@1 **0.88**, hit@5 **0.96**, MRR@10 **0.91** (fusion alone: 0.81 / 0.96 / 0.86; lexical-only 0.31) |
 | Knowledge graph | Deterministic extraction from the PSI tables and ISA-Tab records into PostgreSQL; recursive traversal | 951 entities, 10,683 edges, each citing its NASA table cell; consistency checks clean |
 | Grounded generation | Router across local and cloud models; output validated; citations outside the retrieved set dropped | Not evaluated in this run (no model available) |
 | Computer vision | OpenCV segmentation of flame images and sampled video frames; temporal statistics with Nyquist and tracking-gap guards | Pixel measurements only; no temperature from RGB |
@@ -97,3 +115,4 @@ NASA PSI tables + ISA-Tab metadata + NTRS reports + flight video
 - 1.0.1 (2026-11-12): contract 0.6.0 and AURA tool count (16) after PR #29.
 - 1.0.3 (2026-11-12): the Knowledge Graph page.
 - 1.0.2 (2026-11-12): reranked retrieval results and the knowledge graph (PR #29, #30).
+- 1.1.0 (2026-11-13): the Apollo 1 scenario (§3a), the coverage verdict, 27 reports, contract 0.7.0, and the 3-minute pitch deck and scripts.

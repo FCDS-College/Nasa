@@ -7,7 +7,7 @@ curation fields in SELECTION (why a report was chosen, which experiment family i
 A report is accepted only if its NTRS record says
   distribution == "PUBLIC", copyright.determinationType in PERMITTED_DETERMINATIONS,
   copyright.containsThirdPartyMaterial is false, exportControl.isExportControl == "NO",
-  a PDF download exists, the PDF is <= 6 MB and PyMuPDF extracts >= 3000 characters.
+  a PDF download exists, the PDF is <= 6 MB (or its listed MAX_BYTES_EXCEPTIONS size) and PyMuPDF extracts >= 3000 characters.
 Accepted PDFs are saved to docs/research/<id>.pdf and appended (once) to
 datasets/registry/source_registry.csv, datasets/metadata/files.jsonl and datasets/checksums/sha256.txt.
 Re-running skips sources that are already registered.
@@ -47,6 +47,9 @@ PERMITTED_DETERMINATIONS = {
     "PUBLIC_USE_PERMITTED": "public use permitted",
 }
 MAX_BYTES = 6 * 1024 * 1024
+# Per-report size exceptions, each with its reason. The Apollo 204 Review Board report is a 192-page 1967
+# scan; the only other NTRS copies are the appendices (20160013596 is Appendix F, an evidence inventory).
+MAX_BYTES_EXCEPTIONS = {"19930078717": 9 * 1024 * 1024}
 MAX_TOTAL_BYTES = 60 * 1024 * 1024
 MIN_CHARS = 3000
 
@@ -117,6 +120,18 @@ SELECTION: dict[str, tuple[str, str | None, list[str], str]] = {
                     "fire safety technology development (detection, suppression, response) for exploration"),
     "20040161216": ("ntrs_search:fire suppression spacecraft", None, ["fire suppression"],
                     "testing and evaluation of spacecraft fire suppressants"),
+    # c. Apollo 1 historical scenario (2026-11-13): the primary record of the fire, the materials that
+    #    replaced nylon/Velcro after it, and the exploration-vehicle fire protection it led to
+    "19930078717": ("ntrs_search:Apollo 204 review board", None,
+                    ["fire investigation;oxygen-enriched atmosphere;spacecraft fire safety"],
+                    "Apollo 204 (Apollo 1) Review Board report (NASA-TM-108667): the pure-oxygen pad fire, "
+                    "its findings and recommendations"),
+    "20170008542": ("ntrs_search:Apollo spacecraft fire oxygen atmosphere flammability", None,
+                    ["material flammability;flame-retardant textiles"],
+                    "flame-retardant fibres (Beta cloth and successors) adopted after the Apollo 1 fire"),
+    "20070021223": ("ntrs_search:lessons learned Apollo 1 fire", None,
+                    ["fire protection;exploration atmospheres"],
+                    "Orion (CEV) ECLSS fire protection approach for the exploration cabin atmosphere"),
 }
 
 REGISTRY_FIELDS = [
@@ -273,8 +288,8 @@ def run(dry_run: bool) -> int:
         url = NTRS + path
         retrieved = datetime.now(UTC).replace(microsecond=0).strftime("%Y-%m-%dT%H:%M:%SZ")
         data = _http(url, timeout=300)
-        if len(data) > MAX_BYTES:
-            print(f"{ntrs_id}: SKIP (PDF {len(data)} bytes > 6 MB)")
+        if len(data) > MAX_BYTES_EXCEPTIONS.get(ntrs_id, MAX_BYTES):
+            print(f"{ntrs_id}: SKIP (PDF {len(data)} bytes > size limit)")
             continue
         staged = staging / f"{ntrs_id}.pdf"
         staged.write_bytes(data)
