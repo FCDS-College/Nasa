@@ -12,7 +12,7 @@
   - Commercial LEO stations, lunar landers and surface habitats are choosing them today.
   - NASA's own exploration vehicles plan up to 30–34 % O₂ at reduced pressure (NASA/TM-2008-215260 p. 5), more oxygen than the ISS.
   - Materials burn more readily there.
-- **The flight evidence is public but scattered.** It sits across four NASA PSI investigations (840 tests) and decades of NTRS reports, in tables with different variables, units and gaps.
+- **The flight evidence is public but scattered.** It sits across 19 NASA PSI investigations (1950 tests) and decades of NTRS reports, in tables with different variables, units and gaps.
 - **Finding which tests speak to a given atmosphere takes an expert days.** Seeing where *no* test exists is harder still, and that is where risk hides.
 - **The cost of guessing is known.** Apollo 1 (1967) put flight materials in a 100 % O₂ atmosphere in which they had never been tested (FF-NTRS-20070021223 p. 2).
 
@@ -54,7 +54,7 @@ An **evidence workspace for spacecraft fire safety.** You enter a cabin atmosphe
 ## 5. Why us (moat)
 
 - A curated, **checksum-verified, licence-checked corpus**:
-  - 840 flight tests and 27 NTRS reports, each with provenance;
+  - 1950 flight tests and 27 NTRS reports, each with provenance;
   - the gates are code (`fetch_ntrs.py`), so the corpus can be audited.
 - A **refusal engine** with explicit rules:
   - the model's applicability domain;

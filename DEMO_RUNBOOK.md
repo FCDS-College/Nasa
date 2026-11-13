@@ -14,7 +14,7 @@ The demo is a 6-minute walk through the Fire Safety Dashboard. It needs:
 
 | Need | Why |
 |---|---|
-| Git checkout of this branch | All demo data is committed: 840 flight tests, 4 NASA metadata records, 27 NTRS reports, BASS-II video and SPICE images |
+| Git checkout of this branch | All demo data is committed: 1950 flight tests from 19 PSI investigations, 24 NASA metadata records, 27 NTRS reports, BASS-II video and SPICE images |
 | Python 3.12+, Node 22 | API/worker, web |
 | PostgreSQL 16 with pgvector, Redis 7, S3-compatible storage | path B only (path A runs them in containers) |
 | ~3 GB disk, 8 GB RAM; +4 GB RAM for the 3B local model | CPU-only is fine |
@@ -43,7 +43,7 @@ docker compose up -d --build
 docker compose --profile local-llm-setup run --rm ollama-pull
 ```
 
-The API container runs migrations, seed, ingest (840 flight tests, 31 documents, OCR included) and the vector-index build on start. The first start takes a few minutes. Watch it with:
+The API container runs migrations, seed, ingest (1958 table experiments, of which 1950 are combustion flight tests; 51 documents, OCR included) and the vector-index build on start. The first start takes a few minutes. Watch it with:
 
 ```bash
 docker compose logs -f api
@@ -89,7 +89,7 @@ uvicorn flame_api.main:app --host 127.0.0.1 --port 8000 &
 (python -m flame_api.worker recover; rq worker --url "$FLAME_REDIS_URL" flame-analysis) &
 ```
 
-Expected ingest summary (2026-11-13, Tesseract installed): `"experiments": 840, "pdf_documents": 27, "pdf_pages": 486, "pdf_chunks": 480, "text_documents": 4, "quarantined": 0, "graph_entities": 951, "graph_relations": 10683`. The vector index embeds 515 chunks.
+Expected ingest summary (2026-11-13, Tesseract installed): `"experiments": 1958, "pdf_documents": 27, "pdf_pages": 486, "pdf_chunks": 480, "text_documents": 24, "quarantined": 0, "graph_entities": 951, "graph_relations": 10683`. The vector index embeds 515 chunks. `experiments` and `text_documents` are the counts the ingestion tests assert for the 19 committed PSI tables and 24 metadata documents; `graph_entities`, `graph_relations` and the embedded-chunk count were last measured with 4 tables and may now be higher.
 
 Fetch the search reranker before the demo. Search reranks its top 10 results by default, and otherwise the first search downloads the model on stage (about 5–7 s). Add `--cache-dir "$FLAME_EMBEDDING_CACHE_DIR"` if you set that variable:
 
@@ -140,11 +140,11 @@ Add a directory as a second argument to save a screenshot per step. Expected: `P
 
 | # | Screen | Do | Say / point at |
 |---|---|---|---|
-| 1 | `/` Fire Safety Dashboard | Open it. | The question in the headline. Moon and Mars cabins run lower pressure and higher O₂ than the ISS (NASA/TM-2008-215260). 840 real flight tests from 4 NASA PSI tables. |
-| 2a | Scenario picker → step 2 card | Click **ISS cabin**. | **The system solves:** "162 of the 840 flight tests lie near this atmosphere", the closest test cited, and the envelope map with ISS inside the green box. |
-| 2b | **Apollo 1: pure-O₂ ground test (1967)** (red, dashed) | Click it. | **The system knows when not to answer:** "None of the 840 flight tests cover this atmosphere." 2.9× the highest O₂ ever flown, at 1 g against microgravity; nearest real test FLEX 196F003; red zone on the sweep; no estimate. Read the lesson quote (Review Board, p. 189), then scroll the cited timeline. |
+| 1 | `/` Fire Safety Dashboard | Open it. | The question in the headline. Moon and Mars cabins run lower pressure and higher O₂ than the ISS (NASA/TM-2008-215260). 1950 real flight tests from 19 NASA PSI investigations. |
+| 2a | Scenario picker → step 2 card | Click **ISS cabin**. | **The system solves:** "310 of the 1950 flight tests lie near this atmosphere", the closest test cited, and the envelope map with ISS inside the green box. |
+| 2b | **Apollo 1: pure-O₂ ground test (1967)** (red, dashed) | Click it. | **The system knows when not to answer:** "None of the 1950 flight tests cover this atmosphere." 2.5× the highest O₂ ever flown (40 %), at 1 g against microgravity; nearest real test ACME CFI-G 21162A1 (40 % O₂, 101 kPa); red zone on the sweep; no estimate. Read the lesson quote (Review Board, p. 189), then scroll the cited timeline. |
 | 2c | "Where flight data does exist" | Click **Show the flight data for Orion crew vehicle**. | Orion's 30 % O₂ is inside the flight envelope: 8 real tests and an estimate. "Covered by data does not mean safe." |
-| 2d | Scenario picker | Click **Lunar lander (34 % O₂, 62.7 kPa)**. | The ranking re-orders. BASS-II drops from #2 to #3, at relevance 3/100: no solid-material test went above 22.2 % O₂. Open "How is this scored?": a transparent formula, not a black box. |
+| 2d | Scenario picker | Click **Lunar lander (34 % O₂, 62.7 kPa)**. | The ranking re-orders: ACME CFI-G, flown down to 43 kPa, moves to #1 ahead of FLEX. The verdict is "covered": 20 tests lie near it (11 CFI-G gas-jet flames, 9 FLEX droplets), none of them burning solids. Open "How is this scored?": a transparent formula, not a black box. |
 | 3 | "What the flight data says here" | Read the first card. | **94 % of 48 droplet flames below 0.16 O₂ self-extinguished, against 8 % of 24 at ≥ 0.30.** Click a test ID → the exact NASA table cell. |
 | 4 | Coverage-gap cards | Point at the amber cards. | The system says what it cannot tell you: solids at 34 % O₂, partial gravity, tables without outcomes. |
 | 5 | FLEX row → investigation page | Click FLEX. | NASA's own objective, hypothesis and approach, verbatim, each with a source link. 51 publications. |
@@ -160,7 +160,7 @@ Add a directory as a second argument to save a screenshot per step. Expected: `P
 |---|---|---|
 | Dashboard: "not connected to a Flame API" | `FLAME_API_ORIGIN` unset for the web server | Restart `next start` with it set |
 | Every call 401 | Read key wrong or missing on the web server | Same key as the API's `FLAME_READ_API_TOKEN` |
-| "No investigation has ingested data yet" | Ingest not run, or not from this checkout | Run `python -m flame_api.ingest`; expect `"experiments": 840` |
+| "No investigation has ingested data yet" | Ingest not run, or not from this checkout | Run `python -m flame_api.ingest`; expect `"experiments": 1958` |
 | Search finds little for full questions | No vector index (lexical only) | `python -m flame_api.vector_index build` (needs the embedding model once) |
 | First search takes several seconds; `/api/search` shows `reranking.status: "unavailable"` | Reranker model not cached (and offline), or still downloading | `python -m ai.providers.local.cross_encoder prepare`; or set `FLAME_RERANKER_ENABLED=false` |
 | An admin call (`/api/admin/*`) gets 403 with a client key | The key has `write` but not `admin` scope (ADR-009) | `python -m flame_api.clients create NAME --scopes admin --owner PERSON`, or use the deprecated write token |

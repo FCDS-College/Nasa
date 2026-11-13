@@ -151,7 +151,7 @@ def build() -> Path:
     d.header(s, "Sixty years later", "We are choosing new cabin atmospheres again")
     stats = [
         ("30–34%", "O₂ planned for Orion and lunar-lander cabins, against 21% on the ISS", "NASA/TM-2008-215260, p. 5", EMBER),
-        ("840", "microgravity fire tests in four NASA flight investigations: FLEX, BASS-II, SPICE, SAFFIRE-I", "NASA Physical Sciences Informatics", BLUE),
+        ("1950", "microgravity combustion tests in 19 NASA flight investigations: droplets, gas flames, burning solids, smoke", "NASA Physical Sciences Informatics", BLUE),
         ("27", "NASA technical reports, licence-checked, every page citable", "NASA Technical Reports Server", BLUE),
     ]
     for i, (big, label, src, color) in enumerate(stats):
@@ -184,8 +184,8 @@ def build() -> Path:
     d.image(s, SHOTS / "pitch-2-apollo1-refusal.png", Inches(0.7), Inches(1.85), Inches(7.6), Inches(4.9))
     d.card(s, Inches(8.65), Inches(1.95), Inches(4.0), Inches(2.0), fill=RGBColor(40, 16, 20), line=RED, line_width=1.5)
     d.text(s, Inches(8.85), Inches(2.05), Inches(3.7), Inches(1.8),
-           "“None of the 840 flight tests cover this atmosphere.”", size=22, bold=True, anchor=MSO_ANCHOR.MIDDLE)
-    facts = [("2.9×", "the highest O₂ ever flown (34%)"), ("1 g", "while every test was in microgravity"),
+           "“None of the 1950 flight tests cover this atmosphere.”", size=22, bold=True, anchor=MSO_ANCHOR.MIDDLE)
+    facts = [("2.5×", "the highest O₂ ever flown (40%)"), ("1 g", "while every test was in microgravity"),
              ("0", "estimates: the nearest real test is shown instead")]
     for i, (k, v) in enumerate(facts):
         d.text(s, Inches(8.75), Inches(4.2 + i * 0.75), Inches(3.9), Inches(0.7),

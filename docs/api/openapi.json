@@ -3425,7 +3425,7 @@
                 },
                 "examples": {
                   "live": {
-                    "summary": "Real response from the 2026-11-07 local stack (committed PSI tables); lists trimmed.",
+                    "summary": "Real response over the 19 committed PSI tables (API test client, 2026-11-14); lists trimmed.",
                     "value": {
                       "scenario": {
                         "scenario_id": "lunar_lander_max_o2",
@@ -3435,9 +3435,9 @@
                         "basis": "derived",
                         "note": "Altair maximum 34% O₂; total pressure from the normoxic curve. Gravity in the cabin on the lunar surface is 1/6 g, which no flight test here covers.",
                         "citation": "NASA/TM-2008-215260 (FF-NTRS-20080034883), p. 5",
-                        "ppo2_kpa": 21.3,
                         "gravity": "microgravity",
-                        "kind": "mission"
+                        "kind": "mission",
+                        "ppo2_kpa": 21.3
                       },
                       "scenarios": [
                         {
@@ -3448,9 +3448,9 @@
                           "basis": "quoted",
                           "note": "Sea-level air at 14.7 psia, as flown on Skylab, Shuttle and ISS.",
                           "citation": "NASA/TM-2008-215260 (FF-NTRS-20080034883), p. 5",
-                          "ppo2_kpa": 21.28,
                           "gravity": "microgravity",
-                          "kind": "mission"
+                          "kind": "mission",
+                          "ppo2_kpa": 21.28
                         },
                         {
                           "scenario_id": "pre_eva",
@@ -3460,9 +3460,9 @@
                           "basis": "quoted",
                           "note": "Brief pre-EVA atmosphere; many ISS materials are only rated to it.",
                           "citation": "NASA/TM-2008-215260 (FF-NTRS-20080034883), p. 5",
-                          "ppo2_kpa": 21.1,
                           "gravity": "microgravity",
-                          "kind": "mission"
+                          "kind": "mission",
+                          "ppo2_kpa": 21.1
                         },
                         {
                           "scenario_id": "orion_max_o2",
@@ -3472,9 +3472,9 @@
                           "basis": "derived",
                           "note": "Orion maximum 30% O₂; total pressure from the normoxic curve (ppO₂ 3.09 psia).",
                           "citation": "NASA/TM-2008-215260 (FF-NTRS-20080034883), p. 5",
-                          "ppo2_kpa": 21.3,
                           "gravity": "microgravity",
-                          "kind": "mission"
+                          "kind": "mission",
+                          "ppo2_kpa": 21.3
                         },
                         {
                           "scenario_id": "lunar_lander_max_o2",
@@ -3484,22 +3484,49 @@
                           "basis": "derived",
                           "note": "Altair maximum 34% O₂; total pressure from the normoxic curve. Gravity in the cabin on the lunar surface is 1/6 g, which no flight test here covers.",
                           "citation": "NASA/TM-2008-215260 (FF-NTRS-20080034883), p. 5",
-                          "ppo2_kpa": 21.3,
                           "gravity": "microgravity",
-                          "kind": "mission"
+                          "kind": "mission",
+                          "ppo2_kpa": 21.3
+                        },
+                        {
+                          "scenario_id": "apollo1_pad_1967",
+                          "name": "Apollo 1: pure-O₂ ground test (1967)",
+                          "o2_fraction": 1.0,
+                          "pressure_kpa": 115.14,
+                          "basis": "historical",
+                          "note": "Plugs-out test on the launch pad, 27 January 1967: 100% oxygen at 16.7 psia (115.1 kPa), at 1 g. Historical atmosphere; no crewed vehicle uses it today.",
+                          "citation": "Report of Apollo 204 Review Board, NASA-TM-108667 (FF-NTRS-19930078717), p. 189",
+                          "gravity": "earth",
+                          "kind": "historical",
+                          "ppo2_kpa": 115.14
                         }
                       ],
                       "ranking_method": "relevance = 0.35*oxygen_match + 0.25*pressure_match + 0.25*evidence_density + 0.15*outcome_data; oxygen_match = 1 inside the tested O2 range else exp(-gap/0.05); pressure_match = 1 inside the tested pressure range else exp(-|ln(P/P_nearest)|/0.25); evidence_density = min(1, ln(1+n)/ln(31)) for n tests within +/-0.03 O2 (and +/-25% pressure when recorded); outcome_data = 1 end state recorded, 0.5 duration only, 0 none; unrecorded variables score 0 and are listed in 'not_recorded'.",
                       "coverage": {
-                        "verdict": "partial",
-                        "headline": "9 of the 840 flight tests lie near this atmosphere, but it is outside the range that was flown.",
-                        "tests_total": 840,
-                        "neighbourhood_tests": 9,
+                        "verdict": "covered",
+                        "headline": "20 of the 1950 flight tests lie near this atmosphere.",
+                        "tests_total": 1950,
+                        "neighbourhood_tests": 20,
                         "neighbourhood_by_investigation": {
+                          "FF-PSI-10": 0,
+                          "FF-PSI-100": 0,
+                          "FF-PSI-101": 0,
+                          "FF-PSI-102": 0,
+                          "FF-PSI-106": 0,
                           "FF-PSI-107": 0,
+                          "FF-PSI-159": 11,
+                          "FF-PSI-20": 0,
+                          "FF-PSI-21": 0,
+                          "FF-PSI-22": 0,
+                          "FF-PSI-23": 0,
                           "FF-PSI-25": 0,
+                          "FF-PSI-26": 0,
+                          "FF-PSI-39": 0,
+                          "FF-PSI-47": 0,
+                          "FF-PSI-68": 0,
                           "FF-PSI-69": 9,
-                          "FF-PSI-98": 0
+                          "FF-PSI-98": 0,
+                          "FF-PSI-99": 0
                         },
                         "gravity": {
                           "scenario": "microgravity",
@@ -3511,13 +3538,13 @@
                         "tested_range": {
                           "o2_fraction": {
                             "min": 0.12,
-                            "max": 0.34,
-                            "n": 405
+                            "max": 0.4,
+                            "n": 879
                           },
                           "pressure_kpa": {
-                            "min": 70.167572,
-                            "max": 309.294607,
-                            "n": 273
+                            "min": 43.161204,
+                            "max": 506.625,
+                            "n": 992
                           }
                         },
                         "nearest_test": {
@@ -3537,12 +3564,136 @@
                           "o2_ratio": 1.0,
                           "pressure_ratio": 0.88
                         },
-                        "reasons": [
-                          "pressure 62.7 kPa is outside the flown range 70.2–309.3 kPa"
-                        ],
+                        "reasons": [],
                         "method": "verdict = 'none' when the scenario's gravity was never flown or no flight test lies within +/-0.03 O2 (and +/-25% pressure when recorded) of it; 'partial' when 1-4 such tests exist or the atmosphere is outside the flown O2 or pressure range; otherwise 'covered' (5 or more such tests). nearest_test minimises sqrt((dO2/0.05)^2 + (ln(P/P_test)/0.25)^2), the scales of the relevance score."
                       },
                       "items": [
+                        {
+                          "investigation_id": "FF-PSI-159",
+                          "acronym": "ACME CFI-G",
+                          "title": "Advanced Combustion via Microgravity Experiments / Cool Flames Investigation with Gases",
+                          "status": "ingested",
+                          "flight_platform": "ISS",
+                          "hardware": "ACME, Combustion Integrated Rack (CIR)",
+                          "dates": null,
+                          "persistent_identifier": "doi:10.60555/cyt1-kh64",
+                          "license": "CC0-1.0",
+                          "access_url": "https://psi.nasa.gov/physci/repo/data/investigations/PSI-159",
+                          "source": {
+                            "source_id": "FF-PSI-159",
+                            "title": "Advanced Combustion via Microgravity Experiments / Cool Flames Investigation with Gases",
+                            "short_name": "ACME CFI-G",
+                            "repository": "NASA PSI",
+                            "persistent_identifier": "doi:10.60555/cyt1-kh64",
+                            "license": "CC0-1.0",
+                            "access_url": "https://psi.nasa.gov/physci/repo/data/investigations/PSI-159"
+                          },
+                          "fire_safety_use": [
+                            "flames of gaseous fuels"
+                          ],
+                          "key_variables": [
+                            "Flame Type",
+                            "Day",
+                            "Fuel",
+                            "Test",
+                            "Xf before test",
+                            "Xf after test",
+                            "approx p (bar)",
+                            "XO2",
+                            "HC burnrate (mg/s)",
+                            "O2 flow rate (mg/s)",
+                            "TFP",
+                            "Tad (K)"
+                          ],
+                          "key_outputs": [
+                            "cool-flame and hot-flame extinction",
+                            "burn time",
+                            "flame type"
+                          ],
+                          "objective": {
+                            "text": "1. Plan and support flight testing on the International Space Station (ISS).",
+                            "evidence_id": "4JS73HS7W94ZHZ18GGSXSTXWVN"
+                          },
+                          "data": {
+                            "tests": 333,
+                            "o2_fraction": {
+                              "min": 0.179686,
+                              "max": 0.3997,
+                              "n": 179
+                            },
+                            "o2_approximate": false,
+                            "pressure_kpa": {
+                              "min": 49.53817,
+                              "max": 330.99,
+                              "n": 333
+                            },
+                            "flow_velocity_m_s": null,
+                            "fuels_or_materials": [
+                              {
+                                "name": "ethane",
+                                "tests": 67
+                              },
+                              {
+                                "name": "propane",
+                                "tests": 63
+                              },
+                              {
+                                "name": "butane",
+                                "tests": 58
+                              },
+                              {
+                                "name": "30% butane",
+                                "tests": 52
+                              },
+                              {
+                                "name": "30% propane",
+                                "tests": 36
+                              },
+                              {
+                                "name": "50% butane",
+                                "tests": 30
+                              },
+                              {
+                                "name": "30% ethane",
+                                "tests": 27
+                              }
+                            ],
+                            "distinct_fuels_or_materials": 7,
+                            "end_states": {
+                              "flow_terminated": 89,
+                              "self_extinguished": 183
+                            },
+                            "end_state_recorded": true,
+                            "duration_recorded": true,
+                            "quality_flags": {
+                              "inverse_flame_o2_is_burner_stream": 154
+                            }
+                          },
+                          "coverage_note": "Flame holds this investigation's published experimental table and metadata; the full NASA PSI release has 3756 files (2085.59 GB). Results describe the table, not every raw file.",
+                          "relevance": {
+                            "score": 0.931,
+                            "components": {
+                              "oxygen_match": 1.0,
+                              "pressure_match": 1.0,
+                              "evidence_density": 0.724,
+                              "outcome_data": 1.0
+                            },
+                            "weights": {
+                              "oxygen_match": 0.35,
+                              "pressure_match": 0.25,
+                              "evidence_density": 0.25,
+                              "outcome_data": 0.15
+                            },
+                            "neighbourhood_tests": 11,
+                            "not_recorded": [],
+                            "explanation": [
+                              "scenario O₂ 0.34 is inside the tested range 0.180–0.400",
+                              "scenario pressure 62.7 kPa is inside the tested range 49.5–331.0 kPa",
+                              "11 flight test(s) within ±0.03 O₂ and ±25% pressure of the scenario"
+                            ]
+                          },
+                          "rank": 1
+                        },
                         {
                           "investigation_id": "FF-PSI-69",
                           "acronym": "FLEX",
@@ -3649,124 +3800,19 @@
                               "9 flight test(s) within ±0.03 O₂ and ±25% pressure of the scenario"
                             ]
                           },
-                          "rank": 1
-                        },
-                        {
-                          "investigation_id": "FF-PSI-98",
-                          "acronym": "SAFFIRE-I",
-                          "title": "Spacecraft Fire Safety Experiment-I",
-                          "status": "ingested",
-                          "flight_platform": "Free-flying Cygnus",
-                          "hardware": "Saffire 1 enclosure in Cygnus",
-                          "dates": "03-02-2001 to 02-28-2008",
-                          "persistent_identifier": "doi:10.60555/0t15-1z43",
-                          "license": "CC0-1.0",
-                          "access_url": "https://psi.nasa.gov/physci/repo/data/investigations/PSI-98",
-                          "source": {
-                            "source_id": "FF-PSI-98",
-                            "title": "Spacecraft Fire Safety Experiment-I",
-                            "short_name": "SAFFIRE-I",
-                            "repository": "NASA PSI",
-                            "persistent_identifier": "doi:10.60555/0t15-1z43",
-                            "license": "CC0-1.0",
-                            "access_url": "https://psi.nasa.gov/physci/repo/data/investigations/PSI-98"
-                          },
-                          "fire_safety_use": [
-                            "large-scale flame growth",
-                            "material flammability",
-                            "fire environment sensing"
-                          ],
-                          "key_variables": [
-                            "airflow velocity",
-                            "fabric type",
-                            "sample geometry",
-                            "O2",
-                            "CO2",
-                            "temperature",
-                            "pressure"
-                          ],
-                          "key_outputs": [
-                            "flame growth",
-                            "flame imagery",
-                            "flow/plume temperature",
-                            "radiation",
-                            "gas composition"
-                          ],
-                          "objective": {
-                            "text": "The objectives of this investigation were to:",
-                            "evidence_id": "5XD9F3XQNY5W6VTRZZZBYEC4N0"
-                          },
-                          "data": {
-                            "tests": 2,
-                            "o2_fraction": {
-                              "min": 0.215,
-                              "max": 0.216,
-                              "n": 2
-                            },
-                            "o2_approximate": true,
-                            "pressure_kpa": null,
-                            "flow_velocity_m_s": {
-                              "min": 0.2,
-                              "max": 0.2,
-                              "n": 2
-                            },
-                            "fuels_or_materials": [
-                              {
-                                "name": "SIBAL Fabric",
-                                "tests": 2
-                              }
-                            ],
-                            "distinct_fuels_or_materials": 1,
-                            "end_states": null,
-                            "end_state_recorded": false,
-                            "duration_recorded": true,
-                            "quality_flags": {}
-                          },
-                          "coverage_note": "Flame holds this investigation's published experimental table and metadata; the full NASA PSI release has 76 files (12.25 GB). Results describe the table, not every raw file.",
-                          "relevance": {
-                            "score": 0.104,
-                            "components": {
-                              "oxygen_match": 0.084,
-                              "pressure_match": 0.0,
-                              "evidence_density": 0.0,
-                              "outcome_data": 0.5
-                            },
-                            "weights": {
-                              "oxygen_match": 0.35,
-                              "pressure_match": 0.25,
-                              "evidence_density": 0.25,
-                              "outcome_data": 0.15
-                            },
-                            "neighbourhood_tests": 0,
-                            "not_recorded": [
-                              "pressure"
-                            ],
-                            "explanation": [
-                              "scenario O₂ 0.34 is outside the tested range 0.215–0.216",
-                              "pressure is not recorded in this table",
-                              "0 flight test(s) within ±0.03 O₂ of the scenario"
-                            ]
-                          },
                           "rank": 2
                         }
                       ],
-                      "not_acquired": [
-                        {
-                          "investigation_id": "SAME",
-                          "acronym": "SAME",
-                          "title": "Smoke Aerosol Measurement Experiment",
-                          "note": "Named in the Space Apps challenge statement; not yet acquired from NASA PSI, so no data is shown."
-                        }
-                      ],
+                      "not_acquired": [],
                       "totals": {
-                        "investigations": 6,
-                        "with_data": 4,
-                        "flight_tests": 840
+                        "investigations": 19,
+                        "with_data": 19,
+                        "flight_tests": 1950
                       },
                       "meta": {
-                        "request_id": "req_a8f9d10a16844d5c9b6ec90655f9dcbc",
-                        "generated_at": "2026-11-07T18:57:36.022929Z",
-                        "api_version": "0.5.0"
+                        "request_id": "req_113b1b57e1f94ec1b85555670bcc827e",
+                        "generated_at": "2026-11-13T23:50:48.213177Z",
+                        "api_version": "0.7.0"
                       }
                     }
                   }
