@@ -1,24 +1,26 @@
 import numpy as np
-from typing import List, Dict
+from typing import Dict, List, Optional
 
-def compute_recall_at_k(retrieved_ids: List[str], expected_ids: List[str], k: int = 5) -> float:
+def compute_recall_at_k(retrieved_ids: List[str], expected_ids: List[str], k: int = 5) -> Optional[float]:
     """
     حساب Recall@k: نسبة الوثائق المسترجعة ذات الصلة ضمن أول k نتائج.
     """
     if not expected_ids:
-        return 1.0  # إذا لم تكن هناك وثائق مطلوبة (مثل الحالات غير القابلة للإجابة)
+        # No evidence is expected (an unanswerable case): retrieval recall is undefined, not perfect.
+        # Returning 1.0 here let unanswerable cases inflate the reported mean. Callers skip None.
+        return None
     
     top_k = set(retrieved_ids[:k])
     expected_set = set(expected_ids)
     hits = top_k.intersection(expected_set)
     return len(hits) / len(expected_set)
 
-def compute_mrr(retrieved_ids: List[str], expected_ids: List[str]) -> float:
+def compute_mrr(retrieved_ids: List[str], expected_ids: List[str]) -> Optional[float]:
     """
     حساب Mean Reciprocal Rank (MRR): مقلوب رتبة أول وثيقة صحيحة تظهر في النتائج.
     """
     if not expected_ids:
-        return 1.0
+        return None  # undefined for an unanswerable case; see compute_recall_at_k
     
     expected_set = set(expected_ids)
     for rank, doc_id in enumerate(retrieved_ids, start=1):
@@ -26,12 +28,12 @@ def compute_mrr(retrieved_ids: List[str], expected_ids: List[str]) -> float:
             return 1.0 / rank
     return 0.0
 
-def compute_ndcg_at_k(retrieved_ids: List[str], expected_ids: List[str], k: int = 5) -> float:
+def compute_ndcg_at_k(retrieved_ids: List[str], expected_ids: List[str], k: int = 5) -> Optional[float]:
     """
     حساب Normalized Discounted Cumulative Gain (nDCG@k) بثنائية الصلة (Binary relevance).
     """
     if not expected_ids:
-        return 1.0
+        return None  # undefined for an unanswerable case; see compute_recall_at_k
     
     expected_set = set(expected_ids)
     dcg = 0.0

@@ -72,9 +72,12 @@ def evaluate_model(df):
         print(f"  - Status: {status}\n")
 
     if not found_metrics:
-        print("ℹ️ ملف البيانات هو ملف بيانات مرجعية (Gold Cases) ولا يحتوي على أعمدة تقييمات metrics سابقة.")
-        print("✅ البنية والمسارات متوافقة تماماً وجاهزة لتقييم مخرجات نماذج RAG عند اكتمال التدريب.")
-        all_passed = True
+        # A gold-case file has questions and expected evidence, not scores from a system. Nothing was measured, so
+        # reporting "passed" (as this used to) is a false claim.
+        print("⚠️ NOT EVALUATED: the data file has no `metrics.*` score columns (it holds gold cases, not system outputs).")
+        print("   لم يتم التقييم: الملف لا يحتوي على درجات نظام. لا يمكن اعتبار النتيجة نجاحاً.")
+        print("=" * 40)
+        return False
 
     print("=" * 40)
     if all_passed:

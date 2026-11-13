@@ -9,6 +9,35 @@ from datetime import datetime, timezone
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
+
+def parse_judge_verdict(reply):
+    """True/False from the judge reply's JSON field `is_faithful`; None when the reply carries no usable verdict.
+
+    The previous check was `"faithful" in text`, which is also true for `{"is_faithful": false}`.
+    """
+    text = (reply or "").strip()
+    if text.startswith("```"):
+        text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text, flags=re.IGNORECASE).strip()
+    try:
+        data = json.loads(text)
+    except ValueError:
+        match = re.search(r"\{.*\}", text, re.DOTALL)
+        if not match:
+            return None
+        try:
+            data = json.loads(match.group(0))
+        except ValueError:
+            return None
+    if not isinstance(data, dict):
+        return None
+    value = data.get("is_faithful")
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str) and value.strip().lower() in ("true", "false"):
+        return value.strip().lower() == "true"
+    return None
+
+
 class ProvenanceTracker:
     """يتتبع بيانات النسب والتسجيل الخاصة بـ Section 18 لكل عملية تقييم."""
     def get_provenance(self):
@@ -117,14 +146,14 @@ class LLMJudge:
                     f"Return JSON with: {{\"is_faithful\": bool, \"score\": float, \"reason\": str}}"
                 )
                 response = self.model.generate_content(prompt)
-                # استخراج النتيجة من النص
-                text = response.text.lower()
-                is_faithful = "true" in text or "score\": 1" in text or "faithful" in text
-                return {
-                    "is_hallucination_free": is_faithful,
-                    "domain_relevant": True,
-                    "judge_mode": "gemini-api"
-                }
+                verdict = parse_judge_verdict(response.text)
+                if verdict is not None:
+                    return {
+                        "is_hallucination_free": verdict,
+                        "domain_relevant": None,  # this judge does not assess domain relevance
+                        "judge_mode": "gemini-api"
+                    }
+                # no usable verdict in the reply: fall through to the local heuristic and say so
             except Exception:
                 pass  # Fallback to local heuristic on any API error
 
