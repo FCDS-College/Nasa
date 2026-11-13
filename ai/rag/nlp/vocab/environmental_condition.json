@@ -1,0 +1,5 @@
+{
+  "microgravity": ["micro-gravity", "microgravity environment"],
+  "normal gravity": ["terrestrial gravity"],
+  "reduced gravity": ["partial gravity"]
+}

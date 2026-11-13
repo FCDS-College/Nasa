@@ -1,0 +1,10 @@
+{
+  "methane": ["CH4"],
+  "ethane": ["C2H6"],
+  "propane": ["C3H8"],
+  "ethylene": ["C2H4"],
+  "n-heptane": ["heptane", "C7H16"],
+  "methanol": ["CH3OH"],
+  "ethanol": ["C2H5OH"],
+  "hydrogen": []
+}
