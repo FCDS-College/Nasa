@@ -1,6 +1,6 @@
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Ziad | In review | 0.3.1 | 2026-11-13 | C2, M10, D1, E2 | `docs/evaluation/annotation-guidelines.md`, `datasets/evaluation/nlp_gold_v1.schema.json`, `ai/rag/nlp/evaluation.py`, `datasets/evaluation/passage_gold_v1.schema.json`, `ai/rag/evaluation/passage_gold.py`, `ai/rag/evaluation/propose_candidates.py` |
+| Ziad | In review | 0.3.2 | 2026-11-13 | C2, M10, D1, E2 | `docs/evaluation/annotation-guidelines.md`, `datasets/evaluation/nlp_gold_v1.schema.json`, `ai/rag/nlp/evaluation.py`, `datasets/evaluation/passage_gold_v1.schema.json`, `ai/rag/evaluation/passage_gold.py`, `ai/rag/evaluation/propose_candidates.py` |
 
 # E5-3: Annotation and Human-Review Guidelines
 
@@ -75,19 +75,24 @@ scoring: `ai/rag/evaluation/passage_gold.py` (`validate`, `retrieval_report`). T
    measurement, with exact offsets (checked on the committed PDFs: all 102 proposals reproduce the stored page text). Proposals are not cases. The tool needs PyMuPDF.
 7. **Report intervals, not points.** Every number from this set carries a 95% bootstrap interval, and a claimed improvement carries a paired one
    (`ai.rag.evaluation.stats.compare_reports`). If it contains 0, the difference is not shown.
+8. **AI-drafted starting point (2026-11-13).** `datasets/evaluation/passage_gold_v1_drafts.jsonl` holds 35 **draft** cases written by an AI (`author: "claude (AI draft)"`, `status: draft`, no verifier): 24 answerable cases citing 16 of the committed PDFs and 11 unanswerable ones (8 `in_domain_not_in_corpus`, 3 `out_of_domain`), split by document (answerable cases: dev 11, validation 9, holdout 4). It is **not** the gold set: `passage_gold_v1.jsonl` stays empty, nothing is scored, and no number may be reported from the drafts. Every span reproduces the page's verbatim text (`tests/unit/test_passage_gold_drafts.py`); the questions are paraphrases (the test rejects any five-word run copied from the passage). How it was built, and what to distrust:
+   - Answerable passages come from the worklist (§6). I kept only passages whose answer is not repeated verbatim in another document. `python -m ai.rag.evaluation.verification_sheet` then listed, for each draft, other pages that contain a figure of the cited passage; that found five drafts whose answer is stated on a second page too (PG-002, 005, 007, 016, 023), which now cite both pages (a retrieval hit on either counts). 18 of the 24 share a figure with another page, mostly coincidentally (21 %, 3 mm); the verifier decides.
+   - The 8 in-domain unanswerable questions are about topics a keyword search of the 240 indexable pages found **absent** (hydrazine, aerogel, lunar regolith, fire blanket, lithium, titanium, kerosene, Artemis/Gateway). A first list of eleven had four topics that turned out to be in the corpus (hydrogen, Skylab, ethylene, halon), which is why the check exists. Absence of a keyword is weaker than absence of an answer, and §5.3 asks that a *person* write these: treat them as proposals to accept or rewrite. They also name things the reports never mention, so a lexical retriever finds them easy; they test the abstention path, not the dense gate's hardest case.
+   - To verify: `python -m ai.rag.evaluation.verification_sheet --out datasets/evaluation/passage_gold_v1_verification.csv` (the generated sheet is committed), fill `answers_question`, `unique`, `question_clear` and `notes`, then adopt what you accept: `python -m ai.rag.evaluation.adopt_drafts --verifier "Your Name" --accept PG-001 PG-002 ...`. It refuses an AI-looking name, the author, an unknown ID, and any selection that would break `validate` (accept answerable and unanswerable cases together so at least 25 % are unanswerable); nothing is written on a refusal. `retrieval_report` needs 20 verified **answerable** cases, so accept at least 20 of the 24 answerable ones.
 
 ---
 
 ## Known limitations
 
 - `nlp_gold_v1.jsonl` is empty at version 0.2.0: no chunk has been annotated yet, so no extractor has a measured precision or recall. Items 4 and 5 are proposals until Ziad confirms them.
-- `passage_gold_v1.jsonl` is empty at version 0.3.0: no question has been written or verified, so no retrieval or answer number can be reported from it. §5 sizes and thresholds are proposals until Ziad confirms them; the 20-case floor is a minimum for reporting, not a claim that 20 is enough.
+- `passage_gold_v1.jsonl` is empty at version 0.3.2 (35 AI drafts exist next to it, unverified): no question has been written or verified, so no retrieval or answer number can be reported from it. §5 sizes and thresholds are proposals until Ziad confirms them; the 20-case floor is a minimum for reporting, not a claim that 20 is enough.
 - Sections 1-3 are unchanged from 0.1.0 and keep their own open points.
 
 ## Changelog
 
 | Version | Date | Change |
 |---|---|---|
+| 0.3.2 | 2026-11-13 | §5.8: AI-drafted starting point (35 unverified drafts), verification sheet, adoption command. |
 | 0.3.1 | 2026-11-13 | §4 annotators work from the indexed (normalised) text, §5 spans refer to the verbatim text; `pypdf` is no longer recommended; `--show` prints either. |
 | 0.3.0 | 2026-11-13 | Added §5 (passage-level question gold set: protocol, schema, validator, worklist, intervals). |
 | 0.2.0 | 2026-11-13 | Added §4 (NLP span annotation, D1), known limitations and this changelog. |
