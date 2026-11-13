@@ -601,6 +601,8 @@ def search(
                     session.query(DocumentChunk).options(chunk_options)
                     .filter(DocumentChunk.chunk_id.in_(extra_ids), DocumentChunk.evidence_id.notin_(_rejected_evidence_ids()))
                 )
+                if domain == "combustion":
+                    extra = extra.filter(DocumentChunk.source_id.in_(combustion_sources))
                 if source_filter:
                     extra = extra.filter(DocumentChunk.source_id.in_(source_filter))
                 if experiment_id:
