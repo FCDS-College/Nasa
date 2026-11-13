@@ -6,6 +6,11 @@
 
 Semver applies to `docs/api/openapi.json` `info.version`. Breaking changes need a minor bump while we are pre-1.0, an entry here, and one release of deprecation where practical.
 
+## Unreleased
+
+**Changed**
+- `retrieval.query_rewrite.rewriter_version` is now `1.0.1` (was `1.0.0`). The query rewriter no longer expands `psi` when it directly follows a number (`14.7 psi` is a pressure, not NASA's PSI programme). The shape of the response is unchanged.
+
 ## 0.6.0 (2026-11-12)
 
 ADR-006 to 009 built. Additive for read clients; read **Changed** before upgrading a deployment that uses client keys for admin work. AURA's Link 2 dry run at the pinned AURA revision `d696fad`: **16 tools accepted, 10 operations excluded**, exit 0.

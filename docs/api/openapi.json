@@ -460,7 +460,7 @@
                           "rewritten": "flame spread low gravity oxygen",
                           "changed": false,
                           "rules_applied": [],
-                          "rewriter_version": "1.0.0",
+                          "rewriter_version": "1.0.1",
                           "used_for": [
                             "semantic"
                           ]
