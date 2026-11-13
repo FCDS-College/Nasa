@@ -33,7 +33,7 @@ from flame_api.investigations import router as investigations_router
 from flame_api.graph import admin_router as graph_admin_router, router as graph_router
 from ai.providers.contracts.errors import ProviderError
 from ai.routing import ExecutionMode, NoCompatibleProvider
-from flame_api import ai_runtime, answer_cache, clients, rate_limit, telemetry
+from flame_api import ai_runtime, answer_cache, clients, lexical, rate_limit, telemetry
 from ai.rag.verification.support import check_answer_support
 from flame_api.generation import CHAT_INSTRUCTIONS, answer_question
 from flame_api.knowledge_version import current_knowledge_version
@@ -478,6 +478,10 @@ def _lexical_match(session: Session, column, query: str):
     if session.bind.dialect.name == "postgresql":
         # Chunks carry a stored, GIN-indexed tsvector (migration 0007), so neither the COUNT nor the
         # ranking re-parses text; experiments are few enough to parse on the fly.
+        if column is DocumentChunk.text and settings.lexical_mode == "or_idf":
+            matched = lexical.match(session, query)
+            if matched is not None:
+                return matched
         if column is DocumentChunk.text:
             vector = literal_column("document_chunk.search_tsv")
         else:

@@ -105,6 +105,10 @@ class Settings(BaseSettings):
     # "strict" also withholds the answer text (`answer_withheld_unsupported_values`); "off" skips the check.
     # It is a traceability check, not entailment: see ai/rag/verification/support.py.
     answer_support_check: Literal["off", "warn", "strict"] = "warn"
+    # Roadmap item 10. "and": every question term must match (plainto_tsquery, the served behaviour). "or_idf": any term
+    # may match and a chunk scores the sum of its matched terms' idf (apps/api/flame_api/lexical.py). Default stays "and"
+    # until the passage-level gold set (>= 20 verified questions) shows a difference; PostgreSQL only.
+    lexical_mode: Literal["and", "or_idf"] = "and"
     otel_enabled: bool = False
     otel_service_name: str = "flame-api"
     cv_provider: Literal["local", "hf_space"] = "local"
