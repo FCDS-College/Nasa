@@ -62,7 +62,11 @@ def session(monkeypatch):
     connection.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
     connection.execute(text("SET search_path TO window_test, public"))       # the vector type lives in public
     tables = [Base.metadata.tables[name] for name in ("source", "file_record", "document", "document_chunk")]
-    Base.metadata.create_all(connection, tables=tables)
+    # checkfirst=False: in CI `public` already holds the real tables (alembic ran there) and they are visible through the search
+    # path, so a check-first create_all would skip the scratch ones and the test would run against, and write to, the real data.
+    Base.metadata.create_all(connection, tables=tables, checkfirst=False)
+    for name in ("source", "file_record", "document", "document_chunk"):
+        assert connection.execute(text("SELECT to_regclass(:n)"), {"n": f"window_test.{name}"}).scalar_one() is not None
     spec = importlib.util.spec_from_file_location("migration_0011", MIGRATION)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -146,4 +150,4 @@ def test_migration_0011_is_repeatable_and_reversible(session):
         module.upgrade()                         # create-if-missing: a second run changes nothing
         module.downgrade()
     connection.commit()
-    assert session.execute(text("SELECT to_regclass('chunk_window_embedding')")).scalar_one() is None
+    assert session.execute(text("SELECT to_regclass('window_test.chunk_window_embedding')")).scalar_one() is None
