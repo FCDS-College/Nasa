@@ -67,7 +67,7 @@
 | Document | Status | Owner |
 |---|---|---|
 | **Final challenge deliverables (2026-11-07, updated 2026-11-12 for PR #27–#32):** [status](../FINAL_PROJECT_STATUS.md), [architecture](../FINAL_ARCHITECTURE.md), [test report](../FINAL_TEST_REPORT.md), [demo runbook](../DEMO_RUNBOOK.md), [presentation](../FINAL_CHALLENGE_PRESENTATION.md) | Current | Lead |
-| [FLEX outcome model card and evaluation](evaluation/reports/flex-outcome-model.md), [retrieval evaluation](evaluation/reports/retrieval-2026-11-07.md), [significance of retrieval differences](evaluation/reports/retrieval-significance-2026-11-13.md), [embedder and reranker comparison](evaluation/reports/model-comparison-2026-11-13.md) | Current (human review pending: Ziad, Eman) | Lead |
+| [FLEX outcome model card and evaluation](evaluation/reports/flex-outcome-model.md), [retrieval evaluation](evaluation/reports/retrieval-2026-11-07.md), [significance of retrieval differences](evaluation/reports/retrieval-significance-2026-11-13.md), [embedder and reranker comparison](evaluation/reports/model-comparison-2026-11-13.md), [passage gold drafts pre-screen](evaluation/reports/passage-gold-drafts-prescreen-2026-11-13.md) | Current (human review pending: Ziad, Eman) | Lead |
 | [Evaluation production-readiness roadmap](evaluation/production-readiness-roadmap.md) (EV-01..EV-25) | Proposed (needs Lead sign-off) | Ziad |
 | 2026-10-30 system audit: [status audit](reviews/SYSTEM_STATUS_AUDIT.md), [roadmap](plan/IMPLEMENTATION_ROADMAP.md), [implementation changelog](reviews/IMPLEMENTATION_CHANGELOG.md) | Current | Lead |
 | [Readiness report](reviews/FINAL_SYSTEM_READINESS_REPORT.md) (2026-10-30 assessment, with a 2026-11-12 status update in §11) | Historical snapshot | Lead |

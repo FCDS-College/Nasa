@@ -61,6 +61,7 @@ def test_questions_are_paraphrases_not_quotes_of_their_passage(cases):
 def test_no_passage_is_used_by_two_cases_and_a_case_lists_every_page_that_answers_it(cases):
     spans = [(e.document_id, e.page, e.char_start) for c in cases for e in c.evidence]
     assert len(spans) == len(set(spans)), "two cases use the same passage"
-    # Five drafts state their answer on a second page too (found with the verification sheet); retrieving either page is a hit.
-    multi = {c.gold_id: sorted({e.page for e in c.evidence}) for c in cases if len(c.evidence) > 1}
-    assert set(multi) == {"PG-002", "PG-005", "PG-007", "PG-016", "PG-023"}
+    # Eight drafts state their answer on more than one page (found with the verification sheet and a critical read); retrieving any
+    # of those pages is a hit.
+    multi = {c.gold_id: sorted({(e.document_id, e.page) for e in c.evidence}) for c in cases if len(c.evidence) > 1}
+    assert set(multi) == {"PG-002", "PG-005", "PG-007", "PG-008", "PG-009", "PG-016", "PG-021", "PG-023"}
