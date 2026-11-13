@@ -89,3 +89,10 @@ def test_a_question_of_only_stopwords_has_no_match(session):
 
 def test_operator_characters_in_the_question_cannot_break_the_query(session):
     assert _ranked(session, "pmma | (flame & !oxygen) <-> ' --") is not None
+
+
+def test_a_freshly_booted_machine_does_not_see_an_empty_cache_as_fresh(session, monkeypatch):
+    # time.monotonic() counts from boot: a cleared cache must not look "recent" just because the machine started a minute ago.
+    monkeypatch.setattr(lexical.time, "monotonic", lambda: 10.0)
+    lexical.clear_cache()
+    assert _ranked(session, "PMMA flame helium")[0][0] == "c2"

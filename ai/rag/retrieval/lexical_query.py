@@ -41,8 +41,8 @@ def query_terms(question: str, max_terms: int = DEFAULT_MAX_TERMS) -> list[str]:
 
 
 def bm25_idf(document_frequency: int, documents: int) -> float:
-    """The BM25 idf, which stays positive: ln(1 + (N - n + 0.5) / (n + 0.5))."""
-    return math.log(1 + (documents - document_frequency + 0.5) / (document_frequency + 0.5))
+    """The BM25 idf, ln(1 + (N - n + 0.5) / (n + 0.5)): positive for n <= N, and floored at 0 if a stale N is smaller than n."""
+    return max(0.0, math.log(1 + (documents - document_frequency + 0.5) / (document_frequency + 0.5))) if documents >= 0 else 0.0
 
 
 def or_tsquery_text(terms: list[str]) -> str:
