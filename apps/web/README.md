@@ -44,7 +44,8 @@ proxy `app/api/[...path]/route.ts`, which runs on the server and attaches the re
     # NEXT_PUBLIC_API_URL                           # optional browser prefix; leave unset to use the proxy
 
 The proxy allows GET on health, dashboard counts, search, documents, experiments, evidence, analyses,
-investigations and insights, and POST on chat only. It never holds a write key, so uploads and admin
+investigations, insights and the knowledge graph (`graph/entities[/<ULID>]`, used by `/knowledge`), and POST
+on chat only. The graph's admin consistency report (`/api/admin/graph/consistency`) is not forwarded. It never holds a write key, so uploads and admin
 operations are not possible from the dashboard.
 
 Demo smoke test (needs Playwright + Chromium): `node scripts/demo-smoke.mjs http://localhost:3000`.

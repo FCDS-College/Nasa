@@ -81,12 +81,19 @@ export function ScenarioPicker({ scenarios, value, onChange }: {
       <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Cabin atmosphere">
         {scenarios.map((s) => {
           const active = !custom && (value.scenario ?? "iss_nominal") === s.scenario_id;
+          const historical = s.kind === "historical";
+          const tint = historical ? "239,68,68" : "59,130,246";
           return (
             <button key={s.scenario_id} role="radio" aria-checked={active} onClick={() => onChange({ scenario: s.scenario_id })}
                     className="rounded-xl px-3 py-2 text-left text-xs"
-                    style={{ background: active ? "rgba(59,130,246,0.16)" : "var(--bg-elevated)",
-                             border: `1px solid ${active ? "rgba(59,130,246,0.55)" : "var(--border-default)"}`,
+                    style={{ background: active ? `rgba(${tint},0.16)` : "var(--bg-elevated)",
+                             border: `1px ${historical ? "dashed" : "solid"} ${active || historical ? `rgba(${tint},0.55)` : "var(--border-default)"}`,
                              color: "var(--text-primary)" }}>
+              {historical && (
+                <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wider" style={{ color: "#EF4444" }}>
+                  Historical · never flown
+                </span>
+              )}
               <span className="block font-semibold">{s.name}</span>
               <span className="block mt-0.5" style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
                 {Math.round(s.o2_fraction * 100)}% O₂ · {s.pressure_kpa.toFixed(1)} kPa
@@ -220,7 +227,8 @@ export function ProbabilityBars({ probabilities }: { probabilities: Probabilitie
   );
 }
 
-/** Estimated end-state probabilities across the flight-tested O2 range; gaps are outside the applicability domain. */
+/** Estimated end-state probabilities across the flight-tested O2 range (extended to a requested O2 beyond it);
+ *  red zones are outside the applicability domain, where the model refuses to estimate. */
 export function SweepChart({ points, marker }: {
   points: { o2_fraction: number; in_domain: boolean; probabilities: Probabilities | null }[];
   marker?: number;
@@ -251,9 +259,14 @@ export function SweepChart({ points, marker }: {
             <text x={L - 6} y={y(v) + 4} textAnchor="end" fontSize={10} fill="var(--text-muted)">{v * 100}%</text>
           </g>
         ))}
-        {points.filter((p) => !p.in_domain).map((p) => (
-          <rect key={p.o2_fraction} x={x(p.o2_fraction) - 6} y={T} width={12} height={H - T - B} fill="rgba(245,158,11,0.08)" />
-        ))}
+        {points.map((p, i) => {
+          if (p.in_domain) return null;
+          // Shade from the midpoint with each neighbour, so a run of refused points reads as one red zone.
+          const left = i === 0 ? x(p.o2_fraction) - 6 : x((points[i - 1].o2_fraction + p.o2_fraction) / 2);
+          const right = i === points.length - 1 ? x(p.o2_fraction) + 6 : x((points[i + 1].o2_fraction + p.o2_fraction) / 2);
+          return <rect key={p.o2_fraction} data-testid="sweep-out-of-domain" x={left} y={T} width={Math.max(right - left, 2)}
+                       height={H - T - B} fill="rgba(239,68,68,0.13)" />;
+        })}
         {END_STATES.map((s) => segments(s).map((pts, i) => (
           <polyline key={`${s}-${i}`} points={pts} fill="none" stroke={END_STATE_COLORS[s]} strokeWidth={2.5} strokeLinejoin="round" />
         )))}
@@ -269,7 +282,7 @@ export function SweepChart({ points, marker }: {
         {END_STATES.map((s) => (
           <span key={s} className="inline-flex items-center gap-1"><span className="h-2 w-3 rounded-sm" style={{ background: END_STATE_COLORS[s] }} />{END_STATE_LABELS[s]}</span>
         ))}
-        <span className="inline-flex items-center gap-1"><span className="h-2 w-3 rounded-sm" style={{ background: "rgba(245,158,11,0.3)" }} />outside the flight-tested domain (no estimate)</span>
+        <span className="inline-flex items-center gap-1"><span className="h-2 w-3 rounded-sm" style={{ background: "rgba(239,68,68,0.35)" }} />outside the flight-tested domain: no estimate</span>
         {marker !== undefined && <span>dashed line: your O₂</span>}
       </figcaption>
     </figure>

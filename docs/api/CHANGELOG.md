@@ -2,20 +2,50 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Lead (Anas) | Current | — | 2026-11-12 | L-4, M6 | `docs/api/openapi.json`, `apps/api/flame_api/` |
+| Lead (Anas) | Current | — | 2026-11-13 | L-4, M6 | `docs/api/openapi.json`, `apps/api/flame_api/` |
 
 Semver applies to `docs/api/openapi.json` `info.version`. Breaking changes need a minor bump while we are pre-1.0, an entry here, and one release of deprecation where practical.
 
+## Unreleased
+
+Nothing yet.
+
 ## 0.7.0 (2026-11-13)
 
-Operator speech for video analyses. Additive and off by default: nothing changes for a deployment that does not set `FLAME_TRANSCRIPTION_ENABLED=true`.
+Historical scenarios, a gravity dimension and a scenario-level coverage verdict (ADR-013). The Apollo 1 pure-oxygen atmosphere is the first historical scenario. Response shapes gain **required** fields: clients that validate strictly must take this contract (AURA re-discovery; the `aura-link2-contract` job checks the dry run).
+
+**Added (ADR-013)**
+- `Scenario.gravity` (`microgravity | lunar | martian | earth`) and `Scenario.kind` (`mission | historical | custom`); `basis` gains `historical`. Mission scenarios are `microgravity` / `mission`, as before.
+- Scenario `apollo1_pad_1967`: 100 % O₂ at 16.7 psia (115.14 kPa), `gravity: earth`, cited to the Apollo 204 Review Board report (FF-NTRS-19930078717 p. 189).
+- `InvestigationListResponse.coverage` (schema `Coverage`): `verdict` `covered | partial | none`, headline, reasons, the nearest real flight test with its evidence cells, the gap, the flown ranges and the method. For Apollo 1: `none`, "None of the 1950 flight tests cover this atmosphere." (840 before the ACME, CFI and SAFFIRE-II/III tables below were counted.)
+- `GET /api/scenarios/{scenario_id}/history` (`getScenarioHistory`, `ScenarioHistoryResponse`, `CitedSource`): story, lesson, a page-cited timeline and the data-covered alternative scenario (`orion_max_o2`). 404 `SCENARIO_HISTORY_NOT_FOUND` for non-historical scenarios.
+- Query parameter `gravity` on `GET /api/investigations`, `GET /api/investigations/{investigation_id}` and `GET /api/insights`, for a custom atmosphere only (400 with a named scenario).
+
+**Changed**
+- The scenario model estimate (`flex_model_scenario_estimate`) is refused (`coverage_gap`, no probabilities) when the scenario's gravity is not among the flight tests' regimes. The reason is added to its statement.
+- `FlexOutcomeResponse.o2_sweep` extends past the trained O₂ range to a requested O₂ outside it (up to 6 extra points, all `in_domain: false`, `probabilities: null`). For a requested O₂ inside the range, the 12 points are unchanged.
+- `Coverage` verdict `partial` also covers an atmosphere outside the flown O₂ or pressure range. (The lunar lander, 34 % O₂ at 62.7 kPa, was `partial` on the four original tables; with the ACME CFI-G flames, flown down to ~43 kPa, it is `covered`: 11 CFI-G and 9 FLEX tests lie near it.)
+- Coverage and the investigation list also read the ACME (PSI-10, PSI-159) and CFI (PSI-39) tables for O₂ and pressure, and SAFFIRE-II/III and SAME/SAME-R for flow and duration. ACME inverse flames give no ambient O₂ (their XO₂ is the burner stream). The nearest test is cited to its O₂ and pressure cells for these tables too. For Apollo 1 the nearest test is now a CFI-G normal flame at 39.97 % O₂ (Apollo 1's O₂ is now 2.5× the highest flown; it was 2.9× against FLEX at 34 %).
+
+**Corpus**
+- 3 NTRS reports added for the citations (27 in total): FF-NTRS-19930078717 (Apollo 204 Review Board report), FF-NTRS-20170008542 (flame-retardant fibres) and FF-NTRS-20070021223 (Orion ECLSS fire protection).
+
+**Also in this release** (merged after 0.6.0)
 
 **Added**
-- `FlameVideoAnalysisResult.audio` (`VideoAudioTranscript`), optional and present only when `FLAME_TRANSCRIPTION_ENABLED=true`. It holds the speech from the video's audio track, transcribed locally with faster-whisper (`docs/cv/audio-transcription.md`).
-  - `status`: `transcribed`, `no_speech`, `silent` (the track exists but its loudest second is at or below -55 dBFS, so no model ran), `no_audio_track`, or `unavailable` (with `failure_code`; the video analysis still completes).
-  - `segments[]` (`VideoAudioSegment`): `start_s`, `end_s`, `text`, `avg_logprob`, `no_speech_prob`. Timestamps are approximate to a few seconds.
-  - `classification` is always `machine_transcribed`. It is not a measurement and not evidence: no evidence kind, observation or warning code was added, and AI interpretation does not read it. `note` carries the caveat to show beside the text.
-- Settings `FLAME_TRANSCRIPTION_ENABLED` (default `false`), `FLAME_TRANSCRIPTION_MODEL` (default `small`) and `FLAME_TRANSCRIPTION_CACHE_DIR`.
+- Operator speech for video analyses (off by default: nothing changes for a deployment that does not set `FLAME_TRANSCRIPTION_ENABLED=true`).
+  - `FlameVideoAnalysisResult.audio` (`VideoAudioTranscript`), optional and present only when `FLAME_TRANSCRIPTION_ENABLED=true`. It holds the speech from the video's audio track, transcribed locally with faster-whisper (`docs/cv/audio-transcription.md`).
+    - `status`: `transcribed`, `no_speech`, `silent` (the track exists but its loudest second is at or below -55 dBFS, so no model ran), `no_audio_track`, or `unavailable` (with `failure_code`; the video analysis still completes).
+    - `segments[]` (`VideoAudioSegment`): `start_s`, `end_s`, `text`, `avg_logprob`, `no_speech_prob`. Timestamps are approximate to a few seconds.
+    - `classification` is always `machine_transcribed`. It is not a measurement and not evidence: no evidence kind, observation or warning code was added, and AI interpretation does not read it. `note` carries the caveat to show beside the text.
+  - Settings `FLAME_TRANSCRIPTION_ENABLED` (default `false`), `FLAME_TRANSCRIPTION_MODEL` (default `small`) and `FLAME_TRANSCRIPTION_CACHE_DIR`.
+- Migration `0012_chunk_search_tsv_keep`: a stopword-free full-text vector so a question about helium (`He`) can match. Read only when `FLAME_LEXICAL_MODE=or_idf`; no response shape changes.
+- Settings `FLAME_LEXICAL_MODE=and|or_idf` and `FLAME_DENSE_GRANULARITY=page|window` (both default to the existing behaviour; no response shape changes) and migration `0011_chunk_window_embedding`. See `docs/ai/retrieval-pipeline.md` §0a–0b.
+- `ChatWarning` values `answer_values_not_in_cited_evidence` and `answer_withheld_unsupported_values` (`/api/chat`): a figure in the answer is in none of the cited passages. Setting `ANSWER_SUPPORT_CHECK=warn|strict|off` (default `warn`: warning only; answers with this warning are not cached). `/api/chat` is excluded from AURA's tools.
+- Graph entity types `platform` and `instrument`, and predicates `ran_on` and `measured_with` (`GraphEntityType`, `GraphPredicate`). They appear only on edges with `extraction_method` `nlp_extraction` (migration `0010_nlp_record`), which are `unreviewed` co-occurrence associations within one page, each citing that page's evidence. Clients that switch on a predicate or entity type should treat unknown values as "other". `document describes investigation` edges can now also come from NLP (a report naming exactly one investigation on its first page).
+
+**Changed**
+- `retrieval.query_rewrite.rewriter_version` is now `1.0.1` (was `1.0.0`). The query rewriter no longer expands `psi` when it directly follows a number (`14.7 psi` is a pressure, not NASA's PSI programme). The shape of the response is unchanged.
 
 ## 0.6.0 (2026-11-12)
 

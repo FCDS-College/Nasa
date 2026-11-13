@@ -70,7 +70,7 @@
       "model_id": "sentence-transformers:cross-encoder/ms-marco-MiniLM-L-6-v2",
       "capability": "reranking",
       "provider": "cross_encoder",
-      "runtime": "sentence-transformers",
+      "runtime": "fastembed",
       "name": "cross-encoder/ms-marco-MiniLM-L-6-v2",
       "version": null,
       "quantization": null,
@@ -85,7 +85,7 @@
       "ram_mb": 400,
       "vram_mb": null,
       "cpu_only": true,
-      "notes": "Optional (P1). Not registered unless FLAME_RERANKER_ENABLED=true. Retrieval wiring is Eman's M2."
+      "notes": "In use by default: FLAME_RERANKER_ENABLED defaults to true (config.py). The provider runs fastembed's ONNX export Xenova/ms-marco-MiniLM-L-6-v2 (about 90 MB, same scores to three decimals), not the sentence-transformers class; model_id keeps its original prefix because it is a registry key. Compared only on the 26-question retrieval gold, without confidence intervals, so status stays candidate."
     },
     {
       "model_id": "flame_cv:cv-opencv-v1.2.0-auto",

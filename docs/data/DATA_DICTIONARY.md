@@ -27,6 +27,9 @@ knowledge_relation, memory, model, source, vector_index_manifest
 | `0007_chunk_search_tsv` | PostgreSQL only: `document_chunk.search_tsv` (TSVECTOR, `GENERATED ALWAYS AS (to_tsvector('english', text)) STORED`) with GIN index `ix_document_chunk_search_tsv`; drops `ix_document_chunk_full_text` from 0001. Not in the ORM model, so SQLite test databases do not have it |
 | `0008_api_client_owner` | `api_client.owner` (VARCHAR(128), nullable), add-if-missing: the person accountable for a key; required for `admin` keys (ADR-009 step 2). Existing clients keep their scopes and get no `admin`. |
 | `0009_video_checkpoints` | `analysis_result.cancel_requested_at` (TIMESTAMPTZ, nullable) and table `video_checkpoint_frame` (PK `analysis_id` + `frame_index`, FK → `analysis_result` ON DELETE CASCADE; `video_id`, `job_digest`, `row`, `created_at`), each create-if-missing (ADR-008). |
+| `0010_nlp_record` | table `nlp_record` (PK `record_id`; `record_type`, `text`, `normalized`, `document_id`, `document_version`, `page`, `char_start`, `char_end`, `chunk_id`, `extractor`, `extractor_version`, `method`, `confidence`, `review_status` (`machine_extracted`, `human_verified`, `rejected`, `superseded`), `payload`, timestamps), create-if-missing (D1). Offsets refer to `document_chunk.text`. Records are candidates: a changed chunk or a new extractor version marks old rows `superseded`, never edits them. |
+| `0011_chunk_window_embedding` | PostgreSQL + pgvector only, create-if-missing: table `chunk_window_embedding` (PK `window_id` = `chunk_id#w<ordinal>`; `chunk_id` FK → `document_chunk` ON DELETE CASCADE, `ordinal`, `char_start`, `char_end` (offsets into `document_chunk.text`), `text_sha` (to detect a changed page), `model`, `embedding vector(384)`), btree on `chunk_id`, HNSW cosine on `embedding`. Filled by `python -m flame_api.vector_index build-windows`; used only when `FLAME_DENSE_GRANULARITY=window`. |
+| `0012_chunk_search_tsv_keep` | PostgreSQL only, create-if-missing: text search dictionary `flame_stem` (snowball English, no stopwords), configuration `flame_english`, generated column `document_chunk.search_tsv_keep` (`to_tsvector('flame_english', text)`) and a GIN index. Read only by `FLAME_LEXICAL_MODE=or_idf`; it makes `He` (helium) searchable. Downgrade drops all four. |
 
 **Note.** `0001` builds from the live models. A brand-new database therefore gets the newest schema at `0001`, and later migrations must be idempotent, as `0004` is. An existing database gets the columns from `0004`. Both paths were verified to produce identical schemas (L-8 §2).
 
@@ -366,6 +369,8 @@ Unique: `uq_analysis_idempotency_key` (idempotency_key).
 | `ingested_at` | TIMESTAMP WITH TIME ZONE | no |  |
 
 PostgreSQL also has the generated column `search_tsv` (TSVECTOR, migration 0007), not mapped in the ORM.
+
+`text` is the **indexed** text. For text-layer PDF pages (parser `pymupdf-pages-0.4.0` and later) it is normalised (`ai/rag/ingestion/normalize.py`, version in `document.payload.text_normalization`); the verbatim page text is `evidence.excerpt`, which is what a citation points at. After upgrading, re-run `python -m flame_api.ingest` and `python -m flame_api.vector_index build` so chunks are re-indexed and re-embedded.
 
 Indexes: `ix_document_chunk_document_id` (document_id); `ix_document_chunk_evidence_id` (evidence_id); `ix_document_chunk_file_id` (file_id); `ix_document_chunk_source_id` (source_id); `ix_document_chunk_source_page` (source_id, page).
 

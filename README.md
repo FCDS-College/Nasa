@@ -7,11 +7,14 @@ Pick a spacecraft cabin atmosphere (ISS air, pre-EVA, Orion, a lunar lander, or 
 - **summarizes** each one in NASA's own words;
 - **explains** what the flight tests measured there, every number linked to its NASA source cell;
 - **estimates** droplet-flame outcomes with a validated model that refuses to extrapolate;
-- says plainly what the data **cannot** tell you.
+- says plainly what the data **cannot** tell you: a coverage verdict comes before any ranking, and an atmosphere nobody flew gets no estimate. Try the historical preset **Apollo 1: pure-O₂ ground test (1967)**, which the system refuses and then points to the data-covered Orion atmosphere.
 
 | Start here | |
 |---|---|
 | What it is and why | [FINAL_CHALLENGE_PRESENTATION.md](FINAL_CHALLENGE_PRESENTATION.md) |
+| 3-minute pitch (deck + script, English; Arabic rehearsal script) | [flame-in-freefall-3min-pitch.pptx](docs/presentations/flame-in-freefall-3min-pitch.pptx) · [script](docs/presentations/PITCH_SCRIPT_3MIN.md) · [النص العربي](docs/presentations/PITCH_SCRIPT_3MIN.ar.md) |
+| The Apollo 1 scenario and how it generalises | [APOLLO1_SCENARIO_ANALYSIS.md](docs/reports/APOLLO1_SCENARIO_ANALYSIS.md) · [ADR-013](docs/architecture/adr/ADR-013-historical-scenarios-coverage-verdict.md) |
+| Business plan (commercial space) | [docs/business/BUSINESS_PLAN.md](docs/business/BUSINESS_PLAN.md) |
 | Run the demo | [DEMO_RUNBOOK.md](DEMO_RUNBOOK.md) |
 | What works, what doesn't | [FINAL_PROJECT_STATUS.md](FINAL_PROJECT_STATUS.md) |
 | How it is built | [FINAL_ARCHITECTURE.md](FINAL_ARCHITECTURE.md) |
@@ -29,7 +32,7 @@ Pick a spacecraft cabin atmosphere (ISS air, pre-EVA, Orion, a lunar lander, or 
   - SPICE (gas co-flow), 435;
   - SAFFIRE-I (large-scale fabric), 2.
 - **NASA ISA-Tab metadata** for the same four investigations.
-- **24 NASA NTRS reports** with `PUBLIC_USE_PERMITTED` status.
+- **27 NASA NTRS reports** with `PUBLIC_USE_PERMITTED` status, including the Apollo 204 Review Board report.
 - **Flight media:** a BASS-II flight video and SPICE ISS photographs, for computer vision.
 
 Provenance and SHA-256 for every file are in `datasets/metadata/files.jsonl` and `datasets/checksums/sha256.txt`. The large raw mirrors (~6 GB of video and frames) are optional:
@@ -71,7 +74,8 @@ The full stack (API, worker, PostgreSQL + pgvector, Redis, S3, web, optional Oll
 ```
 apps/api        FastAPI service, ingestion, RQ worker (contract docs/api/openapi.json)
 apps/web        Next.js dashboard (server-side read-only proxy to the API)
-ai/fire_safety  investigations ranking, insights, FLEX outcome model (+ artefact and evaluation)
+ai/fire_safety  investigations ranking, coverage verdict, insights, FLEX outcome model (+ artefact and evaluation),
+                historical scenarios as cited data files (historical/)
 ai/routing      provider-neutral model router (local / cloud, offline modes)
 ai/rag          retrieval library and the retrieval benchmark
 cv/             flame image and video analysis (OpenCV)

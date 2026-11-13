@@ -15,10 +15,10 @@ All ranking operations in the platform are multi-criteria and transparent. **No 
 ### 2.1 `rank_models()`
 * **Inputs**: Candidate models, task performance scores (Recall@5, MRR, Faithfulness), latency (p95), cost/token.
 * **Filter Gate**: Models failing any safety constraint (PII leakage $>0$, Hallucination on holdout $>0.05$) are immediately disqualified.
-* **Decision Rule**: Pareto frontier ranking balancing scientific accuracy against operational latency.
+* **Decision Rule**: hard gates, then a weighted composite (`0.40 * recall@5 + 0.40 * faithfulness + 0.20 * speed`) as implemented in `tests/eval/ranking.py`. It is not a Pareto frontier.
 
 ### 2.2 `rank_documents()` & `rank_evidence()`
-* **Inputs**: Query embedding similarity, BM25 keyword score, source authority rank (NASA-TM > conference paper > whitepaper).
+* **Inputs**: a precomputed dense similarity and a precomputed lexical score (no BM25 is implemented in this module), plus source authority rank (NASA-TM > conference paper > whitepaper).
 * **Weights**: Hybrid scoring combining dense vector similarity ($0.6$) and lexical BM25 match ($0.4$).
 
 ---

@@ -84,6 +84,6 @@ def test_the_plan_keeps_the_original_for_lexical_and_embeds_the_rewrite():
     assert plan.lexical_query == "ISS  cabin fires"
     assert plan.semantic_query == "ISS (international space station) cabin fires"
     assert plan.as_dict() == {"rewritten": "ISS (international space station) cabin fires", "changed": True,
-                              "rules_applied": ["normalize_whitespace", "expand:iss"], "rewriter_version": "1.0.0",
+                              "rules_applied": ["normalize_whitespace", "expand:iss"], "rewriter_version": "1.0.1",
                               "used_for": ["semantic"]}
     assert SearchStack().plan("flame spread").as_dict()["changed"] is False

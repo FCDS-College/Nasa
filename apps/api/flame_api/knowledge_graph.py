@@ -51,8 +51,8 @@ logger = logging.getLogger("flame_api.knowledge_graph")
 
 EXTRACTOR_VERSION = "psi-tables-graph-1.0.0"
 METHOD = "table_parse"
-ENTITY_TYPES = ("investigation", "experiment", "fuel", "condition_variable", "phenomenon", "document")
-PREDICATES = ("part_of", "uses_fuel", "has_condition", "observed", "describes")
+ENTITY_TYPES = ("investigation", "experiment", "fuel", "condition_variable", "phenomenon", "document", "platform", "instrument")
+PREDICATES = ("part_of", "uses_fuel", "has_condition", "observed", "describes", "ran_on", "measured_with")
 MAX_DEPTH = 3
 # The columns that name each table's test (ingest._test_id's order), so `part_of` cites the row's own
 # identifier cell. SPICE has none (ingest numbers its rows), so its fuel cell stands for the row.
@@ -111,6 +111,7 @@ class _Builder:
             for alias in entity.aliases or []:
                 self.alias_index.setdefault((entity.entity_type, canonical(alias)), entity.entity_id)
         self.edges: dict[str, dict[str, Any]] = {}
+        self.edge_confidence: dict[str, float] = {}
         self.touched: set[str] = set()
         self.counts: dict[str, int] = defaultdict(int)
 
@@ -162,27 +163,33 @@ class _Builder:
         record.updated_at = self.now
         return identifier
 
-    def edge(self, subject: str, predicate: str, obj: str, evidence_id: str, properties: dict | None = None) -> None:
+    def edge(self, subject: str, predicate: str, obj: str, evidence_id: str, properties: dict | None = None,
+             confidence: float = 1.0) -> None:
         subject, obj = self._winner(subject), self._winner(obj)
         identifier = relation_id(subject, predicate, obj, evidence_id)
         self.edges[identifier] = {"relation_id": identifier, "subject_id": subject, "predicate": predicate,
                                   "object_id": obj, "evidence_id": evidence_id, "properties": properties or {}}
+        self.edge_confidence[identifier] = confidence
 
-    def write_edges(self) -> None:
+    def write_edges(self, method: str = METHOD, extractor_version: str = EXTRACTOR_VERSION) -> None:
+        """Write this builder's edges; only edges of `method` are compared, kept or removed, so one method never touches another's."""
         # Matched by the natural key, not the ID: an edge re-pointed by a merge keeps its old relation_id.
         existing = {(r.subject_id, r.predicate, r.object_id, r.evidence_id): r for r in self.session.scalars(
-            select(KnowledgeRelation).where(KnowledgeRelation.extraction_method == METHOD))}
+            select(KnowledgeRelation).where(KnowledgeRelation.extraction_method == method))}
         for values in self.edges.values():
+            confidence = self.edge_confidence.get(values["relation_id"], 1.0)
             record = existing.pop((values["subject_id"], values["predicate"], values["object_id"], values["evidence_id"]), None)
             if record is None:
                 self.session.add(KnowledgeRelation(
-                    **values, extraction_method=METHOD, extractor_version=EXTRACTOR_VERSION, confidence=1.0,
+                    **values, extraction_method=method, extractor_version=extractor_version, confidence=confidence,
                     review_status="unreviewed", knowledge_version=self.version, created_at=self.now))
                 self.counts["relations_created"] += 1
             else:   # keep review_status: a human decision survives a rebuild
                 if record.properties != values["properties"]:
                     record.properties = values["properties"]
-                record.extractor_version = EXTRACTOR_VERSION
+                if record.review_status == "unreviewed":
+                    record.confidence = confidence
+                record.extractor_version = extractor_version
                 record.knowledge_version = self.version
                 self.counts["relations_kept"] += 1
         for record in existing.values():

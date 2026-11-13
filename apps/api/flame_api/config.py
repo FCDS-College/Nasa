@@ -100,6 +100,20 @@ class Settings(BaseSettings):
     # How many of the first fused /api/search results the cross-encoder reorders (page-independent).
     # 10 scored the same as 20 on the gold set, for half the model work.
     rerank_depth: int = Field(default=10, ge=2, le=100)
+    # Roadmap item 8: figures and identifiers in a chat answer that appear in none of the cited passages.
+    # "warn" adds the warning `answer_values_not_in_cited_evidence` (and keeps the answer out of the cache);
+    # "strict" also withholds the answer text (`answer_withheld_unsupported_values`); "off" skips the check.
+    # It is a traceability check, not entailment: see ai/rag/verification/support.py.
+    answer_support_check: Literal["off", "warn", "strict"] = "warn"
+    # Roadmap item 10. "and": every question term must match (plainto_tsquery, the served behaviour). "or_idf": any term
+    # may match and a chunk scores the sum of its matched terms' idf (apps/api/flame_api/lexical.py). Default stays "and"
+    # until the passage-level gold set (>= 20 verified questions) shows a difference; PostgreSQL only.
+    lexical_mode: Literal["and", "or_idf"] = "and"
+    # Roadmap item 11. "page": the dense leg embeds each page's first 2,000 characters (served behaviour). "window": it embeds
+    # overlapping 1,200-character windows of the whole page and a page scores as its best window; needs
+    # `python -m flame_api.vector_index build-windows`, falls back to "page" when there are no windows. Default "page" until the
+    # passage-level gold set (>= 20 verified questions) shows a difference.
+    dense_granularity: Literal["page", "window"] = "page"
     otel_enabled: bool = False
     otel_service_name: str = "flame-api"
     cv_provider: Literal["local", "hf_space"] = "local"

@@ -1,6 +1,8 @@
 import json
+import re
 from pathlib import Path
 import jsonschema
+import pytest
 
 # Anchor path strictly to the repository root
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -75,8 +77,9 @@ def test_dataset_coverage_metrics():
     adversarial = [c for c in cases if c.get("category") == "adversarial"]
     assert len(adversarial) >= 3, "⚠️ يجب وجود 3 حالات على الأقل لاختبار مقاومة الحقن (Adversarial/Prompt-injection)."
 
-def test_no_document_leakage():
-    """التأكد من عدم تسرب معرفات الأدلة بين مجموعات التدريب والتأكيد والاختبار النهائي"""
+def test_no_evidence_id_leakage():
+    """Page-level check only: expected_evidence_ids are unique per case, so this cannot fail. It does NOT show that
+    splits use different documents; see test_no_document_leakage_between_splits."""
     split_evidence = {"dev": set(), "validation": set(), "holdout": set()}
     with open(GOLD_DATASET_PATH, 'r', encoding='utf-8') as f:
         for line in f:
@@ -95,3 +98,26 @@ def test_no_document_leakage():
     assert not dev_val_leak, f"❌ تسرب أدلة بين dev و validation: {dev_val_leak}"
     assert not dev_hold_leak, f"❌ تسرب أدلة بين dev و holdout: {dev_hold_leak}"
     assert not val_hold_leak, f"❌ تسرب أدلة بين validation و holdout: {val_hold_leak}"
+
+def _document_of(evidence_id):
+    """'DOC-001-P18-FIG3.4' -> 'DOC-001'."""
+    return re.match(r"(DOC-\d+)", evidence_id).group(1)
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="Known: the splits share documents (dev/holdout: DOC-001, DOC-004, DOC-007). Re-split the gold set by document; "
+           "strict xfail turns this test red the moment that is done, so the marker gets removed.",
+)
+def test_no_document_leakage_between_splits():
+    """Document-level leakage: the same source document must not appear in two splits."""
+    documents = {"dev": set(), "validation": set(), "holdout": set()}
+    with open(GOLD_DATASET_PATH, 'r', encoding='utf-8') as f:
+        for line in f:
+            if line.strip():
+                case = json.loads(line)
+                if case.get("split") in documents:
+                    documents[case["split"]].update(_document_of(e) for e in case.get("expected_evidence_ids", []))
+    assert not documents["dev"] & documents["validation"]
+    assert not documents["dev"] & documents["holdout"]
+    assert not documents["validation"] & documents["holdout"]

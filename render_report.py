@@ -11,6 +11,22 @@ if sys.stdout.encoding.lower() != 'utf-8':
 
 REPO_ROOT = Path(__file__).resolve().parent
 
+
+def _fmt(value, digits=2):
+    """A mean is undefined (None) when no answerable case was scored: say so instead of showing 0%."""
+    return "n/a" if value is None else f"{value:.{digits}%}"
+
+
+def _status(value, target):
+    if value is None:
+        return "⚠️ Not measured"
+    return "✅ PASS" if value >= target else "⚠️ Below target"
+
+
+def _system_note(data):
+    system = data.get("evaluated_system") or {"kind": "unknown", "note": "The report does not say which system was evaluated."}
+    return system.get("kind", "unknown"), system.get("note", "")
+
 def render_json_report_to_markdown(json_path: Path, md_path: Path):
     """
     قراءة ملف تقرير التقييم JSON وتوليد تقرير Markdown رسمي متكامل برمجياً.
@@ -29,12 +45,16 @@ def render_json_report_to_markdown(json_path: Path, md_path: Path):
     total = data.get("total_evaluated", 0)
     passed = data.get("pass_count", 0)
     failed = data.get("fail_count", 0)
+    system_kind, system_note = _system_note(data)
+    caveats = "\n".join(f"   * {c}" for c in data.get("caveats", []))
 
     md_content = f"""| Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
 | Ziad | Generated | 0.1.0 | {prov.get('timestamp', 'N/A')[:10]} | Phase 2 Baseline Gate | `run_evaluation.py`, `tests/eval/metrics.py` |
 
 # E5-5: MVP Baseline Scorecard (`v0.1.0-mvp`)
+
+> **Evaluated system: `{system_kind}`.** {system_note}
 
 ## 1. Run Metadata & Provenance (§18 Generated)
 
@@ -51,11 +71,11 @@ def render_json_report_to_markdown(json_path: Path, md_path: Path):
 
 ## 2. Baseline Performance Scorecard (Generated from Run)
 
-| Metric | Target Threshold | Baseline Measured Value | Verification Status |
+| Metric | Target Threshold | Measured value (of the evaluated system above) | Verification Status |
 |---|---|---|---|
-| **Recall@5** | $\\ge {thresholds.get('recall@5_target', 0.80):.2f}$ | **{summary.get('mean_recall@5', 0.0):.2%}** | {'✅ PASS' if summary.get('mean_recall@5', 0.0) >= thresholds.get('recall@5_target', 0.80) else '⚠️ Pending Production Chunks'} |
-| **Mean Reciprocal Rank (MRR)** | $\\ge {thresholds.get('mrr_target', 0.70):.2f}$ | **{summary.get('mean_mrr', 0.0):.2%}** | {'✅ PASS' if summary.get('mean_mrr', 0.0) >= thresholds.get('mrr_target', 0.70) else '⚠️ Pending Production Chunks'} |
-| **Citation F1 Score** | $\\ge {thresholds.get('citation_f1_target', 0.75):.2f}$ | **{summary.get('mean_citation_f1', 0.0):.2%}** | {'✅ PASS' if summary.get('mean_citation_f1', 0.0) >= thresholds.get('citation_f1_target', 0.75) else '⚠️ Pending Production Chunks'} |
+| **Recall@5** | $\\ge {thresholds.get('recall@5_target', 0.80):.2f}$ | **{_fmt(summary.get('mean_recall@5'))}** | {_status(summary.get('mean_recall@5'), thresholds.get('recall@5_target', 0.80))} |
+| **Mean Reciprocal Rank (MRR)** | $\\ge {thresholds.get('mrr_target', 0.70):.2f}$ | **{_fmt(summary.get('mean_mrr'))}** | {_status(summary.get('mean_mrr'), thresholds.get('mrr_target', 0.70))} |
+| **Citation F1 Score** | $\\ge {thresholds.get('citation_f1_target', 0.75):.2f}$ | **{_fmt(summary.get('mean_citation_f1'))}** | {_status(summary.get('mean_citation_f1'), thresholds.get('citation_f1_target', 0.75))} |
 | **Safety Compliance** | $100\\%$ | **{passed} / {total} Cases** | {'✅ PASS' if failed == 0 else '⚠️ Review Required'} |
 
 ---
@@ -63,7 +83,9 @@ def render_json_report_to_markdown(json_path: Path, md_path: Path):
 ## 3. Automated Observations & Evaluation Notes
 
 1. **Automation Status**: Generated via `render_report.py` directly from run artifacts without manual tampering.
-2. **Current Baseline State**: Results represent execution over 38 NASA domain gold cases using the integrated test harness.
+2. **What was evaluated**: {system_note} Cases: {total} ({summary.get('n_answerable', 'n/a')} answerable, {summary.get('n_unanswerable', 'n/a')} unanswerable); retrieval means are over answerable cases only.
+3. **Caveats**:
+{caveats}
 """
 
     with open(md_path, 'w', encoding='utf-8') as f:
@@ -83,9 +105,15 @@ def render_html_dashboard(data: dict, html_path: Path):
     total = data.get("total_evaluated", 0)
     passed = data.get("pass_count", 0)
 
-    recall = summary.get("mean_recall@5", 0.0)
-    mrr = summary.get("mean_mrr", 0.0)
-    cit_f1 = summary.get("mean_citation_f1", 0.0)
+    recall = summary.get("mean_recall@5")
+    mrr = summary.get("mean_mrr")
+    cit_f1 = summary.get("mean_citation_f1")
+    system_kind, system_note = _system_note(data)
+
+    def badge(value, target):
+        if value is None:
+            return "badge-warn", "NOT MEASURED"
+        return ("badge-pass", "PASS") if value >= target else ("badge-warn", "IN PROGRESS")
 
     html_content = f"""<!DOCTYPE html>
 <html lang="en">
@@ -114,26 +142,27 @@ def render_html_dashboard(data: dict, html_path: Path):
             <strong>Scorer Version:</strong> {prov.get('scorer_version', 'v2.0')} |
             <strong>Timestamp:</strong> {prov.get('timestamp', 'N/A')}<br>
             <strong>Dataset SHA-256:</strong> <code>{prov.get('dataset_sha256', 'unknown')[:32]}...</code> |
-            <strong>Environment:</strong> {prov.get('hardware', 'unknown')}
+            <strong>Environment:</strong> {prov.get('hardware', 'unknown')}<br>
+            <strong>Evaluated system:</strong> {system_kind}. {system_note}
         </div>
         <div class="grid">
             <div class="card">
                 <div class="title">Mean Recall@5</div>
-                <div class="value">{recall:.1%}</div>
+                <div class="value">{_fmt(recall, 1)}</div>
                 <div class="target">Target: &ge; {thresholds.get('recall@5_target', 0.80):.0%}</div>
-                <div style="margin-top: 10px;"><span class="{'badge-pass' if recall >= 0.8 else 'badge-warn'}">{'PASS' if recall >= 0.8 else 'IN PROGRESS'}</span></div>
+                <div style="margin-top: 10px;"><span class="{badge(recall, 0.8)[0]}">{badge(recall, 0.8)[1]}</span></div>
             </div>
             <div class="card">
                 <div class="title">Mean MRR</div>
-                <div class="value">{mrr:.1%}</div>
+                <div class="value">{_fmt(mrr, 1)}</div>
                 <div class="target">Target: &ge; {thresholds.get('mrr_target', 0.70):.0%}</div>
-                <div style="margin-top: 10px;"><span class="{'badge-pass' if mrr >= 0.7 else 'badge-warn'}">{'PASS' if mrr >= 0.7 else 'IN PROGRESS'}</span></div>
+                <div style="margin-top: 10px;"><span class="{badge(mrr, 0.7)[0]}">{badge(mrr, 0.7)[1]}</span></div>
             </div>
             <div class="card">
                 <div class="title">Citation F1</div>
-                <div class="value">{cit_f1:.1%}</div>
+                <div class="value">{_fmt(cit_f1, 1)}</div>
                 <div class="target">Target: &ge; {thresholds.get('citation_f1_target', 0.75):.0%}</div>
-                <div style="margin-top: 10px;"><span class="{'badge-pass' if cit_f1 >= 0.75 else 'badge-warn'}">{'PASS' if cit_f1 >= 0.75 else 'IN PROGRESS'}</span></div>
+                <div style="margin-top: 10px;"><span class="{badge(cit_f1, 0.75)[0]}">{badge(cit_f1, 0.75)[1]}</span></div>
             </div>
             <div class="card">
                 <div class="title">Safe Cases</div>

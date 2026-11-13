@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Lead (Anas) | Current: path B verified end to end on 2026-11-07 (steps added on 2026-11-12 verified individually); path A (Docker) not run, no Docker daemon was available | 1.1.0 | 2026-11-12 | T7 | `infrastructure/`, `apps/api/`, `apps/web/` |
+| Lead (Anas) | Current: path B verified end to end on 2026-11-07 and again on 2026-11-13 (with an S3 stand-in); the 11-step browser journey passed on 2026-11-13; path A (Docker) not run, no Docker daemon was available | 1.3.0 | 2026-11-13 | T7, ADR-013 | `infrastructure/`, `apps/api/`, `apps/web/` |
 
 The demo is a 6-minute walk through the Fire Safety Dashboard. It needs:
 - the API with PostgreSQL + pgvector, Redis and S3/MinIO;
@@ -14,7 +14,7 @@ The demo is a 6-minute walk through the Fire Safety Dashboard. It needs:
 
 | Need | Why |
 |---|---|
-| Git checkout of this branch | All demo data is committed: 840 flight tests, 4 NASA metadata records, 24 NTRS reports, BASS-II video and SPICE images |
+| Git checkout of this branch | All demo data is committed: 840 flight tests, 4 NASA metadata records, 27 NTRS reports, BASS-II video and SPICE images |
 | Python 3.12+, Node 22 | API/worker, web |
 | PostgreSQL 16 with pgvector, Redis 7, S3-compatible storage | path B only (path A runs them in containers) |
 | ~3 GB disk, 8 GB RAM; +4 GB RAM for the 3B local model | CPU-only is fine |
@@ -43,7 +43,7 @@ docker compose up -d --build
 docker compose --profile local-llm-setup run --rm ollama-pull
 ```
 
-The API container runs migrations, seed, ingest (840 flight tests, 28 documents, OCR included) and the vector-index build on start. The first start takes a few minutes. Watch it with:
+The API container runs migrations, seed, ingest (840 flight tests, 31 documents, OCR included) and the vector-index build on start. The first start takes a few minutes. Watch it with:
 
 ```bash
 docker compose logs -f api
@@ -89,7 +89,7 @@ uvicorn flame_api.main:app --host 127.0.0.1 --port 8000 &
 (python -m flame_api.worker recover; rq worker --url "$FLAME_REDIS_URL" flame-analysis) &
 ```
 
-Expected ingest summary: `"experiments": 840, "pdf_documents": 24, "pdf_chunks": 280, "text_documents": 4, "quarantined": 0, "graph_entities": 951, "graph_relations": 10683`. The vector index embeds 315 chunks.
+Expected ingest summary (2026-11-13, Tesseract installed): `"experiments": 840, "pdf_documents": 27, "pdf_pages": 486, "pdf_chunks": 480, "text_documents": 4, "quarantined": 0, "graph_entities": 951, "graph_relations": 10683`. The vector index embeds 515 chunks.
 
 Fetch the search reranker before the demo. Search reranks its top 10 results by default, and otherwise the first search downloads the model on stage (about 5–7 s). Add `--cache-dir "$FLAME_EMBEDDING_CACHE_DIR"` if you set that variable:
 
@@ -128,17 +128,23 @@ Expected: three `completed` lines within about a minute.
 Pre-flight check (needs Playwright + Chromium; `npx playwright install chromium` once):
 
 ```bash
-node apps/web/scripts/demo-smoke.mjs http://127.0.0.1:3000
+cd apps/web && npm run smoke -- http://127.0.0.1:3000
 ```
 
-Expected: `PASS` on 8 steps and `Demo journey passed.`
+Add a directory as a second argument to save a screenshot per step. Expected: `PASS` on 11 steps and `Demo journey passed.`
+- Steps 02b and 02c are the Apollo 1 refusal and its Orion alternative.
+- Step 08 is the Knowledge Graph page.
+- CI runs the same journey on every PR (job `demo-smoke`). With no S3/MinIO running, the steps still pass, but `/api/health` answers 503 (`object_storage_health=down`) and image artifacts cannot load, so the script exits non-zero.
 
-## 5. Demo sequence (~6 minutes)
+## 5. Demo sequence (~7 minutes; the 3-minute pitch uses only 1 and 2a–2c, see `docs/presentations/PITCH_SCRIPT_3MIN.md`)
 
 | # | Screen | Do | Say / point at |
 |---|---|---|---|
 | 1 | `/` Fire Safety Dashboard | Open it. | The question in the headline. Moon and Mars cabins run lower pressure and higher O₂ than the ISS (NASA/TM-2008-215260). 840 real flight tests from 4 NASA PSI tables. |
-| 2 | Scenario picker | Click **ISS cabin**, then **Lunar lander (34 % O₂, 62.7 kPa)**. | The ranking re-orders. BASS-II drops from #2 to #3, at relevance 3/100: no solid-material test went above 22.2 % O₂. Open "How is this scored?": a transparent formula, not a black box. |
+| 2a | Scenario picker → step 2 card | Click **ISS cabin**. | **The system solves:** "162 of the 840 flight tests lie near this atmosphere", the closest test cited, and the envelope map with ISS inside the green box. |
+| 2b | **Apollo 1: pure-O₂ ground test (1967)** (red, dashed) | Click it. | **The system knows when not to answer:** "None of the 840 flight tests cover this atmosphere." 2.9× the highest O₂ ever flown, at 1 g against microgravity; nearest real test FLEX 196F003; red zone on the sweep; no estimate. Read the lesson quote (Review Board, p. 189), then scroll the cited timeline. |
+| 2c | "Where flight data does exist" | Click **Show the flight data for Orion crew vehicle**. | Orion's 30 % O₂ is inside the flight envelope: 8 real tests and an estimate. "Covered by data does not mean safe." |
+| 2d | Scenario picker | Click **Lunar lander (34 % O₂, 62.7 kPa)**. | The ranking re-orders. BASS-II drops from #2 to #3, at relevance 3/100: no solid-material test went above 22.2 % O₂. Open "How is this scored?": a transparent formula, not a black box. |
 | 3 | "What the flight data says here" | Read the first card. | **94 % of 48 droplet flames below 0.16 O₂ self-extinguished, against 8 % of 24 at ≥ 0.30.** Click a test ID → the exact NASA table cell. |
 | 4 | Coverage-gap cards | Point at the amber cards. | The system says what it cannot tell you: solids at 34 % O₂, partial gravity, tables without outcomes. |
 | 5 | FLEX row → investigation page | Click FLEX. | NASA's own objective, hypothesis and approach, verbatim, each with a source link. 51 publications. |
@@ -146,7 +152,7 @@ Expected: `PASS` on 8 steps and `Demo journey passed.`
 | 7 | "Explain with cited sources" on any insight | Click it, then press send. | With a model: a grounded answer whose citations must be in the retrieved set. Without one: the retrieved NTRS passages, labelled "nothing below was generated". |
 | 8 | `/analysis` | Scroll to **Video flame analysis**. | The BASS-II flight video: flame area over time, measured in pixels. Flicker is "not estimable" below the Nyquist rate. No temperature from RGB. |
 | 9 | `/status` | — | Every dependency's health, the AI mode and the local-only providers. |
-| 10 (optional) | Knowledge graph, API only | `curl -H "Authorization: Bearer <read key>" "http://127.0.0.1:8000/api/graph/entities?type=phenomenon"`, then open `extinction` with `?depth=2&predicate=observed&predicate=uses_fuel` | Two hops from "extinction" reach the 186 FLEX tests that ended that way and their two fuels; every edge carries the NASA cell it was read from. The web Knowledge page is not wired to this yet, so show it from the API (or as AURA's two graph tools). |
+| 10 (optional) | `/knowledge` Knowledge Graph | **Outcomes** → **Extinction**, then **Hops 2** and links **ended in** + **burned**; open any evidence chip. | Two hops from "extinction" reach the 186 FLEX tests that ended that way and their two fuels, heptane and methanol. Every link opens the NASA table cell it was read from. |
 
 ## 6. Troubleshooting
 
@@ -160,6 +166,9 @@ Expected: `PASS` on 8 steps and `Demo journey passed.`
 | An admin call (`/api/admin/*`) gets 403 with a client key | The key has `write` but not `admin` scope (ADR-009) | `python -m flame_api.clients create NAME --scopes admin --owner PERSON`, or use the deprecated write token |
 | Chat shows evidence only | No language model configured (`/api/health` → `llm: disabled`) | Expected fallback; configure Ollama for generated answers |
 | Explorer: "No estimate" | Conditions outside the flight-tested domain | By design; use a preset inside it (ISS air, Pre-EVA) |
+| No Apollo 1 preset in the picker | The API predates contract 0.7.0, or runs from an old image | `/api/health` must report `api_version` 0.7.0; redeploy from this branch |
+| Apollo 1 timeline links open NTRS instead of the evidence page | The three new reports are not ingested yet | Re-run `python -m flame_api.ingest`; links fall back to NTRS by design |
+| Knowledge Graph page error "reading 'toLowerCase'" | Web build older than 2026-11-13 meets NLP graph types (platform, instrument) | Rebuild the web app from this branch |
 | Video panel empty | Demo analyses not submitted, or the worker is not running | Run `submit_demo_analyses.py`; check the worker log |
 | Pages blank after a rebuild | An old `next-server` process is still serving | Kill every `next-server` process and start again |
 
@@ -168,8 +177,10 @@ Expected: `PASS` on 8 steps and `Demo journey passed.`
 ## Known limitations
 - Path A (Compose) has not been run end to end in this environment (no Docker daemon). The image layout was checked by reproducing its `COPY` lines and serving the app from them.
 - The Railway deployment has not been redeployed with this branch; it needs someone with Railway access.
-- The browser smoke test (8 steps) was last run on 2026-11-07, before reranking was on by default. The search API and its ranking were verified on 2026-11-12, but not the full browser journey.
+- The browser smoke test (11 steps) passed end to end on 2026-11-13 against PostgreSQL 16 + pgvector, Redis, `moto_server` as S3, the reranker and the ingested 27-report corpus. The CI job `demo-smoke` is new and runs on the PR.
 
 ## Changelog
 - 1.0.0 (2026-11-07): first runbook for the final demo.
+- 1.2.0 (2026-11-12): the Knowledge Graph page replaces the API-only step; smoke test has 9 steps.
+- 1.3.0 (2026-11-13): the Apollo 1 scenario (demo rows 2a–2c, smoke steps 02b–02c, `npm run smoke`, CI job), 27 reports and new ingest numbers, three troubleshooting rows.
 - 1.1.0 (2026-11-12): reranker model preparation, graph counts in the ingest summary, optional knowledge-graph step, two troubleshooting rows (reranker, admin scope).

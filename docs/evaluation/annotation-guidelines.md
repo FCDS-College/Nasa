@@ -1,6 +1,6 @@
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Ziad | In review | 0.1.0 | 2026-10-12 | C2, M10 | `docs/evaluation/annotation-guidelines.md` |
+| Ziad | In review | 0.3.2 | 2026-11-13 | C2, M10, D1, E2 | `docs/evaluation/annotation-guidelines.md`, `datasets/evaluation/nlp_gold_v1.schema.json`, `ai/rag/nlp/evaluation.py`, `datasets/evaluation/passage_gold_v1.schema.json`, `ai/rag/evaluation/passage_gold.py`, `ai/rag/evaluation/propose_candidates.py` |
 
 # E5-3: Annotation and Human-Review Guidelines
 
@@ -36,3 +36,64 @@ Co-owned with `docs/cv/annotation-protocol.md`:
 * **Flame Core vs. Plume Separation**: Reviewers verify that segmentation masks strictly delineate the inner reaction zone from diffuse outer soot radiation.
 * **Polygon Precision**: Minimum 12-vertex boundary requirement for non-spherical turbulent microgravity flame regimes.
 * **Acceptance Gate**: Inter-annotator mask IoU must exceed 0.85 before ground truth freezing.
+
+---
+
+## 4. NLP span annotation (D1)
+
+Gold set for the scientific NLP extractors of `docs/ai/nlp-pipeline.md`. Format: `datasets/evaluation/nlp_gold_v1.schema.json`; file: `datasets/evaluation/nlp_gold_v1.jsonl`; scorer: `ai/rag/nlp/evaluation.py` (`score`, strict and relaxed).
+
+1. **What is annotated.** One *chunk* is one page of a committed NTRS PDF in `docs/research/`, as the pipeline indexes it: PyMuPDF `get_text("text")`, then normalised (`ai/rag/ingestion/normalize.py`: ligatures folded, hyphen splits rejoined, repeated headers and page numbers removed, stacked words joined). Print exactly that text with `python -m ai.rag.evaluation.propose_candidates --show docs/research/<file>.pdf --page <n>` (add `--verbatim` for the text as extracted). Do not use `pypdf`: it is not what production reads. `char_start`/`char_end` are offsets into the printed string, and `chunk_text[char_start:char_end]` must equal the annotation's `text` (the schema test checks this).
+2. **Labels.** The 14 entity types of `nlp-pipeline.md` §2 (`experiment`, `investigation`, `publication`, `dataset`, `phenomenon`, `fuel`, `oxidizer`, `environmental_condition`, `measurement`, `instrument`, `physical_quantity`, `material`, plus `research_finding` and `hypothesis` for claim chunks). One span, one label; the *longest* span that is still the entity (`3.2 cm/s`, not `3.2`). Spans of different types may overlap (`PMMA` is both `material` and `fuel`).
+3. **What is not an experiment.** NASA-STD-6001 test methods (`Test 1`), shuttle missions (`STS-94`), aircraft (`KC-135`) and conference or report numbers are not experiments. An experiment is a named run of a study (a FLEX test, a sample).
+4. **Size and splits (proposal, owner: Ziad).** 60 chunks, at least 2 per document, split dev 50% / validation 25% / holdout 25%. The holdout split is not opened by extractor authors and is scored once.
+5. **Agreement.** 20% of chunks are annotated twice, independently. Token-level Cohen's κ must reach 0.65 (the §2 threshold) before ground truth freezes; discrepancies are adjudicated with the Lead (Anas).
+6. **Provenance.** Every case records its `annotator`. Spans proposed by an extractor are not gold: do not pre-fill annotations from the pipeline's output.
+
+---
+
+## 5. Passage-level question gold set (retrieval and answers)
+
+Why: `retrieval_gold_v1` is 26 AI-authored, document-level questions with no unanswerable case, and `rag_gold` cites documents that are not in the corpus.
+A difference of a few points on 26 questions is noise (`python -m ai.rag.evaluation.stats` shows the reranker's gain is within it). This set is what a
+retrieval or answer claim can be checked against. Format: `datasets/evaluation/passage_gold_v1.schema.json`; file: `passage_gold_v1.jsonl`; rules and
+scoring: `ai/rag/evaluation/passage_gold.py` (`validate`, `retrieval_report`). The file is empty until annotators fill it.
+
+1. **A case** is a question, whether it is answerable, and (if so) the evidence: document, page, and the character span of the passage on that page, with its
+   text. The span is an offset into the page's **verbatim** text (PyMuPDF `get_text("text")`, stripped: the evidence excerpt a citation points at; `--show ... --verbatim`), not into the
+   rendered page and not into the normalised index text; `validate(..., page_texts=...)` checks that the text equals the page text at that span.
+2. **Write the question from the passage, then hide the passage.** Paraphrase: a question that quotes the passage rewards lexical matching and says nothing about
+   semantic retrieval. Types: `value_lookup`, `condition` ("what happened at 0.1 atm?"), `comparison`, `definition`, `procedure`, `other`.
+3. **Unanswerable questions are written by a person**, at least 25% of the set, and each has a kind: `out_of_domain` (chocolate cake) or `in_domain_not_in_corpus`
+   (a combustion question the committed reports do not answer). The second kind matters most: the dense similarity gate cannot catch it (on the committed PDFs the
+   best irrelevant page scores a median 0.756 against 0.794 for the best relevant one). Do not generate it from a passage.
+4. **Split by document, never by question.** No document appears in two splits; `validate` reports every document that does. The holdout is scored once.
+5. **Two people.** An author writes a case as `draft`; a different person checks the evidence and the question and adds themselves to `verified_by`, which makes it
+   `verified`. Only verified cases are scored, and `retrieval_report` refuses to report with fewer than 20 verified answerable cases. Token-level or label agreement is
+   measured on a double-annotated 20% (κ ≥ 0.65, as in §2).
+6. **A worklist exists, a gold set does not.** `python -m ai.rag.evaluation.propose_candidates --out worklist.jsonl --per-document 5` proposes sentences that contain a
+   measurement, with exact offsets (checked on the committed PDFs: all 102 proposals reproduce the stored page text). Proposals are not cases. The tool needs PyMuPDF.
+7. **Report intervals, not points.** Every number from this set carries a 95% bootstrap interval, and a claimed improvement carries a paired one
+   (`ai.rag.evaluation.stats.compare_reports`). If it contains 0, the difference is not shown.
+8. **AI-drafted starting point (2026-11-13).** `datasets/evaluation/passage_gold_v1_drafts.jsonl` holds 35 **draft** cases written by an AI (`author: "claude (AI draft)"`, `status: draft`, no verifier): 24 answerable cases citing 16 of the committed PDFs and 11 unanswerable ones (8 `in_domain_not_in_corpus`, 3 `out_of_domain`), split by document (answerable cases: dev 11, validation 9, holdout 4). It is **not** the gold set: `passage_gold_v1.jsonl` stays empty, nothing is scored, and no number may be reported from the drafts. Every span reproduces the page's verbatim text (`tests/unit/test_passage_gold_drafts.py`); the questions are paraphrases (the test rejects any five-word run copied from the passage). How it was built, and what to distrust:
+   - Answerable passages come from the worklist (§6). I kept only passages whose answer is not repeated verbatim in another document. `python -m ai.rag.evaluation.verification_sheet` then listed, for each draft, other pages that contain a figure of the cited passage; that found five drafts whose answer is stated on a second page too (PG-002, 005, 007, 016, 023), which now cite both pages (a retrieval hit on either counts). 18 of the 24 share a figure with another page, mostly coincidentally (21 %, 3 mm); the verifier decides.
+   - The 8 in-domain unanswerable questions are about topics a keyword search of the 240 indexable pages found **absent** (hydrazine, aerogel, lunar regolith, fire blanket, lithium, titanium, kerosene, Artemis/Gateway). A first list of eleven had four topics that turned out to be in the corpus (hydrogen, Skylab, ethylene, halon), which is why the check exists. Absence of a keyword is weaker than absence of an answer, and §5.3 asks that a *person* write these: treat them as proposals to accept or rewrite. They also name things the reports never mention, so a lexical retriever finds them easy; they test the abstention path, not the dense gate's hardest case.
+   - To verify: `python -m ai.rag.evaluation.verification_sheet --out datasets/evaluation/passage_gold_v1_verification.csv` (the generated sheet is committed), fill `answers_question`, `unique`, `question_clear` and `notes`, then adopt what you accept: `python -m ai.rag.evaluation.adopt_drafts --verifier "Your Name" --accept PG-001 PG-002 ...`. It refuses an AI-looking name, the author, an unknown ID, and any selection that would break `validate` (accept answerable and unanswerable cases together so at least 25 % are unanswerable); nothing is written on a refusal. `retrieval_report` needs 20 verified **answerable** cases, so accept at least 20 of the 24 answerable ones.
+
+---
+
+## Known limitations
+
+- `nlp_gold_v1.jsonl` is empty at version 0.2.0: no chunk has been annotated yet, so no extractor has a measured precision or recall. Items 4 and 5 are proposals until Ziad confirms them.
+- `passage_gold_v1.jsonl` is empty at version 0.3.2 (35 AI drafts exist next to it, unverified): no question has been written or verified, so no retrieval or answer number can be reported from it. §5 sizes and thresholds are proposals until Ziad confirms them; the 20-case floor is a minimum for reporting, not a claim that 20 is enough.
+- Sections 1-3 are unchanged from 0.1.0 and keep their own open points.
+
+## Changelog
+
+| Version | Date | Change |
+|---|---|---|
+| 0.3.2 | 2026-11-13 | §5.8: AI-drafted starting point (35 unverified drafts), verification sheet, adoption command. |
+| 0.3.1 | 2026-11-13 | §4 annotators work from the indexed (normalised) text, §5 spans refer to the verbatim text; `pypdf` is no longer recommended; `--show` prints either. |
+| 0.3.0 | 2026-11-13 | Added §5 (passage-level question gold set: protocol, schema, validator, worklist, intervals). |
+| 0.2.0 | 2026-11-13 | Added §4 (NLP span annotation, D1), known limitations and this changelog. |
+| 0.1.0 | 2026-10-12 | First draft: human rubric, blinded review protocol, mask-review protocol. |

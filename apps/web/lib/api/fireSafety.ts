@@ -1,4 +1,4 @@
-// Fire-safety dashboard client (contract 0.5.0, tag "Fire safety"). Every call goes through the
+// Fire-safety dashboard client (contract 0.7.0, tag "Fire safety"). Every call goes through the
 // same-origin read-only proxy (app/api/[...path]); nothing here needs a write token.
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
 
@@ -11,9 +11,57 @@ export interface Scenario {
   o2_fraction: number;
   pressure_kpa: number;
   ppo2_kpa: number;
-  basis: "quoted" | "derived" | "user";
+  basis: "quoted" | "derived" | "user" | "historical";
   note: string;
   citation: string | null;
+  gravity: Gravity;
+  kind: "mission" | "historical" | "custom";
+}
+
+export type Gravity = "microgravity" | "lunar" | "martian" | "earth";
+
+// Scenario-level verdict (contract 0.7.0, ADR-013): does any flight test speak to this atmosphere?
+export interface Coverage {
+  verdict: "covered" | "partial" | "none";
+  headline: string;
+  tests_total: number;
+  neighbourhood_tests: number;
+  neighbourhood_by_investigation: Record<string, number>;
+  gravity: { scenario: Gravity; flight_tests: string[]; covered: boolean };
+  tested_range: { o2_fraction: ConditionRange | null; pressure_kpa: ConditionRange | null };
+  nearest_test: {
+    investigation_id: string;
+    experiment_id: string;
+    test_id: string;
+    o2_fraction: number;
+    pressure_kpa: number | null;
+    end_state: string | null;
+    evidence: string[];
+  } | null;
+  gap: { o2_delta: number; o2_ratio: number | null; pressure_ratio: number | null } | null;
+  reasons: string[];
+  method: string;
+}
+
+export interface CitedSource {
+  source_id: string;
+  page: number;
+  quote: string | null;
+  title: string | null;
+  short_name: string | null;
+  access_url: string | null;
+  evidence_id: string | null;
+}
+
+export interface ScenarioHistory {
+  scenario: Scenario;
+  year: number;
+  story: string;
+  lesson: string;
+  lesson_sources: CitedSource[];
+  timeline: { date: string; title: string; text: string; sources: CitedSource[] }[];
+  alternative: { scenario: Scenario; headline: string; rationale: string; sources: CitedSource[] };
+  claim_class: "cited_history";
 }
 
 export interface ConditionRange { min: number; max: number; n: number }
@@ -105,6 +153,7 @@ export interface InvestigationList {
   scenario: Scenario;
   scenarios: Scenario[];
   ranking_method: string;
+  coverage: Coverage;
   items: InvestigationSummary[];
   not_acquired: { investigation_id: string; acronym: string; title: string; note: string }[];
   totals: { investigations: number; with_data: number; flight_tests: number };
@@ -156,9 +205,18 @@ export class ApiError extends Error {
   }
 }
 
-async function get<T>(path: string, query: Record<string, string | number | undefined> = {}): Promise<T> {
+// Shared by every client that goes through the read-only proxy. An array value repeats the parameter
+// (`predicate=a&predicate=b`), as the contract's `explode: true` list parameters expect.
+export async function get<T>(
+  path: string,
+  query: Record<string, string | number | readonly string[] | undefined> = {},
+): Promise<T> {
   const params = new URLSearchParams();
-  for (const [k, v] of Object.entries(query)) if (v !== undefined && v !== "") params.set(k, String(v));
+  for (const [k, v] of Object.entries(query)) {
+    if (v === undefined || v === "") continue;
+    if (Array.isArray(v)) v.forEach((item) => params.append(k, item));
+    else params.set(k, String(v));
+  }
   const qs = params.toString();
   const res = await fetch(`${API_BASE}/api/${path}${qs ? `?${qs}` : ""}`, { cache: "no-store" });
   if (!res.ok) {
@@ -198,6 +256,9 @@ export interface FlexInput {
   he_fraction: number;
   droplet_diameter_mm: number;
 }
+
+export const fetchScenarioHistory = (scenarioId: string) =>
+  get<ScenarioHistory>(`scenarios/${encodeURIComponent(scenarioId)}/history`);
 
 export const fetchFlexOutcome = (input: FlexInput) =>
   get<FlexOutcome>("insights/flex-outcome", input as unknown as Record<string, string | number>);

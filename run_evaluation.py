@@ -50,6 +50,7 @@ def run_evaluation_suite(dataset_path: Path, output_path: Path, model_mode: str 
     recalls = []
     mrrs = []
     citation_f1s = []
+    n_unanswerable = 0
 
     for idx, case in enumerate(cases, 1):
         q = case["query"]
@@ -63,9 +64,15 @@ def run_evaluation_suite(dataset_path: Path, output_path: Path, model_mode: str 
         mrr = compute_mrr(rag_output["retrieved_doc_ids"], expected_ids)
         cit_res = compute_citation_metrics(rag_output["citations"], expected_ids)
 
-        recalls.append(r_k)
-        mrrs.append(mrr)
-        citation_f1s.append(cit_res["f1"])
+        # Retrieval recall/MRR are undefined (None) for cases that expect no evidence; they are not averaged.
+        # Citation F1 is likewise averaged over answerable cases only: crediting "cited nothing" on an
+        # unanswerable case is an abstention signal, not citation quality.
+        if r_k is None:
+            n_unanswerable += 1
+        else:
+            recalls.append(r_k)
+            mrrs.append(mrr)
+            citation_f1s.append(cit_res["f1"])
 
         # تشغيل الفحص الأمني عبر البايبلاين
         eval_res = pipeline.process_and_validate(
@@ -81,29 +88,42 @@ def run_evaluation_suite(dataset_path: Path, output_path: Path, model_mode: str 
             "query": q,
             "split": case.get("split"),
             "difficulty": case.get("difficulty"),
-            "retrieval_recall@5": round(r_k, 3),
-            "mrr": round(mrr, 3),
+            "retrieval_recall@5": None if r_k is None else round(r_k, 3),
+            "mrr": None if mrr is None else round(mrr, 3),
             "citation_f1": round(cit_res["f1"], 3),
             "safety_status": eval_res["final_status"]
         })
 
     # إحصائيات عامة
-    avg_recall = sum(recalls) / len(recalls) if recalls else 0.0
-    avg_mrr = sum(mrrs) / len(mrrs) if mrrs else 0.0
-    avg_cit_f1 = sum(citation_f1s) / len(citation_f1s) if citation_f1s else 0.0
+    avg_recall = sum(recalls) / len(recalls) if recalls else None
+    avg_mrr = sum(mrrs) / len(mrrs) if mrrs else None
+    avg_cit_f1 = sum(citation_f1s) / len(citation_f1s) if citation_f1s else None
 
     provenance = pipeline.provenance.get_provenance()
 
+    mock = model_mode.lower() == "mock"
     final_report = {
+        "evaluated_system": {
+            "kind": model_mode.lower(),
+            "note": ("Hard-coded outputs of tests/eval/mock_rag.py: this scores the evaluation harness, not Flame."
+                     if mock else "Live system."),
+        },
+        "caveats": [
+            "Abstention correctness on unanswerable cases is not computed.",
+            "Evidence IDs in rag_gold.jsonl (e.g. DOC-001-P15) are not documents of the indexed corpus.",
+            "Means are over answerable cases only; there are no confidence intervals.",
+        ],
         "provenance": provenance,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "total_evaluated": len(cases),
         "pass_count": sum(1 for r in results if r["safety_status"] == "APPROVED"),
         "fail_count": sum(1 for r in results if r["safety_status"] == "BLOCKED"),
         "metrics_summary": {
-            "mean_recall@5": round(avg_recall, 4),
-            "mean_mrr": round(avg_mrr, 4),
-            "mean_citation_f1": round(avg_cit_f1, 4)
+            "n_answerable": len(recalls),
+            "n_unanswerable": n_unanswerable,
+            "mean_recall@5": None if avg_recall is None else round(avg_recall, 4),
+            "mean_mrr": None if avg_mrr is None else round(avg_mrr, 4),
+            "mean_citation_f1": None if avg_cit_f1 is None else round(avg_cit_f1, 4)
         },
         "thresholds": {
             "recall@5_target": 0.80,
@@ -119,9 +139,13 @@ def run_evaluation_suite(dataset_path: Path, output_path: Path, model_mode: str 
     print("\n" + "=" * 60)
     print("📈 ملخص تقرير التقييم الإحصائي (Scorecard Summary):")
     print("=" * 60)
-    print(f"🎯 Mean Recall@5:        {avg_recall:.2%}")
-    print(f"🎯 Mean MRR:             {avg_mrr:.2%}")
-    print(f"🎯 Mean Citation F1:     {avg_cit_f1:.2%}")
+    def pct(value):
+        return "n/a (no answerable case)" if value is None else f"{value:.2%}"
+
+    print(f"⚠️  Evaluated system: {final_report['evaluated_system']['kind'].upper()}. {final_report['evaluated_system']['note']}")
+    print(f"🎯 Mean Recall@5:        {pct(avg_recall)}  (over {len(recalls)} answerable cases)")
+    print(f"🎯 Mean MRR:             {pct(avg_mrr)}")
+    print(f"🎯 Mean Citation F1:     {pct(avg_cit_f1)}")
     print(f"🔒 الحالات المجتازة أمنياً: {final_report['pass_count']} / {len(cases)}")
     print(f"💾 تم حفظ التقرير في:   {output_path.name}")
     print("=" * 60)

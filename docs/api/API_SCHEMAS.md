@@ -37,6 +37,7 @@ Reading the tables: *Required = yes* means the key is always present. A nullable
 | GET | `/api/graph/entities` | 200 [`GraphEntityListResponse`](#graphentitylistresponse) | 400, 401, 403, 429, 500, 503 |
 | GET | `/api/graph/entities/{entity_id}` | 200 [`GraphEntityResponse`](#graphentityresponse) | 400, 401, 403, 404, 429, 500, 503 |
 | GET | `/api/admin/graph/consistency` | 200 [`GraphConsistencyResponse`](#graphconsistencyresponse) | 400, 401, 403, 429, 500, 503 |
+| GET | `/api/scenarios/{scenario_id}/history` | 200 [`ScenarioHistoryResponse`](#scenariohistoryresponse) | 400, 401, 403, 404, 429, 500, 503 |
 
 ## 2. Object schemas
 
@@ -224,6 +225,7 @@ All counts are exact `COUNT(*)` reads at `meta.generated_at`. On failure the end
 | `not_acquired` | [`NotAcquiredInvestigation`](#notacquiredinvestigation)[] | yes |  |
 | `totals` | object | yes |  |
 | `meta` | [`ResponseMeta`](#responsemeta) | yes |  |
+| `coverage` | [`Coverage`](#coverage) | yes |  |
 
 ### InvestigationResponse
 
@@ -283,6 +285,22 @@ FLEX outcome model estimate (claim class `estimated`). `probabilities` is null o
 | `ok` | boolean | yes |  |
 | `extractor_version` | string | yes |  |
 | `checks` | object | yes |  |
+| `meta` | [`ResponseMeta`](#responsemeta) | yes |  |
+
+### ScenarioHistoryResponse
+
+A historical scenario (contract 0.7.0): its cited story, timeline and the data-covered alternative to show after the refusal. Every statement carries NTRS pages.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `scenario` | [`Scenario`](#scenario) | yes |  |
+| `year` | integer | yes |  |
+| `story` | string | yes |  |
+| `lesson` | string | yes |  |
+| `lesson_sources` | [`CitedSource`](#citedsource)[] | yes |  |
+| `timeline` | object[] | yes |  |
+| `alternative` | object | yes |  |
+| `claim_class` | `"cited_history"` | yes |  |
 | `meta` | [`ResponseMeta`](#responsemeta) | yes |  |
 
 ### VersionInfo
@@ -627,7 +645,7 @@ One append-only audit_event row (B6).
 
 ### Scenario
 
-A cabin atmosphere. Quoted or derived values cite NASA/TM-2008-215260 p. 5; `user` is a custom query.
+A cabin atmosphere. Quoted or derived values cite NASA/TM-2008-215260 p. 5; `historical` scenarios (contract 0.7.0, ADR-013) are past atmospheres with a cited story at `GET /api/scenarios/{scenario_id}/history`; `user` is a custom query. `gravity` is the gravity the atmosphere exists in: every flight test in this corpus is microgravity, so any other value is outside the flight data.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
@@ -636,9 +654,11 @@ A cabin atmosphere. Quoted or derived values cite NASA/TM-2008-215260 p. 5; `use
 | `o2_fraction` | number | yes |  |
 | `pressure_kpa` | number | yes |  |
 | `ppo2_kpa` | number | yes |  |
-| `basis` | `"quoted"` \| `"derived"` \| `"user"` | yes |  |
+| `basis` | `"quoted"` \| `"derived"` \| `"user"` \| `"historical"` | yes |  |
 | `note` | string | yes |  |
 | `citation` | string \| `null` | yes |  |
+| `gravity` | `"microgravity"` \| `"lunar"` \| `"martian"` \| `"earth"` | yes |  |
+| `kind` | `"mission"` \| `"historical"` \| `"custom"` | yes |  |
 
 ### InvestigationSummary
 
@@ -672,6 +692,24 @@ A cabin atmosphere. Quoted or derived values cite NASA/TM-2008-215260 p. 5; `use
 | `acronym` | string | yes |  |
 | `title` | string | yes |  |
 | `note` | string | yes |  |
+
+### Coverage
+
+Scenario-level verdict (contract 0.7.0, ADR-013): does any flight test speak to this atmosphere? The relevance score of each investigation can stay above zero for an atmosphere nobody flew, so the dashboard shows this verdict, the nearest real test and the gap before the ranking. `none` when the scenario's gravity was never flown or no test lies within ±0.03 O2 (and ±25% pressure when recorded); `partial` when 1–4 such tests exist or the atmosphere is outside the flown O2 or pressure range; otherwise `covered` (5 or more).
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `verdict` | `"covered"` \| `"partial"` \| `"none"` | yes |  |
+| `headline` | string | yes |  |
+| `tests_total` | integer | yes |  |
+| `neighbourhood_tests` | integer | yes |  |
+| `neighbourhood_by_investigation` | object | yes |  |
+| `gravity` | object | yes |  |
+| `tested_range` | object | yes |  |
+| `nearest_test` | object \| `null` | yes |  |
+| `gap` | object \| `null` | yes |  |
+| `reasons` | string[] | yes |  |
+| `method` | string | yes |  |
 
 ### Insight
 
@@ -741,6 +779,20 @@ A cabin atmosphere. Quoted or derived values cite NASA/TM-2008-215260 p. 5; `use
 | `count` | integer (minimum=0) | yes |  |
 | `blocking` | boolean | yes | A blocking check with a non-zero count makes `ok` false; a non-blocking one lists candidates for human review. |
 | `examples` | object[] (maxItems=20) | yes |  |
+
+### CitedSource
+
+An NTRS report page. `evidence_id` is the ingested page (null until the report is ingested).
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `source_id` | string | yes |  |
+| `page` | integer (minimum=1) | yes |  |
+| `quote` | string \| `null` | yes |  |
+| `title` | string \| `null` | yes |  |
+| `short_name` | string \| `null` | yes |  |
+| `access_url` | string \| `null` | yes |  |
+| `evidence_id` | string \| `null` | yes |  |
 
 ### ServiceHealth
 
@@ -1335,7 +1387,7 @@ multipart/form-data body for POST /api/analyses.
 | Enum | Values | Meaning |
 |---|---|---|
 | <a id="overallstatus"></a>`OverallStatus` | `healthy`, `degraded`, `unhealthy` | healthy: every service up. degraded: a required service degraded or an optional one down/degraded. unhealthy: a required service down. |
-| <a id="chatwarning"></a>`ChatWarning` | `no_matching_evidence`, `citations_not_in_retrieved_evidence_removed`, `answer_cites_no_evidence`, `generation_unavailable`, `model_fallback_used` |  |
+| <a id="chatwarning"></a>`ChatWarning` | `no_matching_evidence`, `citations_not_in_retrieved_evidence_removed`, `answer_cites_no_evidence`, `generation_unavailable`, `model_fallback_used`, `answer_values_not_in_cited_evidence`, `answer_withheld_unsupported_values` |  |
 | <a id="executionmode"></a>`ExecutionMode` | `cloud_preferred`, `local_first`, `offline_only` | Hybrid AI execution mode (Sub-phase 2H). offline_only never contacts an external provider. |
 | <a id="aimodesource"></a>`AiModeSource` | `env`, `audit_override` | Where the effective `mode` comes from: `env` is FLAME_AI_EXECUTION_MODE; `audit_override` is the newest `ai.mode.changed` audit event (PUT /api/admin/ai/mode), which wins over env in every process until the next PUT. There is no clear operation yet. |
 | <a id="reviewstatus"></a>`ReviewStatus` | `raw`, `machine_extracted`, `human_verified`, `rejected` | Review state (data dictionary: review_status). The UI must visibly distinguish human_verified and must not render rejected evidence as support. |
@@ -1356,9 +1408,9 @@ multipart/form-data body for POST /api/analyses.
 | <a id="calibrationstate"></a>`CalibrationState` | `absent`, `spatial_scale_provided` | absent: measurements are pixels only. spatial_scale_provided: caller supplied px-per-mm, enabling ESTIMATED physical lengths/areas. No radiometric calibration state exists in v0.1, so temperature is never produced. |
 | <a id="filestatus"></a>`FileStatus` | `active`, `quarantined` | file_record.status (M9). A quarantined file is kept for review but never parsed or indexed. |
 | <a id="insightkind"></a>`InsightKind` | `measured_statistic`, `model_estimate`, `coverage_gap` | measured_statistic: computed from flight-test rows. model_estimate: from the FLEX outcome model (claim class estimated). coverage_gap: what the data does not cover. |
-| <a id="graphentitytype"></a>`GraphEntityType` | `investigation`, `experiment`, `fuel`, `condition_variable`, `phenomenon`, `document` | E2-6 entity types. `fuel` covers fuels and solid materials, as written in the source tables. |
+| <a id="graphentitytype"></a>`GraphEntityType` | `investigation`, `experiment`, `fuel`, `condition_variable`, `phenomenon`, `document`, `platform`, `instrument` | E2-6 entity types. `fuel` covers fuels and solid materials, as written in the source tables. `platform` and `instrument` come only from NLP extraction (`extraction_method` `nlp_extraction`, always unreviewed until a person reviews them). |
 | <a id="graphreviewstatus"></a>`GraphReviewStatus` | `unreviewed`, `human_verified`, `rejected` |  |
-| <a id="graphpredicate"></a>`GraphPredicate` | `part_of`, `uses_fuel`, `has_condition`, `observed`, `describes` |  |
+| <a id="graphpredicate"></a>`GraphPredicate` | `part_of`, `uses_fuel`, `has_condition`, `observed`, `describes`, `ran_on`, `measured_with` |  |
 | <a id="servicestatus"></a>`ServiceStatus` | `up`, `degraded`, `down`, `disabled`, `unknown` | disabled: intentionally not configured in this deployment (e.g. AURA in the MVP). unknown: the probe has not run or timed out. |
 | <a id="repository"></a>`Repository` | `NASA PSI`, `NASA NTRS`, `NASA Science`, `NASA Open Data`, `NASA GRC FCF`, `Other` | Canonical repository family. Identical to `repository` in datasets/registry/source_registry.schema.json. |
 | <a id="locatortype"></a>`LocatorType` | `page`, `section`, `table_row`, `frame`, `file` | What kind of position `Locator` points at (data dictionary: location_type). |

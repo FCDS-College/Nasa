@@ -30,6 +30,9 @@ class ProviderError(Exception):
     ``request_sent`` is False when the failure happened before the request reached the provider
     (connection refused, DNS failure, egress blocked). Only then is a non-idempotent call safe to
     send somewhere else.
+
+    ``upstream_code`` is the provider's own error slug when its body carried one (AURA's
+    ``error``, e.g. ``capability_unavailable``): for logs and operators only, never for routing.
     """
 
     def __init__(
@@ -40,6 +43,7 @@ class ProviderError(Exception):
         provider: str | None = None,
         status_code: int | None = None,
         request_sent: bool = True,
+        upstream_code: str | None = None,
     ) -> None:
         super().__init__(message)
         self.code = ProviderErrorCode(code)
@@ -47,6 +51,7 @@ class ProviderError(Exception):
         self.provider = provider
         self.status_code = status_code
         self.request_sent = request_sent
+        self.upstream_code = upstream_code
 
     @property
     def fallback_eligible(self) -> bool:

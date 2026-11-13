@@ -1,0 +1,94 @@
+{
+  "scenario_id": "apollo1_pad_1967",
+  "name": "Apollo 1: pure-O₂ ground test (1967)",
+  "year": 1967,
+  "o2_fraction": 1.0,
+  "pressure_kpa": 115.14,
+  "gravity": "earth",
+  "note": "Plugs-out test on the launch pad, 27 January 1967: 100% oxygen at 16.7 psia (115.1 kPa), at 1 g. Historical atmosphere; no crewed vehicle uses it today.",
+  "citation": "Report of Apollo 204 Review Board, NASA-TM-108667 (FF-NTRS-19930078717), p. 189",
+  "story": "During a ground test the Apollo 204 command module was filled with 100% oxygen at 16.7 psia. An electrical arc was the most probable ignition source. The fire spread through combustible materials, pressure rose until the cabin ruptured, and the inner hatch could not be opened against the internal pressure. Command Pilot Virgil I. Grissom, Senior Pilot Edward H. White II and Pilot Roger B. Chaffee died.",
+  "lesson": "None of our flight tests comes near this atmosphere, so the system does not guess. In 1967 the cabin materials were exposed to a 100% oxygen atmosphere in which they had never been tested; the Review Board called the test conditions extremely hazardous.",
+  "lesson_sources": [
+    {"source_id": "FF-NTRS-20070021223", "page": 2,
+     "quote": "the state-of-the-art materials were exposed to 16.2 psia 100% oxygen environment in which they had never been tested"},
+    {"source_id": "FF-NTRS-19930078717", "page": 189,
+     "quote": "The test was conducted with a 16.7 pounds per square inch absolute, 100 percent oxygen atmosphere. DETERMINATION: The test conditions were extremely hazardous."}
+  ],
+  "timeline": [
+    {
+      "date": "1961–1966",
+      "title": "Pure-oxygen cabins",
+      "text": "Mercury, Gemini and Apollo were all designed for a 100% oxygen environment; in flight the cabin ran at about 34.5 kPa (5 psia).",
+      "sources": [
+        {"source_id": "FF-NTRS-20070021223", "page": 2},
+        {"source_id": "FF-NTRS-20070010766", "page": 8}
+      ]
+    },
+    {
+      "date": "27 Jan 1967",
+      "title": "The plugs-out test",
+      "text": "On the pad the cabin held 100% oxygen at 16.7 psia, above sea-level pressure. The Board found many combustible materials next to possible ignition sources; the most probable initiator was an electrical arc.",
+      "sources": [{"source_id": "FF-NTRS-19930078717", "page": 189}]
+    },
+    {
+      "date": "27 Jan 1967",
+      "title": "Seconds to rupture",
+      "text": "Cabin pressure began rising about 6 seconds after the crew reported the fire; the cabin ruptured at a pressure of at least 29 psia. Because of the internal pressure the inner hatch could not be opened before rupture.",
+      "sources": [
+        {"source_id": "FF-NTRS-19930078717", "page": 147},
+        {"source_id": "FF-NTRS-19930078717", "page": 189}
+      ]
+    },
+    {
+      "date": "1967",
+      "title": "Review Board findings",
+      "text": "Fire spread along Velcro and nylon netting faster than through the materials themselves. A pure-oxygen atmosphere presents severe fire hazards unless combustibles are restricted; the Board asked for full-scale mock-up fire tests, studies of a diluent gas and a faster egress.",
+      "sources": [
+        {"source_id": "FF-NTRS-19930078717", "page": 111},
+        {"source_id": "FF-NTRS-19930078717", "page": 189},
+        {"source_id": "FF-NTRS-19930078717", "page": 190}
+      ]
+    },
+    {
+      "date": "1967–1968",
+      "title": "What changed",
+      "text": "Beta glass fabric replaced flammable fabrics on the suit outer layer and the command-module liner. Oxygen concentration was limited on the launch pad (orbit stayed at 100% O₂, about 6.2 psia), and a complete command-module mock-up was fire-tested with flight materials.",
+      "sources": [
+        {"source_id": "FF-NTRS-20170008542", "page": 1},
+        {"source_id": "FF-NTRS-20170008542", "page": 2},
+        {"source_id": "FF-NTRS-20070021223", "page": 2}
+      ]
+    },
+    {
+      "date": "Lesson",
+      "title": "Ignition will always exist",
+      "text": "Two lessons: no matter how well ignition sources are controlled, one will always exist; and material flammability must be tested at the worst-case conditions the material will see. Fire prevention moved to material control and fire-resistant materials.",
+      "sources": [
+        {"source_id": "FF-NTRS-20070021223", "page": 2},
+        {"source_id": "FF-NTRS-20080034883", "page": 5}
+      ]
+    },
+    {
+      "date": "1973 → today",
+      "title": "From pure oxygen to air",
+      "text": "Cabin atmospheres moved from Apollo's 100% oxygen through Skylab's 65% oxygen at 37 kPa to sea-level air on Shuttle and ISS. (This source gives the Apollo flight pressure as 24 kPa; Ruff et al. 2006 give 34.5 kPa.)",
+      "sources": [{"source_id": "FF-NTRS-20000034017", "page": 9}]
+    },
+    {
+      "date": "Next",
+      "title": "Exploration atmospheres",
+      "text": "Orion and the lunar lander are designed for up to 30% and 34% oxygen at reduced pressure. NASA proposes testing materials at 40% oxygen and 10.2 psia to add margin for a 30% cabin.",
+      "sources": [
+        {"source_id": "FF-NTRS-20080034883", "page": 5},
+        {"source_id": "FF-NTRS-20070021223", "page": 4}
+      ]
+    }
+  ],
+  "alternative": {
+    "scenario_id": "orion_max_o2",
+    "headline": "Where flight data does exist: NASA's exploration atmosphere",
+    "rationale": "Orion's design limit, 30% O₂ on the normoxic curve (about 10.3 psia), sits inside the FLEX flight envelope, so the system can show measured flight tests and an estimate there. Covered by data does not mean safe: 30% oxygen is more flammable than air.",
+    "sources": [{"source_id": "FF-NTRS-20080034883", "page": 5}]
+  }
+}

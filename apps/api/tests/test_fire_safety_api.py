@@ -182,3 +182,84 @@ def test_a_test_without_valid_pressure_is_never_a_pressure_neighbour():
 def test_an_unrecorded_diluent_is_missing_not_zero():
     features, flags = flex.features_from_values({"o2": 0.21, "pressure_mmhg": 760, "d0_mm": 3.0, "co2": None, "he": 0.0}, "Heptane")
     assert features is None and "diluent_not_recorded" in flags
+
+
+# ------------------------------------------------------------------ Apollo 1 historical scenario (contract 0.7.0, ADR-013)
+
+def test_apollo1_pure_oxygen_atmosphere_is_covered_by_no_flight_test(client, ingested):
+    body = client.get("/api/investigations", params={"scenario": "apollo1_pad_1967"}).json()
+    assert_contract_component(body, "InvestigationListResponse")
+    assert body["scenario"]["gravity"] == "earth" and body["scenario"]["kind"] == "historical"
+    coverage = body["coverage"]
+    assert coverage["verdict"] == "none"
+    assert coverage["headline"] == "None of the 1950 flight tests cover this atmosphere."
+    assert coverage["neighbourhood_tests"] == 0 and coverage["gravity"]["covered"] is False
+    # The closest real test is the richest oxygen flown: an ACME CFI-G normal flame near 40% O2 at 1 atm,
+    # and it is cited to its O2 and pressure cells.
+    nearest = coverage["nearest_test"]
+    assert nearest["investigation_id"] == "FF-PSI-159" and nearest["o2_fraction"] == pytest.approx(0.3997)
+    assert len(nearest["evidence"]) == 2
+    for evidence_id in nearest["evidence"]:
+        assert client.get(f"/api/evidence/{evidence_id}").status_code == 200
+    assert coverage["gap"]["o2_ratio"] == pytest.approx(1 / 0.3997, rel=1e-3)
+    assert any("2.5× the highest O₂ flown" in r for r in coverage["reasons"])
+    # The relevance ranking is unchanged (ADR-011); the verdict is what says "no coverage".
+    # With the ACME tables counted, CFI-G (flown up to ~40% O2) ranks first for this atmosphere, ahead of FLEX.
+    assert [i["acronym"] for i in body["items"] if i["rank"]][0] == "ACME CFI-G"
+
+
+def test_apollo1_gets_no_model_estimate_and_gravity_is_a_refusal_reason(client, ingested):
+    items = {i["insight_id"]: i for i in client.get("/api/insights", params={"scenario": "apollo1_pad_1967"}).json()["items"]}
+    estimate = items["flex_model_scenario_estimate"]
+    assert estimate["kind"] == "coverage_gap"
+    assert all(n["probabilities"] is None and not n["in_domain"] for n in estimate["numbers"].values())
+    assert "1 g (Earth)" in estimate["statement"] and "O₂ mole fraction 1 is outside" in estimate["statement"]
+    # ISS air at 1 g is inside every range, yet still refused: no flight test was flown in Earth gravity.
+    earth_air = {i["insight_id"]: i for i in client.get(
+        "/api/insights", params={"o2_fraction": 0.21, "pressure_kpa": 101.3, "gravity": "earth"}).json()["items"]}
+    assert earth_air["flex_model_scenario_estimate"]["kind"] == "coverage_gap"
+    assert client.get("/api/insights", params={"scenario": "iss_nominal", "gravity": "earth"}).status_code == 400
+
+
+def test_the_data_covered_alternative_to_apollo1_is_orion_and_it_gets_an_estimate(client, ingested):
+    history = client.get("/api/scenarios/apollo1_pad_1967/history").json()
+    assert_contract_component(history, "ScenarioHistoryResponse")
+    alternative = history["alternative"]["scenario"]["scenario_id"]
+    assert alternative == "orion_max_o2" and "not mean safe" in history["alternative"]["rationale"]
+    body = client.get("/api/investigations", params={"scenario": alternative}).json()
+    assert body["coverage"]["verdict"] == "covered" and body["coverage"]["neighbourhood_tests"] >= 5
+    estimate = {i["insight_id"]: i for i in client.get("/api/insights", params={"scenario": alternative}).json()["items"]}
+    assert estimate["flex_model_scenario_estimate"]["kind"] == "model_estimate"
+
+
+def test_apollo1_history_is_page_cited_and_only_historical_scenarios_have_one(client, ingested):
+    history = client.get("/api/scenarios/apollo1_pad_1967/history").json()
+    assert history["year"] == 1967 and history["claim_class"] == "cited_history"
+    assert len(history["timeline"]) >= 6
+    for event in history["timeline"]:
+        assert event["sources"] and all(s["source_id"].startswith("FF-NTRS-") and s["page"] >= 1 for s in event["sources"])
+        assert all(s["access_url"] and s["access_url"].startswith("https://ntrs.nasa.gov/citations/") for s in event["sources"])
+    board = [s for s in history["lesson_sources"] if s["source_id"] == "FF-NTRS-19930078717"][0]
+    assert board["page"] == 189 and "extremely hazardous" in board["quote"]
+    missing = client.get("/api/scenarios/iss_nominal/history")
+    assert missing.status_code == 404 and missing.json()["error"]["code"] == "SCENARIO_HISTORY_NOT_FOUND"
+    assert client.get("/api/scenarios/Not-An-Id/history").status_code == 400
+
+
+def test_the_oxygen_sweep_reaches_a_requested_atmosphere_outside_the_flight_data(client, ingested):
+    sweep = client.get("/api/insights/flex-outcome", params={"o2_fraction": 1.0, "pressure_kpa": 115.14}).json()["o2_sweep"]
+    assert sweep[-1]["o2_fraction"] == pytest.approx(1.0)
+    beyond = [p for p in sweep if p["o2_fraction"] > 0.34 + 1e-9]
+    assert len(beyond) == 6 and all(not p["in_domain"] and p["probabilities"] is None for p in beyond)
+    # Inside the flight data the sweep is unchanged: the same 12 points as before.
+    default = client.get("/api/insights/flex-outcome").json()["o2_sweep"]
+    assert len(default) == 12 and default[0]["o2_fraction"] == pytest.approx(0.12) and default[-1]["o2_fraction"] == pytest.approx(0.34)
+
+
+def test_mission_scenarios_keep_their_verdicts(client, ingested):
+    verdicts = {sid: client.get("/api/investigations", params={"scenario": sid}).json()["coverage"]["verdict"]
+                for sid in ("iss_nominal", "pre_eva", "orion_max_o2", "lunar_lander_max_o2")}
+    # The lunar lander (34% O2, 62.7 kPa) is covered since the ACME CFI-G flames, flown down to ~43 kPa, are counted:
+    # 11 CFI-G and 9 FLEX tests lie within +/-0.03 O2 and +/-25% pressure of it.
+    assert verdicts == {"iss_nominal": "covered", "pre_eva": "covered", "orion_max_o2": "covered",
+                        "lunar_lander_max_o2": "covered"}

@@ -47,7 +47,7 @@ flowchart TD
     M --> S["Score Computation (metrics.py)"]
     S --> P["MasterSafetyPipeline (Guardrails)"]
     P --> REP["evaluation_report.json (§18 Provenance Block)"]
-    P --> LOG["audit_log.json"]
+    P -.-> LOG["audit_log.json (not wired: neither runner imports audit_logger)"]
 ```
 
 ---
@@ -73,6 +73,8 @@ Every execution produces an uneditable run metadata block:
 ---
 
 ## 5. Detecting Regressions Between Runs
+
+**Planned, not implemented:** `run_evaluation.py` does not compare runs and never exits non-zero on a regression. The rule below is the intended policy.
 
 To verify candidate models against the release baseline:
 1. Candidate run must match or exceed baseline metrics ($\Delta \text{Recall@5} \ge -0.02$, $\Delta \text{MRR} \ge -0.02$).

@@ -1,0 +1,11 @@
+{
+  "flame speed": [],
+  "flame spread rate": ["spread rate"],
+  "burning rate": [],
+  "ignition delay": [],
+  "oxygen concentration": ["O2 concentration", "percent oxygen"],
+  "pressure": [],
+  "ambient pressure": [],
+  "temperature": [],
+  "flow velocity": ["flow speed", "opposed-flow velocity"]
+}

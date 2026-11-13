@@ -23,7 +23,7 @@ def test_empty_search_is_a_successful_lexical_search(client):
         "index_version": None,
         "searched_but_empty": True,
         "stack_version": "flame-search-2.0.0",
-        "query_rewrite": {"rewritten": body["query"], "changed": False, "rules_applied": [], "rewriter_version": "1.0.0",
+        "query_rewrite": {"rewritten": body["query"], "changed": False, "rules_applied": [], "rewriter_version": "1.0.1",
                           "used_for": ["semantic"]},
         "reranking": {"status": "disabled", "model": None, "depth": None},
     }

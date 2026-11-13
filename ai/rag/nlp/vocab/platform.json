@@ -1,0 +1,7 @@
+{
+  "International Space Station": [{"text": "ISS", "case_sensitive": true}],
+  "drop tower": ["drop-tower"],
+  "parabolic flight": ["parabolic aircraft"],
+  "sounding rocket": [],
+  "Space Shuttle": []
+}

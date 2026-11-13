@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Anas (E2) | Current: built from the PSI tables (peer sign-off: Eman E1) | 0.6.1 | 2026-11-12 | D2, D3, D6, ADR-007 | `apps/api/flame_api/knowledge_graph.py`, `graph.py`; tables `knowledge_entity`, `knowledge_relation` (migration `0004`) |
+| Anas (E2) | Current: built from the PSI tables (peer sign-off: Eman E1) | 0.6.2 | 2026-11-12 | D2, D3, D6, ADR-007 | `apps/api/flame_api/knowledge_graph.py`, `graph.py`; tables `knowledge_entity`, `knowledge_relation` (migration `0004`) |
 
 Storage decision: [ADR-007](../architecture/adr/ADR-007-graph-storage.md) (Accepted). Relational tables in PostgreSQL first.
 
@@ -31,12 +31,21 @@ From the committed tables and metadata (`python -m flame_api.knowledge_graph bui
 
 A rebuild of that data takes about 0.6 s and changes nothing. Ingesting the tables into an empty SQLite database and building gives the same counts (`apps/api/tests/test_knowledge_graph.py`).
 
-**Not extracted, because the tables do not record it:** `platform` (`ran_on`), `instrument` (`measured_with`), and `describes` links from the NTRS reports. Those need NLP extraction (D1), which is not built.
+**From NLP records (D1, `flame_api/nlp_graph.py`, `nlp-cooccurrence-1.0.0`).** `platform` (`ran_on`), `instrument` (`measured_with`) and `describes` links from the NTRS reports are not in the tables. They come from the stored NLP records (`nlp_record`, migration `0010`), always `unreviewed`, `extraction_method = "nlp_extraction"`, confidence the lower of the two records', evidence the page both were read from:
+
+| Edge | When | `properties.basis` |
+|---|---|---|
+| investigation `ran_on` platform | one investigation and a platform are named on the same page | `co_occurrence_in_chunk` |
+| investigation `measured_with` instrument | one investigation and an instrument are named on the same page | `co_occurrence_in_chunk` |
+| document `describes` investigation | a document that is not dataset documentation names exactly one investigation on its first page | `named_in_document` |
+
+These are associations, not findings: "FLEX" and "International Space Station" on one page does not say the experiment flew there. A page that names two investigations is ambiguous and yields no edge; an investigation the tables do not know is skipped, never created. A table rebuild never touches these edges and an NLP rebuild never touches table edges (`knowledge_graph._Builder.write_edges(method=…)`). Run `python -m flame_api.nlp_extract run` then `python -m flame_api.nlp_graph build`; `python -m flame_api.ingest` does both after the graph build and a failure is counted (`nlp_extract_failed`), never fatal.
 
 **Reading it.**
 - `GET /api/graph/entities?type=&q=` (read scope): live entities, with relation counts.
 - `GET /api/graph/entities/{id}?depth=1..3&predicate=…&max_edges=` (read scope): the entity and its neighbourhood, found with one `WITH RECURSIVE` CTE over both edge directions. It follows `merged_into`, skips rejected edges, returns nearest first, and reports `truncated` and `reachable_by_type`. Example: from `extinction`, two hops over `observed` and `uses_fuel` reach the 186 FLEX tests that ended in extinction and their two fuels, heptane and methanol (24 ms on PostgreSQL).
 - Both are AURA tools at contract 0.6.0 (`api_list_graph_entities`, `api_get_graph_entity`).
+- The web app's **Knowledge Graph** page (`/knowledge`) browses them: filter by type, search names and aliases, open an entity, walk 1–2 hops by link type, and open the evidence cell behind every link.
 
 **Checking and merging.**
 - `python -m flame_api.knowledge_graph check`, or `GET /api/admin/graph/consistency` (admin scope), runs §5. Today all five checks find nothing. The check first found 4 duplicate candidates, which are real spelling variants in the source tables. The Lead approved resolving them on 2026-11-12 (`CURATED_ALIASES` below).
@@ -83,8 +92,8 @@ A rebuild of that data takes about 0.6 s and changes nothing. Ingesting the tabl
 | Field | Meaning |
 |---|---|
 | `evidence_id` | the evidence row that supports the edge. Required for anything other than `manual` |
-| `extraction_method` | `table_parse` (from experiment conditions and ISA-Tab records; the only one in use), `nlp_extraction` (D1, not built), `manual` |
-| `extractor_version` | `psi-tables-graph-1.0.0` today, or the D1 pipeline version |
+| `extraction_method` | `table_parse` (from experiment conditions and ISA-Tab records; the only one in use), `nlp_extraction` (D1: `flame_api/nlp_graph.py`, unreviewed associations), `manual` |
+| `extractor_version` | `psi-tables-graph-1.0.0` for table edges, `nlp-cooccurrence-1.0.0` for NLP edges |
 | `confidence` | 0–1. `1.0` for deterministic table parses; the model probability for NLP; `null` for manual |
 | `review_status` | `unreviewed`, `human_verified`, `rejected`. Rejected edges are kept and excluded from retrieval. |
 | `knowledge_version` | the version at extraction time |
@@ -108,9 +117,10 @@ A rebuild of that data takes about 0.6 s and changes nothing. Ingesting the tabl
 `ok` is false when a blocking check (orphans, dead evidence, conflicts) finds anything; `check` then exits 1. Checks run on demand, not on a schedule.
 
 ## Known limitations
-Only what the tables record is extracted: no NLP extraction (D1), so no platforms, instruments or links from NTRS reports. Condition variables are the tables' own column names (`ambient_pressure_mmhg`, `percent_o2`), not unified physical quantities, so "pressure" in FLEX and SPICE are different entities. Fuels keep the tables' spellings unless a reviewed alias says otherwise; new variants are flagged, never merged automatically. Graph RAG (using the graph in chat retrieval, `docs/ai/graph-rag.md`) is not built. The consistency checks are not scheduled.
+Table edges are only what the tables record. NLP edges (platforms, instruments, report links) are co-occurrence on one page and stay unreviewed until a person confirms them. Condition variables are the tables' own column names (`ambient_pressure_mmhg`, `percent_o2`), not unified physical quantities, so "pressure" in FLEX and SPICE are different entities. Fuels keep the tables' spellings unless a reviewed alias says otherwise; new variants are flagged, never merged automatically. Graph RAG (using the graph in chat retrieval, `docs/ai/graph-rag.md`) is not built. The consistency checks are not scheduled.
 
 ## Changelog
+- 0.6.2 (2026-11-12): the web Knowledge Graph page reads the graph API.
 - 0.6.1 (2026-11-12): the four spelling variants resolved by reviewed aliases (Lead's approval); 55 fuels, 951 entities.
 - 0.6.0 (2026-11-12): built (ADR-007): extractor, recursive-CTE traversal, consistency checks, audited merge, read API; §0 records what is extracted and the counts.
 - 0.5.0 (2026-10-12): schema and rules; tables created by `0004`.

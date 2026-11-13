@@ -5,11 +5,12 @@ import { useEffect, useState } from "react";
 import { ArrowRight, Database, Flame, FlaskConical, Layers, Rocket, ShieldAlert } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import {
-  Empty, ErrorNote, InsightCard, Loading, RelevanceBar, ScenarioNote, ScenarioPicker, SectionTitle,
+  Empty, ErrorNote, InsightCard, Loading, RelevanceBar, ScenarioNote, ScenarioPicker, SectionTitle, SweepChart,
 } from "@/components/fire/FireUi";
+import { CoverageVerdict, EnvelopeMap, HistoryPanels } from "@/components/fire/Coverage";
 import {
-  fetchCounts, fetchFlexOutcome, fetchInsights, fetchInvestigations, fmtRange,
-  type Insight, type InvestigationList, type ScenarioQuery,
+  fetchCounts, fetchFlexOutcome, fetchInsights, fetchInvestigations, fetchScenarioHistory, fmtRange,
+  type FlexOutcome, type Insight, type InvestigationList, type ScenarioHistory, type ScenarioQuery,
 } from "@/lib/api/fireSafety";
 
 function readQuery(): ScenarioQuery {
@@ -56,6 +57,33 @@ export default function FireSafetyDashboard() {
       .then((r) => setModelScore({ f1: r.model.primary_estimate.macro_f1.mean, base: r.model.primary_estimate.majority_baseline_macro_f1.mean }))
       .catch(() => setModelScore(null));
   }, []);
+
+  // Historical scenarios (Apollo 1) carry a cited story and a data-covered alternative; the sweep shows how far
+  // the chosen O2 lies from the flight data. Both are per scenario and fail soft: the verdict above stands alone.
+  const scenario = list?.scenario ?? null;
+  const historicalId = scenario?.kind === "historical" ? scenario.scenario_id : null;
+  const [history, setHistory] = useState<ScenarioHistory | null>(null);
+  useEffect(() => {
+    if (!historicalId) return;
+    let live = true;
+    fetchScenarioHistory(historicalId).then((h) => { if (live) setHistory(h); }).catch(() => { if (live) setHistory(null); });
+    return () => { live = false; };
+  }, [historicalId]);
+  const shownHistory = history && history.scenario.scenario_id === historicalId ? history : null;
+  const [sweep, setSweep] = useState<{ key: string; outcome: FlexOutcome } | null>(null);
+  const sweepKey = scenario ? `${scenario.o2_fraction}:${scenario.pressure_kpa}` : "";
+  useEffect(() => {
+    if (!scenario) return;
+    let live = true;
+    fetchFlexOutcome({ fuel: "Heptane", o2_fraction: scenario.o2_fraction, pressure_kpa: scenario.pressure_kpa, co2_fraction: 0,
+                       he_fraction: 0, droplet_diameter_mm: 3 })
+      .then((r) => { if (live) setSweep({ key: sweepKey, outcome: r }); })
+      .catch(() => { if (live) setSweep(null); });
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refetch only when the atmosphere itself changes
+  }, [sweepKey]);
+  const shownSweep = sweep?.key === sweepKey ? sweep.outcome : null;
+  const alternative = shownHistory ? list?.scenarios.find((s) => s.scenario_id === shownHistory.alternative.scenario.scenario_id) ?? null : null;
 
   const ranked = list?.items.filter((i) => i.rank) ?? [];
   const unranked = list?.items.filter((i) => !i.rank) ?? [];
@@ -111,8 +139,31 @@ export default function FireSafetyDashboard() {
         </div>
       )}
 
+      {list && scenario && (
+        <Card>
+          <SectionTitle title="2 · Does any flight test cover this atmosphere?"
+            subtitle="Asked before any ranking or estimate. Where nothing was flown, the system says so and does not guess." />
+          <div className="flex flex-col gap-5" style={{ opacity: loading ? 0.6 : 1 }}>
+            <CoverageVerdict coverage={list.coverage} scenario={scenario} />
+            <div className="grid gap-5 lg:grid-cols-2">
+              <div>
+                <h3 className="mb-2 text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Where the flight data is</h3>
+                <EnvelopeMap coverage={list.coverage} scenario={scenario} scenarios={list.scenarios} alternative={alternative} />
+              </div>
+              <div>
+                <h3 className="mb-2 text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                  Heptane droplet outcomes as O₂ varies, at {scenario.pressure_kpa.toFixed(1)} kPa
+                </h3>
+                {shownSweep ? <SweepChart points={shownSweep.o2_sweep} marker={scenario.o2_fraction} /> : <Loading label="Loading the oxygen sweep…" />}
+              </div>
+            </div>
+            {shownHistory && <HistoryPanels history={shownHistory} onShowAlternative={(id) => setQuery({ scenario: id })} />}
+          </div>
+        </Card>
+      )}
+
       <Card>
-        <SectionTitle title="2 · Ranked investigations"
+        <SectionTitle title="3 · Ranked investigations"
           subtitle="Evidence relevance to this atmosphere (not a risk score). Hover the bar for each weighted component."
           right={<details className="text-xs" style={{ color: "var(--text-muted)" }}><summary className="cursor-pointer">How is this scored?</summary>
             <p className="mt-2 max-w-md leading-relaxed">{list?.ranking_method}</p></details>} />
@@ -147,7 +198,7 @@ export default function FireSafetyDashboard() {
       </Card>
 
       <Card>
-        <SectionTitle title="3 · What the flight data says here"
+        <SectionTitle title="4 · What the flight data says here"
           subtitle="Measured = computed from flight-test rows · Model estimate = validated FLEX model · Coverage gap = not covered. Click a test ID to see its source row." />
         {loading && !insights ? <Loading label="Computing insights…" /> : !insights?.length ? <Empty message="No insights for this atmosphere." /> : (
           <div className="grid gap-3 lg:grid-cols-2">{insights.map((i) => <InsightCard key={i.insight_id} insight={i} />)}</div>
@@ -165,7 +216,7 @@ export default function FireSafetyDashboard() {
       </Card>
 
       <Card>
-        <SectionTitle title="4 · Compare investigations" subtitle="What each published table covers. “not recorded” means the table has no such column — never zero." />
+        <SectionTitle title="5 · Compare investigations" subtitle="What each published table covers. “not recorded” means the table has no such column — never zero." />
         {!list ? <Loading label="Loading…" /> : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] text-left text-xs">
@@ -195,7 +246,7 @@ export default function FireSafetyDashboard() {
 
       {list && (
         <Card>
-          <SectionTitle title="5 · Not covered yet" subtitle="Shown so nobody mistakes an absence of data for an absence of risk." />
+          <SectionTitle title="6 · Not covered yet" subtitle="Shown so nobody mistakes an absence of data for an absence of risk." />
           <ul className="flex flex-col gap-2 text-sm" style={{ color: "var(--text-secondary)" }}>
             {unranked.map((inv) => (
               <li key={inv.investigation_id} className="flex items-start gap-2">

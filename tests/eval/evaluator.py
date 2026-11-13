@@ -1,7 +1,6 @@
 import json
 import sys
 from pathlib import Path
-import pandas as pd
 
 # Ensure utf-8 encoding for console output on Windows
 if sys.stdout.encoding and sys.stdout.encoding.lower() != 'utf-8':
@@ -21,6 +20,8 @@ BASELINE_THRESHOLDS = {
 
 def load_test_cases(file_path=None):
     """قراءة ملف الحالات وتجهيزه في صيغة DataFrame مع التكيف مع أي بنية حقول."""
+    import pandas as pd   # only loading needs pandas; evaluate_model works on any frame-like object (CI does not install pandas)
+
     path = Path(file_path) if file_path else DEFAULT_FILE_PATH
     if not path.exists():
         print(f"❌ لم يتم العثور على الملف: {path}")
@@ -72,9 +73,12 @@ def evaluate_model(df):
         print(f"  - Status: {status}\n")
 
     if not found_metrics:
-        print("ℹ️ ملف البيانات هو ملف بيانات مرجعية (Gold Cases) ولا يحتوي على أعمدة تقييمات metrics سابقة.")
-        print("✅ البنية والمسارات متوافقة تماماً وجاهزة لتقييم مخرجات نماذج RAG عند اكتمال التدريب.")
-        all_passed = True
+        # A gold-case file has questions and expected evidence, not scores from a system. Nothing was measured, so
+        # reporting "passed" (as this used to) is a false claim.
+        print("⚠️ NOT EVALUATED: the data file has no `metrics.*` score columns (it holds gold cases, not system outputs).")
+        print("   لم يتم التقييم: الملف لا يحتوي على درجات نظام. لا يمكن اعتبار النتيجة نجاحاً.")
+        print("=" * 40)
+        return False
 
     print("=" * 40)
     if all_passed:

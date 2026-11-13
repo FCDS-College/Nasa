@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Lead (Anas), run by Claude Code | Current | 1.2.0 | 2026-11-12 | T7, ADR-006–009 | whole repository |
+| Lead (Anas), run by Claude Code | Current | 1.5.0 | 2026-11-13 | T7, ADR-006–009, ADR-013 | whole repository |
 
 Every result below was produced by a command run on 2026-11-07 on branch `anas/vibrant-sagan-fsnckf`. "Not run" means it was not run.
 
@@ -144,6 +144,36 @@ Not run: the browser smoke test against the reranked search, Docker Compose, Rai
 - the 27 hygiene tests;
 - actionlint 1.7.12.
 
+## 10. Knowledge Graph page (2026-11-12, PR #32)
+
+| Check | Command | Result |
+|---|---|---|
+| Web typecheck, lint, build | `npm run typecheck`, `npm run lint`, `npm run build` | clean; 0 warnings; `/knowledge` built |
+| Proxy | `GET /api/graph/entities?type=investigation` through the web app; `GET /api/admin/graph/consistency` through it; the API without a key | 4 investigations (BASS-II, FLEX, SAFFIRE-I, SPICE); 404 (not forwarded); 401 |
+| Browser journey, API with auth on, PostgreSQL graph, reranker on | `node apps/web/scripts/demo-smoke.mjs` (9 steps; new step 08 opens FLEX, then walks Extinction 2 hops over "ended in" and "burned") | **9/9 PASS**. Not clean: no S3 stand-in ran, so `/api/health` answered 503 seven times and one image overlay artifact once (`object_storage_health=down`); none involves `/knowledge` |
+| Phone (iPhone 13 emulation) | Playwright | 0 px horizontal overflow; after a tap the details scroll into view (top at 181 px, was 631 px before the fix) |
+| CI (PR #32) | — | all four jobs green on the merged head `8277c85` (Python lint and tests, web lint/typecheck/build, migrations with seed and ingest on PostgreSQL + pgvector, secret scan); merged to `main` as `3ce2d69`. The AURA Link 2 contract job did not run: it runs only when `apps/api/`, the contract or the dry run changes, and PR #32 changed none of them |
+
+## 11. AURA integration re-checked against AURA `main` (2026-11-12)
+
+AURA `main` was at `667c7c4`, 218 commits after the pinned `d696fad`. Between the two revisions these are byte-for-byte unchanged:
+- AURA's OpenAPI connector and adaptation pipeline;
+- service keys and caller context;
+- idempotency;
+- the `/api/v3/chat` request model, apart from one optional desktop field.
+
+| Check | Command | Result |
+|---|---|---|
+| Link 2 dry run, CI's own setup | Python 3.12 venv with only `PyYAML==6.0.3`; `AURA_BACKEND=<AURA 667c7c4>/aura_backend python tests/integration/aura_blueprint_dryrun.py` | **16 ACCEPTED**, 10 excluded, no `not reachable` lines, exit 0. The CI pin moved to `667c7c4` |
+| AURA's Flame-facing tests, AURA's locked environment | Python 3.11 venv from `requirements.lock` + `requirements-dev.lock` (hashes checked; no drift warning); 11 files: caller context, image turns, adaptation compiler/connectors/discovery, HTTP idempotency, service keys, structured output, data classification, kernel degradation, provider wire contracts | **389 passed** |
+| AURA's context guards on Flame's evidence | AURA's `default_context_guards()` from `d696fad` and from `667c7c4`, chained as AURA's pipeline does, over every `evidence.excerpt` in Flame's database (first 2000 characters, as Flame sends) | Both revisions: **10,562 passed, 0 dropped**. 67 PDF passages Unicode-normalised (`encoding` redact: NFKC), none quarantined |
+| Flame changes | `pytest apps/api/tests/test_aura_integration.py`, `test_health.py`; then the full suite | 6 new tests (AURA error slug kept and logged, a non-identifier slug not echoed, `local_healthy` with and without `require_local`, an older AURA without the field) and 1 health test; full suite **429 passed, 6 skipped**; `ruff` clean; contract docs current |
+| AURA's live targets | `GET /health/ready` on `aureon-ai.tech` and `aura-ai-production-03a4.up.railway.app`, 15:54 UTC | Both **404 "Application not found"** from Railway's edge. No live AURA to run either link against |
+
+What changed in AURA that matters to Flame:
+- **A new error.** AURA added 503 `capability_unavailable` (`retryable: false`) for a turn that no permitted model could answer. Flame already mapped it to `unavailable` and fell back. It now also keeps the slug in the error and logs it as `upstream=…`.
+- **A gap that was always there.** AURA classifies caller `context` as SENSITIVE, which was already true at `d696fad`. A hosted-only AURA therefore cannot answer Flame unless its operator raises a slot's data ceiling and Flame stops requiring local. Neither Flame's nor AURA's docs said so; [docs/integration/README.md](docs/integration/README.md) §5 now does.
+
 ## Unresolved
 
 - The garbled-text heuristic is tuned on this English corpus; a reference-list or non-English page could be mis-flagged in future documents (see §7).
@@ -151,10 +181,39 @@ Not run: the browser smoke test against the reranked search, Docker Compose, Rai
 - Docker Compose dry run and Railway redeploy: **not run** (no Docker daemon; no Railway access).
 - Generated-answer evaluation: **not run** (no language model in this environment).
 - Gold set and model labels: human review pending.
-- The web Knowledge page is not wired to the knowledge-graph API (it still says the graph is unavailable).
 - AURA's GitHub Actions were not assigning runners on 2026-11-12 (account-level); AURA-AI #232 merged on locally run checks.
+- No AURA deployment was reachable on 2026-11-12 (§11), so neither link was run live.
+
+## 12. Apollo 1 historical scenario, coverage verdict and gravity (2026-11-13, ADR-013, contract 0.7.0)
+
+Run on branch `ccr-93d3f1f0-bf65vh`: Python 3.13, PostgreSQL 16 + pgvector (apt), Redis 7, `moto_server` as S3, Tesseract installed, no Docker, no language model.
+
+| Check | Command | Result |
+|---|---|---|
+| Full test suite | `python -m pytest` | **661 passed, 31 skipped, 1 xfailed, 0 failed** |
+| Lint | `ruff check .` | All checks passed |
+| Web | `npm run lint && npm run typecheck && npm run build` | all exit 0 |
+| Contract docs fresh | `python docs/tools/render_api_schemas.py --check` | exit 0 (contract 0.7.0) |
+| Registry | `python knowledge/ingestion/validate_registry.py` | 35 sources checked, 0 problems |
+| Checksums | `python knowledge/ingestion/install_datasets.py --verify-only` | 35 ok, 0 mismatched |
+| New NTRS reports | `python knowledge/ingestion/fetch_ntrs.py --dry-run`, then without the flag | 3 accepted (8.4 MB), all public-use, registered |
+| Ingest on PostgreSQL | `python -m flame_api.ingest`, then `vector_index build` | 840 experiments, 27 PDF documents, 486 pages, 480 chunks, 48 OCR pages, 0 quarantined; 515 chunks embedded |
+| Browser journey | `npm run smoke -- http://127.0.0.1:3000 <dir>` | **11/11 PASS**, `Demo journey passed.` (02b Apollo 1 refusal, 02c Orion alternative) |
+| FLEX model unchanged | `python -m ai.fire_safety.train_flex_outcome --check` | `artefact current`, exit 0 |
+| AURA Link 2 dry run at 0.7.0 | `tests/integration/aura_blueprint_dryrun.py` | **not run here** (no AURA checkout); CI job `aura-link2-contract` runs it on the PR |
+
+New tests:
+- `tests/unit/test_historical_scenarios.py` (8): the schema; every cited page exists in a registered, committed report, and each quote appears verbatim on its page; loader rejection; custom gravity; the verdict (`none` with the nearest test and the gap, gravity alone, `partial`).
+- `apps/api/tests/test_fire_safety_api.py` (+6): Apollo 1 verdict `none` over all 840 tests with cited nearest-test cells; the model refuses it with O₂ and gravity reasons; Earth-gravity air is refused; Orion is the alternative and is covered and estimated; the history endpoint is page-cited and returns 404 for mission scenarios; the sweep reaches 100 % O₂ while the in-range grid is unchanged; mission verdicts.
+- `apps/api/tests/test_ingestion_adapters.py`: NTRS count 24 → 27, pages 284 → 486.
+
+Found and fixed during the browser run: the Knowledge Graph page threw `Cannot read properties of undefined (reading 'toLowerCase')`. PR #43's NLP graph returns `platform` and `instrument` entities (contract-listed since 0.6.0), and the web client's type list lacked them. The cause predates this branch, and none of the affected edges come from the new reports.
 
 ## Changelog
 - 1.0.0 (2026-11-07): first version.
 - 1.1.0 (2026-11-12): §8, verification of the ADR-006 to 009 builds.
 - 1.2.0 (2026-11-12): §8 CI results; §9, verification of PR #30 and AURA-AI #232.
+- 1.3.0 (2026-11-12): §10, the Knowledge Graph page.
+- 1.3.1 (2026-11-12): §10 CI results on PR #32's merged head.
+- 1.4.0 (2026-11-12): §11, the AURA integration re-checked against AURA `main` `667c7c4`.
+- 1.5.0 (2026-11-13): §12, the Apollo 1 scenario, coverage verdict and gravity (ADR-013, contract 0.7.0).
