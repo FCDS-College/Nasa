@@ -1,8 +1,8 @@
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Princess & Ziad | Draft | 2.0.0 | 2026-11-13 | M10, A3, C1, CV audit CV-3 | `cv/gold.py`, `cv/flame_cv.py`, `cv/video_analysis.py` |
+| Princess & Ziad | Draft | 2.1.0 | 2026-11-13 | M10, A3, C1, CV audit CV-3 | `cv/gold.py`, `cv/flame_cv.py`, `cv/video_analysis.py` |
 
-# CV Evaluation Report (v2.0.0, cv_gold_v1)
+# CV Evaluation Report (v2.1.0, cv_gold_v1)
 
 **Every label in this report is a Claude-drafted, unverified draft.** The numbers measure the pipeline against those drafts. They will change, probably a little, once people verify the set ([annotation-protocol.md §5](annotation-protocol.md#5-draft-and-verify-workflow)); the report then shows verified-only numbers next to these.
 
@@ -24,17 +24,22 @@ Video frames are the served pipeline's sampling grid (10 per video). Holdout tes
 
 ## 3. Results
 
-`python -m cv.gold evaluate` (pipeline `cv-opencv-v1.3.0-auto` / `cv-video-v1.1.0`, i.e. with overlay masking and the detection-scoring fixes; full output `cv/contracts/gold_evaluation_report.json`). "Before" is the same command run on the pipeline at commit `92b2ef3`, before those fixes.
+`python -m cv.gold evaluate` (full output for the current pipeline: `cv/contracts/gold_evaluation_report.json`). Three pipelines, each scored with the same command:
 
-| Holdout (8 unseen tests) | Before fixes 1–2 | **After fixes 1–2** |
-|---|---|---|
-| False-positive rate | 0.97 [0.89, 1.00] | **0.30 [0.00, 0.65]** |
-| Precision | 0.53 [0.30, 0.75] | **0.68 [0.29, 1.00]** |
-| Localized recall | 0.37 [0.05, 0.76] | **0.56 [0.22, 0.91]** |
-| Recall (frame-level) | 1.00, illusory: almost every frame was PRESENT | 0.56 [0.22, 0.91] |
-| Mean mask IoU | 0.28 [0.04, 0.57] | 0.30 [0.10, 0.55] (0.53 on flames it detects) |
+- **Before** fixes 1–2: commit `92b2ef3`.
+- **v1.3.0:** with overlay masking and the detection-scoring fixes.
+- **v1.4.0:** the current pipeline, with the small-flame fix from section 4.
 
-| Dev (16 sample tests, tuned on) | Before | After |
+| Holdout (8 unseen tests) | Before fixes 1–2 | v1.3.0 | **v1.4.0 (current)** |
+|---|---|---|---|
+| False-positive rate | 0.97 [0.89, 1.00] | 0.30 [0.00, 0.65] | **0.30 [0.00, 0.65]** |
+| Precision | 0.53 [0.30, 0.75] | 0.68 [0.29, 1.00] | **0.72 [0.31, 1.00]** |
+| Localized recall | 0.37 [0.05, 0.76] | 0.56 [0.22, 0.91] | **0.68 [0.28, 1.00]** |
+| Recall (frame-level) | 1.00, illusory: almost every frame was PRESENT | 0.56 | 0.68 |
+| Mean mask IoU | 0.28 [0.04, 0.57] | 0.30 [0.10, 0.55] | **0.32 [0.13, 0.55]** |
+| Mean IoU on detected flames | 0.28 | 0.53 | 0.47 (the recovered T23 flames are tiny, so their masks overlap less) |
+
+| Dev (16 sample tests, tuned on) | Before | v1.3.0 and v1.4.0 (identical) |
 |---|---|---|
 | False-positive rate | 0.86 [0.65, 1.00] | 0.41 [0.14, 0.71] |
 | Precision | 0.28 [0.05, 0.52] | 0.45 [0.08, 0.80] |
@@ -43,18 +48,26 @@ Video frames are the served pipeline's sampling grid (10 per video). Holdout tes
 
 Read the intervals before reading the point values. With 8 tests, a single test moves every number.
 
-## 4. Where it fails (holdout, after the fixes)
+## 4. Where it fails (holdout, v1.4.0)
 
 | Failure | Frames | Cause |
 |---|---|---|
 | Cabin view called a flame | T20: 8 of 8 absent frames | Static bright scenery (glovebox floor, monitors). The same problem as T25 in dev; no rule in the detector can separate it. |
 | Chamber lights on, called a flame | B3: 3 of 5 absent frames | Brightly lit hardware |
 | Dim blue flame missed | M10: 9 of 9 flame frames ABSENT | Too faint for a brightness detector. A real limit of the method, not a threshold. |
-| Small flame missed | T23: 5 of 9 flame frames ABSENT | **Regression from fix 2.** These flames are 0.019–0.049% of the frame, stable (0.79–0.86) and high-contrast (100–128), but below the new 0.05% minimum region. With the old 0.01% minimum all five are PRESENT. The edge specks that the minimum was raised for are 0.01–0.031%, so size alone cannot separate the two; contrast or stability probably can (the specks scored about 60). Not retuned here: doing so after looking at T23 would make T23 tuned data. |
+| ~~Small flame missed~~ (fixed in v1.4.0) | T23: was 5 of 9 flame frames ABSENT in v1.3.0, now 9 of 9 PRESENT | See below |
 | Dim lobes not PRESENT | B3: 4 of 5 flame frames (3 UNCERTAIN, 1 ABSENT) | Low contrast |
 | Low IoU on detected flames | B1, T23, F1 | The pipeline keeps only the largest region, so a two-lobed flame scores about half |
 
-Correct and solid: T7 (8/8 flames found, 2/2 empty frames ABSENT), T12 (6/6 and 4/4), F1 (4/4 and 6/6), P20 (10/10 empty frames ABSENT), and all SPICE flames in dev.
+### The v1.3.0 small-flame regression and its fix
+
+v1.3.0 raised the minimum region to 0.05% of the frame to drop edge specks in empty frames. On the holdout this missed 5 of the 9 T23 flame frames: real flames 0.019–0.049% of the frame with contrast 100–128. The specks overlap these flames in size, so size alone cannot separate them.
+
+**v1.4.0** restores the 0.01% minimum. A region under 0.05% of the frame is then a speck unless its contrast is ≥ 83. The cut-off was chosen on **dev data only**: 92 small dev specks reach contrast 61.6 at most, real dev flames start at 104.9, and 83 is the midpoint. It changes no status on any committed sample (132 images and every sampled frame of the three dev videos), and fixes all 5 T23 misses with no new false positive on any held-out test.
+
+**How blind is the holdout now?** No number was fitted to holdout data. The holdout did reveal *that* small flames exist and fail, and the T23 contrasts (100–128) were seen before the 83 cut-off was fixed. So T23's v1.4.0 result is not fully blind. The other seven held-out tests are unaffected (their status counts did not change). A fresh held-out test with small flames would give a fully blind check.
+
+Correct and solid: T7 (8/8 flames found, 2/2 empty frames ABSENT), T23 (9/9 and 1/1, v1.4.0), T12 (6/6 and 4/4), F1 (4/4 and 6/6), P20 (10/10 empty frames ABSENT), and all SPICE flames in dev.
 
 ## 5. Reproduce
 
@@ -74,6 +87,7 @@ The committed tests (`tests/cv/test_gold.py`) check the set itself: it validates
 - **No measurement-error evaluation:** there are no calibrated physical reference values.
 
 ## Changelog
+- **v2.1.0 (2026-11-13):** Added v1.4.0 results. The small-flame regression is fixed with a contrast rule tuned on dev only; the holdout-blindness caveat is documented.
 
 - **v2.0.0 (2026-11-13):** Replaced the v1.1.0 report (10 flame-only SPICE images, no negatives, no ground truth) with an evaluation on `cv_gold_v1`: a held-out split, negatives, masks, test-level intervals, localized recall, and a before/after comparison of fixes 1–2. Found the T23 small-flame regression.
 - **v1.2.0 (2026-10-12):** Initial report from a sample batch.

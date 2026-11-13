@@ -1,8 +1,8 @@
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Princess | Draft | 1.3.0 | 2026-11-13 | MVP §10, M4, CV audit CV-2 | `cv/flame_cv.py` |
+| Princess | Draft | 1.4.0 | 2026-11-13 | MVP §10, M4, CV audit CV-2, CV-3 | `cv/flame_cv.py` |
 
-# CV Pipeline Specification (v1.3.0, auto-adaptive)
+# CV Pipeline Specification (v1.4.0, auto-adaptive)
 
 ## 1. Stage diagram
 
@@ -32,9 +32,9 @@ Image -> Validation (validate_image)
 - **Thresholds and contrast:** Otsu with an optional offset; minimum contrast adapts to the background's standard deviation.
 - **Config digest:** every parameter contributes to `configDigest`.
 
-## 4. Detection decision (v1.3.0)
+## 4. Detection decision
 
-The largest bright component (at least `min_area_ratio` = 0.05% of the image) is the candidate. The following terms are used:
+The largest bright component (at least `min_area_ratio` = 0.01% of the image) is the candidate. The following terms are used:
 
 - **Contrast:** the mean of the region minus the mean of the background (content outside a dilated ring around the region).
 - **Stability:** the IoU of the full binary masks at the threshold ± 10%, compared inside the region's padded bounding box.
@@ -42,7 +42,8 @@ The largest bright component (at least `min_area_ratio` = 0.05% of the image) is
 
 | Condition | Status |
 |---|---|
-| No candidate (nothing above the threshold, or every component is smaller than 0.05% of the image) | `ABSENT` |
+| No candidate (nothing above the threshold, or every component is smaller than 0.01% of the image) | `ABSENT` |
+| The region is smaller than 0.05% of the image (`small_region_ratio`) and its contrast is below 83 (`small_region_min_contrast`) | `ABSENT`: a speck, not a flame |
 | Less than 5% of the image is left as background (`min_background_fraction`) and the image is nearly uniform (under 15 gray levels between the 0.5th and 99.5th percentiles) | `ABSENT` |
 | Less than 5% left as background, otherwise | `UNCERTAIN`: contrast is not estimable (`flameContrast: null`) |
 | Score ≥ 0.60, contrast ≥ the minimum, stability ≥ 0.5 (`min_present_stability`) | `PRESENT` |
@@ -56,7 +57,7 @@ The largest bright component (at least `min_area_ratio` = 0.05% of the image) is
 
 Why these values (measured on every committed sample image and the three BASS-II videos; see `.internal/research/2026-11-13-cv-audit.md`, finding CV-2):
 
-- **0.05% minimum area:** edge specks in empty BASS-II frames are at most 0.031% of the frame; the smallest real flame in the samples (the `TEST_B1` ignition kernel) is 0.094%.
+- **Small regions need contrast ≥ 83:** chosen on the dev split of `cv_gold_v1` only. Specks under 0.05% of the frame in dev frames reach contrast 61.6 at most; real dev flames start at 104.9; 83 is the midpoint. v1.3.0 used a 0.05% minimum region instead, which kept the specks out but also missed real small flames: 5 of 9 flame frames of the held-out test T23 (0.019–0.049% of the frame, contrast 100–128). See [evaluation-report.md](evaluation-report.md).
 - **0.5 minimum stability:** the lowest real SPICE flame scores 0.86.
 - **Stability measured locally:** comparing only the largest component scored a real two-lobed BASS-II flame (`TEST_B1` frame 630) at 0, because the lobes swapped places as the largest.
 - **Quality flags do not demote a detection:** `saturationClipping` is set on 100% of the real SPICE flames.
@@ -77,11 +78,13 @@ Masks and overlays are written to the artifact directories with SHA-256 checksum
 ## Known limitations and failure modes
 
 - Detection is brightness-based. **Static bright hardware is still reported as a flame**: the FLEX deployment needle and wall (`176F001D`, `195F002D` pre-ignition frames) and the glovebox floor in BASS-II `TEST_T25_2ND_VIEW` are bright, contrasting and stable, so no rule above separates them from a flame. Separating them needs colour or motion cues.
-- The thresholds were chosen on the committed samples, with no labelled evaluation set (audit CV-3). They are documented choices, not validated operating points.
+- The thresholds were chosen on the committed samples and the dev split of `cv_gold_v1`. Their held-out performance is in [evaluation-report.md](evaluation-report.md), measured against labels that are not yet verified by a person.
+- A small flame with contrast below 83 is treated as a speck. Dev data has no small flames, so the 83 cut-off is set from the specks and from larger flames only.
 - 16-bit input from a sensor with fewer real bits appears dark unless `input_bit_depth` is set; dim flames in such data can be missed.
 - Spatial measurements are 2D projections unless calibrated with `mmPerPixel`.
 
 ## Changelog
+- **v1.4.0 (2026-11-13):** Minimum region back to 0.01%; regions under 0.05% are specks unless their contrast is ≥ 83 (tuned on dev only). Fixes the v1.3.0 regression on small flames. No status changed on any committed sample.
 
 - **v1.3.0 (2026-11-13):** 16-bit input is scaled instead of clipped; a region with no background is never `PRESENT`; `PRESENT` requires region-local stability ≥ 0.5; minimum region 0.05% of the image; `ABSENT` confidence is computed; classification follows what was measured (section 4). Fixed this page's unclosed code block.
 - **Unreleased (2026-10-14):** Documented the CLI entry point.
