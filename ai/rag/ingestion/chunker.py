@@ -113,6 +113,15 @@ class SimpleChunker(Chunker):
             ):
                 next_start += 1
 
+            # The overlap can reach back past this chunk's own start (a short word followed by a long
+            # unbroken token), which made `start` negative and the loop endless. Never move backwards:
+            # without room for an overlap, the next chunk begins where this one ended.
+            if next_start <= start:
+                next_start = end
+
+            if next_start <= start:
+                raise RuntimeError("chunker made no progress")
+
             start = next_start
 
         return chunks
