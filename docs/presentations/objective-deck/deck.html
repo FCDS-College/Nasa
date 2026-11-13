@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Flame in Freefall — Objective and Problem</title>
+<style>
+  @page { size: 13.333in 7.5in; margin: 0; }
+  :root {
+    --bg: #0b0f17; --panel: #131a26; --line: #243044;
+    --text: #e8edf5; --muted: #93a0b4; --flame: #ff7a1a; --flame2: #ffb547;
+    --blue: #4f9cff; --green: #3ccf7a; --red: #ef5350;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--bg); color: var(--text);
+    font-family: "Inter", "DejaVu Sans", sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .slide { width: 13.333in; height: 7.5in; position: relative; overflow: hidden;
+    padding: 0.62in 0.8in 0.7in; page-break-after: always; break-after: page;
+    background: radial-gradient(1200px 600px at 100% 0%, rgba(79,156,255,.08), transparent 60%), var(--bg); }
+  .slide:last-child { page-break-after: auto; break-after: auto; }
+  .kicker { font-size: 13pt; letter-spacing: .18em; text-transform: uppercase; color: var(--flame); font-weight: 700; }
+  h1 { font-family: "Inter Display", "Inter", sans-serif; font-size: 34pt; line-height: 1.12; font-weight: 700; margin-top: .14in; letter-spacing: -.01em; }
+  h2 { font-size: 17pt; font-weight: 600; margin-bottom: .1in; }
+  p, li { font-size: 15pt; line-height: 1.45; color: #cfd7e3; }
+  .muted { color: var(--muted); }
+  em.hl { font-style: normal; color: var(--flame2); }
+  b { color: var(--text); }
+  .footer { position: absolute; left: .8in; right: .8in; bottom: .32in; display: flex; justify-content: space-between;
+    font-size: 10pt; color: #5d6a80; letter-spacing: .04em; }
+  .grid { display: grid; gap: .28in; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: .28in .3in; }
+  .card h2 { display: flex; align-items: center; gap: .12in; }
+  .num { display: inline-flex; width: .4in; height: .4in; border-radius: 50%; align-items: center; justify-content: center;
+    background: rgba(255,122,26,.15); color: var(--flame); font-weight: 700; font-size: 14pt; flex: none; }
+  ul.clean { list-style: none; }
+  ul.clean li { padding-left: .26in; position: relative; margin: .07in 0; }
+  ul.clean li::before { content: ""; position: absolute; left: 0; top: .12in; width: .1in; height: .1in; border-radius: 2px; background: var(--flame); }
+  .shot { border-radius: 12px; border: 1px solid var(--line); width: 100%; display: block; box-shadow: 0 20px 60px rgba(0,0,0,.45); }
+  .source { font-size: 10.5pt; color: #6f7c92; margin-top: .12in; }
+
+  /* title */
+  .title { display: flex; flex-direction: column; justify-content: center;
+    background: radial-gradient(900px 700px at 85% 70%, rgba(255,122,26,.22), transparent 60%),
+                radial-gradient(800px 500px at 10% 0%, rgba(79,156,255,.14), transparent 60%), var(--bg); }
+  .title h1 { font-size: 60pt; margin-top: .2in; }
+  .title .sub { font-size: 22pt; color: #cfd7e3; margin-top: .25in; max-width: 8.4in; line-height: 1.35; }
+  .flame-mark { position: absolute; right: .55in; top: 1.9in; width: 3.3in; opacity: .95; }
+  .pill { display: inline-block; border: 1px solid var(--line); background: var(--panel); border-radius: 999px;
+    padding: .06in .18in; font-size: 12pt; color: var(--muted); margin-right: .1in; margin-top: .45in; }
+
+  /* stat */
+  .stat .v { font-family: "Inter Display", "Inter", sans-serif; font-size: 40pt; font-weight: 700; color: var(--text); line-height: 1; }
+  .stat .v small { font-size: 18pt; color: var(--muted); font-weight: 600; }
+  .stat .l { font-size: 12.5pt; color: var(--muted); margin-top: .1in; line-height: 1.35; }
+
+  /* atmosphere bars */
+  .atm { display: grid; grid-template-columns: 1.9in 1fr 1.3in; align-items: center; gap: .18in; margin: .2in 0; }
+  .atm .name { font-size: 14pt; font-weight: 600; }
+  .atm .name span { display: block; font-size: 11pt; color: var(--muted); font-weight: 400; }
+  .track { height: .34in; background: #1b2433; border-radius: 8px; position: relative; overflow: hidden; }
+  .fill { height: 100%; border-radius: 8px; }
+  .atm .val { font-size: 20pt; font-weight: 700; text-align: right; }
+
+  /* pipeline */
+  .pipe { display: grid; grid-template-columns: repeat(5, 1fr); gap: .16in; align-items: stretch; margin-top: .35in; }
+  .step { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: .2in; position: relative; }
+  .step:not(:last-child)::after { content: "›"; position: absolute; right: -.16in; top: 50%; transform: translate(50%,-50%);
+    color: var(--flame); font-size: 26pt; font-weight: 700; z-index: 2; }
+  .step .t { font-size: 10.5pt; letter-spacing: .14em; text-transform: uppercase; color: var(--blue); font-weight: 700; }
+  .step h3 { font-size: 14.5pt; margin: .08in 0 .06in; }
+  .step p { font-size: 11.5pt; line-height: 1.4; color: var(--muted); }
+
+  .verbs { display: grid; grid-template-columns: repeat(5, 1fr); gap: .18in; margin-top: .32in; }
+  .verb { background: var(--panel); border: 1px solid var(--line); border-top: 4px solid var(--flame); border-radius: 12px; padding: .22in .2in; }
+  .verb h3 { font-size: 17pt; color: var(--flame2); margin-bottom: .08in; }
+  .verb p { font-size: 12pt; line-height: 1.42; color: #c3ccd9; }
+
+  .quote { border-left: 4px solid var(--flame); padding: .12in .28in; font-size: 21pt; line-height: 1.35; color: var(--text); font-weight: 500; }
+
+  table.t { width: 100%; border-collapse: collapse; font-size: 13pt; }
+  table.t th { text-align: left; font-size: 10.5pt; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); padding: .08in .12in; border-bottom: 1px solid var(--line); }
+  table.t td { padding: .13in .12in; border-bottom: 1px solid #1c2534; color: #cfd7e3; vertical-align: top; }
+  table.t td.k { color: var(--text); font-weight: 600; white-space: nowrap; }
+  .tag { display: inline-block; font-size: 10.5pt; font-weight: 600; padding: .02in .12in; border-radius: 999px; }
+  .tag.ok { background: rgba(60,207,122,.14); color: var(--green); }
+  .tag.gap { background: rgba(255,181,71,.14); color: var(--flame2); }
+  .tag.no { background: rgba(239,83,80,.14); color: var(--red); }
+</style>
+</head>
+<body>
+
+<!-- 1. Title -->
+<section class="slide title">
+  <svg class="flame-mark" viewBox="0 0 200 240" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <defs>
+      <radialGradient id="g1" cx="50%" cy="60%" r="55%">
+        <stop offset="0" stop-color="#ffffff"/><stop offset=".25" stop-color="#9fd0ff"/>
+        <stop offset=".55" stop-color="#4f9cff"/><stop offset="1" stop-color="#4f9cff" stop-opacity="0"/>
+      </radialGradient>
+      <radialGradient id="g2" cx="50%" cy="50%" r="50%">
+        <stop offset="0" stop-color="#ffb547" stop-opacity=".9"/><stop offset=".6" stop-color="#ff7a1a" stop-opacity=".35"/>
+        <stop offset="1" stop-color="#ff7a1a" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <circle cx="100" cy="125" r="95" fill="url(#g2)"/>
+    <circle cx="100" cy="125" r="62" fill="url(#g1)"/>
+    <circle cx="100" cy="125" r="14" fill="#1b2433" stroke="#ffb547" stroke-width="2"/>
+  </svg>
+  <div class="kicker">NASA Space Apps Challenge 2026</div>
+  <h1>Flame in Freefall</h1>
+  <p class="sub">The project objective, and the problem it solves: turning NASA's microgravity combustion data into direct, sourced fire-safety answers for any spacecraft cabin atmosphere.</p>
+  <div>
+    <span class="pill">Project objective</span><span class="pill">Problem statement</span><span class="pill">How we solve it</span>
+  </div>
+  <div class="footer"><span>Team Flame in Freefall</span><span>November 2026</span></div>
+</section>
+
+<!-- 2. Problem: fire is different in space -->
+<section class="slide">
+  <div class="kicker">The problem · 1 of 2</div>
+  <h1>Fire behaves differently in a spacecraft</h1>
+  <div class="grid" style="grid-template-columns: 1fr 1fr; margin-top:.4in;">
+    <div class="card">
+      <h2>No gravity, no rising plume</h2>
+      <ul class="clean">
+        <li>Without buoyancy, flames are pushed <b>only by ventilation</b>.</li>
+        <li>They can <b>persist at lower oxygen</b> than on Earth.</li>
+        <li>They can <b>spread in ways ground tests do not predict</b>.</li>
+      </ul>
+      <p class="muted" style="margin-top:.2in; font-size:13pt;">So results from ground flammability tests do not transfer directly to a spacecraft cabin.</p>
+    </div>
+    <div class="card">
+      <h2>Next vehicles change the air itself</h2>
+      <div class="atm">
+        <div class="name">ISS (nominal)<span>14.7 psia</span></div>
+        <div class="track"><div class="fill" style="width:61.8%; background: var(--blue);"></div></div>
+        <div class="val">21 % O₂</div>
+      </div>
+      <div class="atm">
+        <div class="name">Orion (max)<span>reduced pressure</span></div>
+        <div class="track"><div class="fill" style="width:88.2%; background: var(--flame2);"></div></div>
+        <div class="val">30 % O₂</div>
+      </div>
+      <div class="atm">
+        <div class="name">Altair lander (max)<span>reduced pressure</span></div>
+        <div class="track"><div class="fill" style="width:100%; background: var(--flame);"></div></div>
+        <div class="val">34 % O₂</div>
+      </div>
+      <p style="font-size:13.5pt;">More oxygen makes materials <b>burn more readily</b>.</p>
+      <p class="source">Source: NASA/TM-2008-215260 (in the project corpus).</p>
+    </div>
+  </div>
+  <div class="footer"><span>Flame in Freefall · Objective &amp; problem</span><span>2</span></div>
+</section>
+
+<!-- 3. Problem: data is scattered -->
+<section class="slide">
+  <div class="kicker">The problem · 2 of 2</div>
+  <h1>The answers exist, but nobody can reach them directly</h1>
+  <div class="grid" style="grid-template-columns: 1.15fr 1fr; margin-top:.38in; align-items:start;">
+    <div>
+      <p>NASA has flown <b>decades of combustion experiments</b> on orbit: BASS, FLEX, Saffire, SPICE, ACME and more.</p>
+      <p style="margin-top:.16in;">Their results are spread across:</p>
+      <ul class="clean" style="margin-top:.06in;">
+        <li><b>experiment tables</b> (one row per flight test),</li>
+        <li><b>metadata files</b> (ISA-Tab investigation records),</li>
+        <li><b>hundreds of technical reports</b> (NTRS), some with broken text.</li>
+      </ul>
+      <p style="margin-top:.2in;">Nothing connects them to the question a designer actually has, and nothing shows <b>where the evidence stops</b>.</p>
+    </div>
+    <div class="card" style="padding:.36in;">
+      <p class="muted" style="font-size:12pt; letter-spacing:.12em; text-transform:uppercase; font-weight:700;">A mission designer asks</p>
+      <div class="quote" style="margin-top:.18in;">“What do we actually know about fire in <em class="hl">my</em> cabin atmosphere?”</div>
+      <p style="margin-top:.28in; font-size:14pt;">Today there is <b>nowhere to get a direct, sourced answer</b>: it takes weeks of reading tables and reports, and the gaps stay invisible.</p>
+    </div>
+  </div>
+  <div class="footer"><span>Flame in Freefall · Objective &amp; problem</span><span>3</span></div>
+</section>
+
+<!-- 4. Objective -->
+<section class="slide">
+  <div class="kicker">Project objective</div>
+  <h1>Summarize, rank and explain NASA's microgravity combustion results to inform fire safety for Moon and Mars missions</h1>
+  <p style="margin-top:.26in; max-width: 11in;">Our answer is a <b>fire-safety dashboard</b>. You pick a cabin atmosphere (ISS, pre-EVA, Orion, lunar lander, or your own O₂ and pressure) and it:</p>
+  <div class="verbs">
+    <div class="verb"><h3>Ranks</h3><p>NASA flight investigations by how directly their data covers that atmosphere.</p></div>
+    <div class="verb"><h3>Summarizes</h3><p>Each investigation in NASA's own words, with a source link.</p></div>
+    <div class="verb"><h3>Explains</h3><p>What the flight tests measured there; every number linked to its NASA table cell.</p></div>
+    <div class="verb"><h3>Estimates</h3><p>Droplet-flame outcomes with a validated model that refuses to extrapolate.</p></div>
+    <div class="verb"><h3>Admits gaps</h3><p>States plainly what the data <b>cannot</b> tell you. No data is never shown as no risk.</p></div>
+  </div>
+  <div class="footer"><span>Flame in Freefall · Objective &amp; problem</span><span>4</span></div>
+</section>
+
+<!-- 5. Screenshot: the question is the atmosphere -->
+<section class="slide">
+  <div class="kicker">How it solves the problem</div>
+  <h1>The question is the atmosphere, not the experiment</h1>
+  <div class="grid" style="grid-template-columns: 1.75fr 1fr; margin-top:.3in; align-items:start;">
+    <img class="shot" src="img/dash.jpg" alt="Dashboard ranking NASA investigations for a lunar-lander cabin atmosphere">
+    <div>
+      <ul class="clean">
+        <li>Choose one of <b>four NASA-sourced atmospheres</b>, or set O₂ and pressure yourself.</li>
+        <li>Every investigation gets a <b>transparent score</b> with four visible parts: O₂ coverage, pressure coverage, nearby tests, outcome data.</li>
+        <li>The score is <b>evidence relevance</b>, never presented as risk.</li>
+      </ul>
+      <p class="source" style="margin-top:.24in;">Shown: lunar lander, Altair class (34 % O₂, 62.7 kPa). FLEX ranks first with 9 flight tests flown nearby.</p>
+    </div>
+  </div>
+  <div class="footer"><span>Flame in Freefall · Objective &amp; problem</span><span>5</span></div>
+</section>
+
+<!-- 6. Screenshot: cited insights + gaps -->
+<section class="slide">
+  <div class="kicker">How it solves the problem</div>
+  <h1>Every claim is one click from NASA's own data</h1>
+  <div class="grid" style="grid-template-columns: 1fr 1.75fr; margin-top:.3in; align-items:start;">
+    <div>
+      <ul class="clean">
+        <li>Insights are <b>computed from flight-test rows</b>, and each one lists the test IDs it came from.</li>
+        <li><b>Coverage-gap cards</b> are first-class results, e.g. <em class="hl">“No solid-material test in BASS-II is at 34 % O₂.”</em></li>
+        <li>A <b>cited chat</b> answers questions over 24 NASA reports; answers may only cite retrieved evidence.</li>
+        <li>A <b>knowledge graph</b> links investigations, tests, fuels and outcomes, each link citing its NASA cell.</li>
+      </ul>
+    </div>
+    <img class="shot" src="img/insights.jpg" alt="Computed, cited insights and a coverage-gap card">
+  </div>
+  <div class="footer"><span>Flame in Freefall · Objective &amp; problem</span><span>6</span></div>
+</section>
+
+<!-- 7. Pipeline -->
+<section class="slide">
+  <div class="kicker">How it works</div>
+  <h1>From scattered NASA files to one sourced answer</h1>
+  <div class="pipe">
+    <div class="step"><div class="t">Data</div><h3>NASA sources</h3><p>840 flight tests (FLEX, BASS-II, SPICE, SAFFIRE-I), ISA-Tab metadata, 24 NTRS reports, flight video. All public.</p></div>
+    <div class="step"><div class="t">Ingest</div><h3>Cell-level evidence</h3><p>Every value keeps the ID of its source cell. OCR recovers 35 garbled report pages.</p></div>
+    <div class="step"><div class="t">Analyse</div><h3>Fire-safety analytics</h3><p>Canonical variables, ranking, insights, outcome model, knowledge graph.</p></div>
+    <div class="step"><div class="t">Serve</div><h3>REST API</h3><p>One contract (0.6.0) for people and AI agents, plus 16 AURA agent tools.</p></div>
+    <div class="step"><div class="t">Use</div><h3>Dashboard &amp; chat</h3><p>Ranking, outcome explorer, test browser, cited chat, knowledge graph.</p></div>
+  </div>
+  <div class="grid" style="grid-template-columns: repeat(4, 1fr); margin-top:.5in;">
+    <div class="card stat"><div class="v">840</div><div class="l">NASA flight tests, cell by cell, with provenance</div></div>
+    <div class="card stat"><div class="v">24</div><div class="l">public-use NASA technical reports in the corpus</div></div>
+    <div class="card stat"><div class="v">10,683</div><div class="l">cited links in the knowledge graph (951 entities)</div></div>
+    <div class="card stat"><div class="v">0.88</div><div class="l">retrieval hit@1 on 26 corpus-grounded questions</div></div>
+  </div>
+  <div class="footer"><span>Flame in Freefall · Objective &amp; problem</span><span>7</span></div>
+</section>
+
+<!-- 8. Outcome model + worked example -->
+<section class="slide">
+  <div class="kicker">Proof it answers the question</div>
+  <h1>Real findings, and honest refusals</h1>
+  <div class="grid" style="grid-template-columns: 1fr 1.25fr; margin-top:.3in; align-items:start;">
+    <div>
+      <div class="card stat" style="margin-bottom:.22in;">
+        <div class="v">94 % <small>vs</small> 8 %</div>
+        <div class="l">of FLEX droplet flames self-extinguished at O₂ below 0.16 (48 tests) vs at O₂ of 0.30 or more (24 tests). Computed from NASA's table, linked to every row.</div>
+      </div>
+      <div class="card stat">
+        <div class="v">0.54 <small>vs 0.27 baseline</small></div>
+        <div class="l">Outcome model macro-F1 (extinction ROC-AUC 0.86), trained on 261 ISS tests and validated by held-out test day.</div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Worked example: lunar lander (34 % O₂, 62.7 kPa)</h2>
+      <table class="t" style="margin-top:.1in;">
+        <tr><th>Result</th><th>What the dashboard says</th></tr>
+        <tr><td class="k"><span class="tag ok">Covered</span></td><td>FLEX ranks first: 9 of its flight tests were flown nearby.</td></tr>
+        <tr><td class="k"><span class="tag gap">Gap</span></td><td>BASS-II solid-material tests stop at 22.2 % O₂, so they do not cover it.</td></tr>
+        <tr><td class="k"><span class="tag no">Refuses</span></td><td>The model declines to estimate: 62.7 kPa is below the lowest FLEX test pressure (70.2 kPa).</td></tr>
+      </table>
+      <p style="font-size:13pt; margin-top:.2in;" class="muted">Absence of data is reported as a gap, never as absence of risk.</p>
+    </div>
+  </div>
+  <div class="footer"><span>Flame in Freefall · Objective &amp; problem</span><span>8</span></div>
+</section>
+
+<!-- 9. Impact + limits -->
+<section class="slide">
+  <div class="kicker">Who it helps</div>
+  <h1>Impact, and where the evidence ends</h1>
+  <div class="grid" style="grid-template-columns: repeat(3, 1fr); margin-top:.34in;">
+    <div class="card"><h2><span class="num">1</span>Mission &amp; habitat designers</h2><p style="font-size:13.5pt;">See which atmospheres have flight evidence and where testing is missing, <b>before</b> choosing a cabin atmosphere.</p></div>
+    <div class="card"><h2><span class="num">2</span>Materials engineers</h2><p style="font-size:13.5pt;">Go from a question to the NASA reports (NASA-STD-6001 testing, flammability limits) with citations.</p></div>
+    <div class="card"><h2><span class="num">3</span>Researchers</h2><p style="font-size:13.5pt;">Browse 840 flight tests cell by cell, with provenance and data-quality flags.</p></div>
+  </div>
+  <div class="card" style="margin-top:.3in;">
+    <h2>Known limits (stated in the product)</h2>
+    <div class="grid" style="grid-template-columns: 1fr 1fr; gap:.1in .4in;">
+      <ul class="clean">
+        <li style="font-size:13.5pt;">Outcomes are modelled for <b>droplets only</b>.</li>
+        <li style="font-size:13.5pt;"><b>Microgravity only</b>: no Moon or Mars partial-gravity data yet.</li>
+      </ul>
+      <ul class="clean">
+        <li style="font-size:13.5pt;">SAME, ACME and FLEX-2 are <b>not yet ingested</b>.</li>
+        <li style="font-size:13.5pt;">Ranking weights and the gold set need <b>expert review</b>.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer"><span>Flame in Freefall · Objective &amp; problem</span><span>9</span></div>
+</section>
+
+<!-- 10. Summary -->
+<section class="slide title" style="justify-content:center;">
+  <div class="kicker">In one sentence</div>
+  <div class="quote" style="margin-top:.3in; font-size:28pt; max-width:11in;">
+    Fire in space is different and the next cabins carry more oxygen, yet NASA's flight evidence is scattered. Flame in Freefall answers <em class="hl">“what do we know about fire in my cabin atmosphere?”</em> with ranked, cited results, and says where the evidence ends.
+  </div>
+  <div style="margin-top:.5in;">
+    <span class="pill">Problem: scattered evidence, changing atmospheres</span>
+    <span class="pill">Objective: summarize · rank · explain</span>
+    <span class="pill">Result: every claim sourced</span>
+  </div>
+  <div class="footer"><span>Team Flame in Freefall · NASA Space Apps 2026</span><span>10</span></div>
+</section>
+
+</body>
+</html>
