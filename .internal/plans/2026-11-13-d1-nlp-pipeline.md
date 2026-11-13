@@ -2966,3 +2966,24 @@ git commit -m "docs(nlp): D1 status, graph schema, limitations and roadmap updat
 2. **Placeholders:** none intended. Data work (gold annotation, seed-vocabulary review, the retrieval-benchmark command) is stated as data work with acceptance criteria, not as code to be filled in later.
 3. **Type consistency:** `NlpRecord.record_type` everywhere (spec's `type`, D-9); `ChunkInput` field order `(chunk_id, document_id, document_version, page, text)` is used identically in every test; `link_measurements(chunk, records)` takes the chunk (Task 5 note), and `extract_chunk` calls it that way; `edge(..., confidence)` / `write_edges(method, extractor_version)` match between Task 9's modification and `nlp_graph.py`.
 4. **Known risks to watch while executing:** (a) the identifier experiment pattern is generic and will have false positives; Task 15's gate, not this plan's tests, decides if it is good enough. (b) Task 9's investigation matching depends on case-sensitive names ≥ 3 characters; short investigation names are skipped and counted, not matched loosely. (c) The corpus PDFs in `docs/research/` are only a small committed sample (24), so gold-set statistics will be wide; say so in the report rather than rounding it away.
+
+---
+
+## Execution log: PR A (Tasks 1-7), 2026-11-13
+
+Run inline (beads is not installed). Environment: a virtualenv with pytest, pydantic, jsonschema, numpy, scikit-learn, pypdf, ruff. Baseline before any change: `tests/unit` is green except two environment-only failures that predate this work (`test_embeddings.py` needs `sentence_transformers`; `test_video_provider.py` needs `cv2`). After: `ruff check .` clean; all new tests pass.
+
+Deviations from the plan as written, each found by running the code or measuring the corpus:
+
+| Task | Plan said | What was done, and why |
+|---|---|---|
+| 3 | Generic experiment pattern `XX-0042` | **Context-gated** (`run|test|experiment|sample|specimen` before the ID; the span excludes the keyword; version `1.1.0`). Measured on the 284 pages of the 24 committed NTRS PDFs: the context-free pattern fired **102** times, almost all false positives (`STD-6001`, `STS-94`, `STS-107`, `KC-135`, `AIAA-2005`, `IAC-12`); gated, it fires **0** times. `Test 1` (104 hits) is NASA-STD-6001's flammability test method, not an experiment, so no `Test N` pattern was added. |
+| 3 | Step 5: coverage against the committed tables | Measured: **0 of 469 / 129 / 274 / 4** first-column values match, because the tables' test IDs are plain integers (`FLEX Test #` = 1, 2, 3…), `S1`/`F1C1/F1C2`, dates or PI names. Prose patterns cannot and should not match them: the table parser already owns those. Recall of the prose `experiment` rule is unmeasured until the gold set exists. |
+| 4 | `760 mmHg` converts to 101325 Pa within 1e-3 | **Wrong expectation.** Conventional mmHg (133.322387415 Pa, the same factor `flame_api.ingest.convert_to_si` uses) gives 101325.0144, a relative difference of 1.4e-7 from 1 atm. Torr is now exactly 101325/760; the test asserts the ingest factor, exact Torr, and mmHg within 1e-6 relative. |
+| 5 | `link_measurements(records)` with a `_GapSource` registry | `link_measurements(chunk, records)` reads the gap from the chunk directly; the registry is gone. |
+| 2 | Step 6: annotate 5 seed chunks | **Not done, deliberately.** `nlp_gold_v1.jsonl` is empty. Annotating by running the extractors would make the gold circular, and annotating by hand is Ziad's (D-8). The schema, scorer and §4 protocol are in; the schema test passes on the empty file and will validate real cases as they are added. The scorer's `f1` is `0.0` (not `None`) when precision and recall are both defined and sum to zero. |
+| 2 | Docs | `annotation-guidelines.md` gained a header bump, §4, Known limitations and a Changelog (it had none). |
+
+Sanity run of all rule extractors over the 284 corpus pages (no gold, so this shows behaviour, not accuracy): 0 records dropped by the span guard; 839 measurements, of which 24 (3%) were linked to a quantity name; 4 of 24 documents received a `document_class` (the rule needs a cue on page 1); 193 of 244 table/figure references found a caption. Counts for generic vocabulary terms such as `ignition` (288) and `air` (94) are high and are for the domain reviewer to judge.
+
+Not started: Tasks 8-16 (PR B and PR C).
