@@ -4,7 +4,6 @@ Each test names a defect that was verified in the code before it was fixed.
 """
 import json
 
-import pandas as pd
 import pytest
 
 from run_evaluation import run_evaluation_suite
@@ -76,16 +75,50 @@ def test_the_judge_does_not_claim_a_domain_relevance_it_never_assessed():
 
 # --- evaluator: no scores means "not evaluated", not "passed" ------------------------------------------------------
 
+class _Column:
+    def __init__(self, values):
+        self._values = values
+
+    def mean(self):
+        return sum(self._values) / len(self._values)
+
+
+class _Frame:
+    """The part of a DataFrame that `evaluate_model` uses. pandas is not installed in CI, so the tests cannot depend on it."""
+
+    def __init__(self, rows):
+        self._rows = rows
+        self.columns = sorted({key for row in rows for key in row})
+
+    @property
+    def empty(self):
+        return not self._rows
+
+    def __getitem__(self, column):
+        return _Column([row[column] for row in self._rows if column in row])
+
+
 def test_a_dataset_without_score_columns_is_not_reported_as_passing(capsys):
-    gold_cases = pd.DataFrame([{"case_id": "TC_1", "query": "q", "answerable": True}])
+    gold_cases = _Frame([{"case_id": "TC_1", "query": "q", "answerable": True}])
     assert evaluate_model(gold_cases) is False
     out = capsys.readouterr().out
     assert "passed the baseline" not in out and "NOT EVALUATED" in out
 
 
 def test_scores_above_the_thresholds_still_pass():
-    scored = pd.DataFrame([{"metrics.retrieval_relevance": 4.5, "metrics.faithfulness": 4.9, "metrics.citation_accuracy": 4.5}])
+    scored = _Frame([{"metrics.retrieval_relevance": 4.5, "metrics.faithfulness": 4.9, "metrics.citation_accuracy": 4.5}])
     assert evaluate_model(scored) is True
+
+
+def test_scores_below_a_threshold_fail():
+    scored = _Frame([{"metrics.retrieval_relevance": 4.5, "metrics.faithfulness": 3.0, "metrics.citation_accuracy": 4.5}])
+    assert evaluate_model(scored) is False
+
+
+def test_the_evaluator_also_works_on_a_real_dataframe():
+    pd = pytest.importorskip("pandas")   # not installed in CI; the tests above cover the logic there
+    assert evaluate_model(pd.DataFrame([{"case_id": "TC_1"}])) is False
+    assert evaluate_model(pd.DataFrame([{"metrics.retrieval_relevance": 5, "metrics.faithfulness": 5, "metrics.citation_accuracy": 5}])) is True
 
 
 # --- connector: an API mode that cannot work must say so ------------------------------------------------------------

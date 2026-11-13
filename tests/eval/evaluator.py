@@ -1,7 +1,6 @@
 import json
 import sys
 from pathlib import Path
-import pandas as pd
 
 # Ensure utf-8 encoding for console output on Windows
 if sys.stdout.encoding and sys.stdout.encoding.lower() != 'utf-8':
@@ -21,6 +20,8 @@ BASELINE_THRESHOLDS = {
 
 def load_test_cases(file_path=None):
     """قراءة ملف الحالات وتجهيزه في صيغة DataFrame مع التكيف مع أي بنية حقول."""
+    import pandas as pd   # only loading needs pandas; evaluate_model works on any frame-like object (CI does not install pandas)
+
     path = Path(file_path) if file_path else DEFAULT_FILE_PATH
     if not path.exists():
         print(f"❌ لم يتم العثور على الملف: {path}")
