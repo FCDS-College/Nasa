@@ -23,14 +23,14 @@ PG-021,accept,
 PG-022,accept,
 PG-023,accept,
 PG-024,accept,
-PG-025,reject,
-PG-026,reject,
-PG-027,reject,
-PG-028,reject,
-PG-029,reject,
-PG-030,reject,
-PG-031,reject,
-PG-032,reject,
-PG-033,reject,
-PG-034,reject,
-PG-035,reject,
+PG-025,reject,"rejected: unanswerable cases must be written by a person (guidelines 5.3), not AI-drafted"
+PG-026,reject,"rejected: unanswerable cases must be written by a person (guidelines 5.3), not AI-drafted"
+PG-027,reject,"rejected: unanswerable cases must be written by a person (guidelines 5.3), not AI-drafted"
+PG-028,reject,"rejected: unanswerable cases must be written by a person (guidelines 5.3), not AI-drafted"
+PG-029,reject,"rejected: unanswerable cases must be written by a person (guidelines 5.3), not AI-drafted"
+PG-030,reject,"rejected: unanswerable cases must be written by a person (guidelines 5.3), not AI-drafted"
+PG-031,reject,"rejected: unanswerable cases must be written by a person (guidelines 5.3), not AI-drafted"
+PG-032,reject,"rejected: unanswerable cases must be written by a person (guidelines 5.3), not AI-drafted"
+PG-033,reject,"rejected: unanswerable cases must be written by a person (guidelines 5.3), not AI-drafted"
+PG-034,reject,"rejected: unanswerable cases must be written by a person (guidelines 5.3), not AI-drafted"
+PG-035,reject,"rejected: unanswerable cases must be written by a person (guidelines 5.3), not AI-drafted"
