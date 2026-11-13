@@ -1,7 +1,8 @@
 """Read API for the knowledge graph (ADR-007, E2-6). Read scope; the consistency report is admin data.
 
 The graph is derived from the ingested tables by `flame_api.knowledge_graph` (deterministic table
-parse, every edge citing its evidence row). Rejected edges are never returned.
+parse) and, for platform, instrument and report-to-investigation links, from NLP records by `flame_api.nlp_graph`
+(unreviewed, `extraction_method = "nlp_extraction"`); every edge cites its evidence row. Rejected edges are never returned.
 """
 from __future__ import annotations
 
@@ -21,8 +22,8 @@ from flame_api.models import KnowledgeEntity, KnowledgeRelation
 router = APIRouter(tags=["Knowledge graph"])
 admin_router = APIRouter(tags=["Admin"], dependencies=[Depends(require_admin_scope)])
 ULID_PATTERN = r"^[0-9A-HJKMNP-TV-Z]{26}$"
-EntityType = Literal["investigation", "experiment", "fuel", "condition_variable", "phenomenon", "document"]
-Predicate = Literal["part_of", "uses_fuel", "has_condition", "observed", "describes"]
+EntityType = Literal["investigation", "experiment", "fuel", "condition_variable", "phenomenon", "document", "platform", "instrument"]
+Predicate = Literal["part_of", "uses_fuel", "has_condition", "observed", "describes", "ran_on", "measured_with"]
 
 
 def _entity(entity: KnowledgeEntity, depth: int | None = None) -> dict[str, Any]:

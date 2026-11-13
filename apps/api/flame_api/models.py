@@ -244,6 +244,35 @@ class KnowledgeRelation(Base):
     )
 
 
+class NlpRecordRow(Base):
+    """A source-linked NLP extraction (D1, docs/ai/nlp-pipeline.md §4). A candidate until a human reviews it.
+
+    No foreign keys: records outlive a deleted chunk or document as `superseded` history.
+    """
+
+    __tablename__ = "nlp_record"
+
+    record_id: Mapped[str] = mapped_column(String(40), primary_key=True)
+    record_type: Mapped[str] = mapped_column(String(48), index=True)
+    text: Mapped[str] = mapped_column(Text)
+    normalized: Mapped[str | None] = mapped_column(Text, nullable=True)
+    document_id: Mapped[str] = mapped_column(String(26), index=True)
+    document_version: Mapped[str] = mapped_column(String(32))
+    page: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    char_start: Mapped[int] = mapped_column(Integer)
+    char_end: Mapped[int] = mapped_column(Integer)
+    chunk_id: Mapped[str] = mapped_column(String(80), index=True)
+    extractor: Mapped[str] = mapped_column(String(64))
+    extractor_version: Mapped[str] = mapped_column(String(96))
+    method: Mapped[str] = mapped_column(String(8))
+    confidence: Mapped[float] = mapped_column(Float)
+    review_status: Mapped[str] = mapped_column(String(20), index=True, default="machine_extracted")
+    payload: Mapped[dict[str, Any]] = mapped_column(JsonType, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    __table_args__ = (Index("ix_nlp_record_chunk_extractor", "chunk_id", "extractor"),)
+
+
 class MemoryRecord(Base):
     """Session/project memory (M5 MAG). Every row carries scope, origin, confidence and expiry."""
 

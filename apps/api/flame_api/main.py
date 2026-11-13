@@ -33,14 +33,15 @@ from flame_api.investigations import router as investigations_router
 from flame_api.graph import admin_router as graph_admin_router, router as graph_router
 from ai.providers.contracts.errors import ProviderError
 from ai.routing import ExecutionMode, NoCompatibleProvider
-from flame_api import ai_runtime, answer_cache, clients, rate_limit, telemetry
+from flame_api import ai_runtime, answer_cache, clients, lexical, rate_limit, telemetry
+from ai.rag.verification.support import check_answer_support
 from flame_api.generation import CHAT_INSTRUCTIONS, answer_question
 from flame_api.knowledge_version import current_knowledge_version
 from flame_api.models import AnalysisRecord, DocumentChunk, DocumentRecord, EvidenceRecord, ExperimentCondition, ExperimentRecord, SourceRecord
 from ai.rag.retrieval.evidence_window import STOPWORDS as _CHAT_STOPWORDS
 from ai.rag.retrieval.evidence_window import best_window
 from ai.rag.retrieval.search_stack import STACK_VERSION, Candidate, RerankUnavailable, SearchStack
-from flame_api.vector_index import VectorUnavailableError, index_status, indexed_chunk_count, search_chunks
+from flame_api.vector_index import VectorUnavailableError, index_status, indexed_chunk_count, search_chunks, search_window_chunks
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 logger = logging.getLogger("flame_api")
@@ -477,6 +478,10 @@ def _lexical_match(session: Session, column, query: str):
     if session.bind.dialect.name == "postgresql":
         # Chunks carry a stored, GIN-indexed tsvector (migration 0007), so neither the COUNT nor the
         # ranking re-parses text; experiments are few enough to parse on the fly.
+        if column is DocumentChunk.text and settings.lexical_mode == "or_idf":
+            matched = lexical.match(session, query)
+            if matched is not None:
+                return matched
         if column is DocumentChunk.text:
             vector = literal_column("document_chunk.search_tsv")
         else:
@@ -568,7 +573,9 @@ def search(
                 try:
                     status = index_status(session)
                     if status["state"] == "up":
-                        semantic_scores = dict(search_chunks(session, plan.semantic_query, limit=10))
+                        semantic_scores = dict(
+                            (search_window_chunks if settings.dense_granularity == "window" else search_chunks)(
+                                session, plan.semantic_query, limit=10))
                         index_version = status["version"]
                 except (VectorUnavailableError, SQLAlchemyError):
                     logger.warning("request_id=%s vector_search=unavailable", request.state.request_id)
@@ -885,6 +892,19 @@ def chat(request: Request, body: ChatBody, session: Session = Depends(get_sessio
     execution = result["execution"]
     if execution["fallback_used"]:
         warnings.append("model_fallback_used")
+    answer_text = result["answer"]
+    if settings.answer_support_check != "off":
+        report = check_answer_support(answer_text, [_passage(i) for i in items], cited_ids=result["evidence_ids"], question=question)
+        if report.unsupported:
+            warnings.append("answer_values_not_in_cited_evidence")
+            logger.info("request_id=%s chat_unsupported_values=%s", request.state.request_id, [u.text for u in report.unsupported][:8])
+            if settings.answer_support_check == "strict":
+                warnings.append("answer_withheld_unsupported_values")
+                answer_text = (
+                    "The draft answer stated figures that do not appear in the evidence it cited "
+                    f"({', '.join(dict.fromkeys(u.text for u in report.unsupported[:5]))}), so it is withheld. "
+                    "The evidence Flame found is listed below."
+                )
     logger.info(
         "request_id=%s chat passages=%d cited=%d dropped=%d provider=%s locality=%s",
         request.state.request_id, len(items), len(sources), result["dropped_citations"],
@@ -892,8 +912,8 @@ def chat(request: Request, body: ChatBody, session: Session = Depends(get_sessio
     )
     response = {
         **base,
-        "answer": result["answer"],
-        "sources": sources,
+        "answer": answer_text,
+        "sources": sources if answer_text == result["answer"] else [source_entry(item) for item in items],
         "cache_hit": False,
         "model": {"provider": result["provider"], "name": result["model"], "version": execution.get("version") or "unknown"},
         "execution": execution,

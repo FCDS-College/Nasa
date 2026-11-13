@@ -256,3 +256,36 @@ def test_passage_source_uses_aura_allowed_characters():
 
     item = {"result_type": "document", "evidence_id": "E1", "title": "Report (v2): heptane, 50% O2", "snippet": "x", "locator": {"label": "p.3 [fig]"}}
     assert re.fullmatch(r"[A-Za-z0-9_\-.:/ ]{0,128}", _passage(item)["source"])
+
+
+def _answer_with(monkeypatch, answer, **settings):
+    monkeypatch.setattr(main, "settings", chat_settings(**settings))
+    monkeypatch.setattr(provider_http, "urlopen", lambda request, timeout: FakeResponse(aura_reply(answer, [EVIDENCE_ID])))
+
+
+def test_a_figure_that_is_not_in_the_cited_evidence_adds_a_warning_and_is_not_cached(client, corpus, monkeypatch):
+    _answer_with(monkeypatch, "The cool flame appeared at 412 K.")
+    body = client.post("/api/chat", json={"query": "How does n-heptane behave in microgravity?"}).json()
+    assert body["warnings"] == ["answer_values_not_in_cited_evidence"]
+    assert body["answer"] == "The cool flame appeared at 412 K."          # warn mode never changes the text
+    assert [s["evidence_id"] for s in body["sources"]] == [EVIDENCE_ID]
+
+
+def test_strict_mode_withholds_an_answer_with_unsupported_figures(client, corpus, monkeypatch):
+    _answer_with(monkeypatch, "The cool flame appeared at 412 K.", answer_support_check="strict")
+    body = client.post("/api/chat", json={"query": "How does n-heptane behave in microgravity?"}).json()
+    assert body["warnings"] == ["answer_values_not_in_cited_evidence", "answer_withheld_unsupported_values"]
+    assert "412 K" in body["answer"] and "withheld" in body["answer"]
+    assert [s["evidence_id"] for s in body["sources"]] == [EVIDENCE_ID]
+
+
+def test_the_check_can_be_switched_off(client, corpus, monkeypatch):
+    _answer_with(monkeypatch, "The cool flame appeared at 412 K.", answer_support_check="off")
+    body = client.post("/api/chat", json={"query": "How does n-heptane behave in microgravity?"}).json()
+    assert body["warnings"] == []
+
+
+def test_an_answer_without_figures_is_untouched(client, corpus, monkeypatch):
+    _answer_with(monkeypatch, "A cool flame was simulated for n-heptane.")
+    body = client.post("/api/chat", json={"query": "How does n-heptane behave in microgravity?"}).json()
+    assert body["warnings"] == []

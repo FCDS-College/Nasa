@@ -6,6 +6,16 @@
 
 Semver applies to `docs/api/openapi.json` `info.version`. Breaking changes need a minor bump while we are pre-1.0, an entry here, and one release of deprecation where practical.
 
+## Unreleased
+
+**Added**
+- Settings `FLAME_LEXICAL_MODE=and|or_idf` and `FLAME_DENSE_GRANULARITY=page|window` (both default to the existing behaviour; no response shape changes) and migration `0011_chunk_window_embedding`. See `docs/ai/retrieval-pipeline.md` §0a–0b.
+- `ChatWarning` values `answer_values_not_in_cited_evidence` and `answer_withheld_unsupported_values` (`/api/chat`): a figure in the answer is in none of the cited passages. Setting `ANSWER_SUPPORT_CHECK=warn|strict|off` (default `warn`: warning only; answers with this warning are not cached). `/api/chat` is excluded from AURA's tools.
+- Graph entity types `platform` and `instrument`, and predicates `ran_on` and `measured_with` (`GraphEntityType`, `GraphPredicate`). They appear only on edges with `extraction_method` `nlp_extraction` (migration `0010_nlp_record`), which are `unreviewed` co-occurrence associations within one page, each citing that page's evidence. Clients that switch on a predicate or entity type should treat unknown values as "other". `document describes investigation` edges can now also come from NLP (a report naming exactly one investigation on its first page).
+
+**Changed**
+- `retrieval.query_rewrite.rewriter_version` is now `1.0.1` (was `1.0.0`). The query rewriter no longer expands `psi` when it directly follows a number (`14.7 psi` is a pressure, not NASA's PSI programme). The shape of the response is unchanged.
+
 ## 0.6.0 (2026-11-12)
 
 ADR-006 to 009 built. Additive for read clients; read **Changed** before upgrading a deployment that uses client keys for admin work. AURA's Link 2 dry run at the pinned AURA revision `d696fad`: **16 tools accepted, 10 operations excluded**, exit 0.

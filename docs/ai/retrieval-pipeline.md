@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Eman | In review (ADR in section 2 is **Accepted**; ADR-006 built 2026-11-12, section 0) | 0.4.1 | 2026-11-12 | M2, M11, ADR-006, 2H (Planned parts marked) | `ai/rag/retrieval/`, `ai/rag/reranking/`, `ai/rag/query/`, `ai/rag/service.py`, `apps/api/flame_api/main.py` |
+| Eman | In review (ADR in section 2 is **Accepted**; ADR-006 built 2026-11-12, section 0) | 0.5.0 | 2026-11-13 | M2, M11, ADR-006, 2H (Planned parts marked) | `ai/rag/retrieval/`, `ai/rag/reranking/`, `ai/rag/query/`, `ai/rag/service.py`, `apps/api/flame_api/main.py` |
 
 This document describes the code on branch `Eman` at commits `9319d65` (retrieval fusion/reranker/rewrite modules), `0fc94c3` (service wiring) and `d7bf6b2` (cache timing fix). Facts about `apps/api` come from a search of Eman's working tree on 2026-10-12 (`Select-String` over `apps/api/flame_api/*.py`); line numbers refer to that tree. **Planned** marks behaviour not yet in code.
 
@@ -12,7 +12,7 @@ Sections 1–9 describe the code as of October and are kept as the design record
 
 | Step | Where | What |
 |---|---|---|
-| Query plan | `SearchStack.plan` | `QueryRewriter` 1.0.0 (whitespace, ISS/PSI/NTRS expansion). Lexical search uses the **original** query, because `plainto_tsquery` ANDs every term, so appended expansions could only narrow it. Semantic search embeds the **rewritten** one. Both are returned in `retrieval.query_rewrite`. |
+| Query plan | `SearchStack.plan` | `QueryRewriter` 1.0.1 (a `psi` that follows a number is a unit and is not expanded; whitespace, ISS/PSI/NTRS expansion). Lexical search uses the **original** query, because `plainto_tsquery` ANDs every term, so appended expansions could only narrow it. Semantic search embeds the **rewritten** one. Both are returned in `retrieval.query_rewrite`. |
 | Candidates | `apps/api/flame_api/main.py` `search` (data access only) | PostgreSQL full-text matches (GIN-indexed `search_tsv`), the top 10 pgvector hits, and experiment-table matches. Every filter is applied in SQL: domain, `source_id`, `experiment_id`, rejected evidence. Each candidate carries its 1-based rank in each list it is in; a dense hit that is also a deep lexical match keeps its exact lexical rank. |
 | Fusion | `SearchStack.fuse` | RRF, `score = Σ 1/(60 + rank)`; ties broken by result type, then ID. The dense ranking is taken over the hits that survived the filters. |
 | Reranking | `SearchStack.rank` | On by default (`FLAME_RERANKER_ENABLED`): the first `FLAME_RERANK_DEPTH` (10) fused results are scored by the cross-encoder, fastembed ONNX `Xenova/ms-marco-MiniLM-L-6-v2`, reached through the router's `rerank` task (`ai/providers/local/cross_encoder.py`). Only that window is reordered. It keeps its fused score slots, so `score` stays monotonic with `rank`. The window is page-independent, so paging is exact. A reranker failure returns the fused order with `reranking.status = "unavailable"`; the search does not fail. |
@@ -22,6 +22,24 @@ Sections 1–9 describe the code as of October and are kept as the design record
 - **The reranker has now run on the real model** and is **on by default**. It raised hit@1 from 0.81 to 0.88, MRR@10 from 0.86 to 0.91 and recall@5 from 0.83 to 0.88, with one regression, at about 0.7 s per search on CPU (report §Follow-up). The model is downloaded on first use; offline deployments must prepare it.
 - **Chat.** `/api/chat` searches through the same stack. Its answer-cache key includes the configured reranker (`answer_cache.reranker_version`), and an answer whose retrieval had the reranker configured but unavailable is not cached.
 - **What did not move.** The in-memory `RAGRetrievalPipeline` / `HybridSearchService` (weighted 0.7/0.3) and `FlameRAGService` remain library code that only `tests/unit/` uses; nothing in the API calls them. `ai/rag/retrieval/fusion.py` (list-based RRF) is kept for the same tests. Retiring or rewiring them is the library owner's (Eman's) decision, not part of ADR-006's serving change.
+
+### 0a. Lexical OR with IDF (flag, default off) — 2026-11-13
+
+`FLAME_LEXICAL_MODE=or_idf` (default `and`, the behaviour above) replaces the document-chunk full-text match with: every distinctive term of the question may match (`to_tsquery` with `|`), and a chunk scores the sum of the BM25 idf of the terms it contains, with `ts_rank_cd` of the OR query as a tie-break (`ai/rag/retrieval/lexical_query.py`, `apps/api/flame_api/lexical.py`). There is no term-frequency or length part: PostgreSQL full-text search does not expose them, so this is "OR with IDF", not BM25. Document frequencies are counted with the GIN index and cached for five minutes. `total_items` counts any-term matches in this mode, so it is larger. PostgreSQL only; SQLite keeps substring matching.
+
+- **Verified:** the SQL runs on PostgreSQL 16 (`apps/api/tests/test_lexical_postgres.py`: any-term match, a rare term outranks a common one, operator characters in the question are harmless; run in CI against pgvector/pgvector:pg16).
+- **Not verified:** that it retrieves better. The passage-level gold set has too few verified questions to say (the guideline needs ≥ 20), so the default stays `and`. Compare with `python -m ai.rag.evaluation.evaluate_retrieval` using the paired bootstrap before switching it on.
+- **Known gap:** the `english` configuration drops `He` (helium) at index and query time, so a question that is only about helium still cannot match. The term is kept in the query so that switching the stored vector to a configuration that keeps it needs no code change there; that is a migration and a re-index, not done.
+
+
+### 0b. Window-level dense index (flag, default off) — 2026-11-13
+
+`FLAME_DENSE_GRANULARITY=window` (default `page`) makes the dense leg embed overlapping 1,200-character windows of the whole page (`ai/rag/ingestion/windows.py`, 200 overlap, cut at sentence ends) instead of the first 2,000 characters, and a page scores as its best window (`ai/rag/retrieval/aggregate.py`). Build it with `python -m flame_api.vector_index build-windows` (table `chunk_window_embedding`, migration `0011`; it re-embeds a page whose text changed and skips the rest). With no windows, or a query failure, search falls back to the page index. Fusion, the 0.55 floor and the top-10 cut are unchanged. Run `build-windows` after every ingest that changes page text, or pages without windows get no dense hit in this mode.
+
+- **Verified:** the splitting and the aggregation (`tests/unit/test_windows.py`), and the build and search logic against a scripted session (`apps/api/tests/test_window_index.py`). The SQL mirrors `chunk_embedding`'s; the migration runs in CI on pgvector/pgvector:pg16. **Not run end to end here:** no pgvector was available in the development environment, so `build-windows` and the window query have not executed against a real pgvector.
+- **Not supported by the evidence we have.** The audit's diagnostic on the 24 committed NTRS PDFs and the 26-question document-level gold found no loss from the 2,000-character cut: dense on 800-character windows scored MRR 0.78 against 0.85 for capped pages, with overlapping 95 % intervals (`.internal/research/2026-11-13-nlp-audit.md`, finding on `fastembed_embeddings.py:84`). Whether windows help *passage*-level retrieval needs the passage gold set, which has no verified questions yet (`datasets/evaluation/passage_gold_v1.jsonl` is empty). Hence the default stays `page`.
+- **Cost:** on the 240 indexable pages of the 24 committed NTRS PDFs the split gives 812 windows (mean 3.4 per page, median 4, maximum 8), so about 3.4× the vectors of the page index (counted with `split_windows` over `indexed_pages`, 2026-11-13).
+
 
 ## 1. Where things stood on 2026-10-12
 
@@ -164,6 +182,7 @@ The API also returns `retrieval.searched_but_empty`, which separates "searched a
 
 | Version | Date | Change |
 |---|---|---|
+| 0.5.0 | 2026-11-13 | Rewriter 1.0.1 (psi after a number); §0a lexical OR with IDF behind `FLAME_LEXICAL_MODE` (default off); §0b window-level dense index behind `FLAME_DENSE_GRANULARITY` (default off). |
 | 0.4.1 | 2026-11-12 | Reranker on by default, fastembed ONNX, depth 10. |
 | 0.4.0 | 2026-11-12 | Section 0: ADR-006 built: one search stack in `ai/rag` (rewrite, RRF, reranker through the router, paging), the API's inline ranking retired after the benchmark gate. |
 | 0.3.0 | 2026-10-14 | `/api/search` now fuses lexical and dense rankings with RRF. |

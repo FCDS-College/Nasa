@@ -81,6 +81,13 @@ jobs:
           python -m flame_api.seed
           python -m flame_api.ingest
           python -m flame_api.ingest   # idempotent: a second run creates nothing new
+      - name: Lexical OR/IDF full-text SQL on real PostgreSQL
+        working-directory: ${{ github.workspace }}
+        env:
+          FLAME_TEST_PG_URL: postgresql+psycopg://flame:flame@localhost:5432/flame
+        run: |
+          python -m pip install -e "apps/api[dev]"
+          python -m pytest apps/api/tests/test_lexical_postgres.py -p no:cacheprovider
 
   web:
     name: Web lint, typecheck and build
