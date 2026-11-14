@@ -100,7 +100,7 @@ NASA PSI tables + ISA-Tab metadata + NTRS reports + flight video
 - **Limitations:**
   - outcomes are modelled for droplets only;
   - no partial-gravity data exists here;
-  - the screenshots in this document were taken with the 4-table data (840 tests) and need a retake;
+  - the Apollo 1 screenshot was retaken with the 19-investigation data (1950 tests); the ranking, insights and outcome-explorer screenshots were taken with the 4-table data (840 tests) and still need a retake;
   - the gold set and labels need expert review.
 - **Next:**
   - parse BASS-II spread and extinction from flight video with the CV pipeline;
