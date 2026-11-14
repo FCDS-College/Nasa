@@ -1,9 +1,9 @@
 {
   "goldVersion": "cv_gold_v1",
-  "generatedAt": "2026-11-14T00:34:19Z",
-  "pipelineVersion": "cv-opencv-v1.5.0-auto",
+  "generatedAt": "2026-11-14T01:32:34Z",
+  "pipelineVersion": "cv-opencv-v1.6.0-auto",
   "videoPipelineVersion": "cv-video-v1.1.0",
-  "configDigest": "e6a293b9ddfb19f0",
+  "configDigest": "81879f64ea24c747",
   "protocol": "Detection: strict counts PRESENT as positive, lenient counts PRESENT or UNCERTAIN, localized also requires the mask on a flame frame to overlap the labelled flame (IoU >= 0.1); unclear labels are excluded. 95% intervals resample whole tests (groupId), not frames. 'verified' uses only items a person has checked.",
   "splits": {
     "dev": {
@@ -18,80 +18,80 @@
         "detection": {
           "strict": {
             "tp": 15,
-            "fp": 7,
+            "fp": 5,
             "fn": 0,
-            "tn": 37,
-            "precision": 0.6818,
+            "tn": 39,
+            "precision": 0.75,
             "recall": 1.0,
-            "f1": 0.8108,
-            "falsePositiveRate": 0.1591,
+            "f1": 0.8571,
+            "falsePositiveRate": 0.1136,
             "precisionCI95": [
-              0.1667,
-              0.9394
+              0.25,
+              1.0
             ],
             "recallCI95": [
               1.0,
               1.0
             ],
             "falsePositiveRateCI95": [
-              0.0294,
-              0.3715
+              0.0,
+              0.2778
             ]
           },
           "lenient": {
             "tp": 15,
-            "fp": 23,
+            "fp": 21,
             "fn": 0,
-            "tn": 21,
-            "precision": 0.3947,
+            "tn": 23,
+            "precision": 0.4167,
             "recall": 1.0,
-            "f1": 0.566,
-            "falsePositiveRate": 0.5227,
+            "f1": 0.5883,
+            "falsePositiveRate": 0.4773,
             "precisionCI95": [
-              0.0605,
-              0.7222
+              0.0645,
+              0.75
             ],
             "recallCI95": [
               1.0,
               1.0
             ],
             "falsePositiveRateCI95": [
-              0.2326,
-              0.8235
+              0.193,
+              0.7714
             ]
           },
           "localized": {
             "tp": 14,
-            "fp": 7,
+            "fp": 5,
             "fn": 1,
-            "tn": 37,
-            "precision": 0.6667,
+            "tn": 39,
+            "precision": 0.7368,
             "recall": 0.9333,
-            "f1": 0.7778,
-            "falsePositiveRate": 0.1591,
+            "f1": 0.8235,
+            "falsePositiveRate": 0.1136,
             "precisionCI95": [
-              0.1667,
-              0.9355
+              0.25,
+              1.0
             ],
             "recallCI95": [
               0.6667,
               1.0
             ],
             "falsePositiveRateCI95": [
-              0.0294,
-              0.3715
+              0.0,
+              0.2778
             ]
           }
         },
         "segmentation": {
           "n": 15,
-          "meanIoU": 0.5481,
+          "meanIoU": 0.5479,
           "meanIoUCI95": [
             0.3323,
-            0.7945
+            0.7939
           ],
           "nDetected": 15,
-          "meanIoUWhenDetected": 0.5481,
+          "meanIoUWhenDetected": 0.5479,
           "note": "IoU on the pipeline's letterbox canvas; a missed flame counts as IoU 0 in meanIoU. The pipeline keeps only the largest region, so multi-lobe flames lower IoU."
         }
       },
@@ -370,7 +370,7 @@
       "split": "dev",
       "label": "absent",
       "status": "UNCERTAIN",
-      "confidence": 0.906,
+      "confidence": 0.925,
       "verified": false,
       "iou": null
     },
@@ -380,7 +380,7 @@
       "split": "dev",
       "label": "unclear",
       "status": "PRESENT",
-      "confidence": 0.88,
+      "confidence": 0.667,
       "verified": false,
       "iou": null
     },
@@ -389,8 +389,8 @@
       "groupId": "PSI-69/176F001D",
       "split": "dev",
       "label": "absent",
-      "status": "PRESENT",
-      "confidence": 0.701,
+      "status": "ABSENT",
+      "confidence": 0.587,
       "verified": false,
       "iou": null
     },
@@ -400,7 +400,7 @@
       "split": "dev",
       "label": "absent",
       "status": "PRESENT",
-      "confidence": 0.86,
+      "confidence": 0.788,
       "verified": false,
       "iou": null
     },
@@ -412,15 +412,15 @@
       "status": "PRESENT",
       "confidence": 0.984,
       "verified": false,
-      "iou": 0.657
+      "iou": 0.6534
     },
     {
       "itemId": "195F002D_01061",
       "groupId": "PSI-69/195F002D",
       "split": "dev",
       "label": "absent",
-      "status": "PRESENT",
-      "confidence": 0.847,
+      "status": "ABSENT",
+      "confidence": 0.612,
       "verified": false,
       "iou": null
     },
@@ -570,7 +570,7 @@
       "split": "dev",
       "label": "absent",
       "status": "PRESENT",
-      "confidence": 0.781,
+      "confidence": 0.73,
       "verified": false,
       "iou": null
     },
@@ -580,7 +580,7 @@
       "split": "dev",
       "label": "absent",
       "status": "PRESENT",
-      "confidence": 0.786,
+      "confidence": 0.611,
       "verified": false,
       "iou": null
     },
@@ -1770,7 +1770,7 @@
       "split": "dev",
       "label": "absent",
       "status": "UNCERTAIN",
-      "confidence": 0.931,
+      "confidence": 0.924,
       "verified": false,
       "iou": null
     },
@@ -1780,7 +1780,7 @@
       "split": "dev",
       "label": "unclear",
       "status": "UNCERTAIN",
-      "confidence": 0.381,
+      "confidence": 0.402,
       "verified": false,
       "iou": null
     },
@@ -1790,7 +1790,7 @@
       "split": "dev",
       "label": "unclear",
       "status": "UNCERTAIN",
-      "confidence": 0.415,
+      "confidence": 0.385,
       "verified": false,
       "iou": null
     },
@@ -1800,7 +1800,7 @@
       "split": "dev",
       "label": "absent",
       "status": "UNCERTAIN",
-      "confidence": 0.946,
+      "confidence": 0.938,
       "verified": false,
       "iou": null
     },
@@ -1809,8 +1809,8 @@
       "groupId": "PSI-69/X177H10D",
       "split": "dev",
       "label": "unclear",
-      "status": "UNCERTAIN",
-      "confidence": 0.517,
+      "status": "ABSENT",
+      "confidence": 0.61,
       "verified": false,
       "iou": null
     },
@@ -1819,8 +1819,8 @@
       "groupId": "PSI-69/X177H10D",
       "split": "dev",
       "label": "unclear",
-      "status": "UNCERTAIN",
-      "confidence": 0.484,
+      "status": "ABSENT",
+      "confidence": 0.586,
       "verified": false,
       "iou": null
     },

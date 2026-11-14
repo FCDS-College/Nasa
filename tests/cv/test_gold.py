@@ -167,3 +167,20 @@ def test_adopt_rejected_mask_is_dropped_and_item_stays_unverified(tmp_path):
     flame = next(i for i in adopted if i["itemId"] == "flame")
     assert flame["mask"] is None and flame["provenance"]["verified"] is False
     assert "mask rejected" in flame["notes"] and summary["maskRejected"] == 1
+
+
+def test_evaluate_passes_the_source_camera_profile(tmp_path):
+    # A source that declares a cameraProfile is analysed with it, as an API client sending camera_profile would be.
+    img = np.zeros((480, 640, 3), np.uint8)
+    cv2.ellipse(img, (320, 440), (60, 15), 0, 180, 360, (60, 60, 230), 6)   # hardware arc in the FLEX zone
+    path = tmp_path / "arc.png"
+    cv2.imwrite(str(path), img)
+    src = {"sourceId": "arc", "groupId": "A/1", "split": "dev", "kind": "image", "path": str(path),
+           "sha256": gold.sha256_hex(path), "sizeBytes": 1, "psi": None, "inGit": True, "sampling": None}
+    prov = {"labeller": "test", "labelledAt": "x", "verified": False, "verifiedBy": None, "verifiedAt": None}
+    item = {"itemId": "arc", "sourceId": "arc", "groupId": "A/1", "split": "dev", "frameIndex": None, "label": "absent",
+            "mask": None, "notes": "", "provenance": prov}
+    plain = gold.evaluate({"sources": [src]}, [item], tmp_path / "w1", reps=10)
+    assert plain["items"][0]["status"] == "PRESENT"
+    with_profile = gold.evaluate({"sources": [{**src, "cameraProfile": "flex-colour"}]}, [item], tmp_path / "w2", reps=10)
+    assert with_profile["items"][0]["status"] == "ABSENT"

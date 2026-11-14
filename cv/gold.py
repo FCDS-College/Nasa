@@ -34,7 +34,7 @@ import numpy as np
 from PIL import Image, ImageOps
 
 from cv.flame_cv import (PIPELINE_VERSION, CVConfig, Letterbox, _to_rgb8, analyze_image_safe, atomic_write_text,
-                         compute_auto_target_size, letterbox_geometry, utc_now)
+                         compute_auto_target_size, letterbox_geometry, utc_now, with_camera_profile)
 from cv.video_analysis import analyze_video
 from cv.video_ingestion import VIDEO_PIPELINE_VERSION, VideoConfig, iter_frames, probe_video, sampled_indexes
 
@@ -303,7 +303,10 @@ def _summary(rows: List[Dict[str, Any]], reps: int, seed: int) -> Dict[str, Any]
 def _predict_source(src: Dict[str, Any], work: Path, cfg: Optional[CVConfig]) -> Dict[Optional[int], Dict[str, Any]]:
     """frameIndex (None for an image) -> {status, confidence, maskPath, lb}."""
     if src["kind"] == "image":
-        res = analyze_image_safe({"imagePath": src["path"], "imageId": src["sourceId"]}, work / "cv", work / "masks",
+        request = {"imagePath": src["path"], "imageId": src["sourceId"]}
+        if src.get("cameraProfile"):   # as an API client sending camera_profile would
+            request["metadata"] = {"cameraProfile": src["cameraProfile"]}
+        res = analyze_image_safe(request, work / "cv", work / "masks",
                                  cfg=cfg)
         if res.get("status") != "SUCCESS":
             return {None: {"status": "ERROR", "confidence": None, "maskPath": None, "lb": None,
@@ -312,6 +315,8 @@ def _predict_source(src: Dict[str, Any], work: Path, cfg: Optional[CVConfig]) ->
         return {None: {"status": res["detection"]["status"], "confidence": res["detection"]["confidence"],
                        "maskPath": res["segmentation"].get("maskUri"),
                        "lb": letterbox_geometry(pre["originalWidth"], pre["originalHeight"], pre["targetSize"])}}
+    if src.get("cameraProfile"):
+        cfg = with_camera_profile(cfg or CVConfig(), src["cameraProfile"])
     result = analyze_video(src["path"], work, cfg=cfg, video_cfg=video_config(src), resume=False)
     w, h = result["videoMetadata"]["resolution"]
     job = work / result["videoId"]

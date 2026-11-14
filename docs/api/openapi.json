@@ -7860,6 +7860,13 @@
               }
             ],
             "description": "Probe metadata and sampling policy; present only for flame_video (0.3.0)."
+          },
+          "camera_profile": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The camera_profile the analysis was requested with, or null. Absent on analyses created before it was added."
           }
         },
         "additionalProperties": false,
@@ -8988,6 +8995,12 @@
             "minimum": 1,
             "default": 300,
             "description": "Video only: cap on sampled frames (≤ FLAME_MAX_VIDEO_FRAMES, default 600)."
+          },
+          "camera_profile": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Optional fixed-camera profile from `cv/configs/camera_profiles.json` (e.g. `flex-colour`). Its exclusion zones (static bright hardware in that camera's view) are removed before detection; the zones used are reported in the CV result's preprocessing. An unknown name is a 400 VALIDATION_ERROR."
           }
         },
         "additionalProperties": false,

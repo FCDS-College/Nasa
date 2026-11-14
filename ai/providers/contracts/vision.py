@@ -16,6 +16,7 @@ class ImageAnalysisRequest:
     work_dir: Path
     mm_per_pixel: float | None = None
     max_pixels: int | None = None
+    camera_profile: str | None = None    # a cv/configs/camera_profiles.json key (exclusion zones)
 
 
 @dataclass(frozen=True, slots=True)
