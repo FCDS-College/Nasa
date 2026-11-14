@@ -31,7 +31,7 @@ NASA has flown decades of combustion experiments (BASS, FLEX, Saffire, SPICE, AC
 3. **Summarize.** Each investigation's objective, hypothesis, approach and impact appear in NASA's own words, from the PSI ISA-Tab metadata, with a source link.
 4. **Explain.** The dashboard states what the flight tests measured there; every number comes with the IDs of the NASA table cells it came from. It also states **what the data cannot tell you**.
 5. **Estimate.** A validated model estimates whether a droplet flame would self-extinguish, and shows the most similar real ISS tests next to it. It **refuses** outside the conditions NASA actually flew.
-6. **Ask.** A chat answers questions over 27 NASA reports and 4 investigation records. Answers may only cite retrieved evidence; without a language model, the chat shows that evidence directly.
+6. **Ask.** A chat answers questions over 27 NASA reports and 24 investigation records. Answers may only cite retrieved evidence; without a language model, the chat shows that evidence directly.
 7. **Connect.** A knowledge graph links investigations, tests, fuels, conditions and outcomes, every link citing the NASA cell it came from. Example: which fuels did the tests that ended in extinction burn? In the web app's Knowledge Graph page, through the API, and as two AURA agent tools.
 
 ![Computed, cited insights for the pre-EVA atmosphere](docs/presentations/screenshots/2-insights.png)
@@ -100,7 +100,7 @@ NASA PSI tables + ISA-Tab metadata + NTRS reports + flight video
 - **Limitations:**
   - outcomes are modelled for droplets only;
   - no partial-gravity data exists here;
-  - the Apollo 1 screenshot was retaken with the 19-investigation data (1950 tests); the ranking, insights and outcome-explorer screenshots were taken with the 4-table data (840 tests) and still need a retake;
+  - the screenshots were taken on a local capture stack (in-memory database, no object storage or cache), so the top bar's health badge is hidden in them;
   - the gold set and labels need expert review.
 - **Next:**
   - parse BASS-II spread and extinction from flight video with the CV pipeline;
