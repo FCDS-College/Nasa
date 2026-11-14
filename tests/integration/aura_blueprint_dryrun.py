@@ -81,14 +81,18 @@ def main() -> int:
         print("  AURA revision does not honor x-aura-exclude (needs AURA PR #166 or later)")
         leaked += 1
 
-    exposed = {p for tool in compiled.blueprint.tools for p in templates[tool.template].http.query_params}
+    # Per route: a parameter another tool happens to share a name with does not make it reachable here.
+    exposed: dict[str, set[str]] = {}
+    for tool in compiled.blueprint.tools:
+        http = templates[tool.template].http
+        exposed.setdefault(http.path, set()).update(http.query_params)
     unreachable = 0
     for path, item in sorted(spec["paths"].items()):
         if ("GET", path) in excluded:
             continue
         for param in item.get("get", {}).get("parameters", []):
             param = _resolve(spec, param)
-            if param.get("in") == "query" and param.get("name") not in exposed:
+            if param.get("in") == "query" and param.get("name") not in exposed.get(path, set()):
                 print(f"  not reachable by AURA: optional query parameter {param.get('name')!r} on GET {path}")
                 unreachable += 1
     return 1 if rejected or missing_examples or unreachable or leaked else 0
