@@ -36,17 +36,29 @@ Frontend environment variables belong in a local `.env.local` file.
 
 Do not commit secrets or credentials.
 
-The browser never talks to the Flame API directly. Every call goes through the same-origin, read-only
-proxy `app/api/[...path]/route.ts`, which runs on the server and attaches the read key there:
+The browser never talks to the Flame API directly. Every call goes through the same-origin proxy
+`app/api/[...path]/route.ts`, which runs on the server and attaches the keys there:
 
     FLAME_API_ORIGIN=http://localhost:8000          # server-side; required (503 API_NOT_CONFIGURED without it)
     FLAME_READ_API_TOKEN=<read-scoped key>          # server-side; never sent to the browser
+    FLAME_WEB_UPLOAD_KEY=<write-scoped client key>  # optional; enables uploads (see below)
+    FLAME_WEB_UPLOAD_PASSCODE=<shared passcode>     # optional; required together with the upload key
     # NEXT_PUBLIC_API_URL                           # optional browser prefix; leave unset to use the proxy
 
 The proxy allows GET on health, dashboard counts, search, documents, experiments, evidence, analyses,
 investigations, insights and the knowledge graph (`graph/entities[/<ULID>]`, used by `/knowledge`), and POST
-on chat only. The graph's admin consistency report (`/api/admin/graph/consistency`) is not forwarded. It never holds a write key, so uploads and admin
-operations are not possible from the dashboard.
+on chat and analyses only. The graph's admin consistency report (`/api/admin/graph/consistency`) is not
+forwarded, and the dashboard never holds an admin credential.
+
+**Uploads (`/analysis` → Upload).** The dashboard has no login, so uploading a flame image (PNG/JPEG, 10 MB)
+or video (200 MB) needs a shared passcode, sent as `X-Flame-Upload-Passcode` and compared in constant time;
+10 wrong passcodes from one address (`X-Real-IP`, else the last `X-Forwarded-For` entry, so a client
+cannot pick its own) lock it out for 10 minutes. Use a high-entropy passcode (16+ random characters). The proxy then streams the upload to
+`POST /api/analyses` with `FLAME_WEB_UPLOAD_KEY`, a dedicated `api_client` key with only the `write` scope
+(`python -m flame_api.clients create flame-web-uploads --scopes write`), never the deprecated
+`FLAME_WRITE_API_TOKEN`, which is also an admin credential. The panel polls the analysis and opens the
+result when the CV worker finishes. With either variable unset, uploads answer 503 `UPLOADS_DISABLED`.
+To rotate: `python -m flame_api.clients revoke flame-web-uploads`, create a new key, update both variables.
 
 Demo smoke test (needs Playwright + Chromium): `node scripts/demo-smoke.mjs http://localhost:3000`.
 

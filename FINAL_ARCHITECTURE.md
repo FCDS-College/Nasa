@@ -26,7 +26,7 @@ FastAPI apps/api (contract docs/api/openapi.json 0.7.0, per-client keys with rea
   └─ Analysis     /api/analyses (image + video) → S3 original → RQ worker → cv/ (OpenCV) → measurements + evidence;
                    video checkpoints per segment, resume after recovery; POST /api/analyses/{id}/cancel
         │
-Next.js apps/web ── server-side read-only proxy (app/api/[...path]) holding the read key
+Next.js apps/web ── server-side proxy (app/api/[...path]) holding the read key + a write-only upload key
   /  dashboard · /investigations/[id] · /explorer · /experiments · /chat · /search · /knowledge · /analysis · /history · /evidence · /status
         │
 AURA (optional, separate system) ── compiles the read-only GET operations into 16 agent tools (Link 2)

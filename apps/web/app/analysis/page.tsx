@@ -5,6 +5,7 @@ import { fetchAnalysis, artifactUrl } from "@/lib/api/client";
 import { AnalysisResult } from "@/lib/api/types";
 import { Badge } from "@/components/ui/Badge";
 import { VideoAnalysisPanel } from "@/components/fire/VideoAnalysisPanel";
+import { UploadAnalysisPanel } from "@/components/fire/UploadAnalysisPanel";
 import { Flame, Upload, Eye, EyeOff, AlertTriangle, Crosshair, BarChart2, Cpu } from "lucide-react";
 
 export default function AnalysisPage() {
@@ -12,6 +13,7 @@ export default function AnalysisPage() {
   const [loaded, setLoaded] = useState(false);
   const [showMask, setShowMask] = useState(true);
   const [videoId, setVideoId] = useState<string | null | undefined>(undefined);
+  const [uploadOpen, setUploadOpen] = useState(false);
 
   useEffect(() => {
     // ?id=<image analysis> opens that analysis (from History); ?video=<id> selects the video shown below.
@@ -42,9 +44,10 @@ export default function AnalysisPage() {
         </div>
         <button
           id="upload-btn"
-          disabled
-          title="Uploads need a write-scoped key, which the dashboard deliberately never holds; analyses are submitted through the API (see DEMO_RUNBOOK.md)"
-          className="flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold cursor-not-allowed opacity-50"
+          onClick={() => setUploadOpen(true)}
+          aria-expanded={uploadOpen}
+          title="Upload a flame image or video (needs the upload passcode)"
+          className="flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold"
           style={{
             background: 'linear-gradient(135deg, var(--accent-flame), var(--accent-ember))',
             color: '#000',
@@ -53,9 +56,11 @@ export default function AnalysisPage() {
           }}
         >
           <Upload className="h-4 w-4" />
-          Upload (API only)
+          Upload
         </button>
       </div>
+
+      {uploadOpen && <UploadAnalysisPanel onClose={() => setUploadOpen(false)} />}
 
       {loaded && !analysis ? (
         <p className="text-sm" style={{ color: 'var(--text-muted)' }}>

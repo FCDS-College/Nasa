@@ -96,7 +96,7 @@ The effective mode is `FLAME_AI_EXECUTION_MODE` **until anyone calls `PUT /api/a
 - **Redis:** with a 5 GB volume.
 - **Bucket:** `versatile-bin-Yo7I`.
 - **`flame-api`:** built from `apps/api/Dockerfile`; pre-deploy runs `alembic upgrade head && python -m flame_api.seed && python -m flame_api.ingest`; health check `/health/live`.
-- **`flame-worker`:** the same image running `rq worker flame-analysis`.
+- **`flame-worker`:** the same image running `rq worker flame-analysis`. Railway ignores `railway.json` on `railway up` uploads, so the worker's start command is baked into `apps/api/Dockerfile.worker` (the API Dockerfile with only `CMD` changed; `tests/unit/test_worker_dockerfile.py` keeps them in step). Set `RAILWAY_DOCKERFILE_PATH=apps/api/Dockerfile.worker` on `flame-worker`.
 
 Existing `FLAME_*` variables are kept with `preserve()`.
 

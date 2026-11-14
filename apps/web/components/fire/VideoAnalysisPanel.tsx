@@ -87,7 +87,7 @@ export function VideoAnalysisPanel({ analysisId }: { analysisId?: string | null 
     <section className="rounded-2xl p-5" style={{ background: "var(--bg-card)", border: "1px solid var(--border-default)" }}>
       <h2 className="flex items-center gap-2 text-base font-semibold"><Film className="h-4 w-4" style={{ color: "var(--accent-flame)" }} aria-hidden="true" /> Video flame analysis</h2>
       <p className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
-        Sampled frames of a NASA flight video, measured in time order. Pixel units only: no temperature, and no physical size without a calibrated scale.
+        Sampled frames of the video, measured in time order. Pixel units only: no temperature, and no physical size without a calibrated scale.
       </p>
       <div className="mt-4">
         {state === "loading" && <Loading label="Loading video analysis…" />}

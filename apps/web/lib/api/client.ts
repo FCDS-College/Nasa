@@ -190,6 +190,63 @@ function flattenMeasurements(measurements: Json): AnalysisResult["measurements"]
   return out;
 }
 
+/** A refused or failed upload, with the API's (or the proxy's) error code and message. */
+export class UploadError extends Error {
+  constructor(public code: string, message: string, public status: number | null) {
+    super(message);
+    this.name = code;
+  }
+}
+
+export interface SubmittedAnalysis {
+  analysis_id: string;
+  analysis_type: "flame_image" | "flame_video";
+  status: AnalysisStatus;
+}
+
+/**
+ * Upload a PNG/JPEG image or a video for CV analysis through the same-origin proxy, which checks
+ * the passcode and forwards with its own upload key. Resolves once the analysis is queued.
+ */
+export async function submitAnalysis(file: File, passcode: string): Promise<SubmittedAnalysis> {
+  const isVideo = file.type.startsWith("video/");
+  const form = new FormData();
+  form.append(isVideo ? "video" : "image", file, file.name);
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}/api/analyses`, {
+      method: "POST",
+      headers: { "X-Flame-Upload-Passcode": passcode, "Idempotency-Key": crypto.randomUUID() },
+      body: form,
+    });
+  } catch {
+    throw new UploadError("NETWORK_ERROR", "The upload did not reach the server. Check the connection and try again.", null);
+  }
+  const body: Json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = body.error ?? {};
+    throw new UploadError(err.code ?? `HTTP_${res.status}`, err.message ?? `The upload failed (${res.status}).`, res.status);
+  }
+  const a = body.analysis ?? {};
+  return {
+    analysis_id: a.analysis_id,
+    analysis_type: a.analysis_type === "flame_video" ? "flame_video" : "flame_image",
+    status: toAnalysisStatus(a.status),
+  };
+}
+
+/** The current status (and failure message, if any) of one analysis. */
+export async function fetchAnalysisStatus(id: string): Promise<{ status: AnalysisStatus; failure?: string; progress?: string }> {
+  const { analysis: a } = await getJson(`analyses/${id}`);
+  const done = a.progress?.frames_done;
+  const total = a.progress?.frames_total;
+  return {
+    status: toAnalysisStatus(a.status),
+    failure: a.failure?.message ?? undefined,
+    progress: typeof done === "number" && typeof total === "number" ? `${done}/${total} frames` : undefined,
+  };
+}
+
 export async function fetchAnalysis(id?: string): Promise<AnalysisResult | null> {
   try {
     let analysisId = id;

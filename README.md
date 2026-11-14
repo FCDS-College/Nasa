@@ -73,7 +73,7 @@ The full stack (API, worker, PostgreSQL + pgvector, Redis, S3, web, optional Oll
 
 ```
 apps/api        FastAPI service, ingestion, RQ worker (contract docs/api/openapi.json)
-apps/web        Next.js dashboard (server-side read-only proxy to the API)
+apps/web        Next.js dashboard (server-side proxy to the API: reads, chat, passcode-gated uploads)
 ai/fire_safety  investigations ranking, coverage verdict, insights, FLEX outcome model (+ artefact and evaluation),
                 historical scenarios as cited data files (historical/)
 ai/routing      provider-neutral model router (local / cloud, offline modes)

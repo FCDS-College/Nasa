@@ -102,8 +102,9 @@ async def _authorized(request: Request, call_next):
     request.state.api_client = None
     if not path.startswith("/api/") or public_metadata:
         return await call_next(request)
-    # Chat only reads the corpus (and asks AURA), so read scope is enough for it; the web service
-    # never needs write scope. Admin data is neither for the read tier nor for every writer: every
+    # Chat only reads the corpus (and asks AURA), so read scope is enough for it. The web service
+    # holds write scope only through a dedicated `write` client key that its proxy uses for
+    # passcode-gated POST /api/analyses uploads (apps/web/app/api/[...path]/route.ts). Admin data is neither for the read tier nor for every writer: every
     # /api/admin/ route, GETs included, needs the admin scope (ADR-009 step 2).
     chat = request.method == "POST" and path == "/api/chat"
     admin = path.startswith("/api/admin/")
