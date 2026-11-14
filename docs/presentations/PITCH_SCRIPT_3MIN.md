@@ -28,7 +28,7 @@ The deck is `flame-in-freefall-3min-pitch.pptx` (7 slides; these words are also 
 ### Slide 3 · It solves (0:45–1:10)
 
 > Flame in Freefall reads all of it. Pick an atmosphere, here ISS air.
-> **162 flight tests lie near it.** The investigations are ranked by how directly they apply, every number links to its NASA table cell, and a validated model estimates how droplet flames end.
+> **310 flight tests lie near it.** The investigations are ranked by how directly they apply, every number links to its NASA table cell, and a validated model estimates how droplet flames end.
 
 ### Slide 4 · It knows when not to answer (1:10–1:45)
 

@@ -49,8 +49,8 @@ NASA has flown decades of combustion experiments (BASS, FLEX, Saffire, SPICE, AC
 On 27 January 1967, Apollo 1's cabin held **100 % oxygen at 16.7 psia** during a ground test on the pad. The Apollo 204 Review Board called the test conditions "extremely hazardous" (NTRS 19930078717, p. 189), and a later NASA paper notes that the cabin materials had been exposed to an atmosphere "in which they had never been tested" (NTRS 20070021223, p. 2). Three astronauts died.
 
 The preset **"Apollo 1: pure-O₂ ground test (1967)"** goes through four steps:
-1. **The verdict:** "None of the 840 flight tests cover this atmosphere." Its O₂ is 2.9× the highest ever flown (34 %), and it is at 1 g, while every test was in microgravity.
-2. **The evidence:** the nearest real test (FLEX 196F003), an envelope map, and an O₂ sweep that turns red past the flight data. The model gives no estimate.
+1. **The verdict:** "None of the 1950 flight tests cover this atmosphere." Its O₂ is 2.5× the highest ever flown (40 %), and it is at 1 g, while every test was in microgravity.
+2. **The evidence:** the nearest real test (ACME CFI-G 21162A1, a gas-jet flame at 40 % O₂), an envelope map, and an O₂ sweep that turns red past the flight data. The model gives no estimate.
 3. **What changed after:** Beta cloth, limited pad oxygen, worst-case materials testing, and the move to air. Each line links to its NASA page.
 4. **Where data does exist:** NASA's exploration atmosphere, Orion at 30 % O₂, is inside the flight envelope, with 8 real tests and an estimate. It is labelled "covered by data", not "safe".
 
@@ -93,7 +93,7 @@ NASA PSI tables + ISA-Tab metadata + NTRS reports + flight video
 
 - **Mission and habitat designers:** see which atmospheres have flight evidence and where testing is missing, before choosing a cabin atmosphere.
 - **Materials engineers:** jump from a question to the NASA reports (NASA-STD-6001 testing, MOC, flammability limits) with citations.
-- **Researchers:** browse 840 flight tests cell by cell, with provenance and data-quality flags.
+- **Researchers:** browse 1950 flight tests cell by cell, with provenance and data-quality flags.
 
 ## 8. Limitations and future work
 

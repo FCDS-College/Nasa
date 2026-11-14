@@ -144,7 +144,8 @@ export default function FireSafetyDashboard() {
           <SectionTitle title="2 · Does any flight test cover this atmosphere?"
             subtitle="Asked before any ranking or estimate. Where nothing was flown, the system says so and does not guess." />
           <div className="flex flex-col gap-5" style={{ opacity: loading ? 0.6 : 1 }}>
-            <CoverageVerdict coverage={list.coverage} scenario={scenario} />
+            <CoverageVerdict coverage={list.coverage} scenario={scenario}
+              acronyms={Object.fromEntries(list.items.flatMap((i) => (i.acronym ? [[i.investigation_id, i.acronym]] : [])))} />
             <div className="grid gap-5 lg:grid-cols-2">
               <div>
                 <h3 className="mb-2 text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Where the flight data is</h3>
