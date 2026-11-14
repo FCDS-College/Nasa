@@ -89,13 +89,28 @@ def test_unstable_segmentation_is_not_present(tmp_path, dirs):
 
 # ---- tiny specks in an empty dark frame were UNCERTAIN "flames" ------------------------------
 def test_tiny_speck_is_absent(tmp_path, dirs):
-    img = np.zeros((480, 720, 3), np.uint8)
-    img[0:5, 600:620] = 255  # a 100-pixel scan-line speck at the frame edge (0.03% of the frame, like TEST_P12)
+    # Like the specks in empty BASS-II frames: 0.03% of the frame, about 60 gray levels above the background.
+    img = np.full((480, 720, 3), 6, np.uint8)
+    img[0:5, 600:620] = 68
     path = tmp_path / "speck.png"
     Image.fromarray(img).save(path)
     r = run(path, dirs)
     assert r["detection"]["status"] == "ABSENT"
     assert r["measurements"]["geometry"] is None
+    assert any("speck" in w.lower() for w in r["scientificInterpretation"]["warnings"])
+
+
+def test_small_bright_flame_is_present(tmp_path, dirs):
+    # A real flame can be smaller than 0.05% of the frame (a distant or dying flame). With high contrast it is
+    # a flame, not a speck: the 0.05% minimum of v1.3.0 missed these (CV evaluation, holdout T23).
+    img = np.full((480, 720, 3), 6, np.uint8)
+    cv2.ellipse(img, (500, 300), (6, 4), 0, 0, 360, (150, 120, 220), -1)   # ~0.03% of the frame
+    path = tmp_path / "small_flame.png"
+    Image.fromarray(img).save(path)
+    r = run(path, dirs)
+    assert r["detection"]["status"] == "PRESENT"
+    area = r["measurements"]["geometry"]["pixelArea"] / (720 * 480)
+    assert area < 0.0005
 
 
 def test_smallest_real_flame_size_is_kept(tmp_path, dirs):
@@ -146,3 +161,42 @@ def test_flex_16bit_dark_frames_are_not_flames(tmp_path, dirs, sequence):
 def test_spice_flames_are_still_present(tmp_path, dirs):
     paths = _samples("FF-PSI-107/SPICE_GMT045_2009_jpegs/*.jpg")
     assert all(run(p, dirs)["detection"]["status"] == "PRESENT" for p in paths)
+
+
+# ---- static lit scenery (cabin views, lit hardware) was reported as a flame --------------------
+def test_bright_region_in_a_lit_scene_is_not_present(tmp_path, dirs):
+    # A lit scene (median gray ~70, like a cabin view) with a bright region: brightness cannot tell lit
+    # scenery from a flame, so the answer is UNCERTAIN, never PRESENT.
+    rng = np.random.default_rng(2)
+    img = np.clip(rng.normal(70, 12, (480, 720, 3)), 0, 255).astype(np.uint8)
+    cv2.rectangle(img, (100, 300), (500, 470), (235, 235, 245), -1)   # a bright floor panel
+    path = tmp_path / "lit.png"
+    Image.fromarray(img).save(path)
+    r = run(path, dirs)
+    assert r["detection"]["status"] == "UNCERTAIN"
+    assert any("lit scene" in w.lower() for w in r["scientificInterpretation"]["warnings"])
+
+
+def test_flame_in_a_dark_scene_is_still_present(tmp_path, dirs):
+    p = tmp_path / "c.png"
+    make_synthetic_flame(p, size=(800, 600), blobs=[(400, 300, 120, 120)])
+    r = run(p, dirs)
+    assert r["detection"]["status"] == "PRESENT"
+    assert not any("lit scene" in w.lower() for w in r["scientificInterpretation"]["warnings"])
+
+
+def test_lit_flex_hardware_frame_is_not_present(tmp_path, dirs):
+    # FLEX X168M03D_00000: the chamber lit, needle and wall visible, no flame (dev split of cv_gold_v1).
+    paths = _samples("FF-PSI-69/X168M03D/X168M03D_00000.png")
+    assert run(paths[0], dirs)["detection"]["status"] != "PRESENT"
+
+
+def test_cabin_view_video_has_no_present_frames(tmp_path):
+    # BASS-II TEST_T25 2nd view: a lit glovebox, no flame in the camera's own view (dev split of cv_gold_v1).
+    from cv.video_analysis import analyze_video
+    from cv.video_ingestion import VideoConfig
+    video = next((SAMPLES / "FF-PSI-25" / "videos").glob("*T25_2ND_VIEW*.mp4"), None)
+    if video is None:
+        pytest.skip("TEST_T25 2nd view not installed")
+    result = analyze_video(video, tmp_path, video_cfg=VideoConfig(sample_every=500))
+    assert [f["frameIndex"] for f in result["frameMeasurements"] if f["detectionStatus"] == "PRESENT"] == []

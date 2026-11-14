@@ -26,7 +26,7 @@ import urllib.request
 from collections.abc import Callable, Sequence
 from pathlib import Path
 
-from ai.rag.evaluation.passage_gold import MIN_VERIFIED_FOR_REPORT, PassageCase, load_passage_gold, retrieval_report, verified_cases
+from ai.rag.evaluation.passage_gold import MIN_VERIFIED_FOR_REPORT, PassageCase, load_passage_gold, retrieval_report, validate, verified_cases
 from ai.rag.evaluation.stats import compare_reports
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -58,6 +58,9 @@ def run(cases: Sequence[PassageCase], fetch: Fetch, *, label: str) -> dict:
     unanswerable = [c for c in scored if not c.answerable]
     if len(answerable) < MIN_VERIFIED_FOR_REPORT:
         raise ValueError(f"need at least {MIN_VERIFIED_FOR_REPORT} verified answerable cases, have {len(answerable)}")
+    problems = validate(list(cases))
+    if problems:      # e.g. too few unanswerable cases after a staged adoption: the set must be complete before it is scored
+        raise ValueError("the gold file breaks its own rules, so it is not scored: " + "; ".join(problems[:4]))
     rankings: dict[str, list[tuple[str, int]]] = {}
     per_question, modes, reranking = [], set(), set()
     for case in [*answerable, *unanswerable]:

@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Team Flame in Freefall | Current (submission, facts updated) | 1.1.0 | 2026-11-13 | T7, ADR-013 | `apps/web`, `apps/api`, `ai/fire_safety` |
+| Team Flame in Freefall | Current (submission, facts updated) | 1.2.0 | 2026-11-14 | T7, ADR-013 | `apps/web`, `apps/api`, `ai/fire_safety` |
 
 NASA Space Apps Challenge 2026 · Challenge: *Flame in Freefall*
 
@@ -49,8 +49,8 @@ NASA has flown decades of combustion experiments (BASS, FLEX, Saffire, SPICE, AC
 On 27 January 1967, Apollo 1's cabin held **100 % oxygen at 16.7 psia** during a ground test on the pad. The Apollo 204 Review Board called the test conditions "extremely hazardous" (NTRS 19930078717, p. 189), and a later NASA paper notes that the cabin materials had been exposed to an atmosphere "in which they had never been tested" (NTRS 20070021223, p. 2). Three astronauts died.
 
 The preset **"Apollo 1: pure-O₂ ground test (1967)"** goes through four steps:
-1. **The verdict:** "None of the 1950 flight tests cover this atmosphere." Its O₂ is 2.5× the highest ever flown (40 %), and it is at 1 g, while every test was in microgravity.
-2. **The evidence:** the nearest real test (ACME CFI-G 21162A1, a gas-jet flame at 40 % O₂), an envelope map, and an O₂ sweep that turns red past the flight data. The model gives no estimate.
+1. **The verdict:** "None of the 1950 flight tests cover this atmosphere." Its O₂ is 2.5× the highest ever flown (40 %), and it is at 1 g, while every test was in microgravity. (Source: `GET /api/investigations?scenario=apollo1_pad_1967` → `coverage`, asserted in `apps/api/tests/test_fire_safety_api.py`; [APOLLO1_SCENARIO_ANALYSIS.md](docs/reports/APOLLO1_SCENARIO_ANALYSIS.md) step B.)
+2. **The evidence:** the nearest real test (ACME CFI-G 21162A1: 40 % O₂, 101 kPa, a gas-jet flame), an envelope map, and an O₂ sweep that turns red past the flight data. The model gives no estimate.
 3. **What changed after:** Beta cloth, limited pad oxygen, worst-case materials testing, and the move to air. Each line links to its NASA page.
 4. **Where data does exist:** NASA's exploration atmosphere, Orion at 30 % O₂, is inside the flight envelope, with 8 real tests and an estimate. It is labelled "covered by data", not "safe".
 
@@ -73,7 +73,7 @@ NASA PSI tables + ISA-Tab metadata + NTRS reports + flight video
 |---|---|---|
 | Flame-outcome model (FLEX, 261 ISS tests, 80 test days) | Multinomial logistic regression on O₂, pressure, ppO₂, CO₂, He, droplet size, fuel; chosen over random forest and kNN by repeated grouped CV; exported to JSON, run with numpy | Macro-F1 **0.54 ± 0.02** vs 0.27 baseline; extinction ROC-AUC **0.86**; split by test day; strict applicability domain |
 | Retrieval | PostgreSQL full-text + pgvector (`bge-small-en-v1.5`), fused with reciprocal rank fusion, then the top 10 reranked by a local cross-encoder | 26 corpus-grounded questions (measured on the 24-report corpus): hit@1 **0.88**, hit@5 **0.96**, MRR@10 **0.91** (fusion alone: 0.81 / 0.96 / 0.86; lexical-only 0.31) |
-| Knowledge graph | Deterministic extraction from the PSI tables and ISA-Tab records into PostgreSQL; recursive traversal | 951 entities, 10,683 edges, each citing its NASA table cell; consistency checks clean |
+| Knowledge graph | Deterministic extraction from the PSI tables and ISA-Tab records into PostgreSQL; recursive traversal | 2,304 entities, 25,415 edges, each citing its NASA table cell; consistency checks clean (measured 2026-11-14, [KNOWLEDGE_GRAPH_SCHEMA.md](docs/data/KNOWLEDGE_GRAPH_SCHEMA.md) §0) |
 | Grounded generation | Router across local and cloud models; output validated; citations outside the retrieved set dropped | Not evaluated in this run (no model available) |
 | Computer vision | OpenCV segmentation of flame images and sampled video frames; temporal statistics with Nyquist and tracking-gap guards | Pixel measurements only; no temperature from RGB |
 | Document AI | PDF text, OCR fallback, automatic detection of garbled font encodings | 35 garbled pages recovered by OCR |
@@ -84,7 +84,7 @@ NASA PSI tables + ISA-Tab metadata + NTRS reports + flight video
 
 - **94 % of 48** FLEX droplet flames at O₂ below 0.16 self-extinguished, versus **8 % of 24** at O₂ of 0.30 or more. Computed from NASA's table and linked to every test row.
 - For the lunar-lander atmosphere (34 % O₂, 62.7 kPa):
-  - FLEX ranks first, and 9 of its flight tests were flown nearby.
+  - ACME CFI-G, flown down to about 43 kPa, ranks first and FLEX second. The verdict is "covered": 20 flight tests lie nearby (11 CFI-G gas-jet flames, 9 FLEX droplets), none of them burning solids (`test_fire_safety_api.py`).
   - BASS-II's solid-material tests stop at 22.2 % O₂, so they do not cover it.
   - The outcome model declines to estimate, because 62.7 kPa is below the lowest FLEX test pressure (70.2 kPa).
 - Model drivers (permutation importance on held-out test days): O₂ dominates, followed by He and CO₂ diluents. The coefficients have the physically expected signs: more O₂ means fewer self-extinctions, while diluents and larger droplets mean more.
@@ -93,19 +93,19 @@ NASA PSI tables + ISA-Tab metadata + NTRS reports + flight video
 
 - **Mission and habitat designers:** see which atmospheres have flight evidence and where testing is missing, before choosing a cabin atmosphere.
 - **Materials engineers:** jump from a question to the NASA reports (NASA-STD-6001 testing, MOC, flammability limits) with citations.
-- **Researchers:** browse 1950 flight tests cell by cell, with provenance and data-quality flags.
+- **Researchers:** browse 1958 table experiments cell by cell, with provenance and data-quality flags: the 1950 flight tests from 19 PSI investigations, plus 8 rows from one ground study (Cool-flame transitions, FF-PSI-142). Counts: `test_ingestion.py`, `test_fire_safety_api.py`.
 
 ## 8. Limitations and future work
 
 - **Limitations:**
   - outcomes are modelled for droplets only;
   - no partial-gravity data exists here;
-  - SAME, ACME and FLEX-2 are not yet ingested;
+  - the screenshots in this document were taken with the 4-table data (840 tests) and need a retake;
   - the gold set and labels need expert review.
 - **Next:**
   - parse BASS-II spread and extinction from flight video with the CV pipeline;
   - ingest SPICE flame lengths and SAFFIRE sensor workbooks;
-  - add Saffire II–VI and ACME;
+  - add Saffire IV–VI (SAME, ACME, FLEX-2 and Saffire II–III are ingested: `not_acquired` is empty in `test_fire_safety_api.py`);
   - evaluate generated answers with a local 3B+ model;
   - use the knowledge graph in chat (Graph RAG), and extract platforms and instruments from the reports;
   - calibrate the relevance weights against expert judgement.
@@ -116,3 +116,4 @@ NASA PSI tables + ISA-Tab metadata + NTRS reports + flight video
 - 1.0.3 (2026-11-12): the Knowledge Graph page.
 - 1.0.2 (2026-11-12): reranked retrieval results and the knowledge graph (PR #29, #30).
 - 1.1.0 (2026-11-13): the Apollo 1 scenario (§3a), the coverage verdict, 27 reports, contract 0.7.0, and the 3-minute pitch deck and scripts.
+- 1.2.0 (2026-11-14): counts for the 19 PSI investigations now on `main`: 1950 flight tests (1958 table rows), Apollo 1 at 2.5× the highest O₂ flown (40 %) with ACME CFI-G 21162A1 nearest, the lunar lander covered (20 tests, ACME CFI-G first), and the re-measured knowledge graph (2,304 entities, 25,415 edges). §8 no longer lists SAME, ACME and FLEX-2 as missing, and notes that the screenshots still show the 4-table data.

@@ -33,9 +33,12 @@ def test_the_drafts_pass_the_validator_against_the_committed_pdfs(cases, page_te
     assert validate(cases, page_texts=page_texts) == []
 
 
-def test_every_draft_is_an_unverified_ai_draft_so_none_is_scored(cases):
-    assert {c.status for c in cases} == {"draft"} and all(not c.verified_by for c in cases)
-    assert all("AI draft" in c.author for c in cases) and verified_cases(cases) == []
+def test_every_draft_is_unverified_and_the_original_35_are_ai_drafts(cases):
+    assert {c.status for c in cases} == {"draft"} and all(not c.verified_by for c in cases) and verified_cases(cases) == []
+    first = [c for c in cases if int(c.gold_id.split("-")[1]) <= 35]
+    assert len(first) == 35 and all("AI draft" in c.author for c in first)
+    # Later numbers are questions a person added with `add_unanswerable`: their author is that person, never an AI.
+    assert all(c.author and "AI draft" not in c.author and not c.answerable for c in cases if c not in first)
 
 
 def test_the_set_has_the_mix_the_protocol_asks_for(cases):

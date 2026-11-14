@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Anas (E2) | Current: built from the PSI tables (peer sign-off: Eman E1) | 0.6.2 | 2026-11-12 | D2, D3, D6, ADR-007 | `apps/api/flame_api/knowledge_graph.py`, `graph.py`; tables `knowledge_entity`, `knowledge_relation` (migration `0004`) |
+| Anas (E2) | Current: built from the PSI tables (peer sign-off: Eman E1) | 0.6.3 | 2026-11-14 | D2, D3, D6, ADR-007 | `apps/api/flame_api/knowledge_graph.py`, `graph.py`; tables `knowledge_entity`, `knowledge_relation` (migration `0004`) |
 
 Storage decision: [ADR-007](../architecture/adr/ADR-007-graph-storage.md) (Accepted). Relational tables in PostgreSQL first.
 
@@ -18,18 +18,19 @@ Storage decision: [ADR-007](../architecture/adr/ADR-007-graph-storage.md) (Accep
 | experiment `observed` phenomenon | FLEX `test_end` (Extinction, Disruption, Completion) | that cell |
 | document `describes` investigation | the ISA-Tab investigation record of the same PSI source | its first passage |
 
-From the committed tables and metadata (`python -m flame_api.knowledge_graph build`, 2026-11-12, PostgreSQL 16):
+From the committed tables and metadata on `main` (19 flight investigations plus the Cool-flame transitions ground study, FF-PSI-142; 2026-11-14). Measured by ingesting every `Experimental table` and `metadata` file into an empty SQLite database and running `knowledge_graph.build_graph`, exactly as the `graph` fixture in `apps/api/tests/test_knowledge_graph.py` does, then counting `knowledge_entity` by `entity_type` and `knowledge_relation` by `predicate`:
 
 | Entities | Count | Edges | Count |
 |---|---|---|---|
-| experiment | 840 | `part_of` | 840 |
-| fuel (fuels and solid materials) | 55 | `uses_fuel` | 840 |
-| condition_variable | 45 | `has_condition` | 8,725 |
-| investigation | 4 | `observed` | 274 |
-| document | 4 | `describes` | 4 |
-| phenomenon | 3 | **total** | **10,683** |
+| experiment | 1,958 | `part_of` | 1,958 |
+| fuel (fuels and solid materials) | 170 | `uses_fuel` | 1,817 |
+| condition_variable | 133 | `has_condition` | 21,346 |
+| investigation | 20 | `observed` | 274 |
+| document | 20 | `describes` | 20 |
+| phenomenon | 3 | **total** | **25,415** |
+| **total** | **2,304** | | |
 
-A rebuild of that data takes about 0.6 s and changes nothing. Ingesting the tables into an empty SQLite database and building gives the same counts (`apps/api/tests/test_knowledge_graph.py`).
+`test_knowledge_graph.py` asserts the experiment, investigation and document entities and the `part_of`, `uses_fuel` and `has_condition` edges. 141 experiments have no fuel cell, so `uses_fuel` (1,817) is below `part_of` (1,958). `check_consistency` on that graph: `ok`, 0 orphan edges, 0 edges with dead evidence, 0 conflicting relations, 0 duplicate-entity candidates. A rebuild of that data keeps all 25,415 edges and changes nothing (about 2.5 s on in-memory SQLite). The PostgreSQL build (`python -m flame_api.knowledge_graph build`) was last run with the 4 tables (2026-11-12: 951 entities, 10,683 edges) and has not been re-run on the 19-table data.
 
 **From NLP records (D1, `flame_api/nlp_graph.py`, `nlp-cooccurrence-1.0.0`).** `platform` (`ran_on`), `instrument` (`measured_with`) and `describes` links from the NTRS reports are not in the tables. They come from the stored NLP records (`nlp_record`, migration `0010`), always `unreviewed`, `extraction_method = "nlp_extraction"`, confidence the lower of the two records', evidence the page both were read from:
 
@@ -59,7 +60,7 @@ These are associations, not findings: "FLEX" and "International Space Station" o
   | `3/8"clear rod` (2) | `3/8" clear rod` (5) | BASS-II |
   | `75% Propylene` (16) | `75 % Propylene` (115) | SPICE |
 
-  The graph therefore has 55 fuel entities, not 59, and 951 entities in all. Applying this to an existing database re-pointed 21 edges and dropped the 4 variant entities on the next rebuild. A new variant needs the same review: add a row and say why.
+  With the 4 tables (2026-11-12) the graph therefore had 55 fuel entities, not 59, and 951 entities in all; the 19-table graph has 170 fuel entities (§0). Applying this to an existing database re-pointed 21 edges and dropped the 4 variant entities on the next rebuild. A new variant needs the same review: add a row and say why.
 
 
 ## 1. Entity types used in Phase 2 (a subset of D2)
@@ -120,6 +121,7 @@ These are associations, not findings: "FLEX" and "International Space Station" o
 Table edges are only what the tables record. NLP edges (platforms, instruments, report links) are co-occurrence on one page and stay unreviewed until a person confirms them. Condition variables are the tables' own column names (`ambient_pressure_mmhg`, `percent_o2`), not unified physical quantities, so "pressure" in FLEX and SPICE are different entities. Fuels keep the tables' spellings unless a reviewed alias says otherwise; new variants are flagged, never merged automatically. Graph RAG (using the graph in chat retrieval, `docs/ai/graph-rag.md`) is not built. The consistency checks are not scheduled.
 
 ## Changelog
+- 0.6.3 (2026-11-14): §0 counts re-measured from a rebuilt graph of the 19 PSI investigations on `main` (2,304 entities, 25,415 edges; was 951 and 10,683 with 4 tables).
 - 0.6.2 (2026-11-12): the web Knowledge Graph page reads the graph API.
 - 0.6.1 (2026-11-12): the four spelling variants resolved by reviewed aliases (Lead's approval); 55 fuels, 951 entities.
 - 0.6.0 (2026-11-12): built (ADR-007): extractor, recursive-CTE traversal, consistency checks, audited merge, read API; §0 records what is extracted and the counts.

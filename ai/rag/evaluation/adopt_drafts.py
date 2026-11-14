@@ -4,7 +4,8 @@
 
 A case becomes `verified` only through this command, by a verifier who is not its author and not an AI. The resulting file must still
 pass `validate` (exact evidence text, document-disjoint splits, at least 25 % unanswerable); on any problem nothing is written, so accept
-a mix of answerable and unanswerable cases together. Running it again never duplicates a case or changes an earlier verifier.
+a mix of answerable and unanswerable cases together, or pass `--allow-incomplete` so two people can adopt their own halves one after the
+other (the set must be complete before `run_passage_gold` will score it). Running it again never duplicates a case or changes an earlier verifier.
 """
 from __future__ import annotations
 
@@ -31,7 +32,7 @@ def _to_json(case: PassageCase) -> str:
 
 
 def adopt(drafts: Path, target: Path, *, verifier: str, accept: list[str], page_texts: Mapping[tuple[str, int], str] | None = None,
-          min_unanswerable_share: float = 0.25) -> dict:
+          min_unanswerable_share: float = 0.25, allow_incomplete: bool = False) -> dict:
     verifier = verifier.strip()
     if not verifier:
         raise ValueError("name the person who verified these cases")
@@ -48,13 +49,14 @@ def adopt(drafts: Path, target: Path, *, verifier: str, accept: list[str], page_
     have = {c.gold_id for c in existing}
     new = [replace(by_id[i], status="verified", verified_by=(verifier,)) for i in dict.fromkeys(accept) if i not in have]
     combined = [*existing, *new]
-    problems = validate(combined, page_texts=page_texts, min_unanswerable_share=min_unanswerable_share) if combined else []
+    problems = validate(combined, page_texts=page_texts, min_unanswerable_share=0.0 if allow_incomplete else min_unanswerable_share) if combined else []
+    complete = not (validate(combined, page_texts=page_texts, min_unanswerable_share=min_unanswerable_share) if combined else ["empty"])
     if problems:
         raise ValueError("the resulting gold set would break the rules, nothing was written: " + "; ".join(problems))
     if new:
         target.write_text("\n".join(_to_json(c) for c in combined) + "\n", encoding="utf-8")
     return {"adopted": [c.gold_id for c in new], "already_adopted": [i for i in dict.fromkeys(accept) if i in have],
-            "total_in_gold": len(combined)}
+            "total_in_gold": len(combined), "complete": complete}
 
 
 def main(argv: list[str]) -> int:
@@ -64,6 +66,8 @@ def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--verifier", required=True)
     parser.add_argument("--accept", nargs="+", required=True)
+    parser.add_argument("--allow-incomplete", action="store_true",
+                        help="record these cases even though the set does not yet meet the unanswerable share; run_passage_gold refuses until it does")
     parser.add_argument("--drafts", type=Path, default=root / "datasets" / "evaluation" / "passage_gold_v1_drafts.jsonl")
     parser.add_argument("--target", type=Path, default=root / "datasets" / "evaluation" / "passage_gold_v1.jsonl")
     parser.add_argument("--pdf-dir", type=Path, default=root / "docs" / "research")
@@ -71,7 +75,8 @@ def main(argv: list[str]) -> int:
     pages = {(f"FF-NTRS-{path.stem}", page["page"]): page["verbatim"]
              for path in sorted(args.pdf_dir.glob("*.pdf")) for page in indexed_pages(path)}
     try:
-        print(json.dumps(adopt(args.drafts, args.target, verifier=args.verifier, accept=args.accept, page_texts=pages)))
+        print(json.dumps(adopt(args.drafts, args.target, verifier=args.verifier, accept=args.accept, page_texts=pages,
+                                allow_incomplete=args.allow_incomplete)))
     except ValueError as error:
         print(f"refused: {error}", file=sys.stderr)
         return 2
