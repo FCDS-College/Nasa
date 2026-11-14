@@ -40,8 +40,12 @@ export function KindBadge({ kind }: { kind: InsightKind }) {
 
 export function Loading({ label }: { label: string }) {
   return (
-    <div role="status" className="flex items-center gap-2 py-8 text-sm" style={{ color: "var(--text-muted)" }}>
-      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> {label}
+    <div role="status" className="flex items-center gap-3 py-8 text-sm" style={{ color: "var(--text-muted)" }}>
+      <span className="relative flex h-6 w-6 items-center justify-center" aria-hidden="true">
+        <span className="ping-ring absolute inset-1 rounded-full" style={{ border: "1px solid rgba(79,140,255,0.6)" }} />
+        <Loader2 className="h-4 w-4 animate-spin" style={{ color: "var(--accent-ember)" }} />
+      </span>
+      <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, letterSpacing: "0.04em" }}>{label}</span>
     </div>
   );
 }
@@ -51,8 +55,7 @@ export function ErrorNote({ message, onRetry }: { message: string; onRetry?: () 
     <div role="alert" className="rounded-xl p-4 text-sm" style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.25)" }}>
       <p style={{ color: "var(--text-primary)" }}>{message}</p>
       {onRetry && (
-        <button onClick={onRetry} className="mt-2 rounded-lg px-3 py-1.5 text-xs font-semibold"
-                style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-default)", color: "var(--text-primary)" }}>
+        <button onClick={onRetry} className="btn-ghost mt-2 rounded-lg px-3 py-1.5 text-xs font-semibold">
           Try again
         </button>
       )}
@@ -85,10 +88,11 @@ export function ScenarioPicker({ scenarios, value, onChange }: {
           const tint = historical ? "239,68,68" : "59,130,246";
           return (
             <button key={s.scenario_id} role="radio" aria-checked={active} onClick={() => onChange({ scenario: s.scenario_id })}
-                    className="rounded-xl px-3 py-2 text-left text-xs"
-                    style={{ background: active ? `rgba(${tint},0.16)` : "var(--bg-elevated)",
-                             border: `1px ${historical ? "dashed" : "solid"} ${active || historical ? `rgba(${tint},0.55)` : "var(--border-default)"}`,
-                             color: "var(--text-primary)" }}>
+                    className="panel-hover relative min-w-[150px] overflow-hidden rounded-xl px-3.5 py-2.5 text-left text-xs"
+                    style={{ background: active ? `linear-gradient(150deg, rgba(${tint},0.26), rgba(${tint},0.06))` : "rgba(19,24,38,0.7)",
+                             border: `1px ${historical ? "dashed" : "solid"} ${active || historical ? `rgba(${tint},0.6)` : "var(--border-default)"}`,
+                             boxShadow: active ? `0 0 26px -8px rgba(${tint},0.9), inset 0 1px 0 rgba(255,255,255,0.08)` : "none",
+                             color: "var(--text-primary)", transition: "all var(--transition-default)" }}>
               {historical && (
                 <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wider" style={{ color: "#EF4444" }}>
                   Historical · never flown
@@ -98,13 +102,20 @@ export function ScenarioPicker({ scenarios, value, onChange }: {
               <span className="block mt-0.5" style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
                 {Math.round(s.o2_fraction * 100)}% O₂ · {s.pressure_kpa.toFixed(1)} kPa
               </span>
+              {/* O2 gauge: how far toward pure oxygen this atmosphere sits */}
+              <span aria-hidden="true" className="mt-2 block h-[3px] w-full overflow-hidden rounded-full" style={{ background: "rgba(124,180,255,0.1)" }}>
+                <span className="block h-full rounded-full" style={{ width: `${Math.min(100, s.o2_fraction * 100)}%`,
+                  background: historical ? "var(--grad-soot)" : "var(--grad-flame)" }} />
+              </span>
             </button>
           );
         })}
         <button role="radio" aria-checked={custom} onClick={() => onChange({ o2_fraction: o2, pressure_kpa: p })}
-                className="rounded-xl px-3 py-2 text-left text-xs"
-                style={{ background: custom ? "rgba(59,130,246,0.16)" : "var(--bg-elevated)",
-                         border: `1px solid ${custom ? "rgba(59,130,246,0.55)" : "var(--border-default)"}`, color: "var(--text-primary)" }}>
+                className="panel-hover rounded-xl px-3.5 py-2.5 text-left text-xs"
+                style={{ background: custom ? "linear-gradient(150deg, rgba(79,140,255,0.26), rgba(79,140,255,0.06))" : "rgba(19,24,38,0.4)",
+                         border: `1px dashed ${custom ? "rgba(79,140,255,0.6)" : "var(--border-strong)"}`,
+                         boxShadow: custom ? "0 0 26px -8px rgba(79,140,255,0.9)" : "none",
+                         color: "var(--text-primary)", transition: "all var(--transition-default)" }}>
           <span className="block font-semibold">Custom atmosphere</span>
           <span className="block mt-0.5" style={{ color: "var(--text-muted)" }}>set O₂ and pressure</span>
         </button>
@@ -114,14 +125,14 @@ export function ScenarioPicker({ scenarios, value, onChange }: {
           <label className="flex flex-col gap-1" style={{ color: "var(--text-secondary)" }}>
             O₂ mole fraction
             <input type="number" min={0.05} max={1} step={0.01} value={o2} onChange={(e) => setO2(Number(e.target.value))}
-                   className="w-28 rounded-lg px-2 py-1.5" style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-default)", color: "var(--text-primary)" }} />
+                   className="w-28 rounded-lg px-2 py-1.5" style={{ background: "rgba(6,7,12,0.6)", border: "1px solid var(--border-strong)", color: "var(--text-primary)", fontFamily: "var(--font-mono)" }} />
           </label>
           <label className="flex flex-col gap-1" style={{ color: "var(--text-secondary)" }}>
             Total pressure (kPa)
             <input type="number" min={5} max={400} step={0.5} value={p} onChange={(e) => setP(Number(e.target.value))}
-                   className="w-28 rounded-lg px-2 py-1.5" style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-default)", color: "var(--text-primary)" }} />
+                   className="w-28 rounded-lg px-2 py-1.5" style={{ background: "rgba(6,7,12,0.6)", border: "1px solid var(--border-strong)", color: "var(--text-primary)", fontFamily: "var(--font-mono)" }} />
           </label>
-          <button type="submit" className="rounded-lg px-3 py-1.5 font-semibold" style={{ background: "var(--accent-flame)", color: "white" }}>Apply</button>
+          <button type="submit" className="btn-primary rounded-lg px-4 py-1.5 font-semibold">Apply</button>
         </form>
       )}
     </div>
@@ -144,8 +155,8 @@ export function EvidenceChips({ evidence, max = 6 }: { evidence: { evidence_id: 
       <span className="text-[11px]" style={{ color: "var(--text-dim)" }}>Evidence:</span>
       {evidence.slice(0, max).map((e) => (
         <Link key={e.evidence_id} href={`/evidence?id=${e.evidence_id}`} title="Open the source row with its provenance"
-              className="rounded-md px-1.5 py-0.5 text-[11px]"
-              style={{ fontFamily: "var(--font-mono)", background: "var(--bg-elevated)", border: "1px solid var(--border-default)", color: "var(--accent-ember)" }}>
+              className="rounded-md px-1.5 py-0.5 text-[11px] transition-colors hover:border-cyan-400/60 hover:text-cyan-300"
+              style={{ fontFamily: "var(--font-mono)", background: "rgba(79,140,255,0.08)", border: "1px solid rgba(79,140,255,0.22)", color: "var(--accent-ember)" }}>
           {e.test_id ? `test ${e.test_id}` : e.evidence_id.slice(-8)}
         </Link>
       ))}
@@ -156,7 +167,11 @@ export function EvidenceChips({ evidence, max = 6 }: { evidence: { evidence_id: 
 
 export function InsightCard({ insight }: { insight: Insight }) {
   return (
-    <article className="flex flex-col gap-2.5 rounded-xl p-4" style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-default)" }}>
+    <article className="panel panel-hover relative flex flex-col gap-2.5 overflow-hidden rounded-xl p-4 pl-5">
+      <span aria-hidden="true" className="absolute inset-y-0 left-0 w-[3px]"
+            style={{ background: KIND[insight.kind].color, boxShadow: `0 0 16px ${KIND[insight.kind].color}` }} />
+      <span aria-hidden="true" className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full"
+            style={{ background: `radial-gradient(circle, ${KIND[insight.kind].color}22, transparent 70%)` }} />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{insight.title}</h3>
         <KindBadge kind={insight.kind} />
@@ -187,18 +202,18 @@ const COMPONENT_LABELS: Record<keyof Relevance["components"], string> = {
 
 export function RelevanceBar({ relevance }: { relevance: Relevance }) {
   const parts = Object.entries(relevance.components) as [keyof Relevance["components"], number][];
-  const colors = ["#3B82F6", "#06B6D4", "#A78BFA", "#22C55E"];
+  const colors = ["#4F8CFF", "#22D3EE", "#A78BFA", "#22C55E"];
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center gap-2">
-        <div className="flex h-2.5 w-full overflow-hidden rounded-full" style={{ background: "var(--border-default)" }}
+        <div className="flex h-2.5 w-full gap-[2px] overflow-hidden rounded-full p-[1px]" style={{ background: "rgba(124,180,255,0.08)", boxShadow: "inset 0 1px 3px rgba(0,0,0,0.6)" }}
              role="img" aria-label={`Relevance ${Math.round(relevance.score * 100)} of 100`}>
           {parts.map(([k, v], i) => (
             <div key={k} title={`${COMPONENT_LABELS[k]}: ${v.toFixed(2)} × weight ${relevance.weights[k]}`}
-                 style={{ width: `${v * relevance.weights[k] * 100}%`, background: colors[i] }} />
+                 className="rounded-full" style={{ width: `${v * relevance.weights[k] * 100}%`, background: colors[i], boxShadow: `0 0 10px ${colors[i]}aa` }} />
           ))}
         </div>
-        <span className="w-10 text-right text-sm font-semibold" style={{ fontFamily: "var(--font-mono)" }}>{Math.round(relevance.score * 100)}</span>
+        <span className="w-10 text-right text-base font-bold text-gradient-flame" style={{ fontFamily: "var(--font-mono)" }}>{Math.round(relevance.score * 100)}</span>
       </div>
       <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px]" style={{ color: "var(--text-muted)" }}>
         {parts.map(([k, v], i) => (
@@ -217,8 +232,9 @@ export function ProbabilityBars({ probabilities }: { probabilities: Probabilitie
       {END_STATES.map((s) => (
         <div key={s} className="flex items-center gap-3 text-sm">
           <span className="w-44 shrink-0" style={{ color: "var(--text-secondary)" }}>{END_STATE_LABELS[s]}</span>
-          <div className="h-3 flex-1 overflow-hidden rounded-full" style={{ background: "var(--border-default)" }}>
-            <div style={{ width: `${probabilities[s] * 100}%`, background: END_STATE_COLORS[s], height: "100%" }} />
+          <div className="h-3 flex-1 overflow-hidden rounded-full" style={{ background: "rgba(124,180,255,0.08)", boxShadow: "inset 0 1px 3px rgba(0,0,0,0.6)" }}>
+            <div className="rounded-full" style={{ width: `${probabilities[s] * 100}%`, background: `linear-gradient(90deg, ${END_STATE_COLORS[s]}99, ${END_STATE_COLORS[s]})`,
+              boxShadow: `0 0 12px ${END_STATE_COLORS[s]}88`, height: "100%", transition: "width 600ms var(--ease-out-expo)" }} />
           </div>
           <span className="w-12 text-right font-semibold" style={{ fontFamily: "var(--font-mono)" }}>{pct(probabilities[s])}</span>
         </div>
@@ -253,9 +269,15 @@ export function SweepChart({ points, marker }: {
     <figure className="flex flex-col gap-2">
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img"
            aria-label="Estimated probability of each flame end state as oxygen fraction varies, other conditions fixed">
+        <defs>
+          <filter id="sweep-glow" x="-10%" y="-10%" width="120%" height="120%">
+            <feGaussianBlur stdDeviation="3" result="b" />
+            <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
+        </defs>
         {[0, 0.25, 0.5, 0.75, 1].map((v) => (
           <g key={v}>
-            <line x1={L} x2={W - R} y1={y(v)} y2={y(v)} stroke="var(--border-default)" strokeWidth={1} />
+            <line x1={L} x2={W - R} y1={y(v)} y2={y(v)} stroke="var(--border-default)" strokeWidth={1} strokeDasharray={v === 0 ? undefined : "2 4"} />
             <text x={L - 6} y={y(v) + 4} textAnchor="end" fontSize={10} fill="var(--text-muted)">{v * 100}%</text>
           </g>
         ))}
@@ -268,10 +290,13 @@ export function SweepChart({ points, marker }: {
                        height={H - T - B} fill="rgba(239,68,68,0.13)" />;
         })}
         {END_STATES.map((s) => segments(s).map((pts, i) => (
-          <polyline key={`${s}-${i}`} points={pts} fill="none" stroke={END_STATE_COLORS[s]} strokeWidth={2.5} strokeLinejoin="round" />
+          <polyline key={`${s}-${i}`} points={pts} fill="none" stroke={END_STATE_COLORS[s]} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" filter="url(#sweep-glow)" />
         )))}
         {marker !== undefined && marker >= x0 && marker <= x1 && (
-          <line x1={x(marker)} x2={x(marker)} y1={T} y2={H - B} stroke="var(--text-secondary)" strokeDasharray="4 3" />
+          <g>
+            <line x1={x(marker)} x2={x(marker)} y1={T} y2={H - B} stroke="var(--accent-plasma)" strokeDasharray="4 3" />
+            <circle cx={x(marker)} cy={T} r={3.5} fill="var(--accent-plasma)" />
+          </g>
         )}
         {[x0, (x0 + x1) / 2, x1].map((v) => (
           <text key={v} x={x(v)} y={H - B + 16} textAnchor="middle" fontSize={10} fill="var(--text-muted)">{v.toFixed(2)}</text>
@@ -289,12 +314,19 @@ export function SweepChart({ points, marker }: {
   );
 }
 
+/** A title written "3 · Ranked investigations" gets a glowing step chip; any other title renders as is. */
 export function SectionTitle({ title, subtitle, right }: { title: string; subtitle?: string; right?: React.ReactNode }) {
+  const step = /^(\d+)\s*·\s*(.+)$/.exec(title);
   return (
-    <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-      <div>
-        <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>{title}</h2>
-        {subtitle && <p className="mt-1 text-xs leading-relaxed" style={{ color: "var(--text-muted)" }}>{subtitle}</p>}
+    <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+      <div className="flex min-w-0 items-start gap-3">
+        {step && <span className="step-chip mt-0.5 shrink-0" aria-hidden="true">{step[1].padStart(2, "0")}</span>}
+        <div className="min-w-0">
+          <h2 className="text-[17px] font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
+            {step ? <><span className="sr-only">Step {step[1]}: </span>{step[2]}</> : title}
+          </h2>
+          {subtitle && <p className="mt-1 max-w-3xl text-xs leading-relaxed" style={{ color: "var(--text-muted)" }}>{subtitle}</p>}
+        </div>
       </div>
       {right}
     </div>

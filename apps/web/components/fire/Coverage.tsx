@@ -28,12 +28,15 @@ export function CoverageVerdict({ coverage, scenario, acronyms = {} }: {
   const near = coverage.nearest_test;
   return (
     <section aria-label="Flight-data coverage verdict" data-verdict={coverage.verdict}
-             className="flex flex-col gap-3 rounded-xl p-4" style={{ background: v.bg, border: `1px solid ${v.border}` }}>
+             className="relative flex flex-col gap-3 overflow-hidden rounded-xl p-5 pl-6"
+             style={{ background: `linear-gradient(105deg, ${v.bg.replace("0.0", "0.1")}, rgba(10,13,22,0.4) 70%)`, border: `1px solid ${v.border}`,
+                      boxShadow: `0 0 40px -18px ${v.color}` }}>
+      <span aria-hidden="true" className="absolute inset-y-0 left-0 w-[3px]" style={{ background: v.color, boxShadow: `0 0 18px ${v.color}` }} />
       <div className="flex flex-wrap items-center gap-2">
         <Icon className="h-5 w-5" style={{ color: v.color }} aria-hidden="true" />
         <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: v.color }}>{v.label}</span>
       </div>
-      <p className="text-lg font-bold leading-snug" style={{ color: "var(--text-primary)" }}>{coverage.headline}</p>
+      <p className="text-lg font-bold leading-snug tracking-tight sm:text-xl" style={{ color: "var(--text-primary)" }}>{coverage.headline}</p>
       {coverage.reasons.length > 0 && (
         <ul className="list-disc pl-5 text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
           {coverage.reasons.map((r) => <li key={r}>{r}</li>)}
