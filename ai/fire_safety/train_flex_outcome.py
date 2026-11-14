@@ -12,9 +12,12 @@ Protocol (no tuning on the test data):
    split is by **test day** (groups), never by row.
 3. 20% of test days are held out once (seed 2026) and touched only for the final numbers.
 4. Candidates are compared by 5-fold grouped CV on the other 80% (primary metric: macro-F1, because
-   the classes are imbalanced 186/61/27); the best is refit on that 80% and scored on the hold-out.
+   the classes are imbalanced, Extinction/Disruption/Completion 179/55/27); the best is refit on that 80% and
+   scored on the hold-out.
 5. 5x repeated grouped 5-fold CV over all usable rows gives a variance estimate for every candidate.
 6. The deployed model is the selected candidate refit on all usable rows.
+7. Its probabilities are calibrated by prior correction (undoing class_weight="balanced"; model.py). Raw and
+   calibrated probabilities are both scored by the same repeated grouped CV, the prior coming from each training fold.
 
 scikit-learn is needed here only; the API runs the exported artefact with numpy (model.py).
 """
@@ -53,7 +56,7 @@ SEED = 2026
 ARTIFACT_DIR = Path(__file__).resolve().parent / "artifacts"
 ARTIFACT = ARTIFACT_DIR / "flex_outcome_model.json"
 REPORT_JSON = ARTIFACT_DIR / "flex_outcome_evaluation.json"
-MODEL_VERSION = "flex-outcome-{kind}-1.0.0"
+MODEL_VERSION = "flex-outcome-{kind}-1.1.0"
 EXPORTABLE = {"random_forest", "logistic_regression"}
 
 
@@ -113,6 +116,41 @@ def calibration(y, p, bins: int = 5) -> list[dict]:
     return rows
 
 
+def prior_correct(proba: np.ndarray, prior: np.ndarray) -> np.ndarray:
+    """Undo class_weight="balanced": weight each class's probability by its training frequency and renormalise."""
+    corrected = proba * prior
+    return corrected / corrected.sum(axis=1, keepdims=True)
+
+
+def class_prior(y) -> np.ndarray:
+    return np.array([float(np.mean(np.asarray(y) == c)) for c in flex.OUTCOMES])
+
+
+def expected_calibration_error(y, p, bins: int = 10) -> float:
+    edges = np.linspace(0, 1, bins + 1)
+    total = 0.0
+    for lo, hi in zip(edges[:-1], edges[1:]):
+        mask = (p >= lo) & (p < hi if hi < 1 else p <= hi)
+        if mask.any():
+            total += mask.mean() * abs(p[mask].mean() - y[mask].mean())
+    return float(total)
+
+
+def probability_metrics(y_true, proba) -> dict:
+    """How good the probabilities are as probabilities, and macro-F1 of their most likely class."""
+    classes = list(flex.OUTCOMES)
+    index = np.array([classes.index(c) for c in y_true])
+    y_ext = (index == classes.index("Extinction")).astype(float)
+    p_ext = proba[:, classes.index("Extinction")]
+    return {
+        "log_loss": float(-np.log(np.clip(proba[np.arange(len(index)), index], 1e-12, 1)).mean()),
+        "extinction_brier": float(brier_score_loss(y_ext, p_ext)),
+        "extinction_ece": expected_calibration_error(y_ext, p_ext),
+        "extinction_roc_auc": float(roc_auc_score(y_ext, p_ext)),
+        "macro_f1": float(f1_score(y_true, np.array(classes)[proba.argmax(1)], average="macro", labels=classes, zero_division=0)),
+    }
+
+
 def proba_in_class_order(model, X) -> np.ndarray:
     raw = model.predict_proba(X)
     order = list(model.classes_)
@@ -123,7 +161,7 @@ def proba_in_class_order(model, X) -> np.ndarray:
     return out
 
 
-def grouped_cv(model_factory, X, y, groups, n_splits=5, seed=None):
+def grouped_cv(model_factory, X, y, groups, n_splits=5, seed=None, return_calibrated=False):
     """Out-of-fold predictions with whole test days per fold (optionally shuffled group order)."""
     unique = np.unique(groups)
     if seed is not None:
@@ -135,11 +173,15 @@ def grouped_cv(model_factory, X, y, groups, n_splits=5, seed=None):
         splits = list(GroupKFold(n_splits).split(X, y, groups))
     pred = np.empty(len(y), dtype=object)
     proba = np.zeros((len(y), len(flex.OUTCOMES)))
+    calibrated = np.zeros((len(y), len(flex.OUTCOMES)))
     for train, test in splits:
         m = model_factory()
         m.fit(X[train], y[train])
         pred[test] = m.predict(X[test])
         proba[test] = proba_in_class_order(m, X[test])
+        calibrated[test] = prior_correct(proba[test], class_prior(y[train]))
+    if return_calibrated:
+        return pred.astype(str), proba, calibrated
     return pred.astype(str), proba
 
 
@@ -175,6 +217,24 @@ def run() -> tuple[dict, dict]:
         holdout[name] = metrics(y[hold], m.predict(X[hold]), proba_in_class_order(m, X[hold]))
 
     repeated = {name: repeated_cv(make, X, y, groups) for name, make in factories.items()}
+
+    # Calibration (KB audit 2026-11-13): raw vs prior-corrected probabilities of the selected model, same folds.
+    calibration_runs = {"raw": [], "calibrated": []}
+    for r in range(5):
+        _, raw_oof, calibrated_oof = grouped_cv(factories[selected], X, y, groups, seed=SEED + r, return_calibrated=True)
+        calibration_runs["raw"].append(probability_metrics(y, raw_oof))
+        calibration_runs["calibrated"].append(probability_metrics(y, calibrated_oof))
+    calibration_cv = {kind: {key: {"mean": round(float(np.mean([run[key] for run in runs])), 4),
+                                   "sd": round(float(np.std([run[key] for run in runs])), 4)} for key in runs[0]}
+                      for kind, runs in calibration_runs.items()}
+    hold_raw = proba_in_class_order(dev_models[selected], X[hold])
+    hold_calibrated = prior_correct(hold_raw, class_prior(y[dev]))
+    calibration_holdout = {
+        "raw": {**metrics(y[hold], dev_models[selected].predict(X[hold]), hold_raw),
+                **{k: round(v, 4) for k, v in probability_metrics(y[hold], hold_raw).items()}},
+        "calibrated": {**metrics(y[hold], np.array(flex.OUTCOMES)[hold_calibrated.argmax(1)], hold_calibrated),
+                       **{k: round(v, 4) for k, v in probability_metrics(y[hold], hold_calibrated).items()}},
+    }
 
     # Out-of-sample importance: the selected model fit on development days, scored on held-out days.
     importance = permutation_importance(dev_models[selected], X[hold], y[hold], scoring="f1_macro", n_repeats=30, random_state=SEED)
@@ -230,6 +290,12 @@ def run() -> tuple[dict, dict]:
             "test_days": int(len(np.unique(groups))),
             "gravity_regime": "microgravity (ISS Combustion Integrated Rack)",
         },
+        "calibration": {
+            "method": "prior_correction",
+            "class_prior": class_prior(y).tolist(),
+            "basis": "class_weight=balanced fits the classes as equally common; multiplying by the training class "
+                     "frequencies and renormalising undoes it (model.py).",
+        },
         "hyperparameters": (
             {"n_estimators": 300, "min_samples_leaf": 3, "class_weight": "balanced", "random_state": SEED}
             if selected == "random_forest" else {"C": 1.0, "class_weight": "balanced", "standardized": True}),
@@ -258,9 +324,21 @@ def run() -> tuple[dict, dict]:
             "grouped CV on the development days and prefers the simpler model within one SD. This change was made AFTER "
             "the v0 hold-out was viewed, so the hold-out is no longer untouched; treat the repeated grouped CV over all "
             "rows as the primary estimate and the hold-out as supporting evidence.",
+            "v1.1 (2026-11-14, KB audit): the API showed the raw extinction probability as a 'chance', but the balanced "
+            "class weighting makes it under-confident (hold-out bin 0.2-0.4: observed 0.50). Probabilities are now "
+            "prior-corrected. This was added after the hold-out calibration was viewed; it fits no parameters beyond the "
+            "training class frequencies, and the repeated grouped CV over all rows (calibration section) is the primary "
+            "evidence. The most likely class now follows the calibrated probabilities, so its macro-F1 is lower.",
         ],
         "holdout": holdout,
         "repeated_grouped_cv_all_rows": repeated,
+        "calibration": {
+            "method": "prior_correction",
+            "note": "Classifier metrics above score the raw classifier (its own decisions). The API reports the calibrated "
+                    "probabilities and their most likely class, scored here; ECE uses 10 equal-width bins of P(extinction).",
+            "repeated_grouped_cv_all_rows": calibration_cv,
+            "holdout": calibration_holdout,
+        },
         "permutation_importance_final_model": importances,
         "elapsed_s": round(time.perf_counter() - started, 1),
     }
@@ -274,7 +352,7 @@ def verify_parity(artefact: dict) -> float:
     clf = candidates()[artefact["kind"]]
     clf.fit(X, y)
     ref = proba_in_class_order(clf, X)
-    ours = np.array([model.probabilities(dict(zip(flex.FEATURES, row))) for row in X])
+    ours = np.array([model.raw_probabilities(dict(zip(flex.FEATURES, row))) for row in X])
     return float(np.abs(ref - ours).max())
 
 

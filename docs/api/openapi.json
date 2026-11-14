@@ -4570,7 +4570,7 @@
       "get": {
         "operationId": "estimateFlexOutcome",
         "summary": "FLEX droplet flame outcome model",
-        "description": "Probability that a FLEX-like droplet flame self-extinguishes, ends by disruption or burns to completion, from pre-ignition conditions. Strict applicability domain: outside the flight-tested ranges, `probabilities` is null with reasons. Always returns the nearest real flight tests and their recorded end state as evidence. Evaluation: docs/evaluation/reports/flex-outcome-model.md.",
+        "description": "Probability that a FLEX-like droplet flame self-extinguishes, ends by disruption or burns to completion, from pre-ignition conditions. The probabilities are calibrated (prior correction of the class-balanced classifier, since model 1.1.0); `model.calibration` gives their grouped-CV calibration error and the uncalibrated one. Strict applicability domain: outside the flight-tested ranges, `probabilities` is null with reasons. Always returns the nearest real flight tests and their recorded end state as evidence. Evaluation: docs/evaluation/reports/flex-outcome-model.md.",
         "tags": [
           "Fire safety"
         ],
@@ -4662,7 +4662,7 @@
                 },
                 "examples": {
                   "live": {
-                    "summary": "Real response from the 2026-11-07 local stack (committed PSI tables); lists trimmed.",
+                    "summary": "Real response over the committed PSI tables (API test client, 2026-11-14); lists trimmed.",
                     "value": {
                       "input": {
                         "fuel": "Heptane",
@@ -4673,11 +4673,11 @@
                         "droplet_diameter_mm": 3.0
                       },
                       "probabilities": {
-                        "Completion": 0.5051,
-                        "Disruption": 0.3399,
-                        "Extinction": 0.155
+                        "Completion": 0.227,
+                        "Disruption": 0.3112,
+                        "Extinction": 0.4618
                       },
-                      "predicted_end_state": "Completion",
+                      "predicted_end_state": "Extinction",
                       "applicability": {
                         "in_domain": true,
                         "checks": [
@@ -4744,32 +4744,32 @@
                           "o2_fraction": 0.12,
                           "in_domain": true,
                           "probabilities": {
-                            "Completion": 0.1265,
-                            "Disruption": 0.022,
-                            "Extinction": 0.8516
+                            "Completion": 0.0217,
+                            "Disruption": 0.0077,
+                            "Extinction": 0.9706
                           }
                         },
                         {
                           "o2_fraction": 0.14,
                           "in_domain": true,
                           "probabilities": {
-                            "Completion": 0.2162,
-                            "Disruption": 0.0508,
-                            "Extinction": 0.733
+                            "Completion": 0.0418,
+                            "Disruption": 0.02,
+                            "Extinction": 0.9383
                           }
                         },
                         {
                           "o2_fraction": 0.16,
                           "in_domain": true,
                           "probabilities": {
-                            "Completion": 0.3307,
-                            "Disruption": 0.1049,
-                            "Extinction": 0.5643
+                            "Completion": 0.0772,
+                            "Disruption": 0.0499,
+                            "Extinction": 0.873
                           }
                         }
                       ],
                       "model": {
-                        "model_version": "flex-outcome-logreg-1.0.0",
+                        "model_version": "flex-outcome-logreg-1.1.0",
                         "model_kind": "logistic_regression",
                         "training_rows": 261,
                         "test_days": 80,
@@ -4803,7 +4803,35 @@
                           "extinction_roc_auc": 0.9265,
                           "accuracy": 0.7347
                         },
-                        "holdout_note": "v1 (this report): a single 5-fold split was judged too noisy to select on, so selection now uses 5x repeated grouped CV on the development days and prefers the simpler model within one SD. This change was made AFTER the v0 hold-out was viewed, so the hold-out is no longer untouched; treat the repeated grouped CV over all rows as the primary estimate and the hold-out as supporting evidence.",
+                        "holdout_note": "v1.1 (2026-11-14, KB audit): the API showed the raw extinction probability as a 'chance', but the balanced class weighting makes it under-confident (hold-out bin 0.2-0.4: observed 0.50). Probabilities are now prior-corrected. This was added after the hold-out calibration was viewed; it fits no parameters beyond the training class frequencies, and the repeated grouped CV over all rows (calibration section) is the primary evidence. The most likely class now follows the calibrated probabilities, so its macro-F1 is lower.",
+                        "calibration": {
+                          "method": "prior_correction",
+                          "estimate": "5x repeated 5-fold CV grouped by test day, all usable rows",
+                          "extinction_ece": {
+                            "mean": 0.0738,
+                            "sd": 0.0134
+                          },
+                          "raw_extinction_ece": {
+                            "mean": 0.2022,
+                            "sd": 0.012
+                          },
+                          "log_loss": {
+                            "mean": 0.6623,
+                            "sd": 0.0319
+                          },
+                          "raw_log_loss": {
+                            "mean": 0.8168,
+                            "sd": 0.0375
+                          },
+                          "extinction_roc_auc": {
+                            "mean": 0.8554,
+                            "sd": 0.009
+                          },
+                          "most_likely_class_macro_f1": {
+                            "mean": 0.4915,
+                            "sd": 0.0101
+                          }
+                        },
                         "feature_importance": [
                           {
                             "feature": "o2",
