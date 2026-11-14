@@ -11,6 +11,7 @@ from pathlib import Path
 
 import fitz
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from flame_api.database import SessionLocal
@@ -781,7 +782,12 @@ def _record_run(session: Session, file_record: FileRecord, transformation_id: st
 
 
 def ingest_file(session: Session, file_record: FileRecord) -> tuple[str, dict]:
-    """Parse one file. Returns (outcome, counts); outcome is ingested | skipped | quarantined.
+    """Parse one file. Returns (outcome, counts); outcome is ingested | skipped | quarantined | failed.
+
+    `quarantined` is a verdict on the file (unreadable, wrong checksum, no text). `failed` is any other parser exception:
+    the file's partial rows are rolled back, the error is logged with its traceback and the run goes on with the next
+    file. A failed file is not quarantined and records no run, because the fault may be the parser's, so the next
+    ingest retries it. Database errors are not the file's fault either; they propagate and end the run.
 
     A quarantined file is never parsed again until an administrator resets its status
     (docs/data/ADMIN_DATA_OPERATIONS.md). A missing local copy is skipped, not quarantined:
@@ -817,6 +823,12 @@ def ingest_file(session: Session, file_record: FileRecord) -> tuple[str, dict]:
         quarantine(session, file_record, exc.reason)
         _record_run(session, file_record, "quarantine", {"reason": exc.reason})
         return "quarantined", {"reason": exc.reason}
+    except SQLAlchemyError:
+        raise
+    except Exception as exc:
+        reason = f"parser_error:{type(exc).__name__}"
+        logger.exception("ingest_file_failed file_id=%s path=%s reason=%s", file_record.file_id, file_record.local_path, reason)
+        return "failed", {"reason": reason}
     _record_run(session, file_record, transformation, counts)
     return "ingested", counts
 
@@ -855,7 +867,7 @@ def ingest(force: bool = False) -> dict[str, int]:
     session = SessionLocal()
     totals = {"pdf_documents": 0, "pdf_pages": 0, "pdf_chunks": 0, "ocr_pages": 0, "ocr_low_confidence": 0,
               "text_documents": 0, "text_chunks": 0, "experiments": 0, "table_evidence": 0, "spice_duplicates": 0,
-              "skipped": 0, "quarantined": 0, "unchanged": 0}
+              "skipped": 0, "quarantined": 0, "failed": 0, "unchanged": 0}
     try:
         files = (
             session.query(FileRecord)
@@ -952,9 +964,17 @@ def _publish_corpus_version(session: Session, totals: dict[str, int]) -> None:
     publish(session, f"corpus-{digest}", trigger="ingestion", counts=totals, redis_url=get_settings().redis_url)
 
 
-if __name__ == "__main__":
+def main(argv: list[str]) -> int:
+    """Run ingest and print its totals. Exit status 1 when any file failed to parse (it is retried on the next run)."""
     import os
+
+    force = "--force" in argv or os.environ.get("FLAME_INGEST_FORCE") == "1"
+    totals = ingest(force=force)
+    print(json.dumps(totals, sort_keys=True))
+    return 1 if totals.get("failed") else 0
+
+
+if __name__ == "__main__":
     import sys
 
-    force = "--force" in sys.argv[1:] or os.environ.get("FLAME_INGEST_FORCE") == "1"
-    print(json.dumps(ingest(force=force), sort_keys=True))
+    sys.exit(main(sys.argv[1:]))
