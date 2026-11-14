@@ -1,0 +1,706 @@
+{
+ "datasetId": "cv_gold_v1",
+ "description": "Frames sampled for the CV detection and segmentation evaluation set. Held-out videos are downloaded by `python -m cv.gold fetch` (checksums below); they are not in Git.",
+ "sources": [
+  {
+   "sourceId": "PSI-25-P12-main",
+   "groupId": "PSI-25/P12",
+   "split": "dev",
+   "kind": "video",
+   "path": "datasets/samples/cv/FF-PSI-25/videos/PSI-25_Raw Data_BASS_GMT210_SAMPLE_199_TEST_P12_LOS_Portion_1132-1133.mp4",
+   "sha256": "af7d36f3656787f231cbd7050fbd3371fca8a5092d0f20356c5424797a6fee4f",
+   "sizeBytes": 6919902,
+   "psi": {
+    "psiId": "PSI-25",
+    "fileName": "PSI-25_Raw Data_BASS_GMT210_SAMPLE_199_TEST_P12_LOS_Portion_1132-1133.mp4",
+    "version": "2"
+   },
+   "inGit": true,
+   "sampling": {
+    "sampleEvery": 176,
+    "maxFrames": 10,
+    "frameCount": 1761
+   }
+  },
+  {
+   "sourceId": "PSI-25-T25-2nd",
+   "groupId": "PSI-25/T25",
+   "split": "dev",
+   "kind": "video",
+   "path": "datasets/samples/cv/FF-PSI-25/videos/PSI-25_Raw Data_BASS_GMT216_SAMPLE_138_TEST_T25_2ND_VIEW.mp4",
+   "sha256": "fde3a45218335f40a6231bea41df44ff30869951926e2b170c5aa9cd76cea0b6",
+   "sizeBytes": 9516662,
+   "psi": {
+    "psiId": "PSI-25",
+    "fileName": "PSI-25_Raw Data_BASS_GMT216_SAMPLE_138_TEST_T25_2ND_VIEW.mp4",
+    "version": "2"
+   },
+   "inGit": true,
+   "sampling": {
+    "sampleEvery": 244,
+    "maxFrames": 10,
+    "frameCount": 2445
+   }
+  },
+  {
+   "sourceId": "PSI-25-B1-main",
+   "groupId": "PSI-25/B1",
+   "split": "dev",
+   "kind": "video",
+   "path": "datasets/samples/cv/FF-PSI-25/videos/PSI-25_Raw Data_BASS_GMT50_SAMPLE_147_TEST_B1.mp4",
+   "sha256": "e82f64268c51efeea73a3f11e690a2f6e504845e980fb60356a6ef1584d273cd",
+   "sizeBytes": 5803980,
+   "psi": {
+    "psiId": "PSI-25",
+    "fileName": "PSI-25_Raw Data_BASS_GMT50_SAMPLE_147_TEST_B1.mp4",
+    "version": "2"
+   },
+   "inGit": true,
+   "sampling": {
+    "sampleEvery": 134,
+    "maxFrames": 10,
+    "frameCount": 1343
+   }
+  },
+  {
+   "sourceId": "PSI-25-T12-main",
+   "groupId": "PSI-25/T12",
+   "split": "holdout",
+   "kind": "video",
+   "path": "datasets/raw/psi_api/PSI-25/Raw Data/PSI-25_Raw Data_BASS_GMT178_SAMPLE_136_TEST_T12.mp4",
+   "sha256": "5747116d67cf29a7fd475d48408198f7d6f25a727c5789f75ed313dc2d878ade",
+   "sizeBytes": 4644924,
+   "psi": {
+    "psiId": "PSI-25",
+    "fileName": "PSI-25_Raw Data_BASS_GMT178_SAMPLE_136_TEST_T12.mp4",
+    "version": "2"
+   },
+   "inGit": false,
+   "sampling": {
+    "sampleEvery": 137,
+    "maxFrames": 10,
+    "frameCount": 1374
+   }
+  },
+  {
+   "sourceId": "PSI-25-T23-main",
+   "groupId": "PSI-25/T23",
+   "split": "holdout",
+   "kind": "video",
+   "path": "datasets/raw/psi_api/PSI-25/Raw Data/PSI-25_Raw Data_BASS_GMT190_SAMPLE_133_TEST_T23.mp4",
+   "sha256": "acb10c60942aec0e31c19809c6d06bb6f8b9af2d201acf242c12bc4b6cb89655",
+   "sizeBytes": 5688672,
+   "psi": {
+    "psiId": "PSI-25",
+    "fileName": "PSI-25_Raw Data_BASS_GMT190_SAMPLE_133_TEST_T23.mp4",
+    "version": "2"
+   },
+   "inGit": false,
+   "sampling": {
+    "sampleEvery": 145,
+    "maxFrames": 10,
+    "frameCount": 1457
+   }
+  },
+  {
+   "sourceId": "PSI-25-T20-2nd",
+   "groupId": "PSI-25/T20",
+   "split": "holdout",
+   "kind": "video",
+   "path": "datasets/raw/psi_api/PSI-25/Raw Data/PSI-25_Raw Data_BASS_GMT190_SAMPLE_144_TEST_T20_2ND_VIEW.mp4",
+   "sha256": "5a471b847f6d7d9364b6ef83af05d9c46cc521bc9a66f0b58249c14c6ce6f274",
+   "sizeBytes": 4689812,
+   "psi": {
+    "psiId": "PSI-25",
+    "fileName": "PSI-25_Raw Data_BASS_GMT190_SAMPLE_144_TEST_T20_2ND_VIEW.mp4",
+    "version": "2"
+   },
+   "inGit": false,
+   "sampling": {
+    "sampleEvery": 98,
+    "maxFrames": 10,
+    "frameCount": 984
+   }
+  },
+  {
+   "sourceId": "PSI-25-T7-main",
+   "groupId": "PSI-25/T7",
+   "split": "holdout",
+   "kind": "video",
+   "path": "datasets/raw/psi_api/PSI-25/Raw Data/PSI-25_Raw Data_BASS_GMT190_SAMPLE_182_TEST_T7_First_Ignition_Attempts.mp4",
+   "sha256": "9ecf930c8efcf997533d6215a235e7cafe436eebd506ca4a32e88a965ac63096",
+   "sizeBytes": 4317209,
+   "psi": {
+    "psiId": "PSI-25",
+    "fileName": "PSI-25_Raw Data_BASS_GMT190_SAMPLE_182_TEST_T7_First_Ignition_Attempts.mp4",
+    "version": "2"
+   },
+   "inGit": false,
+   "sampling": {
+    "sampleEvery": 116,
+    "maxFrames": 10,
+    "frameCount": 1168
+   }
+  },
+  {
+   "sourceId": "PSI-25-M10-main",
+   "groupId": "PSI-25/M10",
+   "split": "holdout",
+   "kind": "video",
+   "path": "datasets/raw/psi_api/PSI-25/Raw Data/PSI-25_Raw Data_BASS_GMT204_SAMPLE_180_TEST_M10_LOS_Portion_1754-1756.mp4",
+   "sha256": "077b0df76f20b41de5236cd28dd510af48d7498aa7de19a86a4a057e8be3a2f4",
+   "sizeBytes": 10826556,
+   "psi": {
+    "psiId": "PSI-25",
+    "fileName": "PSI-25_Raw Data_BASS_GMT204_SAMPLE_180_TEST_M10_LOS_Portion_1754-1756.mp4",
+    "version": "2"
+   },
+   "inGit": false,
+   "sampling": {
+    "sampleEvery": 298,
+    "maxFrames": 10,
+    "frameCount": 2987
+   }
+  },
+  {
+   "sourceId": "PSI-25-P20-main",
+   "groupId": "PSI-25/P20",
+   "split": "holdout",
+   "kind": "video",
+   "path": "datasets/raw/psi_api/PSI-25/Raw Data/PSI-25_Raw Data_BASS_GMT211_SAMPLE_195_TEST_P20_LOS_Portion_15h33m45s_to_end_of_test.ts.mp4",
+   "sha256": "d2c1c568f1b437c42ab96e685a43863fe9f3fcc083221e8d8b8e4d26d1150ae5",
+   "sizeBytes": 11577077,
+   "psi": {
+    "psiId": "PSI-25",
+    "fileName": "PSI-25_Raw Data_BASS_GMT211_SAMPLE_195_TEST_P20_LOS_Portion_15h33m45s_to_end_of_test.ts.mp4",
+    "version": "2"
+   },
+   "inGit": false,
+   "sampling": {
+    "sampleEvery": 282,
+    "maxFrames": 10,
+    "frameCount": 2827
+   }
+  },
+  {
+   "sourceId": "PSI-25-B3-main",
+   "groupId": "PSI-25/B3",
+   "split": "holdout",
+   "kind": "video",
+   "path": "datasets/raw/psi_api/PSI-25/Raw Data/PSI-25_Raw Data_BASS_GMT50_SAMPLE_148_TEST_B3.mp4",
+   "sha256": "421b7089bb60dfe14d5d784dec63ef7be7fd710006608daee21840b5dfc70034",
+   "sizeBytes": 8005417,
+   "psi": {
+    "psiId": "PSI-25",
+    "fileName": "PSI-25_Raw Data_BASS_GMT50_SAMPLE_148_TEST_B3.mp4",
+    "version": "2"
+   },
+   "inGit": false,
+   "sampling": {
+    "sampleEvery": 174,
+    "maxFrames": 10,
+    "frameCount": 1748
+   }
+  },
+  {
+   "sourceId": "PSI-25-F1-main",
+   "groupId": "PSI-25/F1",
+   "split": "holdout",
+   "kind": "video",
+   "path": "datasets/raw/psi_api/PSI-25/Raw Data/PSI-25_Raw Data_BASS_GMT50_SAMPLE_227_TEST_F1.mp4",
+   "sha256": "ecf10d4854730f70b4e2c53d519ae527a6ef5353da24a76a003910277ecb871e",
+   "sizeBytes": 10773471,
+   "psi": {
+    "psiId": "PSI-25",
+    "fileName": "PSI-25_Raw Data_BASS_GMT50_SAMPLE_227_TEST_F1.mp4",
+    "version": "2"
+   },
+   "inGit": false,
+   "sampling": {
+    "sampleEvery": 234,
+    "maxFrames": 10,
+    "frameCount": 2345
+   }
+  },
+  {
+   "sourceId": "ISS018E030336",
+   "groupId": "PSI-107/SPICE_GMT045_2009",
+   "split": "dev",
+   "kind": "image",
+   "path": "datasets/samples/cv/FF-PSI-107/SPICE_GMT045_2009_jpegs/ISS018E030336.jpg",
+   "sha256": "2be316662a14beb73b53b84a3fd3450cde62142748aa60f271cfc4cead6b6f60",
+   "sizeBytes": 187310,
+   "psi": null,
+   "inGit": true,
+   "sampling": null
+  },
+  {
+   "sourceId": "ISS018E030344",
+   "groupId": "PSI-107/SPICE_GMT045_2009",
+   "split": "dev",
+   "kind": "image",
+   "path": "datasets/samples/cv/FF-PSI-107/SPICE_GMT045_2009_jpegs/ISS018E030344.jpg",
+   "sha256": "b80a3226b1d5ee467030c442bc66eb55829ea201835fa5e251a05c172702e916",
+   "sizeBytes": 302802,
+   "psi": null,
+   "inGit": true,
+   "sampling": null
+  },
+  {
+   "sourceId": "ISS018E030355",
+   "groupId": "PSI-107/SPICE_GMT045_2009",
+   "split": "dev",
+   "kind": "image",
+   "path": "datasets/samples/cv/FF-PSI-107/SPICE_GMT045_2009_jpegs/ISS018E030355.jpg",
+   "sha256": "2aeac3d3ecbf2cf751f5c26d8be22c020a3961e0834c63e42f13d113abbe525d",
+   "sizeBytes": 134183,
+   "psi": null,
+   "inGit": true,
+   "sampling": null
+  },
+  {
+   "sourceId": "ISS018E030363",
+   "groupId": "PSI-107/SPICE_GMT045_2009",
+   "split": "dev",
+   "kind": "image",
+   "path": "datasets/samples/cv/FF-PSI-107/SPICE_GMT045_2009_jpegs/ISS018E030363.jpg",
+   "sha256": "0d9ef9b9ccc77806d32175d1ccd646b6518832f8aee27787d99d411b2983a8b0",
+   "sizeBytes": 193093,
+   "psi": null,
+   "inGit": true,
+   "sampling": null
+  },
+  {
+   "sourceId": "ISS018E030372",
+   "groupId": "PSI-107/SPICE_GMT045_2009",
+   "split": "dev",
+   "kind": "image",
+   "path": "datasets/samples/cv/FF-PSI-107/SPICE_GMT045_2009_jpegs/ISS018E030372.jpg",
+   "sha256": "58cf49dee9c72341ed2f89f79d87136e632da4203375ca837d4c1fcf4baf4cf8",
+   "sizeBytes": 217682,
+   "psi": null,
+   "inGit": true,
+   "sampling": null
+  },
+  {
+   "sourceId": "vlcsnap-5790738",
+   "groupId": "PSI-107/downlink",
+   "split": "dev",
+   "kind": "image",
+   "path": "datasets/samples/cv/FF-PSI-107/Downlink_Frame_Grabs_36f/vlcsnap-5790738.png",
+   "sha256": "4c3d386a1e30ef1964f17552e1d7cd91699aaed75edc03fac00b92002b8d771a",
+   "sizeBytes": 231702,
+   "psi": null,
+   "inGit": true,
+   "sampling": null
+  },
+  {
+   "sourceId": "vlcsnap-5790961",
+   "groupId": "PSI-107/downlink",
+   "split": "dev",
+   "kind": "image",
+   "path": "datasets/samples/cv/FF-PSI-107/Downlink_Frame_Grabs_36f/vlcsnap-5790961.png",
+   "sha256": "b0e30d99e3726fed7cda941ed339d62de4d05342d2e668bd92f9690dc5fc1851",
+   "sizeBytes": 295456,
+   "psi": null,
+   "inGit": true,
+   "sampling": null
+  },
+  {
+   "sourceId": "vlcsnap-5791211",
+   "groupId": "PSI-107/downlink",
+   "split": "dev",
+   "kind": "image",
+   "path": "datasets/samples/cv/FF-PSI-107/Downlink_Frame_Grabs_36f/vlcsnap-5791211.png",
+   "sha256": "a51b738a1a5b753adbd066e18e55ed4d8820255bd9326a7c30d716ee16dffbb4",
+   "sizeBytes": 277702,
+   "psi": null,
+   "inGit": true,
+   "sampling": null
+  },
+  {
+   "sourceId": "vlcsnap-5791535",
+   "groupId": "PSI-107/downlink",
+   "split": "dev",
+   "kind": "image",
+   "path": "datasets/samples/cv/FF-PSI-107/Downlink_Frame_Grabs_36f/vlcsnap-5791535.png",
+   "sha256": "61dc23a4227e3ceb445ccdad3fcec5f33b65b516753cb2748874e7f17e79efb9",
+   "sizeBytes": 192578,
+   "psi": null,
+   "inGit": true,
+   "sampling": null
+  },
+  {
+   "sourceId": "176F001D_00000",
+   "groupId": "PSI-69/176F001D",
+   "split": "dev",
+   "kind": "image",
+   "path": "datasets/samples/cv/FF-PSI-69/176F001D/176F001D_00000.png",
+   "sha256": "975af9ba2ac09d39806f5c553072bae4afc2c2ab769328c991de559091eed44a",
+   "sizeBytes": 354891,
+   "psi": null,
+   "inGit": true,
+   "sampling": null
+  },
+  {
+   "sourceId": "176F001D_00660",
+   "groupId": "PSI-69/176F001D",
+   "split": "dev",
+   "kind": "image",
+   "path": "datasets/samples/cv/FF-PSI-69/176F001D/176F001D_00660.png",
+   "sha256": "ad26c9ca62ef30d3ccd64803cf85512027860684f2b7da02d4186e89d8c5fcc0",
+   "sizeBytes": 211575,
+   "psi": null,
+   "inGit": true,
+   "sampling": null
+  },
+  {
+   "sourceId": "176F001D_01319",
+   "groupId": "PSI-69/176F001D",
+   "split": "dev",
+   "kind": "image",
+   "path": "datasets/samples/cv/FF-PSI-69/176F001D/176F001D_01319.png",
+   "sha256": "b9540b922672452bff632ca1695ecc1a26e1b1e282bc09e0bcb1575b6ab8f7fc",
+   "sizeBytes": 209558,
+   "psi": null,
+   "inGit": true,
+   "sampling": null
+  },
+  {
+   "sourceId": "195F002D_00000",
+   "groupId": "PSI-69/195F002D",
+   "split": "dev",
+   "kind": "image",
+   "path": "datasets/samples/cv/FF-PSI-69/195F002D/195F002D_00000.png",
+   "sha256": "cd03a83de3534ce8f6b1b671d3ac93255326ca0c7bc5356e86f68393e75af199",
+   "sizeBytes": 203158,
+   "psi": null,
+   "inGit": true,
+   "sampling": null
+  },
+  {
+   "sourceId": "195F002D_00530",
+   "groupId": "PSI-69/195F002D",
+   "split": "dev",
+   "kind": "image",
+   "path": "datasets/samples/cv/FF-PSI-69/195F002D/195F002D_00530.png",
+   "sha256": "5b8e0a2b341430018dda316e26fbea435b691a4f05c70b174e3504023c59528a",
+   "sizeBytes": 269655,
+   "psi": null,
+   "inGit": true,
+   "sampling": null
+  },
+  {
+   "sourceId": "195F002D_01061",
+   "groupId": "PSI-69/195F002D",
+   "split": "dev",
+   "kind": "image",
+   "path": "datasets/samples/cv/FF-PSI-69/195F002D/195F002D_01061.png",
+   "sha256": "68a0a2d4d876784fc606e739ff7b6604ebbf16633bf91e66d95c3724d3c7f18a",
+   "sizeBytes": 216589,
+   "psi": null,
+   "inGit": true,
+   "sampling": null
+  },
+  {
+   "sourceId": "C021H03C_00000",
+   "groupId": "PSI-69/C021H03C",
+   "split": "dev",
+   "kind": "image",
+   "path": "datasets/samples/cv/FF-PSI-69/C021H03C/C021H03C_00000.png",
+   "sha256": "f02415afec38a8015af046afbdc358da019a7aac3f656dc4de327e44218e6440",
+   "sizeBytes": 243865,
+   "psi": null,
+   "inGit": true,
+   "sampling": null
+  },
+  {
+   "sourceId": "C021H03C_00757",
+   "groupId": "PSI-69/C021H03C",
+   "split": "dev",
+   "kind": "image",
+   "path": "datasets/samples/cv/FF-PSI-69/C021H03C/C021H03C_00757.png",
+   "sha256": "da67b3561f774cae78a27ffda78ad479420d11fdbc4243b91eb99314a5cab8c0",
+   "sizeBytes": 243865,
+   "psi": null,
+   "inGit": true,
+   "sampling": null
+  },
+  {
+   "sourceId": "C021H03C_01514",
+   "groupId": "PSI-69/C021H03C",
+   "split": "dev",
+   "kind": "image",
+   "path": "datasets/samples/cv/FF-PSI-69/C021H03C/C021H03C_01514.png",
+   "sha256": "d04f4e0119efea1995eec762a13bddba6f60e306b71222af6d5321d0a9ee7026",
+   "sizeBytes": 244848,
+   "psi": null,
+   "inGit": true,
+   "sampling": null
+  },
+  {
+   "sourceId": "C024M06C_00000",
+   "groupId": "PSI-69/C024M06C",
+   "split": "dev",
+   "kind": "image",
+   "path": "datasets/samples/cv/FF-PSI-69/C024M06C/C024M06C_00000.png",
+   "sha256": "c52e3bc1450a7eca5bd012e7f5bc8eb2260f85e30907587aef00a49cba3e3d68",
+   "sizeBytes": 244178,
+   "psi": null,
+   "inGit": true,
+   "sampling": null
+  },
+  {
+   "sourceId": "C024M06C_00703",
+   "groupId": "PSI-69/C024M06C",
+   "split": "dev",
+   "kind": "image",
+   "path": "datasets/samples/cv/FF-PSI-69/C024M06C/C024M06C_00703.png",
+   "sha256": "b906f5ed21062ea801867d4ef3f9a0d4c83e4fd9431b9ad999ce61e71f2257d9",
+   "sizeBytes": 244072,
+   "psi": null,
+   "inGit": true,
+   "sampling": null
+  },
+  {
+   "sourceId": "C024M06C_01406",
+   "groupId": "PSI-69/C024M06C",
+   "split": "dev",
+   "kind": "image",
+   "path": "datasets/samples/cv/FF-PSI-69/C024M06C/C024M06C_01406.png",
+   "sha256": "243b489b84b52fdd34c8c056d4653913a4fb119cf6b9bc6fd0e06ffec537f7ac",
+   "sizeBytes": 243245,
+   "psi": null,
+   "inGit": true,
+   "sampling": null
+  },
+  {
+   "sourceId": "H08M101D_00000",
+   "groupId": "PSI-69/H08M101D",
+   "split": "dev",
+   "kind": "image",
+   "path": "datasets/samples/cv/FF-PSI-69/H08M101D/H08M101D_00000.png",
+   "sha256": "33806e3d5c67f100a92295c93044bbb67d6cea90060327b69d682ebd283c87d2",
+   "sizeBytes": 972,
+   "psi": null,
+   "inGit": true,
+   "sampling": null
+  },
+  {
+   "sourceId": "H08M101D_00642",
+   "groupId": "PSI-69/H08M101D",
+   "split": "dev",
+   "kind": "image",
+   "path": "datasets/samples/cv/FF-PSI-69/H08M101D/H08M101D_00642.png",
+   "sha256": "89a084dd7c0ba4b6abfe39bc88ecad878bc6cab6b49b722f8e2cb8c2b94127da",
+   "sizeBytes": 231207,
+   "psi": null,
+   "inGit": true,
+   "sampling": null
+  },
+  {
+   "sourceId": "H08M101D_01284",
+   "groupId": "PSI-69/H08M101D",
+   "split": "dev",
+   "kind": "image",
+   "path": "datasets/samples/cv/FF-PSI-69/H08M101D/H08M101D_01284.png",
+   "sha256": "44e25ffaa213697086cf5d8bea302bab2a0e444c56d3221015c06845a724ae3c",
+   "sizeBytes": 228494,
+   "psi": null,
+   "inGit": true,
+   "sampling": null
+  },
+  {
+   "sourceId": "H14H101C_00000",
+   "groupId": "PSI-69/H14H101C",
+   "split": "dev",
+   "kind": "image",
+   "path": "datasets/samples/cv/FF-PSI-69/H14H101C/H14H101C_00000.png",
+   "sha256": "a9a26843d502f38a3b9e4600115332af269c72d148865c6537e5b31036607c6d",
+   "sizeBytes": 225234,
+   "psi": null,
+   "inGit": true,
+   "sampling": null
+  },
+  {
+   "sourceId": "H14H101C_00765",
+   "groupId": "PSI-69/H14H101C",
+   "split": "dev",
+   "kind": "image",
+   "path": "datasets/samples/cv/FF-PSI-69/H14H101C/H14H101C_00765.png",
+   "sha256": "8bc98e0566f3f487b4f51115024eea20c79bcb99e492ccf19f22c745bad2a4fa",
+   "sizeBytes": 224191,
+   "psi": null,
+   "inGit": true,
+   "sampling": null
+  },
+  {
+   "sourceId": "H14H101C_01530",
+   "groupId": "PSI-69/H14H101C",
+   "split": "dev",
+   "kind": "image",
+   "path": "datasets/samples/cv/FF-PSI-69/H14H101C/H14H101C_01530.png",
+   "sha256": "9039b13eb742af8519e12ed32e2021312d42c5b50ae9952b0debafbd54cd1024",
+   "sizeBytes": 225330,
+   "psi": null,
+   "inGit": true,
+   "sampling": null
+  },
+  {
+   "sourceId": "X168M03D_00000",
+   "groupId": "PSI-69/X168M03D",
+   "split": "dev",
+   "kind": "image",
+   "path": "datasets/samples/cv/FF-PSI-69/X168M03D/X168M03D_00000.png",
+   "sha256": "bad53ddaccef58546c15d418cae4063493666bca6979bbc9be5e61fc97afb63c",
+   "sizeBytes": 384693,
+   "psi": null,
+   "inGit": true,
+   "sampling": null
+  },
+  {
+   "sourceId": "X168M03D_00575",
+   "groupId": "PSI-69/X168M03D",
+   "split": "dev",
+   "kind": "image",
+   "path": "datasets/samples/cv/FF-PSI-69/X168M03D/X168M03D_00575.png",
+   "sha256": "014a9d464e4bd18d6ccbcd32b031e7a3f5f992c9c42b4054d86f9e16eb06c644",
+   "sizeBytes": 255242,
+   "psi": null,
+   "inGit": true,
+   "sampling": null
+  },
+  {
+   "sourceId": "X168M03D_01150",
+   "groupId": "PSI-69/X168M03D",
+   "split": "dev",
+   "kind": "image",
+   "path": "datasets/samples/cv/FF-PSI-69/X168M03D/X168M03D_01150.png",
+   "sha256": "bb16ebecb83ea5782ce2bc33790373531dd5a1ab280a62803e17e1b68195e408",
+   "sizeBytes": 257605,
+   "psi": null,
+   "inGit": true,
+   "sampling": null
+  },
+  {
+   "sourceId": "X177H10D_00000",
+   "groupId": "PSI-69/X177H10D",
+   "split": "dev",
+   "kind": "image",
+   "path": "datasets/samples/cv/FF-PSI-69/X177H10D/X177H10D_00000.png",
+   "sha256": "7db7222ab125aa567470fbc53fabd3665cf6fca028522e6aee58dde187708704",
+   "sizeBytes": 379351,
+   "psi": null,
+   "inGit": true,
+   "sampling": null
+  },
+  {
+   "sourceId": "X177H10D_00562",
+   "groupId": "PSI-69/X177H10D",
+   "split": "dev",
+   "kind": "image",
+   "path": "datasets/samples/cv/FF-PSI-69/X177H10D/X177H10D_00562.png",
+   "sha256": "d6f588833132be6971bbca73862d73c049d568c7e6b3f8b49f8191462b18138e",
+   "sizeBytes": 263091,
+   "psi": null,
+   "inGit": true,
+   "sampling": null
+  },
+  {
+   "sourceId": "X177H10D_01125",
+   "groupId": "PSI-69/X177H10D",
+   "split": "dev",
+   "kind": "image",
+   "path": "datasets/samples/cv/FF-PSI-69/X177H10D/X177H10D_01125.png",
+   "sha256": "ee8c8325302dab6eaea0e18ca64fd2116accc8f852c8ecea8680a98d8cdf0ce5",
+   "sizeBytes": 261055,
+   "psi": null,
+   "inGit": true,
+   "sampling": null
+  },
+  {
+   "sourceId": "F2C2-1465938488551",
+   "groupId": "PSI-98/F2C2",
+   "split": "dev",
+   "kind": "image",
+   "path": "datasets/samples/cv/FF-PSI-98/SAFFIRE_I_F2C2_jpeg/F2C2-1465938488551.jpeg",
+   "sha256": "21ce12bdf4f62eebb64ddaba8ddd5dc0af16984df6d8663ef69106f37b0a1087",
+   "sizeBytes": 62619,
+   "psi": null,
+   "inGit": true,
+   "sampling": null
+  },
+  {
+   "sourceId": "F2C2-1465938496117",
+   "groupId": "PSI-98/F2C2",
+   "split": "dev",
+   "kind": "image",
+   "path": "datasets/samples/cv/FF-PSI-98/SAFFIRE_I_F2C2_jpeg/F2C2-1465938496117.jpeg",
+   "sha256": "f904df04752d6b9823166e3615d2a937c2cbc6b5fd44b11b0e0e358742a9d49a",
+   "sizeBytes": 53835,
+   "psi": null,
+   "inGit": true,
+   "sampling": null
+  },
+  {
+   "sourceId": "F2C2-1465938503750",
+   "groupId": "PSI-98/F2C2",
+   "split": "dev",
+   "kind": "image",
+   "path": "datasets/samples/cv/FF-PSI-98/SAFFIRE_I_F2C2_jpeg/F2C2-1465938503750.jpeg",
+   "sha256": "2796b8eb70bb124208d17ad4d23ca95ce0a374821b6b3642aea7bf9d0367f0e8",
+   "sizeBytes": 53883,
+   "psi": null,
+   "inGit": true,
+   "sampling": null
+  },
+  {
+   "sourceId": "F2C2-1465938511683",
+   "groupId": "PSI-98/F2C2",
+   "split": "dev",
+   "kind": "image",
+   "path": "datasets/samples/cv/FF-PSI-98/SAFFIRE_I_F2C2_jpeg/F2C2-1465938511683.jpeg",
+   "sha256": "a5c5a96be669cf3dc77e466828b84b927c25782eaf422abb28961f10e7d27735",
+   "sizeBytes": 53879,
+   "psi": null,
+   "inGit": true,
+   "sampling": null
+  },
+  {
+   "sourceId": "DSI_SEQ2_ACTIVITE04_HR1_1018759522_1",
+   "groupId": "DSI/ACTIVITE04_HR1",
+   "split": "dev",
+   "kind": "image",
+   "path": "datasets/samples/cv/FF-PSI-DSI/ACTIVITE04_HR1/DSI_SEQ2_ACTIVITE04_HR1_1018759522_1.png",
+   "sha256": "00a9fbef696671c2744a961095b8ac42f909f1ea8c4be628470fa1bde5a5e2c1",
+   "sizeBytes": 350424,
+   "psi": null,
+   "inGit": true,
+   "sampling": null
+  },
+  {
+   "sourceId": "DSI_SEQ2_ACTIVITE04_HR1_1022430520_1",
+   "groupId": "DSI/ACTIVITE04_HR1",
+   "split": "dev",
+   "kind": "image",
+   "path": "datasets/samples/cv/FF-PSI-DSI/ACTIVITE04_HR1/DSI_SEQ2_ACTIVITE04_HR1_1022430520_1.png",
+   "sha256": "9298fde7b60c9c2616a4966427768532959a7570f9021f292b63670765692e47",
+   "sizeBytes": 373583,
+   "psi": null,
+   "inGit": true,
+   "sampling": null
+  },
+  {
+   "sourceId": "DSI_SEQ2_ACTIVITE04_HR2_1021350088_1",
+   "groupId": "DSI/ACTIVITE04_HR2_1",
+   "split": "dev",
+   "kind": "image",
+   "path": "datasets/samples/cv/FF-PSI-DSI/ACTIVITE04_HR2_1/DSI_SEQ2_ACTIVITE04_HR2_1021350088_1.png",
+   "sha256": "f0b2f096a3723a44c2254255568a467dd556ef46d79f5dd6cf151817d91b509e",
+   "sizeBytes": 769668,
+   "psi": null,
+   "inGit": true,
+   "sampling": null
+  }
+ ]
+}

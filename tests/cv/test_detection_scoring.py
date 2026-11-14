@@ -89,13 +89,28 @@ def test_unstable_segmentation_is_not_present(tmp_path, dirs):
 
 # ---- tiny specks in an empty dark frame were UNCERTAIN "flames" ------------------------------
 def test_tiny_speck_is_absent(tmp_path, dirs):
-    img = np.zeros((480, 720, 3), np.uint8)
-    img[0:5, 600:620] = 255  # a 100-pixel scan-line speck at the frame edge (0.03% of the frame, like TEST_P12)
+    # Like the specks in empty BASS-II frames: 0.03% of the frame, about 60 gray levels above the background.
+    img = np.full((480, 720, 3), 6, np.uint8)
+    img[0:5, 600:620] = 68
     path = tmp_path / "speck.png"
     Image.fromarray(img).save(path)
     r = run(path, dirs)
     assert r["detection"]["status"] == "ABSENT"
     assert r["measurements"]["geometry"] is None
+    assert any("speck" in w.lower() for w in r["scientificInterpretation"]["warnings"])
+
+
+def test_small_bright_flame_is_present(tmp_path, dirs):
+    # A real flame can be smaller than 0.05% of the frame (a distant or dying flame). With high contrast it is
+    # a flame, not a speck: the 0.05% minimum of v1.3.0 missed these (CV evaluation, holdout T23).
+    img = np.full((480, 720, 3), 6, np.uint8)
+    cv2.ellipse(img, (500, 300), (6, 4), 0, 0, 360, (150, 120, 220), -1)   # ~0.03% of the frame
+    path = tmp_path / "small_flame.png"
+    Image.fromarray(img).save(path)
+    r = run(path, dirs)
+    assert r["detection"]["status"] == "PRESENT"
+    area = r["measurements"]["geometry"]["pixelArea"] / (720 * 480)
+    assert area < 0.0005
 
 
 def test_smallest_real_flame_size_is_kept(tmp_path, dirs):

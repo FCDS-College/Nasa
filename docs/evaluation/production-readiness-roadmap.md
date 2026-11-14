@@ -1,6 +1,6 @@
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Evaluation lead (Ziad, E5) with component owners | Proposed (needs Lead sign-off) | 0.1.0 | 2026-11-13 | M11, C1-C6, P1-6 in [IMPLEMENTATION_ROADMAP](../plan/IMPLEMENTATION_ROADMAP.md) | `run_evaluation.py`, `tests/eval/`, `ai/rag/evaluation/`, `datasets/evaluation/`, `.github/workflows/ci.yml` |
+| Evaluation lead (Ziad, E5) with component owners | Proposed (needs Lead sign-off) | 0.1.1 | 2026-11-14 | M11, C1-C6, P1-6 in [IMPLEMENTATION_ROADMAP](../plan/IMPLEMENTATION_ROADMAP.md) | `run_evaluation.py`, `tests/eval/`, `ai/rag/evaluation/`, `datasets/evaluation/`, `.github/workflows/ci.yml` |
 
 # Evaluation system: production-readiness roadmap
 
@@ -17,7 +17,7 @@ Passing tests mean the *code* is sound. They do not show that the *evaluation me
 | Unsupported-claim rate | 0.05 or less | **No.** No code computes it. |
 | PII masking precision | 1.00 | **No.** Regexes exist, but there is no labelled PII test set and no precision figure. |
 | Adversarial holdout defence | 100% | **No.** 3 injection cases, scored against the mock. |
-| CV IoU (flame core) | 0.70 or more | **No.** `NOT_EVALUATED`: no ground-truth masks. |
+| CV IoU (flame core) | 0.70 or more | **No.** Mean IoU 0.32 [0.13, 0.55] on 8 held-out BASS-II tests (0.47 on the flames it detects); 0.82 on SPICE dev images. The masks are Claude-drafted and not yet validated (`cv_gold_v1`, [docs/cv/evaluation-report.md](../cv/evaluation-report.md)). |
 | API contract pass | 100% | **No.** The 4 contract tests in `tests/eval/test_api_contracts.py` are skipped stubs, although the API exists. |
 
 ## 2. Defects found while preparing this roadmap
@@ -62,7 +62,7 @@ Estimates are for one engineer unless noted. Phases are ordered by dependency: n
 | EV-10 | **Adversarial holdout**: grow injection and jailbreak cases from 3 to at least 30; score refusal and abstention on the real `/api/chat`, not the mock. | Ziad + Anas | 100% refusal on the holdout, with every failure listed by case. |
 | EV-11 | **Generated-answer evaluation**: faithfulness, citation precision and recall, and abstention on the unanswerable cases, through `/api/chat`. Human spot-check 20% of the judge's verdicts. | Ziad + Eman | Report generated from a live run; judge-vs-human agreement recorded. |
 | EV-12 | **Add missing metrics to the harness report**: nDCG@5, latency p50 and p95, per-split and per-category breakdowns. | Ziad | All gate rows have a number in `evaluation_report.json`. |
-| EV-13 | **CV ground truth**: integrate annotated masks (E3-3), split by `groupId`, wire `cv_metrics.py` into a real test and the gate. | Princess + Ziad | IoU and Dice reported on validated masks; `NOT_EVALUATED` status removed. |
+| EV-13 | **CV ground truth**: integrate annotated masks (E3-3), split by `groupId`, wire `cv_metrics.py` into a real test and the gate. | Princess + Ziad | IoU and Dice reported on validated masks; `NOT_EVALUATED` status removed. **2026-11-14:** `cv_gold_v1` built (150 frames, 56 drafted masks, split by test, held-out split); IoU is now reported. It awaits human validation of the masks. |
 | EV-14 | Retrieval benchmark: expand from 26 to at least 100 reviewed questions; add bootstrap confidence intervals; investigate the persistent miss on RG-22 and the RG-19 regression. | Eman | A hit@1 difference is reported with an interval, so one question cannot flip a decision. |
 
 ### Phase 2: Automate it (about 2 weeks)
@@ -115,4 +115,5 @@ The evaluation system is ready when all of the following hold:
 - Phase 3 effort depends on EV-07 (annotation) finishing, which this roadmap cannot schedule.
 
 ## Changelog
+- 0.1.1 (2026-11-14): CV IoU row and EV-13 updated with the `cv_gold_v1` results.
 - 0.1.0 (2026-11-13): first draft from the full-suite run and a code review of the harness.
