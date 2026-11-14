@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Lead (Anas) | Current: path B verified end to end on 2026-11-07 and again on 2026-11-13 (with an S3 stand-in); the 11-step browser journey passed on 2026-11-13; path A (Docker) not run, no Docker daemon was available | 1.3.0 | 2026-11-13 | T7, ADR-013 | `infrastructure/`, `apps/api/`, `apps/web/` |
+| Lead (Anas) | Current: path B verified end to end on 2026-11-07 and again on 2026-11-13 (with an S3 stand-in); the 11-step browser journey passed on 2026-11-13; path A (Docker) not run, no Docker daemon was available | 1.3.1 | 2026-11-14 | T7, ADR-013 | `infrastructure/`, `apps/api/`, `apps/web/` |
 
 The demo is a 6-minute walk through the Fire Safety Dashboard. It needs:
 - the API with PostgreSQL + pgvector, Redis and S3/MinIO;
@@ -89,7 +89,7 @@ uvicorn flame_api.main:app --host 127.0.0.1 --port 8000 &
 (python -m flame_api.worker recover; rq worker --url "$FLAME_REDIS_URL" flame-analysis) &
 ```
 
-Expected ingest summary (2026-11-13, Tesseract installed): `"experiments": 1958, "pdf_documents": 27, "pdf_pages": 486, "pdf_chunks": 480, "text_documents": 24, "quarantined": 0, "graph_entities": 951, "graph_relations": 10683`. The vector index embeds 515 chunks. `experiments` and `text_documents` are the counts the ingestion tests assert for the 19 committed PSI tables and 24 metadata documents; `graph_entities`, `graph_relations` and the embedded-chunk count were last measured with 4 tables and may now be higher.
+Expected ingest summary (2026-11-13, Tesseract installed): `"experiments": 1958, "pdf_documents": 27, "pdf_pages": 486, "pdf_chunks": 480, "text_documents": 24, "quarantined": 0, "graph_entities": 2304, "graph_relations": 25415`. The vector index embeds 515 chunks. `experiments` and `text_documents` are the counts the ingestion tests assert for the committed PSI tables and 24 metadata documents; `graph_entities` and `graph_relations` were re-measured on 2026-11-14 from the same tables and metadata ([KNOWLEDGE_GRAPH_SCHEMA.md](docs/data/KNOWLEDGE_GRAPH_SCHEMA.md) §0). The embedded-chunk count was last measured with 4 tables and may now be higher.
 
 Fetch the search reranker before the demo. Search reranks its top 10 results by default, and otherwise the first search downloads the model on stage (about 5–7 s). Add `--cache-dir "$FLAME_EMBEDDING_CACHE_DIR"` if you set that variable:
 
@@ -183,4 +183,5 @@ Add a directory as a second argument to save a screenshot per step. Expected: `P
 - 1.0.0 (2026-11-07): first runbook for the final demo.
 - 1.2.0 (2026-11-12): the Knowledge Graph page replaces the API-only step; smoke test has 9 steps.
 - 1.3.0 (2026-11-13): the Apollo 1 scenario (demo rows 2a–2c, smoke steps 02b–02c, `npm run smoke`, CI job), 27 reports and new ingest numbers, three troubleshooting rows.
+- 1.3.1 (2026-11-14): expected `graph_entities` / `graph_relations` re-measured (2304 / 25415) for the 19 PSI investigations.
 - 1.1.0 (2026-11-12): reranker model preparation, graph counts in the ingest summary, optional knowledge-graph step, two troubleshooting rows (reranker, admin scope).

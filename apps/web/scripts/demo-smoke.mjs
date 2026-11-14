@@ -46,7 +46,8 @@ await step("01-dashboard", async () => {
   await visible("FLEX · Flame Extinguishment Experiment");
   await visible("Lower oxygen, more self-extinguishing droplet flames");
   // ISS air first: the system solves (pitch order: success before refusal).
-  await visible("of the 840 flight tests lie near this atmosphere");
+  // The count comes from the ingested data (ai/fire_safety/investigations.py headline), so match any count.
+  await visible(/of the \d+ flight tests lie near this atmosphere/);
 });
 
 await step("02-lunar-scenario", async () => {
@@ -58,7 +59,7 @@ await step("02-lunar-scenario", async () => {
 // Apollo 1 (ADR-013): the system knows when not to answer, says why, and shows where data does exist.
 await step("02b-apollo1-refusal", async () => {
   await page.getByRole("radio", { name: /Apollo 1/ }).click();
-  await visible("None of the 840 flight tests cover this atmosphere.");
+  await visible(/None of the \d+ flight tests cover this atmosphere\./);
   await visible("this scenario is at 1 g (Earth)");
   await page.locator('[data-verdict="none"]').waitFor();
   await page.locator('[data-testid="sweep-out-of-domain"]').first().waitFor();   // red zone out to 100% O2
