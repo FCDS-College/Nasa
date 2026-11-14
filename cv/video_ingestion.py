@@ -23,7 +23,7 @@ from cv.flame_cv import (CVError, DecodeError, FileMissingError, FileTooLargeErr
                          UnsupportedMediaError, posix)
 from cv.overlay_mask import OverlayMaskConfig
 
-VIDEO_PIPELINE_VERSION = "cv-video-v1.1.0"
+VIDEO_PIPELINE_VERSION = "cv-video-v1.2.0"   # v1.2.0: a faint glow that does not move is rejected
 ALLOWED_EXTENSIONS = (".mp4", ".avi", ".mov")
 ALLOWED_CODECS = ("avc1", "h264", "x264", "hev1", "hvc1", "hevc", "h265")
 

@@ -184,3 +184,21 @@ def test_evaluate_passes_the_source_camera_profile(tmp_path):
     assert plain["items"][0]["status"] == "PRESENT"
     with_profile = gold.evaluate({"sources": [{**src, "cameraProfile": "flex-colour"}]}, [item], tmp_path / "w2", reps=10)
     assert with_profile["items"][0]["status"] == "ABSENT"
+
+
+def test_long_source_lifts_only_the_upload_duration_limit():
+    # A full NASA test video (M16, 886 s) is longer than the API's 600 s upload limit. The evaluation lifts that
+    # limit for the source; sampling stays the served grid.
+    from cv.video_ingestion import VideoConfig
+    src = {"sampling": {"sampleEvery": 2655, "maxFrames": 10, "frameCount": 26553, "maxDurationS": 1800}}
+    cfg = gold.video_config(src)
+    assert cfg.max_duration_s == 1800 and cfg.sample_every == 2655 and cfg.max_frames == 10
+    plain = gold.video_config({"sampling": {"sampleEvery": 30, "maxFrames": 10, "frameCount": 300}})
+    assert plain.max_duration_s == VideoConfig().max_duration_s
+
+
+def test_dim_flame_items_have_masks_and_notes():
+    items = [i for i in gold.load_gold(REPO / gold.GOLD_PATH) if i["groupId"] in ("PSI-25/M16", "PSI-25/M19")]
+    assert len(items) == 20 and all(i["split"] == "dev" for i in items)
+    dim = [i for i in items if i["mask"] and i["mask"]["method"] == "coherent-blue-patch"]
+    assert len(dim) == 7 and all("dim blue flame" in i["notes"] for i in dim)

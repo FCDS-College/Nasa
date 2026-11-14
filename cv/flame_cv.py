@@ -1,5 +1,5 @@
 """
-flame_cv.py - Flame in Freefall: computer-vision pipeline (Engineer 3), v1.7.0
+flame_cv.py - Flame in Freefall: computer-vision pipeline (Engineer 3), v1.9.0
 
 Image -> Validation -> Letterbox preprocessing -> Segmentation -> Features
       -> Confidence / quality flags -> AnalysisResult (+ mask/overlay artifacts)
@@ -34,11 +34,11 @@ from pydantic import BaseModel, ConfigDict, Field
 # --------------------------------------------------------------------------------------
 # Versions
 # --------------------------------------------------------------------------------------
-SCHEMA_VERSION = "1.5.0"
-PIPELINE_VERSION = "cv-opencv-v1.7.0-auto"
+SCHEMA_VERSION = "1.6.0"
+PIPELINE_VERSION = "cv-opencv-v1.9.0-auto"
 PREPROCESS_VERSION = "letterbox-lanczos-auto-v2"  # v2: 16-bit input scaled, not clipped
 SEGMENTER_NAME = "otsu-contour-adaptive"
-SEGMENTER_VERSION = "1.7.0"   # 1.6.0 (camera profiles) left this at 1.5.0 by mistake
+SEGMENTER_VERSION = "1.9.0"
 
 DEFAULT_OPTIONS = {
     "runSegmentation": True,
@@ -98,6 +98,23 @@ class CVConfig:
     # region that would be PRESENT is UNCERTAIN: on a known droplet camera a visible flame encloses its droplet, so
     # anything smaller than a droplet is a glint or a flame in its last moments. 0 = off (no profile).
     min_present_area_ratio: float = 0.0
+    # A region that fills more than max_present_rectangularity of its minimum-area rectangle has straight sides and
+    # square corners (a window, a panel, a backlit sample cell), and is UNCERTAIN, not PRESENT. Flames are rounded: a
+    # filled ellipse scores pi/4 = 0.785. Chosen on the dev split and committed samples: real flames reach 0.844, the
+    # DSI backlit cell starts at 0.903; 0.875 is the midpoint. Only judged from rectangularity_min_diameter_px across
+    # (equivalent diameter on the analysed canvas): below about 10 px a pixelated ellipse can score 0.90; from 20 px
+    # up it stays under 0.83.
+    max_present_rectangularity: float = 0.875
+    rectangularity_min_diameter_px: float = 20.0
+    # Faint-glow pass (dark scenes where the brightness detector found nothing): a dim flame is a few gray levels per
+    # pixel, like compression noise, but one coherent patch. Report it UNCERTAIN when its largest coherent patch
+    # (brightest channel, ~3%-wide Gaussian, > dim_glow_level over the median) covers at least
+    # dim_glow_min_area_ratio of the content AND stands dim_glow_min_z noise units above a ring around it.
+    # Chosen on the dev split only (BASS-II M16/M19): dim flames 0.20-1.05% and z 7.4-16; FLEX 16-bit dark frames
+    # reach 1.9% but z <= 1.1; the largest flame-free patches in dark frames are under 0.06% at high z.
+    dim_glow_level: float = 2.0
+    dim_glow_min_area_ratio: float = 0.0015
+    dim_glow_min_z: float = 7.0
     score_contrast_weight: float = 0.5
     score_area_weight: float = 0.3
     score_stability_weight: float = 0.2
@@ -335,6 +352,7 @@ class QualityFlags(_M):
     occlusion: bool
     scaleAbsent: bool
     calibrationAbsent: bool
+    dimGlow: bool = False   # UNCERTAIN from the faint-glow pass, not the brightness detector
 
 
 class QualityMetrics(_M):
@@ -675,6 +693,63 @@ def _intake_record(intake, lb, derived_path, derived_sha, cfg, source=None, lice
         source=source, license=license, groupId=group_id, split=split, ingestedAt=utc_now())
 
 
+def analysed_canvas(rgb: np.ndarray, lb: "Letterbox", cfg: CVConfig) -> Tuple[np.ndarray, np.ndarray]:
+    """The letterboxed image and content mask the decision sees: camera-profile zones blacked out and excluded."""
+    content = _content_mask(lb)
+    if cfg.exclude_regions:
+        rgb = rgb.copy()
+        for x0, y0, x1, y1 in cfg.exclude_regions:
+            c0, c1 = lb.pad_x + int(np.floor(x0 * lb.new_w)), lb.pad_x + int(np.ceil(x1 * lb.new_w))
+            r0, r1 = lb.pad_y + int(np.floor(y0 * lb.new_h)), lb.pad_y + int(np.ceil(y1 * lb.new_h))
+            rgb[r0:r1, c0:c1] = 0
+            content[r0:r1, c0:c1] = 0
+    return rgb, content
+
+
+def glow_map(rgb: np.ndarray, content: np.ndarray, lb: "Letterbox", level: float = 2.0) -> np.ndarray:
+    """Every faint coherent patch (the binary map dim_glow takes its largest patch from)."""
+    k = max(3, int(round(lb.new_w * 21 / 720)) | 1)
+    smooth = cv2.GaussianBlur(rgb.max(axis=2).astype(np.float32), (k, k), 0)
+    if not (content > 0).any():
+        return np.zeros(content.shape, bool)
+    return (smooth > float(np.median(smooth[content > 0])) + level) & (content > 0)
+
+
+def dim_glow(rgb: np.ndarray, content: np.ndarray, lb: "Letterbox",
+             level: float = 2.0) -> Tuple[float, float, np.ndarray]:
+    """The largest spatially coherent faint glow: (area fraction of the content, contrast z, mask).
+
+    The brightest channel is smoothed with a Gaussian about 3% of the content width (21 px on a 720 px frame), and
+    patches above `level` gray levels over the content's median are found. z is the patch's mean smoothed level
+    minus the median of a surrounding ring, in units of the ring's robust noise (MAD of the raw values).
+    """
+    k = max(3, int(round(lb.new_w * 21 / 720)) | 1)
+    peak = rgb.max(axis=2).astype(np.float32)
+    smooth = cv2.GaussianBlur(peak, (k, k), 0)
+    inside_content = content > 0
+    if not inside_content.any():
+        return 0.0, 0.0, np.zeros(content.shape, np.uint8)
+    base = float(np.median(smooth[inside_content]))
+    binary = ((smooth > base + level) & inside_content).astype(np.uint8)
+    n, lab, st, _ = cv2.connectedComponentsWithStats(binary)
+    if n <= 1:
+        return 0.0, 0.0, np.zeros(content.shape, np.uint8)
+    best = 1 + int(np.argmax(st[1:, cv2.CC_STAT_AREA]))
+    mask = (lab == best).astype(np.uint8) * 255
+    ring = (cv2.dilate(mask, np.ones((3 * k, 3 * k), np.uint8)) > 0) & (mask == 0) & inside_content
+    if not ring.any():
+        return 0.0, 0.0, mask
+    noise = float(np.median(np.abs(peak[ring] - np.median(peak[ring])))) * 1.4826 + 0.5
+    z = (float(smooth[mask > 0].mean()) - float(np.median(smooth[ring]))) / noise
+    return float(st[best, cv2.CC_STAT_AREA]) / float(inside_content.sum()), z, mask
+
+
+def _rectangularity(contour: np.ndarray) -> float:
+    """Contour area over the area of its minimum-area (rotated) rectangle: 1 for a rectangle, pi/4 for an ellipse."""
+    (_, (w, h), _) = cv2.minAreaRect(contour)
+    return float(cv2.contourArea(contour)) / max(float(w * h), 1.0)
+
+
 def _find_main(gray_blur: np.ndarray, lb: Letterbox, cfg: CVConfig, thr: Optional[float] = None,
                content: Optional[np.ndarray] = None) -> Dict[str, Any]:
     """``content``: the analysed region (letterbox content minus excluded zones); defaults to the content area."""
@@ -800,14 +875,7 @@ def _compute(req: Dict[str, Any], intake: Dict[str, Any], cfg: CVConfig, options
     # of the scene (like padding): they are blacked out on the analysed copy, so they cannot be segmented, and
     # they are left out of every scene statistic (brightness, background, Otsu), so they cannot skew them.
     # The derived image artefact is unchanged.
-    content = _content_mask(lb)
-    if cfg.exclude_regions:
-        rgb = rgb.copy()
-        for x0, y0, x1, y1 in cfg.exclude_regions:
-            c0, c1 = lb.pad_x + int(np.floor(x0 * lb.new_w)), lb.pad_x + int(np.ceil(x1 * lb.new_w))
-            r0, r1 = lb.pad_y + int(np.floor(y0 * lb.new_h)), lb.pad_y + int(np.ceil(y1 * lb.new_h))
-            rgb[r0:r1, c0:c1] = 0
-            content[r0:r1, c0:c1] = 0
+    rgb, content = analysed_canvas(rgb, lb, cfg)
     analysed = content if cfg.exclude_regions else None
     gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
     blur_kernel = cfg.blur_kernel or compute_auto_blur_kernel(lb.new_w, lb.new_h)
@@ -821,6 +889,7 @@ def _compute(req: Dict[str, Any], intake: Dict[str, Any], cfg: CVConfig, options
     warnings: List[str] = []
     det_conf, seg_conf = 0.0, 0.0
     status = "ABSENT"
+    would_be_present = False   # passed the PRESENT test; the demotion rules below each judge it and give their reason
     metrics: Dict[str, Any] = {"boundaryGradient": None, "flameContrast": None, "clippedFraction": None}
     median_intensity = float(np.median(content_gray))
     lowlight_threshold = cfg.lowlight_peak if cfg.lowlight_peak is not None else max(50.0, median_intensity * 0.8)
@@ -879,6 +948,15 @@ def _compute(req: Dict[str, Any], intake: Dict[str, Any], cfg: CVConfig, options
                                 f"< {cfg.small_region_min_contrast:g}: treated as a speck, not a flame.")
             elif score >= cfg.present_score and contrast >= min_contrast and seg_conf >= cfg.min_present_stability:
                 status, det_conf = "PRESENT", _clip01(score)
+                would_be_present = True
+                rectangularity = _rectangularity(cnt)
+                if (rectangularity > cfg.max_present_rectangularity and
+                        2 * np.sqrt(float(sel.sum()) / np.pi) >= cfg.rectangularity_min_diameter_px):
+                    status = "UNCERTAIN"
+                    warnings.append(f"Detection UNCERTAIN: a straight-edged region (it fills {100 * rectangularity:.0f}% of "
+                                    f"its bounding rectangle, > {100 * cfg.max_present_rectangularity:g}%). Flames are "
+                                    "rounded; straight sides and square corners suggest a window, a panel or a backlit "
+                                    "sample cell.")
                 if area_frac < cfg.min_present_area_ratio:
                     status = "UNCERTAIN"
                     warnings.append(f"Detection UNCERTAIN: the region ({100 * area_frac:.3f}% of the image) is smaller "
@@ -918,7 +996,19 @@ def _compute(req: Dict[str, Any], intake: Dict[str, Any], cfg: CVConfig, options
         det_conf = min(cfg.absent_confidence_cap, _clip01(1 - clutter))
 
     scene_light = median_intensity - float(np.percentile(content_gray, 1))
-    if status == "PRESENT" and scene_light > cfg.lit_scene_level:
+    if status == "ABSENT" and run_seg and scene_light <= cfg.lit_scene_level and cfg.dim_glow_min_area_ratio > 0:
+        glow_frac, glow_z, glow_mask = dim_glow(rgb, content, lb, cfg.dim_glow_level)
+        if glow_frac >= cfg.dim_glow_min_area_ratio and glow_z >= cfg.dim_glow_min_z:
+            cs, _ = cv2.findContours((glow_mask > 0).astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+            main, cnt = glow_mask, max(cs, key=cv2.contourArea)
+            status, seg_conf = "UNCERTAIN", 0.0
+            det_conf = 0.5 * _clip01(glow_z / (2 * cfg.dim_glow_min_z))   # at most 0.5: never more than a hint
+            flags["dimGlow"] = True
+            warnings.append(f"Detection UNCERTAIN: a faint coherent glow ({100 * glow_frac:.2f}% of the image, "
+                            f"{glow_z:.1f} noise units above its surroundings) below the brightness detector's "
+                            "threshold. It may be a dim flame (a blue PMMA or hydrocarbon flame at low flow) or faint "
+                            "scenery; review the mask.")
+    if would_be_present and scene_light > cfg.lit_scene_level:
         status = "UNCERTAIN"
         warnings.append(f"Detection UNCERTAIN: lit scene (median {scene_light:.0f} gray levels above the darkest "
                         f"pixels, > {cfg.lit_scene_level:g}). A bright region in a lit scene may be scenery or "

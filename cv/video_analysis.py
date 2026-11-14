@@ -21,8 +21,9 @@ from typing import Any, Callable, Dict, List, Optional
 import cv2
 import numpy as np
 
-from cv.flame_cv import (PIPELINE_VERSION, CVConfig, CVError, ErrorDetail, ErrorResponse, analyze_image_safe,
-                         atomic_write_text, posix, sha256_file, utc_now)
+from cv.flame_cv import (PIPELINE_VERSION, CVConfig, CVError, ErrorDetail, ErrorResponse, analysed_canvas,
+                         analyze_image_safe, atomic_write_text, glow_map, posix, preprocess_image, sha256_file,
+                         utc_now)
 from cv.overlay_mask import apply_overlay_mask, build_overlay_mask
 from cv.temporal_analysis import TemporalConfig, summarize
 from cv.video_ingestion import (VIDEO_PIPELINE_VERSION, VideoConfig, iter_frames, probe_video, public_record,
@@ -63,6 +64,44 @@ def _measurement(frame, result: Dict[str, Any]) -> Dict[str, Any]:
     if all(box.get(k) is not None for k in ("xmin", "ymin", "xmax", "ymax")):
         rec["boundingBox"] = {k: box[k] for k in ("xmin", "ymin", "xmax", "ymax")}
     return rec
+
+
+# A faint glow (dimGlow, UNCERTAIN) that sits at the same place in most sampled frames is scenery, not a dim flame:
+# dim flames spread along their sample. Chosen on the dev split only: the static P12 smudge versus the drifting
+# M16/M19 lobes (see docs/cv/evaluation-report.md).
+STATIC_GLOW_OVERLAP = 0.3      # another frame's glow covers at least this share of the glow's mask
+STATIC_GLOW_FRACTION = 0.7     # ... in at least this share of the other sampled frames
+
+
+def _reject_static_glow(rows: List[Dict[str, Any]], frames_dir: Path, masks_dir: Path, cv_dir: Path,
+                        cfg: CVConfig) -> None:
+    """Demote dimGlow frames whose glow does not move across the video to ABSENT (in place)."""
+    glow_rows = [r for r in rows if (r.get("qualityFlags") or {}).get("dimGlow")]
+    if not glow_rows or len(rows) < 3:
+        return
+    maps: Dict[str, np.ndarray] = {}
+    for r in rows:
+        path = frames_dir / f"{r['frameId']}.png"
+        if path.exists():
+            rgb, lb, _, _ = preprocess_image(path, cv_dir / "glow", cfg)
+            rgb, content = analysed_canvas(rgb, lb, cfg)
+            maps[r["frameId"]] = glow_map(rgb, content, lb, cfg.dim_glow_level)
+    for r in glow_rows:
+        mask_path = masks_dir / f"{r['frameId']}_mask.png"
+        if not mask_path.exists() or r["frameId"] not in maps:
+            continue
+        own = cv2.imread(str(mask_path), cv2.IMREAD_GRAYSCALE) > 0
+        others = [m for fid, m in maps.items() if fid != r["frameId"] and m.shape == own.shape]
+        if not own.any() or not others:
+            continue
+        held = sum(1 for m in others if (m & own).sum() >= STATIC_GLOW_OVERLAP * own.sum())
+        r["staticGlowFrames"] = f"{held}/{len(others)}"
+        if held >= STATIC_GLOW_FRACTION * len(others):
+            r["detectionStatus"] = "ABSENT"
+            r["pixelArea"] = None
+            r.pop("centroid", None)
+            r.pop("boundingBox", None)
+            r["qualityFlags"] = {**r["qualityFlags"], "staticGlow": True}
 
 
 def _overlay_mask(video_path: Any, record: Dict[str, Any], vcfg: VideoConfig, job_dir: Path):
@@ -157,6 +196,7 @@ def analyze_video(video_path: Any, work_dir: Any, cfg: Optional[CVConfig] = None
                     on_frame({"event": "frame", **progress, "done": len(done), "row": row})
 
     measurements = sorted(done, key=lambda r: r["frameIndex"])
+    _reject_static_glow(measurements, frames_dir, masks_dir, cv_dir, cfg)
     summary = summarize(measurements, record["fps"], video_cfg.sample_every, temporal_cfg)
     result = {
         "schemaVersion": VIDEO_SCHEMA_VERSION,

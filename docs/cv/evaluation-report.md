@@ -1,6 +1,6 @@
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Princess & Ziad | Draft | 2.4.0 | 2026-11-14 | M10, A3, C1, CV audit CV-3 | `cv/gold.py`, `cv/flame_cv.py`, `cv/video_analysis.py` |
+| Princess & Ziad | Draft | 2.7.0 | 2026-11-14 | M10, A3, C1, CV audit CV-3 | `cv/gold.py`, `cv/flame_cv.py`, `cv/video_analysis.py` |
 
 # CV Evaluation Report (v2.2.0, cv_gold_v1)
 
@@ -11,9 +11,18 @@
 | Split | Frames | Tests | present / absent / unclear | What it is |
 |---|---|---|---|---|
 | holdout | 80 | 8 | 41 / 37 / 2 | Unseen BASS-II tests (T7, T12, T20 cabin view, T23, B3, F1, M10, P20), never used to tune |
-| dev | 70 | 16 | 15 / 44 / 11 | The committed samples (BASS-II B1, P12, T25; SPICE; FLEX; SAFFIRE-I; DSI), used to tune fix 2 |
+| dev | 90 | 18 | 29 / 45 / 16 | The committed samples (BASS-II B1, P12, T25; SPICE; FLEX; SAFFIRE-I; DSI), used to tune fix 2; since 2026-11-14 also BASS-II **M16 and M19** (20 frames, dim blue PMMA flames; see below) |
 
-Video frames are the served pipeline's sampling grid (10 per video). Holdout tests sit only in holdout (a test checks this). Masks: 56 (43 GrabCut, 13 threshold-in-box for dim flames).
+Video frames are the served pipeline's sampling grid (10 per video). Holdout tests sit only in holdout (a test checks this). Masks: 70 (50 GrabCut, 13 threshold-in-box for dim flames, 7 coherent blue patch for the dim M16/M19 flames).
+
+**Dev extension (2026-11-14): M16 and M19.** All 13 remaining held-out misses (M10, B3) are dim flames, and the dev split had none, so nothing in dev could guide a fix without spending the holdout. M16 and M19 are Miller PMMA slab flame-spread tests (BASS-II), recorded the same day as the held-out M10 with the same flow schedule. They are the closest analogues and are separate tests, so the split by test still holds.
+- **Download:** the full NASA videos (886 s and 1549 s, 112 MB and 183 MB) through `python -m cv.gold fetch`, SHA-256 checked. They exceed the API's 600 s upload limit, so their sources set `sampling.maxDurationS`. Sampling, overlay masking and per-frame analysis are unchanged.
+- **Labels (Claude-drafted):**
+  - present: 14 (7 visible, 7 dim);
+  - unclear: 5 (borderline traces, and M19's first frame, where the red streak may be the igniter);
+  - absent: 1 (M16 before ignition).
+- **The dim frames:** pure blue, 4–8 gray levels per pixel, the same as compression noise. Their signal is one coherent patch after a 21×21 blur (680–3615 px), against at most 76 px in the frame before ignition. Their masks are those patches (every patch of at least 150 px, both lobes).
+- **Earlier columns:** the dev columns in section 3 were measured on the 70-frame dev split. On the 90-frame split, v1.8.0 scores strict recall 0.76 (22 of 29) and false-positive rate 0.00. All 7 misses are the dim M16/M19 frames.
 
 ## 2. Metrics
 
@@ -24,16 +33,18 @@ Video frames are the served pipeline's sampling grid (10 per video). Holdout tes
 
 ## 3. Results
 
-`python -m cv.gold evaluate` (full output for the current pipeline: `cv/contracts/gold_evaluation_report.json`). Six pipelines, each scored with the same command:
+`python -m cv.gold evaluate` (full output for the current pipeline: `cv/contracts/gold_evaluation_report.json`). Eight pipelines, each scored with the same command:
 
 - **Before** fixes 1–2: commit `92b2ef3`.
 - **v1.3.0:** with overlay masking and the detection-scoring fixes.
 - **v1.4.0:** with the small-flame fix from section 4.
 - **v1.5.0:** with the lit-scene rule from section 4.
 - **v1.6.0:** with camera profiles (section 4). The evaluation passes each source's `cameraProfile` (the 15 FLEX colour sources use `flex-colour`), as a client would send `camera_profile`. Its holdout figures equal v1.5.0's: the holdout has no FLEX frames.
-- **v1.7.0:** the current pipeline, with the camera profile's size floor (section 4). Holdout unchanged, for the same reason.
+- **v1.7.0:** with the camera profile's size floor (section 4). Holdout unchanged, for the same reason.
+- **v1.8.0:** with the straight-edge rule (section 4). It applies to every image, but changes no held-out frame.
+- **v1.9.0:** the current pipeline, with the faint-glow pass (section 4). Strict held-out figures are unchanged; lenient held-out recall 0.756 → 0.780.
 
-| Holdout (8 unseen tests) | Before fixes 1–2 | v1.3.0 | v1.4.0 | **v1.5.0 to v1.7.0 (current)** |
+| Holdout (8 unseen tests) | Before fixes 1–2 | v1.3.0 | v1.4.0 | **v1.5.0 to v1.9.0 (current, strict)** |
 |---|---|---|---|---|
 | False-positive rate | 0.97 [0.89, 1.00] | 0.30 [0.00, 0.65] | 0.30 [0.00, 0.65] | **0.00** (0 of 37 absent frames) |
 | Precision | 0.53 [0.30, 0.75] | 0.68 [0.29, 1.00] | 0.72 [0.31, 1.00] | **1.00** |
@@ -44,12 +55,12 @@ Video frames are the served pipeline's sampling grid (10 per video). Holdout tes
 
 Since v1.5.0 the holdout false-positive rate and precision have no spread across bootstrap draws (interval [0.00, 0.00] and [1.00, 1.00]), because no resample of 8 tests can contain a false positive. That is not a guarantee of zero: 37 absent frames from 8 tests cannot rule out a false-positive rate of a few per cent.
 
-| Dev (16 sample tests, tuned on) | Before | v1.3.0 and v1.4.0 (identical) | v1.5.0 | v1.6.0 | v1.7.0 |
-|---|---|---|---|---|---|
-| False-positive rate | 0.86 [0.65, 1.00] | 0.41 [0.14, 0.71] | 0.16 [0.03, 0.37] | 0.11 [0.00, 0.28] (5 of 44) | 0.05 [0.00, 0.18] (2 of 44) |
-| Precision | 0.28 [0.05, 0.52] | 0.45 [0.08, 0.80] | 0.68 [0.17, 0.94] | 0.75 [0.25, 1.00] | 0.88 [0.41, 1.00] |
-| Localized recall | 0.87 [0.67, 1.00] | 0.93 [0.67, 1.00] | 0.93 [0.67, 1.00] | 0.93 [0.67, 1.00] | 0.93 [0.67, 1.00] |
-| Mean mask IoU | 0.54 [0.32, 0.79] | 0.55 [0.33, 0.79] | 0.55 [0.33, 0.79] | 0.55 [0.33, 0.79] | 0.55 [0.33, 0.79] |
+| Dev (16 sample tests, tuned on) | Before | v1.3.0 and v1.4.0 (identical) | v1.5.0 | v1.6.0 | v1.7.0 | v1.8.0 |
+|---|---|---|---|---|---|---|
+| False-positive rate | 0.86 [0.65, 1.00] | 0.41 [0.14, 0.71] | 0.16 [0.03, 0.37] | 0.11 [0.00, 0.28] (5 of 44) | 0.05 [0.00, 0.18] (2 of 44) | 0.00 (0 of 44) |
+| Precision | 0.28 [0.05, 0.52] | 0.45 [0.08, 0.80] | 0.68 [0.17, 0.94] | 0.75 [0.25, 1.00] | 0.88 [0.41, 1.00] | 1.00 |
+| Localized recall | 0.87 [0.67, 1.00] | 0.93 [0.67, 1.00] | 0.93 [0.67, 1.00] | 0.93 [0.67, 1.00] | 0.93 [0.67, 1.00] | 0.93 [0.67, 1.00] |
+| Mean mask IoU | 0.54 [0.32, 0.79] | 0.55 [0.33, 0.79] | 0.55 [0.33, 0.79] | 0.55 [0.33, 0.79] | 0.55 [0.33, 0.79] | 0.55 [0.33, 0.79] |
 
 Read the intervals before reading the point values. With 8 tests, a single test moves every number.
 
@@ -81,7 +92,7 @@ At v1.5.0 all 7 dev false positives were bright hardware in a dark scene: 5 FLEX
 
 - **Why not a shape or colour rule:** on dev, the hardware regions' elongation, circularity, saturation and hue overlap with real flames'. Only position separates the FLEX arc: it sits at the bottom of every FF-PSI-69 colour frame.
 - **Fix:** a per-camera exclusion zone (`cv/configs/camera_profiles.json`, profile `flex-colour`: the full-width band below 0.82 of the frame height), applied when the request names the profile. The zone was drawn from the per-sequence median of the 75 committed FLEX colour frames, then widened to the full width because the view shifts within a sequence. That widening was fitted to a dev false positive (`195F002D_00000`).
-- **Result on dev:** 2 of the 5 FLEX false positives are gone (`176F001D_01319`, `195F002D_01061`). In the other 3, the next-largest bright region is also hardware: a glint at the top edge (`195F002D_00000`) and droplet point lights (`H08M101D_00642`, `_01284`). The 2 DSI frames are kept as negatives and remain false positives. No dev flame was lost; the real FLEX flame `195F002D_00530` gives the same status and box.
+- **Result on dev:** 2 of the 5 FLEX false positives are gone (`176F001D_01319`, `195F002D_01061`). In the other 3, the next-largest bright region is something else: a bright strip at the top edge (`195F002D_00000`, later found to be a readout artefact; see below)) and droplet point lights (`H08M101D_00642`, `_01284`). The 2 DSI frames are kept as negatives and remain false positives. No dev flame was lost; the real FLEX flame `195F002D_00530` gives the same status and box.
 - **Holdout:** unchanged. It has no FLEX frames, so this change has **no held-out validation**: the dev gain is in-sample.
 - **Recall risk:** a flame inside the zone is not seen. The highest real flame centroid in dev is at 0.67 of the frame height, above the zone's top at 0.82.
 
@@ -89,7 +100,7 @@ At v1.5.0 all 7 dev false positives were bright hardware in a dark scene: 5 FLEX
 
 Three FLEX false positives were left at v1.6.0. They are glints, not flames:
 - `H08M101D_00642` and `_01284`: specular reflections on the droplet. The droplet appears as two point lights that persist in 13 consecutive committed frames, drift slightly, and sit where the lit frame `H08M101D_00092` shows the deployed droplet. The FLEX table records H08M101 as **methanol**, with the flame out at **0.3 s** and the droplet almost unburned (3.56 → 3.54 mm), so the draft label "absent" stands.
-- `195F002D_00000`: a glint along the top edge.
+- `195F002D_00000`: a bright strip along the top edge. On closer inspection it is not a glint but a **readout artefact**: rows 0–10 of this, the first frame of the sequence, are a green strip from a different exposure, with a one-row step to near-black (row mean 15.6 → 0.6 in green). No other of the 75 committed FLEX colour frames has it.
 
 What was tried, on dev only:
 - **Colour does not separate them.** The sensor fringes a point source, so a glint is not neutral white: white-clipped fraction 0–0.011, chroma 0.26–0.48. That overlaps the dim, reddish unclear FLEX blobs (chroma 0.54–0.67).
@@ -98,9 +109,35 @@ What was tried, on dev only:
 
 Results:
 - **Dev:** strict false positives 5 → 2. The 2 left are the DSI frames, kept as negatives. Precision 0.75 → 0.88, false-positive rate 0.11 → 0.05, no flame lost. Lenient metrics are unchanged, because the frames are UNCERTAIN, not ABSENT.
-- **Status changes:** 4 dev items: the three glints and `176F001D_00660` (unclear). Across all 75 committed FLEX colour frames the floor demotes 19 PRESENT frames; each was checked by eye, and each detection is a droplet glint or the top-edge glint. In `176F001D` (methanol, burning for 29.1 s) a faint flame shell may surround the glint in some of those frames, but the pipeline had segmented the glint, not the shell.
+- **Status changes:** 4 dev items: the three glints and `176F001D_00660` (unclear). Across all 75 committed FLEX colour frames the floor demotes 19 PRESENT frames; each was checked by eye, and each detection is a droplet glint or the top-edge readout artefact. In `176F001D` (methanol, burning for 29.1 s) a faint flame shell may surround the glint in some of those frames, but the pipeline had segmented the glint, not the shell.
 - **Holdout:** unchanged; it has no FLEX frames, so this change, too, has **no held-out validation**.
 - **Threshold:** chosen from physics and the measured scale, not fitted; it falls in the dev gap between glints (≤ 0.060%) and the FLEX flame (1.73%).
+- **`195F002D_00000` stays UNCERTAIN by decision.** It still counts as a false positive in the lenient metric. A rule that masks edge strips is not viable: full-width steps near the frame edge are common and legitimate in the committed data (the SAFFIRE `vlcsnap` letterbox bars at row 22, the DSI vignette, the T25 banner at row 10), and only this one frame has the artefact. Excluding a thin top band in the `flex-colour` profile would fit a zone to one corrupted frame. UNCERTAIN is an honest answer for a frame the pipeline cannot know is corrupt.
+
+### Dim flames and the v1.9.0 faint-glow pass
+
+All 13 remaining held-out misses are dim flames (M10: 9, B3: 4). The dev split had none, so it was extended with BASS-II M16 and M19 (section 1). On the 90-frame dev split, v1.8.0 missed all 7 dim frames.
+
+- **Cue:** dim blue flames are 4–8 gray levels per pixel, the same as compression noise, but they form one coherent patch after heavy smoothing. Two dev measures together separate them:
+  - **glow area:** dim flames 0.20–1.05% of the frame; the flame-free M16 frame before ignition 0.06%;
+  - **local contrast** (noise units above a surrounding ring): dim flames 7.4–16; FLEX 16-bit dark frames, whose sensor gradient forms patches up to 1.9%, at most 1.1.
+- **Rule:** in a dark frame where the brightness detector finds nothing, a glow covering at least 0.15% of the frame at 7 or more noise units is reported **UNCERTAIN** (`dimGlow`, confidence at most 0.5), never PRESENT, by decision: a faint glow can also be dim scenery.
+- **Motion check (video):** a glow at the same place in most sampled frames is rejected as scenery (`cv-video-v1.2.0`). It was aimed at a P12 smudge believed static, but that smudge **moves** (it overlaps 3 of 9 other frames), so the check fired on no dev frame. It is tested on synthetic videos only.
+- **P12 labels re-reviewed (disclosed):** the glow pass flagged P12 f000880 (labelled absent) while identical-looking neighbours were labelled unclear. P12 burns a black PMMA rod at airflow falling toward extinction, so the smudge may be a dim flame. Every P12 frame was re-reviewed with one criterion: a visible coherent smudge of about 0.3% or more is unclear. That moved f000000, f000176, f000528 and f000880 from absent to unclear. The re-review was prompted by the result, so these four items are not blind; they are now excluded from scoring.
+- **Dev results (in-sample):** 7 of 7 dim flames UNCERTAIN. Lenient recall 0.76 → **1.00**. Strict recall stays 0.76 and the strict false-positive rate stays 0.00. The lenient false-positive rate is 0.51, unchanged in count (21); it was 0.47 before only because four P12 absent items left the denominator.
+- **Holdout (scored once):** **M10 is still missed: 0 of 9 frames found.** One B3 frame (dim lobes) moves from ABSENT to UNCERTAIN; lenient recall 0.756 → 0.780; no new held-out false positive. Why M10 fails is not investigated, because looking at M10 would spend the holdout. A fresh dim-flame test would be the next honest check.
+- **Committed images:** none of the 182 triggers the pass.
+
+### The DSI backlit cell and the v1.8.0 straight-edge rule
+
+The last 2 dev false positives (`DSI_SEQ2_ACTIVITE04_HR1_1018759522_1`, `_1022430520_1`) come from DECLIC's Directional Solidification Insert, a non-combustion experiment. The frames show a backlit transparent sample cell: a bright, flat rectangle filling 14–18% of the frame.
+
+- **Cue:** rectangularity, the region's area over its minimum-area rectangle. Flames are rounded, and a filled ellipse scores π/4 = 0.785. Across the dev split and all 182 committed image samples, real PRESENT flames reach 0.844 at most (`ISS018E030372`, SPICE). The 6 DSI backlit-cell frames score 0.903–0.950.
+- **Rule:** a region that would be PRESENT, fills more than 0.875 of its rectangle (the midpoint of that gap) and is at least 20 px across is UNCERTAIN. The 20 px gate is measured, not assumed: digitised ellipses reach 0.958 at 6 px but stay under 0.83 from 20 px. That keeps small flames out of the rule.
+- **Dev:** false positives 2 → 0; precision 1.00, no flame lost. This is in-sample: the cut-off was set on these frames.
+- **Holdout (scored once):** unchanged. No held-out frame is affected, so this says the rule costs no held-out recall, not that it would catch unseen boxy scenery.
+- **Not measured:** a real flame with straight sides (a SAFFIRE flame spreading across the full width of its rectangular sample, or a flame cut on two opposite sides by the frame) would be UNCERTAIN. No committed flame scores above 0.844, and no such frame is labelled.
+- **Why not a "non-combustion source" rule:** knowing the frames are from DSI would make the test meaningless. These frames measure whether the detector can tell bright non-flame scenery from a flame without being told, and the shape rule does that from the pixels alone.
 
 ### The v1.3.0 small-flame regression and its fix
 
@@ -130,6 +167,10 @@ The committed tests (`tests/cv/test_gold.py`) check the set itself: it validates
 - **No measurement-error evaluation:** there are no calibrated physical reference values.
 
 ## Changelog
+- **v2.7.0 (2026-11-14):** v1.9.0 results (faint-glow pass): dev dim flames UNCERTAIN, held-out M10 still missed; P12 labels re-reviewed with one criterion (4 absent → unclear, disclosed).
+- **v2.6.0 (2026-11-14):** Dev split extended with BASS-II M16 and M19 (20 frames, 7 dim blue flames) so dim-flame misses can be worked on without the holdout; v1.8.0 baseline on the extended dev split.
+- **v2.5.1 (2026-11-14):** `195F002D_00000` is a first-frame readout artefact, not a glint; why it stays UNCERTAIN.
+- **v2.5.0 (2026-11-14):** Added v1.8.0 results (straight-edge rule): the DSI backlit-cell false positives are UNCERTAIN; dev false positives 2 → 0; holdout scored once, unchanged.
 - **v2.4.0 (2026-11-14):** Added v1.7.0 dev results (camera-profile size floor): the three FLEX glint false positives are UNCERTAIN, dev false positives 5 → 2; the H08M101 label checked against the FLEX table (methanol, extinction at 0.3 s).
 - **v2.3.0 (2026-11-14):** Added v1.6.0 dev results (camera profiles): dev false positives 7 → 5, holdout unchanged and not informative for this change (no FLEX frames).
 - **v2.2.0 (2026-11-14):** Added v1.5.0 results. The lit-scene rule (tuned on dev only) removes all 11 held-out false positives with no recall loss; the blindness caveat and the remaining dark-scene false positives are documented.

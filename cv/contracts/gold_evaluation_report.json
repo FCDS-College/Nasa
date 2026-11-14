@@ -1,97 +1,97 @@
 {
   "goldVersion": "cv_gold_v1",
-  "generatedAt": "2026-11-14T07:14:38Z",
-  "pipelineVersion": "cv-opencv-v1.7.0-auto",
-  "videoPipelineVersion": "cv-video-v1.1.0",
-  "configDigest": "ed4f9e12478ee652",
+  "generatedAt": "2026-11-14T08:23:44Z",
+  "pipelineVersion": "cv-opencv-v1.9.0-auto",
+  "videoPipelineVersion": "cv-video-v1.2.0",
+  "configDigest": "8544d30974f1eb39",
   "protocol": "Detection: strict counts PRESENT as positive, lenient counts PRESENT or UNCERTAIN, localized also requires the mask on a flame frame to overlap the labelled flame (IoU >= 0.1); unclear labels are excluded. 95% intervals resample whole tests (groupId), not frames. 'verified' uses only items a person has checked.",
   "splits": {
     "dev": {
       "all": {
-        "n": 70,
-        "nTests": 16,
+        "n": 90,
+        "nTests": 18,
         "labels": {
-          "present": 15,
-          "absent": 44,
-          "unclear": 11
+          "present": 29,
+          "absent": 41,
+          "unclear": 20
         },
         "detection": {
           "strict": {
-            "tp": 15,
-            "fp": 2,
-            "fn": 0,
-            "tn": 42,
-            "precision": 0.8824,
-            "recall": 1.0,
-            "f1": 0.9375,
-            "falsePositiveRate": 0.0455,
+            "tp": 22,
+            "fp": 0,
+            "fn": 7,
+            "tn": 41,
+            "precision": 1.0,
+            "recall": 0.7586,
+            "f1": 0.8627,
+            "falsePositiveRate": 0.0,
             "precisionCI95": [
-              0.4109,
+              1.0,
               1.0
             ],
             "recallCI95": [
-              1.0,
+              0.55,
               1.0
             ],
             "falsePositiveRateCI95": [
               0.0,
-              0.1765
+              0.0
             ]
           },
           "lenient": {
-            "tp": 15,
+            "tp": 29,
             "fp": 21,
             "fn": 0,
-            "tn": 23,
-            "precision": 0.4167,
+            "tn": 20,
+            "precision": 0.58,
             "recall": 1.0,
-            "f1": 0.5883,
-            "falsePositiveRate": 0.4773,
+            "f1": 0.7342,
+            "falsePositiveRate": 0.5122,
             "precisionCI95": [
-              0.0645,
-              0.75
+              0.2326,
+              0.8401
             ],
             "recallCI95": [
               1.0,
               1.0
             ],
             "falsePositiveRateCI95": [
-              0.193,
-              0.7714
+              0.2195,
+              0.7679
             ]
           },
           "localized": {
-            "tp": 14,
-            "fp": 2,
-            "fn": 1,
-            "tn": 42,
-            "precision": 0.875,
-            "recall": 0.9333,
-            "f1": 0.9032,
-            "falsePositiveRate": 0.0455,
+            "tp": 21,
+            "fp": 0,
+            "fn": 8,
+            "tn": 41,
+            "precision": 1.0,
+            "recall": 0.7241,
+            "f1": 0.84,
+            "falsePositiveRate": 0.0,
             "precisionCI95": [
-              0.3333,
+              1.0,
               1.0
             ],
             "recallCI95": [
-              0.6667,
+              0.5293,
               1.0
             ],
             "falsePositiveRateCI95": [
               0.0,
-              0.1765
+              0.0
             ]
           }
         },
         "segmentation": {
-          "n": 15,
-          "meanIoU": 0.5479,
+          "n": 29,
+          "meanIoU": 0.3962,
           "meanIoUCI95": [
-            0.3323,
-            0.7939
+            0.2563,
+            0.6473
           ],
-          "nDetected": 15,
-          "meanIoUWhenDetected": 0.5479,
+          "nDetected": 22,
+          "meanIoUWhenDetected": 0.5223,
           "note": "IoU on the pipeline's letterbox canvas; a missed flame counts as IoU 0 in meanIoU. The pipeline keeps only the largest region, so multi-lobe flames lower IoU."
         }
       },
@@ -217,20 +217,20 @@
             ]
           },
           "lenient": {
-            "tp": 31,
+            "tp": 32,
             "fp": 14,
-            "fn": 10,
+            "fn": 9,
             "tn": 23,
-            "precision": 0.6889,
-            "recall": 0.7561,
-            "f1": 0.7209,
+            "precision": 0.6957,
+            "recall": 0.7805,
+            "f1": 0.7357,
             "falsePositiveRate": 0.3784,
             "precisionCI95": [
-              0.359,
-              0.9413
+              0.3878,
+              0.9424
             ],
             "recallCI95": [
-              0.3636,
+              0.3864,
               1.0
             ],
             "falsePositiveRateCI95": [
@@ -489,7 +489,7 @@
       "groupId": "DSI/ACTIVITE04_HR1",
       "split": "dev",
       "label": "absent",
-      "status": "PRESENT",
+      "status": "UNCERTAIN",
       "confidence": 0.989,
       "verified": false,
       "iou": null
@@ -499,7 +499,7 @@
       "groupId": "DSI/ACTIVITE04_HR1",
       "split": "dev",
       "label": "absent",
-      "status": "PRESENT",
+      "status": "UNCERTAIN",
       "confidence": 0.982,
       "verified": false,
       "iou": null
@@ -819,8 +819,8 @@
       "groupId": "PSI-25/B3",
       "split": "holdout",
       "label": "present",
-      "status": "ABSENT",
-      "confidence": 0.515,
+      "status": "UNCERTAIN",
+      "confidence": 0.5,
       "verified": false,
       "iou": 0.0
     },
@@ -980,7 +980,7 @@
       "split": "holdout",
       "label": "present",
       "status": "ABSENT",
-      "confidence": 0.524,
+      "confidence": 0.5,
       "verified": false,
       "iou": 0.0
     },
@@ -990,7 +990,7 @@
       "split": "holdout",
       "label": "present",
       "status": "ABSENT",
-      "confidence": 0.522,
+      "confidence": 0.43,
       "verified": false,
       "iou": 0.0
     },
@@ -1000,7 +1000,7 @@
       "split": "holdout",
       "label": "present",
       "status": "ABSENT",
-      "confidence": 0.525,
+      "confidence": 0.456,
       "verified": false,
       "iou": 0.0
     },
@@ -1010,7 +1010,7 @@
       "split": "holdout",
       "label": "present",
       "status": "ABSENT",
-      "confidence": 0.513,
+      "confidence": 0.437,
       "verified": false,
       "iou": 0.0
     },
@@ -1020,7 +1020,7 @@
       "split": "holdout",
       "label": "present",
       "status": "ABSENT",
-      "confidence": 0.51,
+      "confidence": 0.435,
       "verified": false,
       "iou": 0.0
     },
@@ -1030,7 +1030,7 @@
       "split": "holdout",
       "label": "present",
       "status": "ABSENT",
-      "confidence": 0.521,
+      "confidence": 0.445,
       "verified": false,
       "iou": 0.0
     },
@@ -1040,7 +1040,7 @@
       "split": "holdout",
       "label": "present",
       "status": "ABSENT",
-      "confidence": 0.521,
+      "confidence": 0.452,
       "verified": false,
       "iou": 0.0
     },
@@ -1050,7 +1050,7 @@
       "split": "holdout",
       "label": "present",
       "status": "ABSENT",
-      "confidence": 0.51,
+      "confidence": 0.433,
       "verified": false,
       "iou": 0.0
     },
@@ -1060,15 +1060,215 @@
       "split": "holdout",
       "label": "present",
       "status": "ABSENT",
-      "confidence": 0.521,
+      "confidence": 0.428,
       "verified": false,
       "iou": 0.0
+    },
+    {
+      "itemId": "PSI-25-M16-main-f000000",
+      "groupId": "PSI-25/M16",
+      "split": "dev",
+      "label": "absent",
+      "status": "ABSENT",
+      "confidence": 0.527,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-M16-main-f002655",
+      "groupId": "PSI-25/M16",
+      "split": "dev",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.814,
+      "verified": false,
+      "iou": 0.7683
+    },
+    {
+      "itemId": "PSI-25-M16-main-f005310",
+      "groupId": "PSI-25/M16",
+      "split": "dev",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.715,
+      "verified": false,
+      "iou": 0.4647
+    },
+    {
+      "itemId": "PSI-25-M16-main-f007965",
+      "groupId": "PSI-25/M16",
+      "split": "dev",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.975,
+      "verified": false,
+      "iou": 0.4056
+    },
+    {
+      "itemId": "PSI-25-M16-main-f010620",
+      "groupId": "PSI-25/M16",
+      "split": "dev",
+      "label": "present",
+      "status": "UNCERTAIN",
+      "confidence": 0.5,
+      "verified": false,
+      "iou": 0.0
+    },
+    {
+      "itemId": "PSI-25-M16-main-f013275",
+      "groupId": "PSI-25/M16",
+      "split": "dev",
+      "label": "present",
+      "status": "UNCERTAIN",
+      "confidence": 0.462,
+      "verified": false,
+      "iou": 0.0
+    },
+    {
+      "itemId": "PSI-25-M16-main-f015930",
+      "groupId": "PSI-25/M16",
+      "split": "dev",
+      "label": "present",
+      "status": "UNCERTAIN",
+      "confidence": 0.265,
+      "verified": false,
+      "iou": 0.0
+    },
+    {
+      "itemId": "PSI-25-M16-main-f018585",
+      "groupId": "PSI-25/M16",
+      "split": "dev",
+      "label": "unclear",
+      "status": "ABSENT",
+      "confidence": 0.9,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-M16-main-f021240",
+      "groupId": "PSI-25/M16",
+      "split": "dev",
+      "label": "unclear",
+      "status": "ABSENT",
+      "confidence": 0.9,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-M16-main-f023895",
+      "groupId": "PSI-25/M16",
+      "split": "dev",
+      "label": "unclear",
+      "status": "ABSENT",
+      "confidence": 0.559,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-M19-main-f000000",
+      "groupId": "PSI-25/M19",
+      "split": "dev",
+      "label": "unclear",
+      "status": "PRESENT",
+      "confidence": 0.716,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-M19-main-f004643",
+      "groupId": "PSI-25/M19",
+      "split": "dev",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.811,
+      "verified": false,
+      "iou": 0.3208
+    },
+    {
+      "itemId": "PSI-25-M19-main-f009286",
+      "groupId": "PSI-25/M19",
+      "split": "dev",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.98,
+      "verified": false,
+      "iou": 0.2557
+    },
+    {
+      "itemId": "PSI-25-M19-main-f013929",
+      "groupId": "PSI-25/M19",
+      "split": "dev",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.816,
+      "verified": false,
+      "iou": 0.7786
+    },
+    {
+      "itemId": "PSI-25-M19-main-f018572",
+      "groupId": "PSI-25/M19",
+      "split": "dev",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.662,
+      "verified": false,
+      "iou": 0.2785
+    },
+    {
+      "itemId": "PSI-25-M19-main-f023215",
+      "groupId": "PSI-25/M19",
+      "split": "dev",
+      "label": "present",
+      "status": "UNCERTAIN",
+      "confidence": 0.351,
+      "verified": false,
+      "iou": 0.0
+    },
+    {
+      "itemId": "PSI-25-M19-main-f027858",
+      "groupId": "PSI-25/M19",
+      "split": "dev",
+      "label": "present",
+      "status": "UNCERTAIN",
+      "confidence": 0.428,
+      "verified": false,
+      "iou": 0.0
+    },
+    {
+      "itemId": "PSI-25-M19-main-f032501",
+      "groupId": "PSI-25/M19",
+      "split": "dev",
+      "label": "present",
+      "status": "UNCERTAIN",
+      "confidence": 0.408,
+      "verified": false,
+      "iou": 0.0
+    },
+    {
+      "itemId": "PSI-25-M19-main-f037144",
+      "groupId": "PSI-25/M19",
+      "split": "dev",
+      "label": "present",
+      "status": "UNCERTAIN",
+      "confidence": 0.328,
+      "verified": false,
+      "iou": 0.0
+    },
+    {
+      "itemId": "PSI-25-M19-main-f041787",
+      "groupId": "PSI-25/M19",
+      "split": "dev",
+      "label": "unclear",
+      "status": "ABSENT",
+      "confidence": 0.526,
+      "verified": false,
+      "iou": null
     },
     {
       "itemId": "PSI-25-P12-main-f000000",
       "groupId": "PSI-25/P12",
       "split": "dev",
-      "label": "absent",
+      "label": "unclear",
       "status": "ABSENT",
       "confidence": 0.523,
       "verified": false,
@@ -1078,7 +1278,7 @@
       "itemId": "PSI-25-P12-main-f000176",
       "groupId": "PSI-25/P12",
       "split": "dev",
-      "label": "absent",
+      "label": "unclear",
       "status": "ABSENT",
       "confidence": 0.512,
       "verified": false,
@@ -1098,7 +1298,7 @@
       "itemId": "PSI-25-P12-main-f000528",
       "groupId": "PSI-25/P12",
       "split": "dev",
-      "label": "absent",
+      "label": "unclear",
       "status": "ABSENT",
       "confidence": 0.512,
       "verified": false,
@@ -1109,8 +1309,8 @@
       "groupId": "PSI-25/P12",
       "split": "dev",
       "label": "unclear",
-      "status": "ABSENT",
-      "confidence": 0.513,
+      "status": "UNCERTAIN",
+      "confidence": 0.273,
       "verified": false,
       "iou": null
     },
@@ -1118,9 +1318,9 @@
       "itemId": "PSI-25-P12-main-f000880",
       "groupId": "PSI-25/P12",
       "split": "dev",
-      "label": "absent",
-      "status": "ABSENT",
-      "confidence": 0.524,
+      "label": "unclear",
+      "status": "UNCERTAIN",
+      "confidence": 0.276,
       "verified": false,
       "iou": null
     },
@@ -1149,8 +1349,8 @@
       "groupId": "PSI-25/P12",
       "split": "dev",
       "label": "unclear",
-      "status": "ABSENT",
-      "confidence": 0.522,
+      "status": "UNCERTAIN",
+      "confidence": 0.307,
       "verified": false,
       "iou": null
     },

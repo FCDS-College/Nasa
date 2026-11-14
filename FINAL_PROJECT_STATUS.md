@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Lead (Anas) | Current | 1.5.4 | 2026-11-14 | final challenge plan T1–T7, I7–I11, ADR-006–009, ADR-013 | whole repository |
+| Lead (Anas) | Current | 1.5.5 | 2026-11-14 | final challenge plan T1–T7, I7–I11, ADR-006–009, ADR-013 | whole repository |
 
 **Challenge.** NASA Space Apps 2026, *Flame in Freefall: AI-powered fire-safety insights from microgravity combustion data*: summarize, rank and explain NASA microgravity combustion results to inform fire safety for Moon and Mars missions.
 
@@ -26,7 +26,7 @@
 | Dashboard, investigation page, outcome explorer, flight test browser, video view, navigation | COMPLETE |
 | Hybrid retrieval with cross-encoder reranking, measured on a corpus-grounded gold set (hit@1 0.88, hit@5 0.96, MRR@10 0.91) | COMPLETE (gold set needs human review) |
 | Cited chat; evidence-only fallback when no model is deployed | COMPLETE (generation not evaluated: no model here) |
-| Image and video CV through the API (BASS-II flight video, SPICE photos) | PARTIAL: runs end to end and finds luminous flames. On 8 unseen BASS-II tests (`cv_gold_v1`, labels pending human review): false-positive rate 0.00 (0 of 37 empty frames), localized recall 0.68. Lit scenery is reported UNCERTAIN; dim blue flames are missed, and bright hardware in a dark scene is still called a flame, except the FLEX colour camera's arc and droplet glints when the upload names the `flex-colour` camera profile ([docs/cv/evaluation-report.md](docs/cv/evaluation-report.md)) |
+| Image and video CV through the API (BASS-II flight video, SPICE photos) | PARTIAL: runs end to end and finds luminous flames. On 8 unseen BASS-II tests (`cv_gold_v1`, labels pending human review): false-positive rate 0.00 (0 of 37 empty frames), localized recall 0.68. Lit scenery is reported UNCERTAIN; dim blue flames are missed, and bright hardware in a dark scene is still called a flame, except straight-edged scenery (a backlit sample cell) and, when the upload names the `flex-colour` camera profile, the FLEX colour camera's arc and droplet glints ([docs/cv/evaluation-report.md](docs/cv/evaluation-report.md)) |
 | Contract 0.7.0 (coverage verdict, gravity, scenario history). The AURA Link 2 dry run was last green at 0.6.0 (16 tools); 0.7.0 is checked by the `aura-link2-contract` job | COMPLETE (AURA re-discovery pending) |
 | ADR-006 to 009 built (PR #29): one `ai/rag` search stack, knowledge graph from the PSI tables, video checkpoints and cancellation, admin scope | COMPLETE |
 | Reranker on by default (fastembed ONNX, top 10) and four reviewed material spellings resolved in the graph (PR #30) | COMPLETE |
@@ -96,6 +96,7 @@ After submission (2026-11-07 to 2026-11-12):
 - Gravity is a scenario field; historical scenarios are data files; a coverage verdict sits beside the unchanged ranking (ADR-013, Proposed).
 
 ## Changelog
+- 1.5.5 (2026-11-14): CV row notes the v1.8.0 straight-edge rule (DSI backlit cell).
 - 1.5.4 (2026-11-14): CV row notes the v1.7.0 size floor (droplet glints).
 - 1.5.3 (2026-11-14): CV row notes the v1.6.0 camera profiles.
 - 1.5.2 (2026-11-14): CV row updated with the v1.5.0 held-out figures (lit-scene rule).

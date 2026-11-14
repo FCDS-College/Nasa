@@ -1,8 +1,8 @@
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Princess | Draft | 1.7.0 | 2026-11-14 | MVP §10, M4, CV audit CV-2, CV-3 | `cv/flame_cv.py` |
+| Princess | Draft | 1.9.0 | 2026-11-14 | MVP §10, M4, CV audit CV-2, CV-3 | `cv/flame_cv.py` |
 
-# CV Pipeline Specification (v1.7.0, auto-adaptive)
+# CV Pipeline Specification (v1.9.0, auto-adaptive)
 
 ## 1. Stage diagram
 
@@ -36,7 +36,7 @@ Image -> Validation (validate_image)
 
   | Profile | Zone | Why | Size floor | Why |
   |---|---|---|---|---|
-  | `flex-colour` (FF-PSI-69 colour camera, 640 × 480) | the full-width band below 0.82 of the frame height | a static glowing hardware arc at the bottom of the view, PRESENT in 5 dev frames of `cv_gold_v1`. Its median-frame position is x 0.36–0.60, y 0.86–0.98, but the view shifts within a sequence (x 0.02–0.20 in `195F002D_00000`), so the zone spans the whole width. The highest real flame centroid in the dev split is at 0.67 of the height. | 0.1% of the image | the scale, measured on two lit frames with a droplet of known size, is 0.12–0.15 mm/px (`H08M101D_00092`: 3.56 mm over about 29 px; `176F001D_00000`: 3.69 mm over about 25 px). The median initial FLEX droplet, 3.0 mm, is then 20–25 px across, about 0.10% of the frame. Not fitted: every region under it in dev (0.023–0.060%) is a droplet glint or a glint at the top edge, and the one labelled FLEX flame covers 1.73%. |
+  | `flex-colour` (FF-PSI-69 colour camera, 640 × 480) | the full-width band below 0.82 of the frame height | a static glowing hardware arc at the bottom of the view, PRESENT in 5 dev frames of `cv_gold_v1`. Its median-frame position is x 0.36–0.60, y 0.86–0.98, but the view shifts within a sequence (x 0.02–0.20 in `195F002D_00000`), so the zone spans the whole width. The highest real flame centroid in the dev split is at 0.67 of the height. | 0.1% of the image | the scale, measured on two lit frames with a droplet of known size, is 0.12–0.15 mm/px (`H08M101D_00092`: 3.56 mm over about 29 px; `176F001D_00000`: 3.69 mm over about 25 px). The median initial FLEX droplet, 3.0 mm, is then 20–25 px across, about 0.10% of the frame. Not fitted: every region under it in dev (0.023–0.060%) is a droplet glint or a readout artefact at the top edge, and the one labelled FLEX flame covers 1.73%. |
 
 ## 4. Detection decision
 
@@ -52,11 +52,13 @@ The largest bright component (at least `min_area_ratio` = 0.01% of the image) is
 | The region is smaller than 0.05% of the image (`small_region_ratio`) and its contrast is below 83 (`small_region_min_contrast`) | `ABSENT`: a speck, not a flame |
 | Less than 5% of the image is left as background (`min_background_fraction`) and the image is nearly uniform (under 15 gray levels between the 0.5th and 99.5th percentiles) | `ABSENT` |
 | Less than 5% left as background, otherwise | `UNCERTAIN`: contrast is not estimable (`flameContrast: null`) |
-| Score ≥ 0.60, contrast ≥ the minimum, stability ≥ 0.5 (`min_present_stability`) | `PRESENT`, unless the scene is lit or the region is under the camera's size floor (next rows) |
+| Score ≥ 0.60, contrast ≥ the minimum, stability ≥ 0.5 (`min_present_stability`) | `PRESENT`, unless the region is straight-edged, the scene is lit, or the region is under the camera's size floor (next rows) |
+| Would be `PRESENT`, but the region is straight-edged: it fills more than 87.5% of its minimum-area rectangle (`max_present_rectangularity`), judged only when it is at least 20 px across (v1.8.0) | `UNCERTAIN`: a window, panel or backlit sample cell |
 | Would be `PRESENT`, but the scene is lit: median gray minus 1st-percentile gray > 11 (`lit_scene_level`) | `UNCERTAIN`: in a lit scene a bright region may be scenery or hardware |
 | Would be `PRESENT`, but the region is smaller than the camera profile's `minPresentAreaFraction` (v1.7.0; no floor without a profile) | `UNCERTAIN`: on that camera, a glint or a flame in its last moments |
 | Score ≥ 0.60 and contrast ≥ the minimum, but stability < 0.5 | `UNCERTAIN` (warning names the IoU) |
 | Contrast ≥ half the minimum | `UNCERTAIN` |
+| Otherwise ABSENT, but the scene is dark and a **faint coherent glow** passes (v1.9.0): its largest patch (brightest channel, Gaussian about 3% of the width, > 2 gray levels over the median) covers ≥ 0.15% of the image and stands ≥ 7 noise units above a ring around it | `UNCERTAIN` with `qualityFlags.dimGlow`, confidence ≤ 0.5, the glow as the mask: possibly a dim flame |
 | Otherwise | `ABSENT` |
 
 **Confidence** is the score for `PRESENT` and `UNCERTAIN`. For `ABSENT` it is `1 − score`, capped at `absent_confidence_cap` (0.9). With no candidate, the score is the contrast term of the brightest content left in the image (99.5th percentile minus median), so a black frame gives 0.9 and a cluttered one less. No confidence is a fixed constant. None of these values is a calibrated probability (`confidenceBasis: heuristic_uncalibrated`).
@@ -69,6 +71,8 @@ Why these values (measured on every committed sample image and the three BASS-II
 - **0.5 minimum stability:** the lowest real SPICE flame scores 0.86.
 - **Stability measured locally:** comparing only the largest component scored a real two-lobed BASS-II flame (`TEST_B1` frame 630) at 0, because the lobes swapped places as the largest.
 - **Quality flags do not demote a detection:** `saturationClipping` is set on 100% of the real SPICE flames.
+- **Straight-edged regions are never PRESENT (v1.8.0):** flames are rounded; a filled ellipse fills π/4 = 0.785 of its minimum-area rectangle. On the dev split and every committed sample, real flames reach 0.844 (`ISS018E030372`) and the DECLIC DSI backlit sample cell starts at 0.903; 0.875 is the midpoint. Rectangularity is judged only from 20 px across (equivalent diameter on the analysed canvas): over 200 random digitised ellipses per size, a 6 px one can reach 0.958, a 10 px one 0.847, and from 20 px up none exceeds 0.828. That keeps tiny flames (the held-out T23 flames are 0.02–0.05% of the frame) out of the rule. When several demotion rules apply, each adds its own warning.
+- **Faint glows are UNCERTAIN, never PRESENT (v1.9.0):** dim blue flames (BASS-II PMMA at low flow) are 4–8 gray levels per pixel, the same as compression noise, so the brightness detector cannot see them. What sets them apart is coherence: one connected patch after heavy smoothing. Chosen on the dev split only (BASS-II M16 and M19, added for this): dim flames cover 0.20–1.05% of the frame at 7.4–16 noise units; FLEX 16-bit dark frames form patches up to 1.9% but at most 1.1 noise units (a smooth sensor gradient); the flame-free frame before ignition peaks at 0.06%. Reported UNCERTAIN, not PRESENT, because a faint glow can also be dim scenery. In video, a glow that does not move is rejected as scenery ([video-ingestion.md §5a](video-ingestion.md)).
 - **Lit scenes are never PRESENT (v1.5.0):** the detector assumes a dark background, because luminous flames are filmed in dark chambers. Lighting is measured as the median gray minus the 1st-percentile gray, so a sensor's constant black level does not count as light (a first version used the median alone, which would have called a 12-bit sensor's pedestal "lit"). Chosen on the dev split of `cv_gold_v1` only: dev flame frames reach 4 at most; lit scenery false positives (the `TEST_T25` cabin view, lit FLEX hardware) start at 19; 11 is the midpoint.
 
 ## 5. Cache reuse (M4)
@@ -87,10 +91,12 @@ Masks and overlays are written to the artifact directories with SHA-256 checksum
 ## Known limitations and failure modes
 
 - Detection is brightness-based. **Lit scenery** (cabin views, a lit chamber) is UNCERTAIN since v1.5.0, but **bright hardware in a dark scene is still reported as a flame** unless a camera profile excludes it. Measured on the dev split, the hardware's elongation, circularity, saturation and hue overlap with real flames', so no single-image shape or colour rule separates them; only its fixed position in a known camera's view does.
-  - The FLEX colour arc is excluded by the `flex-colour` profile (v1.6.0). That fixed 2 of its 5 dev false positives. The other 3 were glints: specular reflections on the droplet (`H08M101D_00642`, `_01284`; H08M101 is a methanol test whose flame went out at 0.3 s) and a glint at the top edge (`195F002D_00000`). v1.7.0's size floor reports them UNCERTAIN. Their colour does not separate them: the sensor fringes a point source, so a glint is not neutral white (white-clipped fraction 0–0.011, chroma 0.26–0.48).
+  - The FLEX colour arc is excluded by the `flex-colour` profile (v1.6.0). That fixed 2 of its 5 dev false positives. The other 3 were glints: specular reflections on the droplet (`H08M101D_00642`, `_01284`; H08M101 is a methanol test whose flame went out at 0.3 s) and a readout artefact at the top edge of a sequence's first frame (`195F002D_00000`). v1.7.0's size floor reports them UNCERTAIN. Their colour does not separate them: the sensor fringes a point source, so a glint is not neutral white (white-clipped fraction 0–0.011, chroma 0.26–0.48).
   - The floor costs recall where a FLEX flame is smaller than 0.1% of the frame, near burnout. It demotes such a flame to UNCERTAIN, never to ABSENT. No such labelled frame exists, so the cost is not measured. In `176F001D` (methanol, burning for 29.1 s) a faint flame shell may surround the droplet glint in the frames the floor demotes, but the pipeline segmented only the glint there, never the shell.
   - The profile is applied only when the client names it. A FLEX colour upload without `camera_profile` keeps the arc false positive.
   - A real flame inside an exclusion zone is not seen. For `flex-colour` no dev flame is there, but the zone is fitted to the dev split. The holdout has no FLEX frames, so it is not validated on held-out data.
+- A real flame with straight sides is reported UNCERTAIN: for example one cut off on two opposite sides by the frame, or burning along a rectangular sample (SAFFIRE). No committed flame scores above 0.844, but a SAFFIRE flame spreading over the whole width of its sample could; no such frame is labelled, so this cost is not measured.
+- Dim flames are at best UNCERTAIN, and the faint-glow pass found **none** of the 9 held-out M10 dim flame frames (scored once; it did find one held-out B3 frame). It works on the two dev tests it was built from (7 of 7, in-sample). Why it fails on M10 is not investigated, because looking at M10 would spend the holdout.
 - A real flame filmed in a lit scene is reported UNCERTAIN, not PRESENT. No such frame is in `cv_gold_v1`, so this recall cost is not measured.
 - The thresholds were chosen on the committed samples and the dev split of `cv_gold_v1`. Their held-out performance is in [evaluation-report.md](evaluation-report.md), measured against labels that are not yet verified by a person.
 - A small flame with contrast below 83 is treated as a speck. Dev data has no small flames, so the 83 cut-off is set from the specks and from larger flames only.
@@ -98,6 +104,8 @@ Masks and overlays are written to the artifact directories with SHA-256 checksum
 - Spatial measurements are 2D projections unless calibrated with `mmPerPixel`.
 
 ## Changelog
+- **v1.9.0 (2026-11-14):** Faint-glow pass: in a dark frame where the brightness detector finds nothing, a faint coherent glow is UNCERTAIN (`dimGlow`), never PRESENT. Tuned on dev only (M16/M19 added for it). Dev: 7 of 7 dim flames UNCERTAIN, lenient recall 0.76 → 1.00, strict unchanged. Holdout (scored once): M10 still missed (0 of 9); one B3 frame found; lenient recall 0.756 → 0.780, no new held-out false positive. No committed image sample triggers it. Result schema 1.6.0 (`qualityFlags.dimGlow`).
+- **v1.8.0 (2026-11-14):** A straight-edged region (rectangularity > 0.875, at least 20 px across) is UNCERTAIN, not PRESENT; tuned on dev and the committed samples only. Removes the DSI backlit-cell false positives: dev false positives 2 → 0, holdout unchanged (no held-out frame affected). Of the 182 committed image samples, only the 6 DSI backlit-cell frames change. Each demotion rule now gives its own warning when several apply.
 - **v1.7.0 (2026-11-14):** Camera profiles may set a size floor (`minPresentAreaFraction`); `flex-colour` sets 0.1%, from droplet physics and the measured scale. A smaller region is UNCERTAIN, not PRESENT. Dev false positives 5 → 2 (FPR 0.11 → 0.05, precision 0.75 → 0.88), no flame lost; holdout unchanged (no FLEX frames). Result schema 1.5.0. Segmenter version 1.7.0: v1.6.0 had left it at 1.5.0.
 - **v1.6.0 (2026-11-14):** Camera profiles: per-camera exclusion zones for static hardware, selected per request (`metadata.cameraProfile`, API `camera_profile`). First profile `flex-colour`. Dev false positives 7 → 5 (FPR 0.16 → 0.11, precision 0.68 → 0.75) with no flame lost. Holdout unchanged (it has no FLEX frames). No change without a profile.
 - **v1.5.0 (2026-11-14):** In a lit scene a detection is UNCERTAIN, never PRESENT (cut-off tuned on dev only). Held-out false-positive rate 0.30 → 0.00, with no held-out flame lost.

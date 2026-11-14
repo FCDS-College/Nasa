@@ -296,7 +296,7 @@ def test_small_region_is_uncertain_with_the_flex_profile_and_present_without(tmp
     assert plain["preprocessing"]["minPresentAreaFraction"] is None
 
 
-# Droplet glints after a methanol flame went out (H08M101: extinction at 0.3 s) and a hardware glint at the top edge
+# Droplet glints after a methanol flame went out (H08M101: extinction at 0.3 s) and a readout artefact at the top edge
 # of 195F002D_00000: the three FLEX colour false positives left at v1.6.0.
 GLINT_FRAMES = ["H08M101D/H08M101D_00642", "H08M101D/H08M101D_01284", "195F002D/195F002D_00000"]
 
@@ -310,3 +310,82 @@ def test_flex_glints_are_not_present(tmp_path, dirs, name):
 def test_a_large_region_is_unaffected_by_the_floor(tmp_path, dirs):
     path = _point_light(tmp_path / "big.png", radius=40)
     assert run_profile(path, dirs, "flex-colour")["detection"]["status"] == "PRESENT"
+
+
+# ------------------------------------------------- v1.8.0: a straight-edged region is not PRESENT
+def _shape_image(path, kind, size):
+    img = np.zeros((512, 512, 3), np.uint8)
+    if kind == "rectangle":
+        cv2.rectangle(img, (256 - size, 256 - size // 2), (256 + size, 256 + size // 2), (230, 230, 230), -1)
+    else:
+        cv2.ellipse(img, (256, 256), (size, size // 2), 20, 0, 360, (230, 230, 230), -1)
+    cv2.imwrite(str(path), img)
+    return path
+
+
+def test_a_bright_rectangle_is_uncertain_and_an_ellipse_of_the_same_size_is_present(tmp_path, dirs):
+    rect = run(_shape_image(tmp_path / "rect.png", "rectangle", 80), dirs)
+    assert rect["detection"]["status"] == "UNCERTAIN"
+    assert any("straight-edged" in w for w in rect["scientificInterpretation"]["warnings"])
+    assert run(_shape_image(tmp_path / "ellipse.png", "ellipse", 80), dirs)["detection"]["status"] == "PRESENT"
+
+
+def test_a_tiny_square_is_not_judged_by_its_shape(tmp_path, dirs):
+    # A few pixels always look square; the shape rule only applies from 20 px across.
+    img = np.zeros((512, 512, 3), np.uint8)
+    cv2.rectangle(img, (250, 250), (256, 256), (255, 255, 255), -1)
+    cv2.imwrite(str(tmp_path / "dot.png"), img)
+    r = run(tmp_path / "dot.png", dirs)
+    assert not any("straight-edged" in w for w in r["scientificInterpretation"]["warnings"])
+
+
+# DECLIC DSI (directional solidification, not combustion): a backlit sample cell, bright with straight edges.
+DSI_CELL_FRAMES = ["DSI_SEQ2_ACTIVITE04_HR1_1018759522_1", "DSI_SEQ2_ACTIVITE04_HR1_1022430520_1"]
+
+
+@pytest.mark.parametrize("name", DSI_CELL_FRAMES)
+def test_dsi_backlit_cell_is_not_present(tmp_path, dirs, name):
+    path = _samples(f"FF-PSI-DSI/ACTIVITE04_HR1/{name}.png")[0]
+    assert run(path, dirs)["detection"]["status"] == "UNCERTAIN"
+
+
+@pytest.mark.parametrize("name", ["FF-PSI-107/SPICE_GMT045_2009_jpegs/ISS018E030372.jpg",
+                                  "FF-PSI-107/SPICE_GMT045_2009_jpegs/ISS018E030351.jpg"])
+def test_the_boxiest_real_flames_stay_present(tmp_path, dirs, name):
+    # The two real flames with the highest rectangularity among the committed samples (0.844 and 0.829).
+    assert run(_samples(name)[0], dirs)["detection"]["status"] == "PRESENT"
+
+
+# ------------------------------------------------- v1.9.0: a faint coherent glow in a dark frame is UNCERTAIN
+def _faint_glow(path, level, noise=True):
+    rng = np.random.default_rng(5)
+    img = np.zeros((480, 720, 3), np.uint8)
+    if noise:   # scattered compression-like dots at the same per-pixel level as the glow
+        ys, xs = rng.integers(0, 480, 400), rng.integers(0, 720, 400)
+        img[ys, xs, 0] = 10
+    if level:
+        cv2.ellipse(img, (360, 240), (40, 14), 0, 0, 360, (level, 0, 0), -1)   # a dim blue lobe
+    cv2.imwrite(str(path), img)
+    return path
+
+
+def test_faint_coherent_glow_is_uncertain_and_flagged(tmp_path, dirs):
+    r = run(_faint_glow(tmp_path / "glow.png", 7), dirs)
+    assert r["detection"]["status"] == "UNCERTAIN"
+    assert r["confidenceAndQualityFlags"]["qualityFlags"]["dimGlow"] is True
+    assert r["detection"]["confidence"] <= 0.5
+    assert any("faint coherent glow" in w for w in r["scientificInterpretation"]["warnings"])
+
+
+def test_scattered_noise_alone_is_absent(tmp_path, dirs):
+    r = run(_faint_glow(tmp_path / "noise.png", 0), dirs)
+    assert r["detection"]["status"] == "ABSENT"
+    assert r["confidenceAndQualityFlags"]["qualityFlags"]["dimGlow"] is False
+
+
+def test_flex_dark_frame_gradient_is_not_a_glow(tmp_path, dirs):
+    # 16-bit FLEX dark frame: a sensor floor with a smooth gradient forms a large faint patch but stands out by < 2
+    # noise units, so the glow pass must not fire.
+    path = _samples("FF-PSI-69/H14H101C/H14H101C_00765.png")[0]
+    r = run(path, dirs)
+    assert r["detection"]["status"] == "ABSENT" and r["confidenceAndQualityFlags"]["qualityFlags"]["dimGlow"] is False
