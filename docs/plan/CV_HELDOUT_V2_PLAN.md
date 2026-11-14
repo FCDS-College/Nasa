@@ -2,7 +2,7 @@
 
 | Owner | Status | Created | Depends on |
 |---|---|---|---|
-| Princess (CV) with Lead (Anas) | Proposed: decisions D1–D4 open | 2026-11-14 | CV pipeline `cv-opencv-v1.9.0-auto`, `cv-video-v1.2.0`; `cv_gold_v1` ([evaluation report](../cv/evaluation-report.md)) |
+| Princess (CV) with Lead (Anas) | Approved 2026-11-14: D1 deferred (labels scored unverified), D2 and D3 yes, D4 resized (30 FLEX, 15 dim) | 2026-11-14 | CV pipeline `cv-opencv-v1.9.0-auto`, `cv-video-v1.2.0`; `cv_gold_v1` ([evaluation report](../cv/evaluation-report.md)) |
 
 ## 1. Goal
 
@@ -31,10 +31,10 @@ So both need a **fresh held-out cohort**: tests never viewed, selected by a rule
 ### 4.1 Select the dim-flame cohort (A1)
 
 - **Pool:** BASS-II Miller PMMA flame-spread tests not used anywhere: M1, M2, M4–M9, M11–M14, M17, M18, M20 (15 tests; M3 and M15 are not on PSI). Main-view videos only, 60–212 MB each.
-- **Rule:** stratify by test day (GMT 51: M1, M2, M5, M14; 192: M7, M8, M9, M11; 196: M17, M18; 212: M4, M6, M12, M13; 213: M20) and draw **6 tests** with `random.Random(20261114)`, at least one per day where available. Same-day tests share the flow schedule, so stratifying stops the cohort from being six copies of one condition.
+- **Rule:** stratify by test day (GMT 51: M1, M2, M5, M14; 192: M7, M8, M9, M11; 196: M17, M18; 212: M4, M6, M12, M13; 213: M20) and take **all 15** (D4: the most that exist; see §8a). Same-day tests share the flow schedule, so the report also breaks results out by test day.
 - **Sampling:** the served grid, 10 frames per video, with `sampling.maxDurationS` for videos over 600 s, as for M16 and M19.
-- **Expected size:** 60 frames. Judging by M16 and M19, about 15–25 of them will be dim-phase frames.
-- **Download:** about 0.8 GB, SHA-256 checked through `python -m cv.gold fetch`.
+- **Expected size:** 150 frames. Judging by M16 and M19, about 35–60 of them will be dim-phase frames.
+- **Download:** about 2.2 GB, SHA-256 checked through `python -m cv.gold fetch`.
 
 ### 4.2 Label (A2)
 
@@ -46,7 +46,7 @@ So both need a **fresh held-out cohort**: tests never viewed, selected by a rule
 ### 4.3 Score the baseline (A3)
 
 - **Command:** `python -m cv.gold evaluate`, with cohort-2 items reported as their own block (§6).
-- **Pre-registered success criterion for v1.9.0:** lenient recall on cohort-2 dim frames at least 0.5, with no new false positive on its absent frames. If it falls below that, the M16/M19 thresholds are fitted too tightly. That is a finding, not a failure to hide.
+- **Pre-registered success criterion for v1.9.0:** lenient recall on cohort-2 dim frames at least 0.5 (point estimate, reported with its test-level interval; with 15 tests an observed 0.8 gives about [0.56, 0.94]), with no new false positive on its absent frames. If it falls below that, the M16/M19 thresholds are fitted too tightly. That is a finding, not a failure to hide.
 
 ### 4.4 Diagnose, using M10 (A4)
 
@@ -70,9 +70,9 @@ So both need a **fresh held-out cohort**: tests never viewed, selected by a rule
 - **Pool:** the 247 FLEX colour sequences (`…D.zip`, PSI-69) that match a row of the FLEX experimental table, minus the 5 already in dev.
   - By fuel: 141 methanol, 106 heptane.
   - By ID series: numeric (FLEX-1), C, H, N, which may correspond to campaigns with different camera set-ups.
-- **Rule:** stratify by ID series × fuel and draw **12 sequences** with `random.Random(20261114)`, proportionally, with at least one per non-empty stratum.
-- **Download:** each zip is about 340 MB, so about 4 GB in total. Only the sampled frames are extracted and kept: 15 per sequence, the same spacing as the committed samples.
-- **Expected size:** 180 frames, mostly absent (lights off before ignition, dark after extinction). That suits a false-positive test.
+- **Rule:** stratify by ID series × fuel and draw **30 sequences** with `random.Random(20261114)`, proportionally, with at least one per non-empty stratum (D4; see §8a).
+- **Download:** each zip is about 340 MB, so about 10 GB transferred. Each zip is deleted once its sampled frames are extracted, so disk use stays near 1 GB. Only the sampled frames are kept: 15 per sequence, the same spacing as the committed samples.
+- **Expected size:** 450 frames, mostly absent (lights off before ignition, dark after extinction). That suits a false-positive test.
 - **Recorded per sequence before labelling:** the date and campaign from the table, the fuel, the initial droplet diameter, the burn time and how the test ended. Burn time and test end tell whether a frame is during or after the flame, as for H08M101 (methanol, out at 0.3 s).
 
 ### 5.2 Check the profile's assumptions on each sequence (B2)
@@ -89,7 +89,7 @@ These are measurements of the camera, not tuning. They are recorded before scori
 - **Label:** same protocol, with a person verifying every item (rule 3).
 - **Score:** v1.9.0 with the `flex-colour` profile, once, with and without the profile.
 - **Pre-registered success criteria:**
-  - strict false-positive rate on cohort-2 FLEX absent frames: upper end of the 95% interval at most 0.10;
+  - strict false-positive rate on cohort-2 FLEX absent frames: upper end of the 95% interval at most 0.10, counted per sequence (a sequence with any false-positive frame counts once). With 30 clean sequences the exact bound is 0.095;
   - no labelled flame lost to the zone or the floor (each demotion listed).
 - If a campaign's arc or scale differs (B2), its frames are reported separately, and a failure there is expected rather than surprising.
 
@@ -106,7 +106,7 @@ These are measurements of the camera, not tuning. They are recorded before scori
 | T1 | `cohort` field on items (`v1`, `v2-dim`, `v2-flex`); reports break metrics out per cohort as well as per split | `cv/gold.py`, `datasets/evaluation/cv_gold_v1.schema.json`, `cv_gold_v1_sources.json` |
 | T2 | FLEX zip sources: extract only the sampled frames from a downloaded zip (as images, with `cameraProfile`) | `cv/gold.py` (`fetch`, `extract_frames`) |
 | T3 | A `select` command that writes the cohort from metadata with the fixed seed, so the selection is reproducible and reviewable before any download | `cv/gold.py` |
-| T4 | Unverified items excluded from cohort-2 scoring (rule 3), with a count of how many are excluded | `cv/gold.py` (`evaluate`) |
+| T4 | Per-cohort scores for all items and for verified items only, with each block's verified count. D1 is deferred, so unverified items are scored and labelled as such; rule 3's exclusion applies once someone verifies | `cv/gold.py` (`evaluate`) |
 
 ## 7. Order and effort
 
@@ -114,27 +114,37 @@ These are measurements of the camera, not tuning. They are recorded before scori
 |---|---|---|---|
 | T1–T4 tooling | — | 1 session | no |
 | A1 + B1 selection (metadata only, committed before download) | T3 | small | no |
-| Downloads (about 0.8 + 4 GB) and frame extraction | A1, B1, T2 | small | no |
-| A2 + B2/B3 draft labels and masks (about 240 frames), B2 measurements | downloads | 1–2 sessions | no |
-| **Verification of all cohort-2 labels** | drafts | **about 2 hours of a person's time** | **yes** |
+| Downloads (about 2.2 + 10 GB) and frame extraction | A1, B1, T2 | small | no |
+| A2 + B2/B3 draft labels and masks (about 600 frames), B2 measurements | downloads | 2–3 sessions | no |
+| Verification of all cohort-2 labels (deferred, D1) | drafts | about 5 hours of a person's time, when someone is named | no (scored unverified meanwhile) |
 | A3 + B3 baseline scores (once) | verification | small | no |
 | A4 M10 diagnosis, B4 response (dev only) | A3, B3 | 1–2 sessions | no |
 | A5 / B4 release, scored once | A4, B4 | 1 session | no |
 
-## 8. Decisions needed
+## 8. Decisions asked (answers in §8a)
 
 - **D1 Who verifies cohort-2 labels?** Rule 3 needs a named person. Without one, cohort 2 is scored as "Claude-drafted, unverified", like cohort 1, and the plan says so.
 - **D2 Download and storage budget:** about 5 GB of raw data in the working area. Only extracted frames and masks are committed (a few MB); the raw files stay out of Git like the current holdout.
 - **D3 Retire M10 from the holdout after A3?** Recommended: it is the only way to diagnose it. The original holdout keeps 7 tests and its earlier scores stay in the report.
 - **D4 Cohort sizes:** 6 dim-flame tests and 12 FLEX sequences are a balance between interval width and labelling time. More tests narrow the intervals (they are test-level), at roughly 10–15 minutes of verification each.
 
+### 8a. Decisions (2026-11-14)
+
+- **D1 deferred.** No verifier is named. Cohort 2 is drafted by Claude and scored as **unverified**, like cohort 1, and every report says so. Rule 3 applies again when someone is named.
+- **D2 yes.** The download budget was raised to about 12 GB when D4 grew the cohorts (below). Zips are deleted after frame extraction.
+- **D3 yes.** M10 moves from holdout to dev after cohort 2's baseline (A3) is scored.
+- **D4 resized from 6 + 12 to 15 + 30, after checking.** Frames within one test are almost perfectly correlated on cv_gold_v1: an intra-class correlation of 0.76–0.87 for a false positive among absent frames, and 0.91 for a detection among flame frames (22 and 10 tests, v1.3–v1.5 reports). Evidence therefore scales with the number of tests, not frames.
+  - **FLEX:** with 0 false-positive sequences out of k, the exact 95% upper bound on the per-sequence rate is 0.22 for k = 12, 0.12 for 24 and 0.095 for 30. So 12 sequences could not meet the 0.10 criterion even if all were clean.
+  - **Dim flames:** at about 3 dim frames per test, an observed recall of 0.8 gives a 95% interval of [0.42, 0.97] with 6 tests and [0.56, 0.94] with all 15. Fifteen is the most that exist.
+
 ## 9. Known limitations
 
-- **Small cohort-2 intervals stay wide:** with 6 and 12 tests, one test moves every number.
+- **Cohort-2 intervals stay wide for dim flames:** 15 tests is every unused Miller test, and one test still moves the number a lot.
 - **The dim-flame cohort shares hardware and flow schedules** with the dev tests M16 and M19 (same apparatus, same campaign). It tests generalisation across tests, not across apparatus. A dim flame from a different experiment would be a stronger test, and none is in scope here.
 - **Selection by metadata cannot guarantee dim phases:** some drawn M tests may have little or no dim phase. The cohort then has fewer dim frames than expected, and the report gives the count.
-- **This plan does not verify cohort 1.** The existing 170 cv_gold_v1 items stay unverified unless a person reviews them too. D1 could cover both.
+- **No labels are verified (D1 deferred).** Neither cohort 1 (170 items) nor cohort 2 has been checked by a person, so every score rests on Claude-drafted labels.
 
 ## Changelog
 
+- 2026-11-14: Decisions D1–D4 recorded (§8a). Cohorts resized to 15 dim-flame tests and 30 FLEX sequences after a within-test correlation check; budget about 12 GB.
 - 2026-11-14: Proposed.

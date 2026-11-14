@@ -75,7 +75,7 @@
 | 2026-10-30 system audit: [status audit](reviews/SYSTEM_STATUS_AUDIT.md), [roadmap](plan/IMPLEMENTATION_ROADMAP.md), [implementation changelog](reviews/IMPLEMENTATION_CHANGELOG.md) | Current | Lead |
 | [Readiness report](reviews/FINAL_SYSTEM_READINESS_REPORT.md) (2026-10-30 assessment, with a 2026-11-12 status update in §11) | Historical snapshot | Lead |
 | [Phase 2 plan](plan/PHASE2_PLAN.md) | Current | Lead |
-| [CV held-out cohort 2 plan](plan/CV_HELDOUT_V2_PLAN.md): fresh held-out dim-flame and FLEX tests, M10 diagnosis | Proposed (decisions D1–D4 open) | Princess / Lead |
+| [CV held-out cohort 2 plan](plan/CV_HELDOUT_V2_PLAN.md): fresh held-out dim-flame and FLEX tests, M10 diagnosis | Approved (D1 deferred; cohorts 15 + 30) | Princess / Lead |
 | [Frontend API contract](api/FRONTEND_API_CONTRACT.md), [service contracts](api/service-contracts.md) | MVP-era (contract 0.1.0) | Lead / Belal |
 | [AURA integration requirements](integration/AURA_INTEGRATION_REQUIREMENTS.md) | Partly superseded (see L-12 §0) | Lead |
 | [Combustion dataset analysis](data/COMBUSTION_DATASET_ANALYSIS.md), [Day 1 acquisition](data/DAY1_DATA_ACQUISITION.md), [P0 candidates](data/P0_CANDIDATES.md) | MVP working notes (status line at top) | Anas (E2) |
