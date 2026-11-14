@@ -273,9 +273,24 @@ def _evaluation_summary() -> dict:
                              "majority_baseline_macro_f1": rep["majority_class"]["macro_f1"]},
         "holdout": {k: report["holdout"][selected][k] for k in ("macro_f1", "balanced_accuracy", "extinction_roc_auc", "accuracy")},
         "holdout_note": report["protocol_history"][-1],
+        "calibration": _calibration_summary(report),
         "feature_importance": report["permutation_importance_final_model"],
         "report": "docs/evaluation/reports/flex-outcome-model.md",
     }
+
+
+def _calibration_summary(report: dict) -> dict | None:
+    """The probabilities the API shows are calibrated (prior correction, KB audit 2026-11-13); these are their figures."""
+    calibration = report.get("calibration")
+    if not calibration:
+        return None
+    cv = calibration["repeated_grouped_cv_all_rows"]
+    return {"method": calibration["method"],
+            "estimate": "5x repeated 5-fold CV grouped by test day, all usable rows",
+            "extinction_ece": cv["calibrated"]["extinction_ece"], "raw_extinction_ece": cv["raw"]["extinction_ece"],
+            "log_loss": cv["calibrated"]["log_loss"], "raw_log_loss": cv["raw"]["log_loss"],
+            "extinction_roc_auc": cv["calibrated"]["extinction_roc_auc"],
+            "most_likely_class_macro_f1": cv["calibrated"]["macro_f1"]}
 
 
 def _flex_training(tests: list[analytics.Canonical], model: outcome_model.FlexOutcomeModel):
@@ -416,10 +431,7 @@ def _scenario_model_insight(tests: list[analytics.Canonical], scenario, flight_r
                       f"{scenario.pressure_kpa:.1f} kPa, the FLEX outcome model gives " + "; ".join(parts) + "."),
         "numbers": {f: {"probabilities": r["probabilities"], "in_domain": r["applicability"]["in_domain"]} for f, r in rows.items()},
         "evidence": evidence,
-        "caveats": [f"Model {outcome_model.load().version}: macro-F1 "
-                    f"{_evaluation_summary()['primary_estimate']['macro_f1']['mean']:.2f} (baseline "
-                    f"{_evaluation_summary()['primary_estimate']['majority_baseline_macro_f1']['mean']:.2f}), extinction ROC-AUC "
-                    f"{_evaluation_summary()['primary_estimate']['extinction_roc_auc']['mean']:.2f}; droplets only.",
+        "caveats": [_model_caveat(),
                     "Evidence lists the nearest real flight tests and their recorded end state."],
     }
 
@@ -479,3 +491,17 @@ def scenario_history(
         "claim_class": "cited_history",
         "meta": response_meta(request),
     }
+
+
+def _model_caveat() -> str:
+    summary = _evaluation_summary()
+    primary, calibration = summary["primary_estimate"], summary["calibration"]
+    if calibration is None:
+        return (f"Model {summary['model_version']}: macro-F1 {primary['macro_f1']['mean']:.2f} (baseline "
+                f"{primary['majority_baseline_macro_f1']['mean']:.2f}), extinction ROC-AUC "
+                f"{primary['extinction_roc_auc']['mean']:.2f}; droplets only.")
+    return (f"Model {summary['model_version']}: probabilities calibrated by prior correction; extinction calibration error "
+            f"{calibration['extinction_ece']['mean']:.2f} (uncalibrated {calibration['raw_extinction_ece']['mean']:.2f}), "
+            f"extinction ROC-AUC {calibration['extinction_roc_auc']['mean']:.2f}, most-likely-outcome macro-F1 "
+            f"{calibration['most_likely_class_macro_f1']['mean']:.2f} (baseline {primary['majority_baseline_macro_f1']['mean']:.2f}), "
+            f"grouped by test day; droplets only.")

@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Anas (E2) | In review (peer sign-off: Eman E1) | 1.1.0 | 2026-11-14 | M9, B2, D6, 2H Task 7 | `apps/api/flame_api/seed.py`, `ingest.py`, `vector_index.py`, `knowledge/ingestion/*` |
+| Anas (E2) | In review (peer sign-off: Eman E1) | 1.2.0 | 2026-11-14 | M9, B2, D6, 2H Task 7 | `apps/api/flame_api/seed.py`, `ingest.py`, `vector_index.py`, `knowledge/ingestion/*` |
 
 ## 1. Stages (raw → parsed → normalized → indexed)
 
@@ -46,6 +46,8 @@ What quarantine does:
 - writes an `ingestion_run` row with `transformation_id = "quarantine"`;
 - leaves nothing parsed (the parse runs inside a savepoint that is rolled back);
 - skips the file on every later run until an administrator resets the status ([E2-8 §3](ADMIN_DATA_OPERATIONS.md)).
+
+A file of a source that is not **cleared** in the registry (not `verified`, or no licence recorded) is skipped before parsing, counted under `not_cleared` and logged as `ingest_source_not_cleared` ([E2-1 §1](SOURCE_REGISTRY.md)).
 
 A file that is simply **not on disk** is *skipped*, not quarantined. Git-ignored mirrors are legitimately absent on CI and on fresh machines.
 
@@ -97,6 +99,7 @@ The 2 pages without chunks are pp. 14–15 of `20080034883.pdf`, which have no t
 - OCR quality is not evaluated yet.
 
 ## Changelog
+- 1.2.0 (2026-11-14): files of a source that is not verified and licensed are skipped (`not_cleared`) (KB audit 2026-11-13).
 - 1.1.0 (2026-11-14): an unexpected parser exception fails one file (`failed`, retried next run, exit status 1) instead of rolling back the whole run (KB audit 2026-11-13).
 - 1.0.1 (2026-11-14): §6 notes the current table-stage count (1958 experiments) next to the 2026-10-12 run.
 - 1.0.0 (2026-10-12): first specification (OCR, HTML/JSON, quarantine, run records, corpus version).

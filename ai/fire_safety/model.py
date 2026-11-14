@@ -9,6 +9,12 @@ Applicability domain (strict, by design):
 * the query must be within the 95th-percentile nearest-neighbour distance of the training tests
   (standardized units), so a combination never flown together is flagged even when each value is.
 Outside the domain the model returns no probabilities, only the reason.
+
+Calibration: both exportable candidates are trained with ``class_weight="balanced"``, which fits the classes as if
+they were equally common, so the raw probabilities are not frequencies (KB audit 2026-11-13: on held-out test days,
+tests given 0.2-0.4 extinguished half the time). ``probabilities`` multiplies the raw ones by the training class prior
+and renormalises (``prior_correction``), which undoes that weighting exactly for a well-specified model;
+``raw_probabilities`` are the classifier's own. The evaluation report measures both.
 """
 from __future__ import annotations
 
@@ -71,6 +77,18 @@ class FlexOutcomeModel:
         return np.array([float(features[f]) for f in self.features])
 
     def probabilities(self, features: dict[str, float]) -> np.ndarray:
+        """Calibrated class probabilities: what the API reports as the chance of each end state."""
+        raw = self.raw_probabilities(features)
+        calibration = self.artefact.get("calibration")
+        if not calibration:
+            return raw
+        if calibration["method"] != "prior_correction":
+            raise ValueError(f"unsupported calibration {calibration['method']}")
+        corrected = raw * np.array(calibration["class_prior"])
+        return corrected / corrected.sum()
+
+    def raw_probabilities(self, features: dict[str, float]) -> np.ndarray:
+        """The classifier's probabilities before calibration (equal to scikit-learn's predict_proba)."""
         x = self.vector(features)
         if self.kind == "logistic_regression":
             p = self.artefact["logistic"]

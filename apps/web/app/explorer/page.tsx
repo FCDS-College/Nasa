@@ -206,6 +206,12 @@ export default function OutcomeExplorer() {
                 <Info className="mr-1 inline h-3.5 w-3.5" aria-hidden="true" />
                 {m.primary_estimate.method}: no test day is ever in both the training and the scoring set. Most important inputs (drop in macro-F1 when
                 shuffled, on held-out days): {m.feature_importance.slice(0, 3).map((f) => `${f.label} ${f.mean_drop_in_macro_f1.toFixed(2)}`).join("; ")}.
+                {m.calibration && (
+                  <>
+                    {" "}The probabilities shown are calibrated (prior correction): calibration error of P(extinction){" "}
+                    {m.calibration.extinction_ece.mean.toFixed(2)}, uncalibrated {m.calibration.raw_extinction_ece.mean.toFixed(2)}.
+                  </>
+                )}
                 {" "}{result?.scope} Full report: <code>{m.report}</code>.
               </p>
             </Card>
