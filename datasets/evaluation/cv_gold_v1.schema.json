@@ -29,6 +29,7 @@
       ]
     },
     "notes": {"type": "string"},
+    "cohort": {"enum": ["v1", "v2-dim", "v2-flex"], "description": "Which cohort the item belongs to (docs/plan/CV_HELDOUT_V2_PLAN.md). Absent means v1."},
     "provenance": {
       "type": "object",
       "additionalProperties": false,
