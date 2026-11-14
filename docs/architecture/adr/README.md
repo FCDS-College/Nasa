@@ -22,7 +22,7 @@ ADRs are immutable. A changed decision gets a new ADR that supersedes the old on
 | [011](ADR-011-scenario-relevance-ranking.md) | Rank investigations by evidence relevance to a cabin atmosphere | Accepted (implemented in PR #24) | Ziad (E5), Anas (E2) | Signed off 2026-11-07 |
 | [012](ADR-012-commit-psi-tables.md) | Commit the PSI experimental tables and ISA-Tab metadata to Git | Accepted (implemented in PR #24) | Princess (E3), Ziad (E5) | Signed off 2026-11-07 |
 | [013](ADR-013-historical-scenarios-coverage-verdict.md) | Historical scenarios, a gravity dimension and a scenario-level coverage verdict | Proposed (implemented on branch `ccr-93d3f1f0-bf65vh`) | Ziad (E5), Anas (E2) | Pending |
-| [014](ADR-014-suppression-advisor-scope.md) | Suppression Advisor scope: what each fire type and each extinguisher may claim | Proposed (implemented on `main`, uncommitted) | Ziad (E5), Belal (E4) | Pending |
+| [014](ADR-014-suppression-advisor-scope.md) | Suppression Advisor scope: what each fire type and each extinguisher may claim | Proposed (implemented on `main`, commit 15687d4) | Ziad (E5), Belal (E4) | Pending |
 
 "Accepted" means the decision is approved and binding. For ADR-001 to 005, 010, 011 and 012 it also describes what is built: ADR-001 to 005 and 010 on branch `ccr-c6a5a263-498la9` (PR #14), ADR-011 and 012 on `main` (PR #24). ADR-006 to 009 were accepted on 2026-11-07 before they were fully built, and built on 2026-11-12 (below).
 
