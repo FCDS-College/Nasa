@@ -16,6 +16,13 @@ import { useChat } from "@/lib/context/ChatContext";
 export function TopBar() {
   const [health, setHealth] = useState<SystemHealth | null>(null);
   const [loading, setLoading] = useState(true);
+  const [clock, setClock] = useState<string | null>(null);
+  useEffect(() => {
+    const tick = () => setClock(new Date().toISOString().slice(11, 19));
+    queueMicrotask(tick);
+    const t = setInterval(tick, 1000);
+    return () => clearInterval(t);
+  }, []);
   const { toggleSidebar, isSidebarOpen, activeSession, createNewSession } = useChat();
   const pathname = usePathname() ?? "/";
   const PAGE_TITLES: [string, string][] = [
@@ -66,15 +73,22 @@ export function TopBar() {
     }
   };
 
+  const statusColor = getStatusDotColor(health?.status);
+
   return (
     <header
       className="sticky top-0 flex h-14 sm:h-[60px] shrink-0 items-center justify-between px-4 sm:px-6 z-40"
       style={{
         background: 'var(--bg-secondary)',
-        backdropFilter: 'blur(20px) saturate(1.3)',
+        backdropFilter: 'blur(20px) saturate(1.4)',
+        WebkitBackdropFilter: 'blur(20px) saturate(1.4)',
         borderBottom: '1px solid var(--border-subtle)',
       }}
     >
+      {/* Hairline of light under the bar */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-px"
+           style={{ background: 'linear-gradient(90deg, transparent, rgba(79,140,255,0.45), rgba(34,211,238,0.35), transparent)' }} />
+
       {/* Left */}
       <div className="flex items-center gap-2.5 sm:gap-3">
         <button
@@ -82,22 +96,9 @@ export function TopBar() {
           type="button"
           onClick={toggleSidebar}
           aria-label="Toggle navigation"
-          className="flex h-9 w-9 items-center justify-center rounded-lg active:scale-95"
+          className="btn-ghost flex h-9 w-9 items-center justify-center rounded-lg active:scale-95"
           title={isSidebarOpen ? "Collapse history" : "Open history"}
-          style={{
-            background: 'var(--border-subtle)',
-            border: '1px solid var(--border-subtle)',
-            color: 'var(--accent-flame)',
-            transition: 'all var(--transition-fast)',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'var(--border-subtle)';
-            e.currentTarget.style.borderColor = 'rgba(59,130,246,0.3)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'var(--border-subtle)';
-            e.currentTarget.style.borderColor = 'var(--border-subtle)';
-          }}
+          style={{ color: 'var(--accent-ember)' }}
         >
           <PanelLeft className="h-4 w-4" />
         </button>
@@ -106,28 +107,21 @@ export function TopBar() {
           type="button"
           onClick={createNewSession}
           aria-label="New chat"
-          className="flex h-9 w-9 items-center justify-center rounded-lg active:scale-95 sm:hidden"
-          style={{
-            background: 'var(--border-subtle)',
-            border: '1px solid var(--border-subtle)',
-            color: 'var(--accent-flame)',
-            transition: 'all var(--transition-fast)',
-          }}
+          className="btn-ghost flex h-9 w-9 items-center justify-center rounded-lg active:scale-95 sm:hidden"
+          style={{ color: 'var(--accent-ember)' }}
         >
           <Plus className="h-4 w-4" />
         </button>
 
         <div className="flex items-center gap-2.5">
           <div className="flex h-7 w-7 items-center justify-center rounded-lg sm:hidden"
-               style={{
-                 background: 'rgba(59,130,246,0.1)',
-                 border: '1px solid rgba(59,130,246,0.2)',
-               }}>
-            <Flame className="h-4 w-4" style={{ color: 'var(--accent-flame)' }} />
+               style={{ background: 'rgba(79,140,255,0.12)', border: '1px solid rgba(79,140,255,0.25)' }}>
+            <Flame className="h-4 w-4" style={{ color: 'var(--accent-ember)' }} />
           </div>
           <div className="flex flex-col min-w-0">
-            <h1 className="text-xs sm:text-sm font-semibold flex items-center gap-1.5 truncate max-w-[200px] sm:max-w-md"
+            <h1 className="text-xs sm:text-sm font-semibold flex items-center gap-1.5 truncate max-w-[180px] sm:max-w-md"
                 style={{ color: 'var(--text-primary)' }}>
+              <span className="hidden sm:inline" style={{ color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>/</span>
               <span className="truncate">{title}</span>
             </h1>
             <span className="text-[9px] sm:text-[10px] hidden sm:inline truncate"
@@ -139,27 +133,30 @@ export function TopBar() {
       </div>
 
       {/* Right */}
-      <div className="flex items-center gap-3 sm:gap-4">
+      <div className="flex items-center gap-2.5 sm:gap-3">
+        {/* Mission clock (UTC), rendered after mount so server and client markup agree */}
+        <div className="hidden md:flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px]"
+             title="Coordinated Universal Time"
+             style={{ background: 'rgba(124,180,255,0.05)', border: '1px solid var(--border-default)', fontFamily: 'var(--font-mono)' }}>
+          <span style={{ color: 'var(--text-dim)' }}>UTC</span>
+          <span style={{ color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>{clock ?? "--:--:--"}</span>
+        </div>
+
         {/* Status Indicator */}
         <div className="flex items-center gap-2 rounded-full px-3 py-1.5"
-             style={{
-               background: 'var(--border-subtle)',
-               border: '1px solid var(--border-subtle)',
-             }}>
+             style={{ background: 'rgba(124,180,255,0.05)', border: '1px solid var(--border-default)' }}>
           {loading ? (
             <RefreshCw className="h-3.5 w-3.5 animate-spin" style={{ color: 'var(--text-muted)' }} />
           ) : (
             <div className="relative flex items-center gap-1.5">
-              <div className="h-2 w-2 rounded-full"
-                   style={{
-                     background: getStatusDotColor(health?.status),
-                     boxShadow: `0 0 8px ${getStatusDotColor(health?.status)}`,
-                   }} />
-              <Activity className="h-3.5 w-3.5 sm:h-4 sm:w-4"
-                        style={{ color: getStatusColor(health?.status) }} />
+              <span className="relative flex h-2 w-2">
+                <span className="ping-ring absolute inline-flex h-full w-full rounded-full" style={{ background: statusColor }} />
+                <span className="relative inline-flex h-2 w-2 rounded-full" style={{ background: statusColor, boxShadow: `0 0 8px ${statusColor}` }} />
+              </span>
+              <Activity className="h-3.5 w-3.5 sm:h-4 sm:w-4" style={{ color: getStatusColor(health?.status) }} />
             </div>
           )}
-          <span className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
+          <span className="text-[11px] font-semibold tracking-wider" style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
             {health?.status ? health.status.toUpperCase() : "…"}
           </span>
         </div>
@@ -168,8 +165,8 @@ export function TopBar() {
         {health?.version && (
           <div className="hidden md:flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px]"
                style={{
-                 background: 'var(--border-subtle)',
-                 border: '1px solid var(--border-subtle)',
+                 background: 'rgba(124,180,255,0.05)',
+                 border: '1px solid var(--border-default)',
                  fontFamily: 'var(--font-mono)',
                  color: 'var(--text-secondary)',
                }}>

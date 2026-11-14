@@ -8,26 +8,30 @@ interface AppShellProps {
 
 export function AppShell({ children }: AppShellProps) {
   return (
-    <div className="flex min-h-screen w-full flex-col lg:flex-row noise-overlay"
+    <div className="relative flex min-h-screen w-full flex-col lg:flex-row noise-overlay"
       style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
 
-      {/* Ambient Background Orbs */}
-      <div className="pointer-events-none absolute -left-[15%] -top-[20%] h-[55vw] w-[55vw] rounded-full animate-pulse-glow"
-        style={{ background: 'radial-gradient(circle, rgba(59,130,246,0.12) 0%, transparent 70%)' }} />
-      <div className="pointer-events-none absolute -bottom-[25%] -right-[15%] h-[50vw] w-[50vw] rounded-full animate-pulse-glow"
-        style={{ background: 'radial-gradient(circle, rgba(96,165,250,0.1) 0%, transparent 70%)', animationDelay: '2.5s' }} />
-      <div className="pointer-events-none absolute left-[35%] top-[20%] h-[35vw] w-[35vw] rounded-full animate-pulse-glow"
-        style={{ background: 'radial-gradient(circle, rgba(6,182,212,0.06) 0%, transparent 70%)', animationDelay: '4s' }} />
-
-      {/* Grid Pattern Overlay */}
-      <div className="pointer-events-none absolute inset-0 opacity-[0.015]"
-        style={{
-          backgroundImage: `
-               linear-gradient(var(--border-subtle) 1px, transparent 1px),
-               linear-gradient(90deg, var(--border-subtle) 1px, transparent 1px)
-             `,
-          backgroundSize: '60px 60px'
-        }} />
+      {/* Deep-space backdrop: stars, two nebulae and a faint horizon glow. Fixed, so it stays put while pages scroll. */}
+      <div aria-hidden="true" className="starfield"><span /></div>
+      <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-0">
+        <div className="absolute -left-[12%] -top-[22%] h-[60vw] w-[60vw] rounded-full animate-pulse-glow"
+          style={{ background: 'radial-gradient(circle, rgba(79,140,255,0.16) 0%, transparent 65%)' }} />
+        <div className="absolute -bottom-[30%] -right-[10%] h-[55vw] w-[55vw] rounded-full animate-pulse-glow"
+          style={{ background: 'radial-gradient(circle, rgba(167,139,250,0.12) 0%, transparent 65%)', animationDelay: '2.5s' }} />
+        <div className="absolute left-[40%] top-[30%] h-[30vw] w-[30vw] rounded-full animate-pulse-glow"
+          style={{ background: 'radial-gradient(circle, rgba(34,211,238,0.07) 0%, transparent 70%)', animationDelay: '4s' }} />
+        {/* Perspective grid: the "deck" of the console */}
+        <div className="absolute inset-x-0 bottom-0 h-[45vh] opacity-[0.22]"
+          style={{
+            backgroundImage: `linear-gradient(rgba(124,180,255,0.18) 1px, transparent 1px),
+                              linear-gradient(90deg, rgba(124,180,255,0.18) 1px, transparent 1px)`,
+            backgroundSize: '64px 64px',
+            maskImage: 'linear-gradient(to top, black, transparent)',
+            WebkitMaskImage: 'linear-gradient(to top, black, transparent)',
+            transform: 'perspective(600px) rotateX(58deg)',
+            transformOrigin: 'bottom',
+          }} />
+      </div>
 
       {/* Main Layout */}
       <div className="relative z-10 flex flex-col lg:flex-row min-h-screen w-full">
