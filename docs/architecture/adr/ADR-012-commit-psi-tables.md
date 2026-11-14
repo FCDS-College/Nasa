@@ -72,3 +72,12 @@ How the exception is made safe:
 - Code: `apps/api/flame_api/ingest.py` (`_create_table_experiments`, `parse_isatab`), `knowledge/ingestion/install_datasets.py`, `ai/fire_safety/flex.py`
 - Tests: `apps/api/tests/test_ingestion.py` (`test_committed_psi_tables_are_present_so_a_fresh_clone_has_experiments`, `test_mirrored_psi_tables_are_ingested_with_provenance_and_stable_ids`, `test_isatab_metadata_becomes_a_citable_investigation_document`), `apps/api/tests/test_fire_safety_api.py` (`test_committed_artefact_matches_its_evaluation_report_and_training_table`)
 - Related: [ADR-001](ADR-001-monorepo-layout.md) (monorepo layout), [ADR-011](ADR-011-scenario-relevance-ranking.md) (ranking that consumes these tables)
+
+## Note (2026-11-14): current counts
+
+The decision is unchanged. The counts above (840 flight tests, 4 investigation records, "eight files", about 130 KB) describe the four tables committed on 2026-11-07. Under the same exception, `main` now commits 22 experimental tables and 24 ISA-Tab metadata files from 24 PSI sources (513,175 B, measured with `git ls-files` and `stat`), still CC0 and still well under the 1 MB per-file limit. A fresh clone, CI job or image now ingests:
+
+- **1958 table experiments**: `apps/api/tests/test_ingestion.py` (`after == before == 1958`);
+- of which **1950 flight tests from 19 PSI investigations**: `apps/api/tests/test_fire_safety_api.py` (`totals == {"investigations": 19, "with_data": 19, "flight_tests": 1950}`). The other 8 rows are the Cool-flame transitions ground study (FF-PSI-142), which the coverage verdict does not count as flight tests.
+
+The original text above is kept as written, per the ADR index rule on dated notes.
