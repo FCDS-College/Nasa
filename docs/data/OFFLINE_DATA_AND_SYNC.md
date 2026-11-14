@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Anas (E2) | Draft: availability (W3) done; sync policy (W7) proposed | 0.9.1 | 2026-11-13 | 2H Task 7 | `infrastructure/compose.yaml`, `knowledge_version.py`, `ingest.py`, `vector_index.py` |
+| Anas (E2) | Draft: availability (W3) done; sync policy (W7) proposed | 0.9.2 | 2026-11-14 | 2H Task 7 | `infrastructure/compose.yaml`, `knowledge_version.py`, `ingest.py`, `vector_index.py` |
 
 Shared with the Lead's [L-8 runbook](../operations/RUNBOOK.md) and [H-6](../hybrid-ai/PHASE_2_OFFLINE_DEPLOYMENT_GUIDE.md).
 
@@ -13,7 +13,7 @@ Shared with the Lead's [L-8 runbook](../operations/RUNBOOK.md) and [H-6](../hybr
 | Source registry, file manifest, checksums, CV sample manifest | `datasets/registry/`, `datasets/metadata/`, `datasets/checksums/`, `datasets/samples/cv/manifest.jsonl` | small | yes | git |
 | NTRS reports (27) | `docs/research/` | 27,622,004 B | yes | git |
 | CV samples (185) | `datasets/samples/cv/` | in git (3 MP4 + images) | yes | git |
-| PSI experimental tables + ISA-Tab metadata (4 + 4 files) | `datasets/raw/psi_api/*/Experimental table/`, `…/metadata/` | 130,603 B | **yes** ([ADR-012](../architecture/adr/ADR-012-commit-psi-tables.md)) | git; or `python knowledge/ingestion/install_datasets.py --only tables` |
+| PSI experimental tables + ISA-Tab metadata (22 + 24 files from 24 PSI sources) | `datasets/raw/psi_api/*/Experimental table/`, `…/metadata/` | 513,175 B (`git ls-files` + `stat`, 2026-11-14) | **yes** ([ADR-012](../architecture/adr/ADR-012-commit-psi-tables.md)) | git; or `python knowledge/ingestion/install_datasets.py --only tables` |
 | PSI mirrors, everything else (BASS-II, FLEX, SAFFIRE-I, SPICE media and documents) | `datasets/raw/psi_api/…` | local only; see `datasets/manifests/psi_pilot_selection.csv` | **no** (git-ignored) | `python knowledge/ingestion/psi_download.py datasets/manifests/psi_pilot_selection.csv` (psi.nasa.gov) |
 | DSI subset | `datasets/raw/nasa_psi/DSI/` | local only | **no** | `aws s3 cp --no-sign-request …` (README "Data quick start") |
 | Database (metadata, evidence, vectors, audit) | `postgres-data` volume | 226,560 B as `pg_dump -Fc` for the committed corpus (2026-10-13) | no | backup (§5) |
@@ -21,7 +21,7 @@ Shared with the Lead's [L-8 runbook](../operations/RUNBOOK.md) and [H-6](../hybr
 | Embedding model | `model-cache` volume | 67,181,750 B | no | H-3 §2 |
 | Local LLM | `ollama-models` volume | 1,929,912,432 B | no | H-3 §2 |
 
-**Committed vs local-only.** A fresh clone has only the committed data: the 3 NTRS PDFs and the samples. The PSI table experiments (840) exist only where `datasets/raw/` was mirrored.
+**Committed vs local-only.** A fresh clone has the committed data: the 27 NTRS reports, the samples, and the PSI experimental tables and ISA-Tab metadata (ADR-012). Ingesting them gives 1958 table experiments (`apps/api/tests/test_ingestion.py`), of which 1950 are flight tests from 19 PSI investigations (`test_fire_safety_api.py`); the other 8 rows are the Cool-flame transitions ground study (FF-PSI-142). PSI media, raw data files and the DSI subset exist only where `datasets/raw/` was mirrored.
 
 ## 2. Unavailable offline, and what answers must say
 
@@ -103,5 +103,6 @@ Local videos, uploaded images, documents, prompts, chat content and research dat
 ## Changelog
 - 0.9.0 (2026-11-07): the PSI experimental tables and ISA-Tab metadata are committed (ADR-012); NTRS corpus is 24 reports.
 - 0.9.1 (2026-11-13): NTRS corpus is 27 reports (Apollo 1 scenario, ADR-013).
+- 0.9.2 (2026-11-14): the committed PSI tables and metadata are 22 + 24 files (513,175 B) and ingest to 1958 experiments (1950 flight tests, 19 investigations). The "committed vs local-only" paragraph no longer says the tables are local-only.
 - Unreleased (P2-11): `infrastructure/backup/backup.sh` and `restore.sh`; second restore drill (database and object storage) recorded.
 - 0.8.0 (2026-10-13): inventory, disclosure rules, backup commands, first restore drill, proposed sync policy.

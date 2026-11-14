@@ -168,7 +168,7 @@ def build() -> Path:
     s = d.slide()
     d.header(s, "Flame in Freefall · it solves", "Pick an atmosphere: ISS air", kicker_color=GREEN)
     d.image(s, SHOTS / "pitch-1-iss-covered.png", Inches(0.7), Inches(1.85), Inches(7.6), Inches(4.9))
-    bullets = [("162", "flight tests lie near it, with the closest one cited"),
+    bullets = [("310", "flight tests lie near it, with the closest one cited"),
                ("Ranked", "investigations by how directly their data applies"),
                ("Cited", "every number links to its NASA table cell"),
                ("Estimated", "droplet-flame outcomes from a validated model")]

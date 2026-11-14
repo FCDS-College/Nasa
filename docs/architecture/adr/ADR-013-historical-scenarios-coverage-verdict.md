@@ -88,3 +88,13 @@ The dashboard ranks investigations by evidence relevance (ADR-011), and the FLEX
 - [ADR-011](ADR-011-scenario-relevance-ranking.md), the relevance ranking this verdict sits beside.
 - [docs/reports/APOLLO1_SCENARIO_ANALYSIS.md](../../reports/APOLLO1_SCENARIO_ANALYSIS.md), the event, sources and corrections.
 - [docs/api/CHANGELOG.md](../../api/CHANGELOG.md), contract 0.7.0.
+
+## Note (2026-11-14): current counts
+
+The decision is unchanged. The figures in Context and Consequences were measured on 2026-11-13 with the 4 PSI tables. With the 19 PSI flight investigations now on `main` (ACME, CFI, BASS, SAFFIRE-II/III, SAME, SAME-R, SLICE, DAFT and FLEX-2 added):
+
+- **Flight tests:** 1950 from 19 investigations, all microgravity (`apps/api/tests/test_fire_safety_api.py`: `totals == {"investigations": 19, "with_data": 19, "flight_tests": 1950}`). Context point 2 said 840.
+- **Apollo 1:** still verdict `none`, now "None of the 1950 flight tests cover this atmosphere." The highest O₂ flown is 40 % (2.5×, not 34 % and 2.9×), and the nearest real test is ACME CFI-G 21162A1 (FF-PSI-159, 40 % O₂, 101 kPa), not FLEX 196F003 (`test_apollo1_gets_no_model_estimate_and_gravity_is_a_refusal_reason`; [APOLLO1_SCENARIO_ANALYSIS.md](../../reports/APOLLO1_SCENARIO_ANALYSIS.md) step B).
+- **Lunar lander:** verdict `covered`, not `partial`. ACME CFI-G flames were flown down to about 43 kPa, so 20 tests lie in its neighbourhood (11 CFI-G, 9 FLEX) (`test_mission_scenarios_keep_their_verdicts`). The FLEX outcome model still refuses 62.7 kPa, because it is below the lowest FLEX test pressure; the verdict and the model now differ, and the verdict is the one about data coverage.
+
+The original text above is kept as written, per the ADR index rule on dated notes.

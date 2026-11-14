@@ -17,7 +17,12 @@ const VERDICT = {
 
 const GRAVITY_LABEL: Record<string, string> = { earth: "1 g (Earth)", lunar: "lunar gravity", martian: "Martian gravity", microgravity: "microgravity" };
 
-export function CoverageVerdict({ coverage, scenario }: { coverage: Coverage; scenario: Scenario }) {
+export function CoverageVerdict({ coverage, scenario, acronyms = {} }: {
+  coverage: Coverage;
+  scenario: Scenario;
+  /** investigation_id → acronym from the same response's items, so the nearest test reads "ACME CFI-G 21162A1". */
+  acronyms?: Record<string, string>;
+}) {
   const v = VERDICT[coverage.verdict];
   const Icon = v.icon;
   const near = coverage.nearest_test;
@@ -38,9 +43,9 @@ export function CoverageVerdict({ coverage, scenario }: { coverage: Coverage; sc
         <div className="flex flex-col gap-1.5 text-sm" style={{ color: "var(--text-secondary)" }}>
           <p>
             {coverage.verdict === "covered" ? "Closest flight test" : "The closest real flight test"}:{" "}
-            <strong style={{ color: "var(--text-primary)" }}>{near.investigation_id === "FF-PSI-69" ? "FLEX" : near.investigation_id} {near.test_id}</strong>{" "}
+            <strong style={{ color: "var(--text-primary)" }}>{acronyms[near.investigation_id] ?? near.investigation_id} {near.test_id}</strong>{" "}
             at {(near.o2_fraction * 100).toFixed(0)}% O₂{near.pressure_kpa !== null && <>, {near.pressure_kpa.toFixed(1)} kPa</>}
-            {near.end_state && <> (ended in {near.end_state.toLowerCase()})</>}, flown in {coverage.gravity.flight_tests.join(" and ")}.
+            {near.end_state && <> (ended in {near.end_state.toLowerCase().replaceAll("_", " ")})</>}, flown in {coverage.gravity.flight_tests.join(" and ")}.
             {coverage.verdict !== "covered" && coverage.gap?.o2_ratio && coverage.gap.o2_ratio > 1.05 && (
               <> This atmosphere has <strong style={{ color: v.color }}>{coverage.gap.o2_ratio.toFixed(1)}×</strong> its oxygen
                 {!coverage.gravity.covered && <> and is at <strong style={{ color: v.color }}>{GRAVITY_LABEL[scenario.gravity]}</strong></>}.</>

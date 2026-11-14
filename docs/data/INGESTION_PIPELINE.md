@@ -80,7 +80,7 @@ Sample output on 2026-10-11, with the committed corpus only (no `datasets/raw/` 
 {'embedded': 37, 'total': 37, 'knowledge_version': 'bge-small-en-v1.5-37-20261011'}
 ```
 
-The 2 pages without chunks are pp. 14–15 of `20080034883.pdf`, which have no text layer; OCR was not installed. With the PSI mirror present, the table stage adds 840 experiments (the counts are asserted by `test_mirrored_psi_tables_are_ingested_with_provenance_and_stable_ids`).
+The 2 pages without chunks are pp. 14–15 of `20080034883.pdf`, which have no text layer; OCR was not installed. With the PSI mirror present, the table stage adds 840 experiments (the counts are asserted by `test_mirrored_psi_tables_are_ingested_with_provenance_and_stable_ids`). *Update 2026-11-14:* the PSI tables are now committed (ADR-012), and the table stage adds 1958 experiments from 20 PSI sources (19 flight investigations, 1950 flight tests, plus 8 rows from the Cool-flame transitions ground study); the same test asserts the 1958. The run above is kept as recorded.
 
 ## 7. Offline behaviour and resumable checkpoints (2H)
 
@@ -98,4 +98,5 @@ The 2 pages without chunks are pp. 14–15 of `20080034883.pdf`, which have no t
 
 ## Changelog
 - 1.1.0 (2026-11-14): an unexpected parser exception fails one file (`failed`, retried next run, exit status 1) instead of rolling back the whole run (KB audit 2026-11-13).
+- 1.0.1 (2026-11-14): §6 notes the current table-stage count (1958 experiments) next to the 2026-10-12 run.
 - 1.0.0 (2026-10-12): first specification (OCR, HTML/JSON, quarantine, run records, corpus version).

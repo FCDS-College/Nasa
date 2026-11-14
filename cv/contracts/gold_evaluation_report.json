@@ -1,0 +1,1868 @@
+{
+  "goldVersion": "cv_gold_v1",
+  "generatedAt": "2026-11-14T00:34:19Z",
+  "pipelineVersion": "cv-opencv-v1.5.0-auto",
+  "videoPipelineVersion": "cv-video-v1.1.0",
+  "configDigest": "e6a293b9ddfb19f0",
+  "protocol": "Detection: strict counts PRESENT as positive, lenient counts PRESENT or UNCERTAIN, localized also requires the mask on a flame frame to overlap the labelled flame (IoU >= 0.1); unclear labels are excluded. 95% intervals resample whole tests (groupId), not frames. 'verified' uses only items a person has checked.",
+  "splits": {
+    "dev": {
+      "all": {
+        "n": 70,
+        "nTests": 16,
+        "labels": {
+          "present": 15,
+          "absent": 44,
+          "unclear": 11
+        },
+        "detection": {
+          "strict": {
+            "tp": 15,
+            "fp": 7,
+            "fn": 0,
+            "tn": 37,
+            "precision": 0.6818,
+            "recall": 1.0,
+            "f1": 0.8108,
+            "falsePositiveRate": 0.1591,
+            "precisionCI95": [
+              0.1667,
+              0.9394
+            ],
+            "recallCI95": [
+              1.0,
+              1.0
+            ],
+            "falsePositiveRateCI95": [
+              0.0294,
+              0.3715
+            ]
+          },
+          "lenient": {
+            "tp": 15,
+            "fp": 23,
+            "fn": 0,
+            "tn": 21,
+            "precision": 0.3947,
+            "recall": 1.0,
+            "f1": 0.566,
+            "falsePositiveRate": 0.5227,
+            "precisionCI95": [
+              0.0605,
+              0.7222
+            ],
+            "recallCI95": [
+              1.0,
+              1.0
+            ],
+            "falsePositiveRateCI95": [
+              0.2326,
+              0.8235
+            ]
+          },
+          "localized": {
+            "tp": 14,
+            "fp": 7,
+            "fn": 1,
+            "tn": 37,
+            "precision": 0.6667,
+            "recall": 0.9333,
+            "f1": 0.7778,
+            "falsePositiveRate": 0.1591,
+            "precisionCI95": [
+              0.1667,
+              0.9355
+            ],
+            "recallCI95": [
+              0.6667,
+              1.0
+            ],
+            "falsePositiveRateCI95": [
+              0.0294,
+              0.3715
+            ]
+          }
+        },
+        "segmentation": {
+          "n": 15,
+          "meanIoU": 0.5481,
+          "meanIoUCI95": [
+            0.3323,
+            0.7945
+          ],
+          "nDetected": 15,
+          "meanIoUWhenDetected": 0.5481,
+          "note": "IoU on the pipeline's letterbox canvas; a missed flame counts as IoU 0 in meanIoU. The pipeline keeps only the largest region, so multi-lobe flames lower IoU."
+        }
+      },
+      "verified": {
+        "n": 0,
+        "nTests": 0,
+        "labels": {
+          "present": 0,
+          "absent": 0,
+          "unclear": 0
+        },
+        "detection": {
+          "strict": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "tn": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "falsePositiveRate": null,
+            "precisionCI95": [
+              null,
+              null
+            ],
+            "recallCI95": [
+              null,
+              null
+            ],
+            "falsePositiveRateCI95": [
+              null,
+              null
+            ]
+          },
+          "lenient": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "tn": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "falsePositiveRate": null,
+            "precisionCI95": [
+              null,
+              null
+            ],
+            "recallCI95": [
+              null,
+              null
+            ],
+            "falsePositiveRateCI95": [
+              null,
+              null
+            ]
+          },
+          "localized": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "tn": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "falsePositiveRate": null,
+            "precisionCI95": [
+              null,
+              null
+            ],
+            "recallCI95": [
+              null,
+              null
+            ],
+            "falsePositiveRateCI95": [
+              null,
+              null
+            ]
+          }
+        },
+        "segmentation": {
+          "n": 0,
+          "meanIoU": null,
+          "meanIoUCI95": [
+            null,
+            null
+          ],
+          "nDetected": 0,
+          "meanIoUWhenDetected": null,
+          "note": "IoU on the pipeline's letterbox canvas; a missed flame counts as IoU 0 in meanIoU. The pipeline keeps only the largest region, so multi-lobe flames lower IoU."
+        }
+      }
+    },
+    "holdout": {
+      "all": {
+        "n": 80,
+        "nTests": 8,
+        "labels": {
+          "present": 41,
+          "absent": 37,
+          "unclear": 2
+        },
+        "detection": {
+          "strict": {
+            "tp": 28,
+            "fp": 0,
+            "fn": 13,
+            "tn": 37,
+            "precision": 1.0,
+            "recall": 0.6829,
+            "f1": 0.8116,
+            "falsePositiveRate": 0.0,
+            "precisionCI95": [
+              1.0,
+              1.0
+            ],
+            "recallCI95": [
+              0.2778,
+              1.0
+            ],
+            "falsePositiveRateCI95": [
+              0.0,
+              0.0
+            ]
+          },
+          "lenient": {
+            "tp": 31,
+            "fp": 14,
+            "fn": 10,
+            "tn": 23,
+            "precision": 0.6889,
+            "recall": 0.7561,
+            "f1": 0.7209,
+            "falsePositiveRate": 0.3784,
+            "precisionCI95": [
+              0.359,
+              0.9413
+            ],
+            "recallCI95": [
+              0.3636,
+              1.0
+            ],
+            "falsePositiveRateCI95": [
+              0.0667,
+              0.7431
+            ]
+          },
+          "localized": {
+            "tp": 28,
+            "fp": 0,
+            "fn": 13,
+            "tn": 37,
+            "precision": 1.0,
+            "recall": 0.6829,
+            "f1": 0.8116,
+            "falsePositiveRate": 0.0,
+            "precisionCI95": [
+              1.0,
+              1.0
+            ],
+            "recallCI95": [
+              0.2778,
+              1.0
+            ],
+            "falsePositiveRateCI95": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "segmentation": {
+          "n": 41,
+          "meanIoU": 0.3197,
+          "meanIoUCI95": [
+            0.1282,
+            0.5526
+          ],
+          "nDetected": 28,
+          "meanIoUWhenDetected": 0.4681,
+          "note": "IoU on the pipeline's letterbox canvas; a missed flame counts as IoU 0 in meanIoU. The pipeline keeps only the largest region, so multi-lobe flames lower IoU."
+        }
+      },
+      "verified": {
+        "n": 0,
+        "nTests": 0,
+        "labels": {
+          "present": 0,
+          "absent": 0,
+          "unclear": 0
+        },
+        "detection": {
+          "strict": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "tn": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "falsePositiveRate": null,
+            "precisionCI95": [
+              null,
+              null
+            ],
+            "recallCI95": [
+              null,
+              null
+            ],
+            "falsePositiveRateCI95": [
+              null,
+              null
+            ]
+          },
+          "lenient": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "tn": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "falsePositiveRate": null,
+            "precisionCI95": [
+              null,
+              null
+            ],
+            "recallCI95": [
+              null,
+              null
+            ],
+            "falsePositiveRateCI95": [
+              null,
+              null
+            ]
+          },
+          "localized": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "tn": 0,
+            "precision": null,
+            "recall": null,
+            "f1": null,
+            "falsePositiveRate": null,
+            "precisionCI95": [
+              null,
+              null
+            ],
+            "recallCI95": [
+              null,
+              null
+            ],
+            "falsePositiveRateCI95": [
+              null,
+              null
+            ]
+          }
+        },
+        "segmentation": {
+          "n": 0,
+          "meanIoU": null,
+          "meanIoUCI95": [
+            null,
+            null
+          ],
+          "nDetected": 0,
+          "meanIoUWhenDetected": null,
+          "note": "IoU on the pipeline's letterbox canvas; a missed flame counts as IoU 0 in meanIoU. The pipeline keeps only the largest region, so multi-lobe flames lower IoU."
+        }
+      }
+    }
+  },
+  "items": [
+    {
+      "itemId": "176F001D_00000",
+      "groupId": "PSI-69/176F001D",
+      "split": "dev",
+      "label": "absent",
+      "status": "UNCERTAIN",
+      "confidence": 0.906,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "176F001D_00660",
+      "groupId": "PSI-69/176F001D",
+      "split": "dev",
+      "label": "unclear",
+      "status": "PRESENT",
+      "confidence": 0.88,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "176F001D_01319",
+      "groupId": "PSI-69/176F001D",
+      "split": "dev",
+      "label": "absent",
+      "status": "PRESENT",
+      "confidence": 0.701,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "195F002D_00000",
+      "groupId": "PSI-69/195F002D",
+      "split": "dev",
+      "label": "absent",
+      "status": "PRESENT",
+      "confidence": 0.86,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "195F002D_00530",
+      "groupId": "PSI-69/195F002D",
+      "split": "dev",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.984,
+      "verified": false,
+      "iou": 0.657
+    },
+    {
+      "itemId": "195F002D_01061",
+      "groupId": "PSI-69/195F002D",
+      "split": "dev",
+      "label": "absent",
+      "status": "PRESENT",
+      "confidence": 0.847,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "C021H03C_00000",
+      "groupId": "PSI-69/C021H03C",
+      "split": "dev",
+      "label": "absent",
+      "status": "ABSENT",
+      "confidence": 0.669,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "C021H03C_00757",
+      "groupId": "PSI-69/C021H03C",
+      "split": "dev",
+      "label": "absent",
+      "status": "ABSENT",
+      "confidence": 0.67,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "C021H03C_01514",
+      "groupId": "PSI-69/C021H03C",
+      "split": "dev",
+      "label": "absent",
+      "status": "ABSENT",
+      "confidence": 0.669,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "C024M06C_00000",
+      "groupId": "PSI-69/C024M06C",
+      "split": "dev",
+      "label": "absent",
+      "status": "ABSENT",
+      "confidence": 0.67,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "C024M06C_00703",
+      "groupId": "PSI-69/C024M06C",
+      "split": "dev",
+      "label": "absent",
+      "status": "ABSENT",
+      "confidence": 0.67,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "C024M06C_01406",
+      "groupId": "PSI-69/C024M06C",
+      "split": "dev",
+      "label": "absent",
+      "status": "ABSENT",
+      "confidence": 0.67,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "DSI_SEQ2_ACTIVITE04_HR1_1018759522_1",
+      "groupId": "DSI/ACTIVITE04_HR1",
+      "split": "dev",
+      "label": "absent",
+      "status": "PRESENT",
+      "confidence": 0.989,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "DSI_SEQ2_ACTIVITE04_HR1_1022430520_1",
+      "groupId": "DSI/ACTIVITE04_HR1",
+      "split": "dev",
+      "label": "absent",
+      "status": "PRESENT",
+      "confidence": 0.982,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "DSI_SEQ2_ACTIVITE04_HR2_1021350088_1",
+      "groupId": "DSI/ACTIVITE04_HR2_1",
+      "split": "dev",
+      "label": "absent",
+      "status": "UNCERTAIN",
+      "confidence": 0.532,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "F2C2-1465938488551",
+      "groupId": "PSI-98/F2C2",
+      "split": "dev",
+      "label": "absent",
+      "status": "UNCERTAIN",
+      "confidence": 0.524,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "F2C2-1465938496117",
+      "groupId": "PSI-98/F2C2",
+      "split": "dev",
+      "label": "absent",
+      "status": "UNCERTAIN",
+      "confidence": 0.502,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "F2C2-1465938503750",
+      "groupId": "PSI-98/F2C2",
+      "split": "dev",
+      "label": "absent",
+      "status": "UNCERTAIN",
+      "confidence": 0.504,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "F2C2-1465938511683",
+      "groupId": "PSI-98/F2C2",
+      "split": "dev",
+      "label": "absent",
+      "status": "UNCERTAIN",
+      "confidence": 0.503,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "H08M101D_00000",
+      "groupId": "PSI-69/H08M101D",
+      "split": "dev",
+      "label": "absent",
+      "status": "ABSENT",
+      "confidence": 0.9,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "H08M101D_00642",
+      "groupId": "PSI-69/H08M101D",
+      "split": "dev",
+      "label": "absent",
+      "status": "PRESENT",
+      "confidence": 0.781,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "H08M101D_01284",
+      "groupId": "PSI-69/H08M101D",
+      "split": "dev",
+      "label": "absent",
+      "status": "PRESENT",
+      "confidence": 0.786,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "H14H101C_00000",
+      "groupId": "PSI-69/H14H101C",
+      "split": "dev",
+      "label": "absent",
+      "status": "ABSENT",
+      "confidence": 0.665,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "H14H101C_00765",
+      "groupId": "PSI-69/H14H101C",
+      "split": "dev",
+      "label": "absent",
+      "status": "ABSENT",
+      "confidence": 0.663,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "H14H101C_01530",
+      "groupId": "PSI-69/H14H101C",
+      "split": "dev",
+      "label": "absent",
+      "status": "ABSENT",
+      "confidence": 0.666,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "ISS018E030336",
+      "groupId": "PSI-107/SPICE_GMT045_2009",
+      "split": "dev",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.985,
+      "verified": false,
+      "iou": 0.8013
+    },
+    {
+      "itemId": "ISS018E030344",
+      "groupId": "PSI-107/SPICE_GMT045_2009",
+      "split": "dev",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.989,
+      "verified": false,
+      "iou": 0.867
+    },
+    {
+      "itemId": "ISS018E030355",
+      "groupId": "PSI-107/SPICE_GMT045_2009",
+      "split": "dev",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.987,
+      "verified": false,
+      "iou": 0.7946
+    },
+    {
+      "itemId": "ISS018E030363",
+      "groupId": "PSI-107/SPICE_GMT045_2009",
+      "split": "dev",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.987,
+      "verified": false,
+      "iou": 0.801
+    },
+    {
+      "itemId": "ISS018E030372",
+      "groupId": "PSI-107/SPICE_GMT045_2009",
+      "split": "dev",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.983,
+      "verified": false,
+      "iou": 0.846
+    },
+    {
+      "itemId": "PSI-25-B1-main-f000000",
+      "groupId": "PSI-25/B1",
+      "split": "dev",
+      "label": "absent",
+      "status": "ABSENT",
+      "confidence": 0.647,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-B1-main-f000134",
+      "groupId": "PSI-25/B1",
+      "split": "dev",
+      "label": "absent",
+      "status": "ABSENT",
+      "confidence": 0.646,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-B1-main-f000268",
+      "groupId": "PSI-25/B1",
+      "split": "dev",
+      "label": "absent",
+      "status": "ABSENT",
+      "confidence": 0.651,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-B1-main-f000402",
+      "groupId": "PSI-25/B1",
+      "split": "dev",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.98,
+      "verified": false,
+      "iou": 0.7628
+    },
+    {
+      "itemId": "PSI-25-B1-main-f000536",
+      "groupId": "PSI-25/B1",
+      "split": "dev",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.981,
+      "verified": false,
+      "iou": 0.1842
+    },
+    {
+      "itemId": "PSI-25-B1-main-f000670",
+      "groupId": "PSI-25/B1",
+      "split": "dev",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.979,
+      "verified": false,
+      "iou": 0.2521
+    },
+    {
+      "itemId": "PSI-25-B1-main-f000804",
+      "groupId": "PSI-25/B1",
+      "split": "dev",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.978,
+      "verified": false,
+      "iou": 0.1725
+    },
+    {
+      "itemId": "PSI-25-B1-main-f000938",
+      "groupId": "PSI-25/B1",
+      "split": "dev",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.977,
+      "verified": false,
+      "iou": 0.1939
+    },
+    {
+      "itemId": "PSI-25-B1-main-f001072",
+      "groupId": "PSI-25/B1",
+      "split": "dev",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.983,
+      "verified": false,
+      "iou": 0.1958
+    },
+    {
+      "itemId": "PSI-25-B1-main-f001206",
+      "groupId": "PSI-25/B1",
+      "split": "dev",
+      "label": "absent",
+      "status": "ABSENT",
+      "confidence": 0.651,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-B3-main-f000000",
+      "groupId": "PSI-25/B3",
+      "split": "holdout",
+      "label": "absent",
+      "status": "UNCERTAIN",
+      "confidence": 0.667,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-B3-main-f000174",
+      "groupId": "PSI-25/B3",
+      "split": "holdout",
+      "label": "absent",
+      "status": "UNCERTAIN",
+      "confidence": 0.665,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-B3-main-f000348",
+      "groupId": "PSI-25/B3",
+      "split": "holdout",
+      "label": "absent",
+      "status": "UNCERTAIN",
+      "confidence": 0.664,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-B3-main-f000522",
+      "groupId": "PSI-25/B3",
+      "split": "holdout",
+      "label": "absent",
+      "status": "ABSENT",
+      "confidence": 0.455,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-B3-main-f000696",
+      "groupId": "PSI-25/B3",
+      "split": "holdout",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.974,
+      "verified": false,
+      "iou": 0.9074
+    },
+    {
+      "itemId": "PSI-25-B3-main-f000870",
+      "groupId": "PSI-25/B3",
+      "split": "holdout",
+      "label": "present",
+      "status": "ABSENT",
+      "confidence": 0.515,
+      "verified": false,
+      "iou": 0.0
+    },
+    {
+      "itemId": "PSI-25-B3-main-f001044",
+      "groupId": "PSI-25/B3",
+      "split": "holdout",
+      "label": "present",
+      "status": "UNCERTAIN",
+      "confidence": 0.507,
+      "verified": false,
+      "iou": 0.0
+    },
+    {
+      "itemId": "PSI-25-B3-main-f001218",
+      "groupId": "PSI-25/B3",
+      "split": "holdout",
+      "label": "present",
+      "status": "UNCERTAIN",
+      "confidence": 0.524,
+      "verified": false,
+      "iou": 0.0
+    },
+    {
+      "itemId": "PSI-25-B3-main-f001392",
+      "groupId": "PSI-25/B3",
+      "split": "holdout",
+      "label": "present",
+      "status": "UNCERTAIN",
+      "confidence": 0.532,
+      "verified": false,
+      "iou": 0.0
+    },
+    {
+      "itemId": "PSI-25-B3-main-f001566",
+      "groupId": "PSI-25/B3",
+      "split": "holdout",
+      "label": "absent",
+      "status": "ABSENT",
+      "confidence": 0.9,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-F1-main-f000000",
+      "groupId": "PSI-25/F1",
+      "split": "holdout",
+      "label": "absent",
+      "status": "ABSENT",
+      "confidence": 0.661,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-F1-main-f000234",
+      "groupId": "PSI-25/F1",
+      "split": "holdout",
+      "label": "absent",
+      "status": "ABSENT",
+      "confidence": 0.9,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-F1-main-f000468",
+      "groupId": "PSI-25/F1",
+      "split": "holdout",
+      "label": "absent",
+      "status": "ABSENT",
+      "confidence": 0.663,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-F1-main-f000702",
+      "groupId": "PSI-25/F1",
+      "split": "holdout",
+      "label": "absent",
+      "status": "ABSENT",
+      "confidence": 0.458,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-F1-main-f000936",
+      "groupId": "PSI-25/F1",
+      "split": "holdout",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.964,
+      "verified": false,
+      "iou": 0.3547
+    },
+    {
+      "itemId": "PSI-25-F1-main-f001170",
+      "groupId": "PSI-25/F1",
+      "split": "holdout",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.973,
+      "verified": false,
+      "iou": 0.3136
+    },
+    {
+      "itemId": "PSI-25-F1-main-f001404",
+      "groupId": "PSI-25/F1",
+      "split": "holdout",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.967,
+      "verified": false,
+      "iou": 0.3094
+    },
+    {
+      "itemId": "PSI-25-F1-main-f001638",
+      "groupId": "PSI-25/F1",
+      "split": "holdout",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.965,
+      "verified": false,
+      "iou": 0.3341
+    },
+    {
+      "itemId": "PSI-25-F1-main-f001872",
+      "groupId": "PSI-25/F1",
+      "split": "holdout",
+      "label": "absent",
+      "status": "ABSENT",
+      "confidence": 0.661,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-F1-main-f002106",
+      "groupId": "PSI-25/F1",
+      "split": "holdout",
+      "label": "absent",
+      "status": "ABSENT",
+      "confidence": 0.9,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-M10-main-f000000",
+      "groupId": "PSI-25/M10",
+      "split": "holdout",
+      "label": "absent",
+      "status": "ABSENT",
+      "confidence": 0.518,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-M10-main-f000298",
+      "groupId": "PSI-25/M10",
+      "split": "holdout",
+      "label": "present",
+      "status": "ABSENT",
+      "confidence": 0.524,
+      "verified": false,
+      "iou": 0.0
+    },
+    {
+      "itemId": "PSI-25-M10-main-f000596",
+      "groupId": "PSI-25/M10",
+      "split": "holdout",
+      "label": "present",
+      "status": "ABSENT",
+      "confidence": 0.522,
+      "verified": false,
+      "iou": 0.0
+    },
+    {
+      "itemId": "PSI-25-M10-main-f000894",
+      "groupId": "PSI-25/M10",
+      "split": "holdout",
+      "label": "present",
+      "status": "ABSENT",
+      "confidence": 0.525,
+      "verified": false,
+      "iou": 0.0
+    },
+    {
+      "itemId": "PSI-25-M10-main-f001192",
+      "groupId": "PSI-25/M10",
+      "split": "holdout",
+      "label": "present",
+      "status": "ABSENT",
+      "confidence": 0.513,
+      "verified": false,
+      "iou": 0.0
+    },
+    {
+      "itemId": "PSI-25-M10-main-f001490",
+      "groupId": "PSI-25/M10",
+      "split": "holdout",
+      "label": "present",
+      "status": "ABSENT",
+      "confidence": 0.51,
+      "verified": false,
+      "iou": 0.0
+    },
+    {
+      "itemId": "PSI-25-M10-main-f001788",
+      "groupId": "PSI-25/M10",
+      "split": "holdout",
+      "label": "present",
+      "status": "ABSENT",
+      "confidence": 0.521,
+      "verified": false,
+      "iou": 0.0
+    },
+    {
+      "itemId": "PSI-25-M10-main-f002086",
+      "groupId": "PSI-25/M10",
+      "split": "holdout",
+      "label": "present",
+      "status": "ABSENT",
+      "confidence": 0.521,
+      "verified": false,
+      "iou": 0.0
+    },
+    {
+      "itemId": "PSI-25-M10-main-f002384",
+      "groupId": "PSI-25/M10",
+      "split": "holdout",
+      "label": "present",
+      "status": "ABSENT",
+      "confidence": 0.51,
+      "verified": false,
+      "iou": 0.0
+    },
+    {
+      "itemId": "PSI-25-M10-main-f002682",
+      "groupId": "PSI-25/M10",
+      "split": "holdout",
+      "label": "present",
+      "status": "ABSENT",
+      "confidence": 0.521,
+      "verified": false,
+      "iou": 0.0
+    },
+    {
+      "itemId": "PSI-25-P12-main-f000000",
+      "groupId": "PSI-25/P12",
+      "split": "dev",
+      "label": "absent",
+      "status": "ABSENT",
+      "confidence": 0.523,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-P12-main-f000176",
+      "groupId": "PSI-25/P12",
+      "split": "dev",
+      "label": "absent",
+      "status": "ABSENT",
+      "confidence": 0.512,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-P12-main-f000352",
+      "groupId": "PSI-25/P12",
+      "split": "dev",
+      "label": "absent",
+      "status": "ABSENT",
+      "confidence": 0.512,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-P12-main-f000528",
+      "groupId": "PSI-25/P12",
+      "split": "dev",
+      "label": "absent",
+      "status": "ABSENT",
+      "confidence": 0.512,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-P12-main-f000704",
+      "groupId": "PSI-25/P12",
+      "split": "dev",
+      "label": "unclear",
+      "status": "ABSENT",
+      "confidence": 0.513,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-P12-main-f000880",
+      "groupId": "PSI-25/P12",
+      "split": "dev",
+      "label": "absent",
+      "status": "ABSENT",
+      "confidence": 0.524,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-P12-main-f001056",
+      "groupId": "PSI-25/P12",
+      "split": "dev",
+      "label": "unclear",
+      "status": "ABSENT",
+      "confidence": 0.525,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-P12-main-f001232",
+      "groupId": "PSI-25/P12",
+      "split": "dev",
+      "label": "absent",
+      "status": "ABSENT",
+      "confidence": 0.523,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-P12-main-f001408",
+      "groupId": "PSI-25/P12",
+      "split": "dev",
+      "label": "unclear",
+      "status": "ABSENT",
+      "confidence": 0.522,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-P12-main-f001584",
+      "groupId": "PSI-25/P12",
+      "split": "dev",
+      "label": "absent",
+      "status": "ABSENT",
+      "confidence": 0.512,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-P20-main-f000000",
+      "groupId": "PSI-25/P20",
+      "split": "holdout",
+      "label": "absent",
+      "status": "ABSENT",
+      "confidence": 0.512,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-P20-main-f000282",
+      "groupId": "PSI-25/P20",
+      "split": "holdout",
+      "label": "absent",
+      "status": "ABSENT",
+      "confidence": 0.512,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-P20-main-f000564",
+      "groupId": "PSI-25/P20",
+      "split": "holdout",
+      "label": "absent",
+      "status": "ABSENT",
+      "confidence": 0.523,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-P20-main-f000846",
+      "groupId": "PSI-25/P20",
+      "split": "holdout",
+      "label": "absent",
+      "status": "ABSENT",
+      "confidence": 0.524,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-P20-main-f001128",
+      "groupId": "PSI-25/P20",
+      "split": "holdout",
+      "label": "absent",
+      "status": "ABSENT",
+      "confidence": 0.522,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-P20-main-f001410",
+      "groupId": "PSI-25/P20",
+      "split": "holdout",
+      "label": "absent",
+      "status": "ABSENT",
+      "confidence": 0.523,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-P20-main-f001692",
+      "groupId": "PSI-25/P20",
+      "split": "holdout",
+      "label": "absent",
+      "status": "ABSENT",
+      "confidence": 0.511,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-P20-main-f001974",
+      "groupId": "PSI-25/P20",
+      "split": "holdout",
+      "label": "absent",
+      "status": "ABSENT",
+      "confidence": 0.521,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-P20-main-f002256",
+      "groupId": "PSI-25/P20",
+      "split": "holdout",
+      "label": "absent",
+      "status": "ABSENT",
+      "confidence": 0.511,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-P20-main-f002538",
+      "groupId": "PSI-25/P20",
+      "split": "holdout",
+      "label": "absent",
+      "status": "ABSENT",
+      "confidence": 0.514,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-T12-main-f000000",
+      "groupId": "PSI-25/T12",
+      "split": "holdout",
+      "label": "absent",
+      "status": "UNCERTAIN",
+      "confidence": 0.535,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-T12-main-f000137",
+      "groupId": "PSI-25/T12",
+      "split": "holdout",
+      "label": "absent",
+      "status": "UNCERTAIN",
+      "confidence": 0.552,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-T12-main-f000274",
+      "groupId": "PSI-25/T12",
+      "split": "holdout",
+      "label": "absent",
+      "status": "UNCERTAIN",
+      "confidence": 0.532,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-T12-main-f000411",
+      "groupId": "PSI-25/T12",
+      "split": "holdout",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.973,
+      "verified": false,
+      "iou": 0.5175
+    },
+    {
+      "itemId": "PSI-25-T12-main-f000548",
+      "groupId": "PSI-25/T12",
+      "split": "holdout",
+      "label": "absent",
+      "status": "ABSENT",
+      "confidence": 0.479,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-T12-main-f000685",
+      "groupId": "PSI-25/T12",
+      "split": "holdout",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.967,
+      "verified": false,
+      "iou": 0.7091
+    },
+    {
+      "itemId": "PSI-25-T12-main-f000822",
+      "groupId": "PSI-25/T12",
+      "split": "holdout",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.964,
+      "verified": false,
+      "iou": 0.779
+    },
+    {
+      "itemId": "PSI-25-T12-main-f000959",
+      "groupId": "PSI-25/T12",
+      "split": "holdout",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.961,
+      "verified": false,
+      "iou": 0.6727
+    },
+    {
+      "itemId": "PSI-25-T12-main-f001096",
+      "groupId": "PSI-25/T12",
+      "split": "holdout",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.962,
+      "verified": false,
+      "iou": 0.6665
+    },
+    {
+      "itemId": "PSI-25-T12-main-f001233",
+      "groupId": "PSI-25/T12",
+      "split": "holdout",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.961,
+      "verified": false,
+      "iou": 0.6047
+    },
+    {
+      "itemId": "PSI-25-T20-2nd-f000000",
+      "groupId": "PSI-25/T20",
+      "split": "holdout",
+      "label": "unclear",
+      "status": "UNCERTAIN",
+      "confidence": 0.897,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-T20-2nd-f000098",
+      "groupId": "PSI-25/T20",
+      "split": "holdout",
+      "label": "unclear",
+      "status": "UNCERTAIN",
+      "confidence": 0.897,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-T20-2nd-f000196",
+      "groupId": "PSI-25/T20",
+      "split": "holdout",
+      "label": "absent",
+      "status": "UNCERTAIN",
+      "confidence": 0.899,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-T20-2nd-f000294",
+      "groupId": "PSI-25/T20",
+      "split": "holdout",
+      "label": "absent",
+      "status": "UNCERTAIN",
+      "confidence": 0.895,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-T20-2nd-f000392",
+      "groupId": "PSI-25/T20",
+      "split": "holdout",
+      "label": "absent",
+      "status": "UNCERTAIN",
+      "confidence": 0.894,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-T20-2nd-f000490",
+      "groupId": "PSI-25/T20",
+      "split": "holdout",
+      "label": "absent",
+      "status": "UNCERTAIN",
+      "confidence": 0.893,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-T20-2nd-f000588",
+      "groupId": "PSI-25/T20",
+      "split": "holdout",
+      "label": "absent",
+      "status": "UNCERTAIN",
+      "confidence": 0.892,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-T20-2nd-f000686",
+      "groupId": "PSI-25/T20",
+      "split": "holdout",
+      "label": "absent",
+      "status": "UNCERTAIN",
+      "confidence": 0.893,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-T20-2nd-f000784",
+      "groupId": "PSI-25/T20",
+      "split": "holdout",
+      "label": "absent",
+      "status": "UNCERTAIN",
+      "confidence": 0.893,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-T20-2nd-f000882",
+      "groupId": "PSI-25/T20",
+      "split": "holdout",
+      "label": "absent",
+      "status": "UNCERTAIN",
+      "confidence": 0.892,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-T23-main-f000000",
+      "groupId": "PSI-25/T23",
+      "split": "holdout",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.667,
+      "verified": false,
+      "iou": 0.2292
+    },
+    {
+      "itemId": "PSI-25-T23-main-f000145",
+      "groupId": "PSI-25/T23",
+      "split": "holdout",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.737,
+      "verified": false,
+      "iou": 0.17
+    },
+    {
+      "itemId": "PSI-25-T23-main-f000290",
+      "groupId": "PSI-25/T23",
+      "split": "holdout",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.671,
+      "verified": false,
+      "iou": 0.224
+    },
+    {
+      "itemId": "PSI-25-T23-main-f000435",
+      "groupId": "PSI-25/T23",
+      "split": "holdout",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.684,
+      "verified": false,
+      "iou": 0.2074
+    },
+    {
+      "itemId": "PSI-25-T23-main-f000580",
+      "groupId": "PSI-25/T23",
+      "split": "holdout",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.705,
+      "verified": false,
+      "iou": 0.263
+    },
+    {
+      "itemId": "PSI-25-T23-main-f000725",
+      "groupId": "PSI-25/T23",
+      "split": "holdout",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.701,
+      "verified": false,
+      "iou": 0.2344
+    },
+    {
+      "itemId": "PSI-25-T23-main-f000870",
+      "groupId": "PSI-25/T23",
+      "split": "holdout",
+      "label": "absent",
+      "status": "ABSENT",
+      "confidence": 0.521,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-T23-main-f001015",
+      "groupId": "PSI-25/T23",
+      "split": "holdout",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.646,
+      "verified": false,
+      "iou": 0.1191
+    },
+    {
+      "itemId": "PSI-25-T23-main-f001160",
+      "groupId": "PSI-25/T23",
+      "split": "holdout",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.684,
+      "verified": false,
+      "iou": 0.159
+    },
+    {
+      "itemId": "PSI-25-T23-main-f001305",
+      "groupId": "PSI-25/T23",
+      "split": "holdout",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.718,
+      "verified": false,
+      "iou": 0.1677
+    },
+    {
+      "itemId": "PSI-25-T25-2nd-f000000",
+      "groupId": "PSI-25/T25",
+      "split": "dev",
+      "label": "absent",
+      "status": "UNCERTAIN",
+      "confidence": 0.806,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-T25-2nd-f000244",
+      "groupId": "PSI-25/T25",
+      "split": "dev",
+      "label": "absent",
+      "status": "UNCERTAIN",
+      "confidence": 0.8,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-T25-2nd-f000488",
+      "groupId": "PSI-25/T25",
+      "split": "dev",
+      "label": "unclear",
+      "status": "UNCERTAIN",
+      "confidence": 0.835,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-T25-2nd-f000732",
+      "groupId": "PSI-25/T25",
+      "split": "dev",
+      "label": "unclear",
+      "status": "UNCERTAIN",
+      "confidence": 0.854,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-T25-2nd-f000976",
+      "groupId": "PSI-25/T25",
+      "split": "dev",
+      "label": "absent",
+      "status": "UNCERTAIN",
+      "confidence": 0.853,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-T25-2nd-f001220",
+      "groupId": "PSI-25/T25",
+      "split": "dev",
+      "label": "absent",
+      "status": "UNCERTAIN",
+      "confidence": 0.852,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-T25-2nd-f001464",
+      "groupId": "PSI-25/T25",
+      "split": "dev",
+      "label": "absent",
+      "status": "UNCERTAIN",
+      "confidence": 0.809,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-T25-2nd-f001708",
+      "groupId": "PSI-25/T25",
+      "split": "dev",
+      "label": "absent",
+      "status": "UNCERTAIN",
+      "confidence": 0.821,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-T25-2nd-f001952",
+      "groupId": "PSI-25/T25",
+      "split": "dev",
+      "label": "absent",
+      "status": "UNCERTAIN",
+      "confidence": 0.82,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-T25-2nd-f002196",
+      "groupId": "PSI-25/T25",
+      "split": "dev",
+      "label": "absent",
+      "status": "UNCERTAIN",
+      "confidence": 0.85,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-T7-main-f000000",
+      "groupId": "PSI-25/T7",
+      "split": "holdout",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.955,
+      "verified": false,
+      "iou": 0.5938
+    },
+    {
+      "itemId": "PSI-25-T7-main-f000116",
+      "groupId": "PSI-25/T7",
+      "split": "holdout",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.954,
+      "verified": false,
+      "iou": 0.6114
+    },
+    {
+      "itemId": "PSI-25-T7-main-f000232",
+      "groupId": "PSI-25/T7",
+      "split": "holdout",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.944,
+      "verified": false,
+      "iou": 0.6508
+    },
+    {
+      "itemId": "PSI-25-T7-main-f000348",
+      "groupId": "PSI-25/T7",
+      "split": "holdout",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.955,
+      "verified": false,
+      "iou": 0.7335
+    },
+    {
+      "itemId": "PSI-25-T7-main-f000464",
+      "groupId": "PSI-25/T7",
+      "split": "holdout",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.957,
+      "verified": false,
+      "iou": 0.623
+    },
+    {
+      "itemId": "PSI-25-T7-main-f000580",
+      "groupId": "PSI-25/T7",
+      "split": "holdout",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.957,
+      "verified": false,
+      "iou": 0.6167
+    },
+    {
+      "itemId": "PSI-25-T7-main-f000696",
+      "groupId": "PSI-25/T7",
+      "split": "holdout",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.955,
+      "verified": false,
+      "iou": 0.6556
+    },
+    {
+      "itemId": "PSI-25-T7-main-f000812",
+      "groupId": "PSI-25/T7",
+      "split": "holdout",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.638,
+      "verified": false,
+      "iou": 0.6798
+    },
+    {
+      "itemId": "PSI-25-T7-main-f000928",
+      "groupId": "PSI-25/T7",
+      "split": "holdout",
+      "label": "absent",
+      "status": "ABSENT",
+      "confidence": 0.622,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "PSI-25-T7-main-f001044",
+      "groupId": "PSI-25/T7",
+      "split": "holdout",
+      "label": "absent",
+      "status": "ABSENT",
+      "confidence": 0.527,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "X168M03D_00000",
+      "groupId": "PSI-69/X168M03D",
+      "split": "dev",
+      "label": "absent",
+      "status": "UNCERTAIN",
+      "confidence": 0.931,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "X168M03D_00575",
+      "groupId": "PSI-69/X168M03D",
+      "split": "dev",
+      "label": "unclear",
+      "status": "UNCERTAIN",
+      "confidence": 0.381,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "X168M03D_01150",
+      "groupId": "PSI-69/X168M03D",
+      "split": "dev",
+      "label": "unclear",
+      "status": "UNCERTAIN",
+      "confidence": 0.415,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "X177H10D_00000",
+      "groupId": "PSI-69/X177H10D",
+      "split": "dev",
+      "label": "absent",
+      "status": "UNCERTAIN",
+      "confidence": 0.946,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "X177H10D_00562",
+      "groupId": "PSI-69/X177H10D",
+      "split": "dev",
+      "label": "unclear",
+      "status": "UNCERTAIN",
+      "confidence": 0.517,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "X177H10D_01125",
+      "groupId": "PSI-69/X177H10D",
+      "split": "dev",
+      "label": "unclear",
+      "status": "UNCERTAIN",
+      "confidence": 0.484,
+      "verified": false,
+      "iou": null
+    },
+    {
+      "itemId": "vlcsnap-5790738",
+      "groupId": "PSI-107/downlink",
+      "split": "dev",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.918,
+      "verified": false,
+      "iou": 0.0
+    },
+    {
+      "itemId": "vlcsnap-5790961",
+      "groupId": "PSI-107/downlink",
+      "split": "dev",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.986,
+      "verified": false,
+      "iou": 0.8518
+    },
+    {
+      "itemId": "vlcsnap-5791211",
+      "groupId": "PSI-107/downlink",
+      "split": "dev",
+      "label": "present",
+      "status": "PRESENT",
+      "confidence": 0.985,
+      "verified": false,
+      "iou": 0.8416
+    },
+    {
+      "itemId": "vlcsnap-5791535",
+      "groupId": "PSI-107/downlink",
+      "split": "dev",
+      "label": "unclear",
+      "status": "PRESENT",
+      "confidence": 0.906,
+      "verified": false,
+      "iou": null
+    }
+  ]
+}

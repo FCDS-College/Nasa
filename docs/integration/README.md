@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Lead (Anas) | Current for Flame contract 0.6.0 and AURA `667c7c4` | 1.2.0 | 2026-11-12 | L-12, ADR-004 | `docs/api/openapi.json`, `ai/providers/cloud/aura.py`, `apps/api/flame_api/{ai_runtime,aura_integration,worker,clients}.py`, `tests/integration/aura_blueprint_dryrun.py`, `.github/workflows/aura-link2-contract.yml` |
+| Lead (Anas) | Current for Flame contract 0.6.0 and AURA `667c7c4` | 1.2.1 | 2026-11-14 | L-12, ADR-004 | `docs/api/openapi.json`, `ai/providers/cloud/aura.py`, `apps/api/flame_api/{ai_runtime,aura_integration,worker,clients}.py`, `tests/integration/aura_blueprint_dryrun.py`, `.github/workflows/aura-link2-contract.yml` |
 
 This is the entry point for connecting **AURA** (`anasibrahimgnedy-collab/AURA-AI`, a self-hosted AI platform) to **Flame in Freefall**: what the integration is, what is proven, how to set it up, and how to keep it working. The detailed records are linked in §9.
 
@@ -46,7 +46,7 @@ AURA compiles **GET operations only**, and skips any operation marked `x-aura-ex
 |---|---|---|
 | `api_get_health` | `GET /api/health` | Is Flame up? Which AI providers and mode? |
 | `api_get_dashboard_counts` | `GET /api/dashboard/counts` | Corpus size and knowledge version |
-| `api_search` | `GET /api/search` | Hybrid search over 27 NASA reports, NASA investigation metadata and 840 flight tests; every hit has an `evidence_id` and a page or row locator |
+| `api_search` | `GET /api/search` | Hybrid search over 27 NASA reports, NASA investigation metadata and 1958 PSI table experiments (1950 flight tests from 19 investigations, plus 8 ground-study rows; `apps/api/tests/test_ingestion.py`, `test_fire_safety_api.py`); every hit has an `evidence_id` and a page or row locator |
 | `api_list_documents`, `api_get_document` | `GET /api/documents[/{id}]` | Corpus documents |
 | `api_list_experiments`, `api_get_experiment` | `GET /api/experiments[/{id}]` | Flight tests with their published conditions, each cell with an `evidence_id` |
 | `api_get_evidence` | `GET /api/evidence/{id}` | The citation: source, file checksum, locator and excerpt |
@@ -214,4 +214,5 @@ Otherwise AURA answers 503 `capability_unavailable` (`retryable: false`): AURA i
 
 - 1.1.0 (2026-11-12): contract 0.6.0: 16 tools (two knowledge-graph reads) and 10 exclusions (cancel, graph consistency); fresh dry run.
 - 1.2.0 (2026-11-12): re-checked against AURA `main` `667c7c4`, and the CI pin moved there. Link 1 now has a section on what AURA needs to answer (SENSITIVE caller evidence, data ceilings, `capability_unavailable`) and the guard check over Flame's evidence. Flame now reads `local_healthy` and names AURA's error slug. Also: the live AURA hosts were unreachable on 2026-11-12, and the stale runbook notes and test count are fixed.
+- 1.2.1 (2026-11-14): `api_search` row: 1958 table experiments from the 19 PSI investigations on `main`, not 840.
 - 1.0.0 (2026-11-07): first README. It reflects contract 0.5.0 (14 tools, 8 exclusions), per-client keys, and a fresh dry run.
