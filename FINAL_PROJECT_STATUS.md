@@ -17,7 +17,7 @@
 
 | Feature | Status |
 |---|---|
-| 840 NASA flight tests (FLEX, BASS-II, SPICE, SAFFIRE-I) ingested from committed CC0 tables | COMPLETE |
+| 1950 NASA flight tests from 19 PSI combustion investigations ingested from committed CC0 tables (1958 ingested experiment rows; 24 ISA-Tab metadata documents) | COMPLETE |
 | NASA ISA-Tab summaries (objective, hypothesis, approach, impacts, publications) as citable evidence | COMPLETE |
 | 27 public-use NTRS reports in the corpus (3 added for Apollo 1, including the Apollo 204 Review Board report); garbled-font and scanned pages OCRed | COMPLETE |
 | Investigation ranking for 4 cited mission atmospheres plus a custom one, with a transparent formula | COMPLETE |
@@ -31,7 +31,7 @@
 | ADR-006 to 009 built (PR #29): one `ai/rag` search stack, knowledge graph from the PSI tables, video checkpoints and cancellation, admin scope | COMPLETE |
 | Reranker on by default (fastembed ONNX, top 10) and four reviewed material spellings resolved in the graph (PR #30) | COMPLETE |
 | Knowledge Graph page in the web app (`/knowledge`): browse entities, walk links, open the evidence behind each (PR #32) | COMPLETE |
-| Apollo 1 historical scenario (ADR-013): verdict "None of the 840 flight tests cover this atmosphere", envelope map with a red out-of-envelope zone, page-cited timeline, data-covered alternative (Orion 30 % O₂); historical scenarios are data files checked in CI | COMPLETE |
+| Apollo 1 historical scenario (ADR-013): verdict "None of the 1950 flight tests cover this atmosphere", envelope map with a red out-of-envelope zone, page-cited timeline, data-covered alternative (Orion 30 % O₂); historical scenarios are data files checked in CI | COMPLETE |
 | Gravity as a scenario dimension: any regime other than microgravity gets verdict `none` and no model estimate | COMPLETE |
 | Demo runbook, demo data script, browser smoke test (11 steps; `npm run smoke`; CI job `demo-smoke`) | COMPLETE (CI job new; first run on the PR) |
 | Knowledge Graph page labels the NLP graph's platform and instrument entities (was a page error on `main` after PR #43) | COMPLETE |
@@ -97,6 +97,7 @@ After submission (2026-11-07 to 2026-11-12):
 
 ## Changelog
 - 1.5.2 (2026-11-14): CV row updated with the v1.5.0 held-out figures (lit-scene rule).
+- 1.5.1 (2026-11-14): flight-test counts updated from 840 (4 investigations) to 1950 (19 investigations), matching the coverage verdict since 35fc5e0.
 - 1.5.0 (2026-11-14): CV row from COMPLETE to PARTIAL, with the held-out evaluation figures.
 - 1.4.0 (2026-11-13): the Apollo 1 historical scenario, coverage verdict and gravity (ADR-013, contract 0.7.0); 27 NTRS reports; production-readiness section; 2026-11-13 decisions; the Knowledge Graph page fix.
 - 1.0.0 (2026-11-07): final status for submission.
