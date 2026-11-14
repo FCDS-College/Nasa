@@ -1,0 +1,36 @@
+gold_id,decision,note
+PG-001,accept,
+PG-002,accept,keep second evidence page 20000034017 p10
+PG-003,accept,
+PG-004,accept,
+PG-005,accept,
+PG-006,accept,
+PG-007,accept,
+PG-008,accept,
+PG-009,accept,
+PG-010,accept,
+PG-011,accept,
+PG-012,accept,
+PG-013,accept,
+PG-014,accept,
+PG-015,accept,
+PG-016,accept,
+PG-017,accept,
+PG-018,accept,
+PG-019,accept,
+PG-020,accept,
+PG-021,accept,
+PG-022,accept,
+PG-023,accept,
+PG-024,accept,
+PG-025,reject,"rejected: unanswerable cases must be written by a person (guidelines 5.3), not AI-drafted"
+PG-026,reject,"rejected: unanswerable cases must be written by a person (guidelines 5.3), not AI-drafted"
+PG-027,reject,"rejected: unanswerable cases must be written by a person (guidelines 5.3), not AI-drafted"
+PG-028,reject,"rejected: unanswerable cases must be written by a person (guidelines 5.3), not AI-drafted"
+PG-029,reject,"rejected: unanswerable cases must be written by a person (guidelines 5.3), not AI-drafted"
+PG-030,reject,"rejected: unanswerable cases must be written by a person (guidelines 5.3), not AI-drafted"
+PG-031,reject,"rejected: unanswerable cases must be written by a person (guidelines 5.3), not AI-drafted"
+PG-032,reject,"rejected: unanswerable cases must be written by a person (guidelines 5.3), not AI-drafted"
+PG-033,reject,"rejected: unanswerable cases must be written by a person (guidelines 5.3), not AI-drafted"
+PG-034,reject,"rejected: unanswerable cases must be written by a person (guidelines 5.3), not AI-drafted"
+PG-035,reject,"rejected: unanswerable cases must be written by a person (guidelines 5.3), not AI-drafted"
