@@ -310,3 +310,47 @@ def test_flex_glints_are_not_present(tmp_path, dirs, name):
 def test_a_large_region_is_unaffected_by_the_floor(tmp_path, dirs):
     path = _point_light(tmp_path / "big.png", radius=40)
     assert run_profile(path, dirs, "flex-colour")["detection"]["status"] == "PRESENT"
+
+
+# ------------------------------------------------- v1.8.0: a straight-edged region is not PRESENT
+def _shape_image(path, kind, size):
+    img = np.zeros((512, 512, 3), np.uint8)
+    if kind == "rectangle":
+        cv2.rectangle(img, (256 - size, 256 - size // 2), (256 + size, 256 + size // 2), (230, 230, 230), -1)
+    else:
+        cv2.ellipse(img, (256, 256), (size, size // 2), 20, 0, 360, (230, 230, 230), -1)
+    cv2.imwrite(str(path), img)
+    return path
+
+
+def test_a_bright_rectangle_is_uncertain_and_an_ellipse_of_the_same_size_is_present(tmp_path, dirs):
+    rect = run(_shape_image(tmp_path / "rect.png", "rectangle", 80), dirs)
+    assert rect["detection"]["status"] == "UNCERTAIN"
+    assert any("straight-edged" in w for w in rect["scientificInterpretation"]["warnings"])
+    assert run(_shape_image(tmp_path / "ellipse.png", "ellipse", 80), dirs)["detection"]["status"] == "PRESENT"
+
+
+def test_a_tiny_square_is_not_judged_by_its_shape(tmp_path, dirs):
+    # A few pixels always look square; the shape rule only applies from 20 px across.
+    img = np.zeros((512, 512, 3), np.uint8)
+    cv2.rectangle(img, (250, 250), (256, 256), (255, 255, 255), -1)
+    cv2.imwrite(str(tmp_path / "dot.png"), img)
+    r = run(tmp_path / "dot.png", dirs)
+    assert not any("straight-edged" in w for w in r["scientificInterpretation"]["warnings"])
+
+
+# DECLIC DSI (directional solidification, not combustion): a backlit sample cell, bright with straight edges.
+DSI_CELL_FRAMES = ["DSI_SEQ2_ACTIVITE04_HR1_1018759522_1", "DSI_SEQ2_ACTIVITE04_HR1_1022430520_1"]
+
+
+@pytest.mark.parametrize("name", DSI_CELL_FRAMES)
+def test_dsi_backlit_cell_is_not_present(tmp_path, dirs, name):
+    path = _samples(f"FF-PSI-DSI/ACTIVITE04_HR1/{name}.png")[0]
+    assert run(path, dirs)["detection"]["status"] == "UNCERTAIN"
+
+
+@pytest.mark.parametrize("name", ["FF-PSI-107/SPICE_GMT045_2009_jpegs/ISS018E030372.jpg",
+                                  "FF-PSI-107/SPICE_GMT045_2009_jpegs/ISS018E030351.jpg"])
+def test_the_boxiest_real_flames_stay_present(tmp_path, dirs, name):
+    # The two real flames with the highest rectangularity among the committed samples (0.844 and 0.829).
+    assert run(_samples(name)[0], dirs)["detection"]["status"] == "PRESENT"

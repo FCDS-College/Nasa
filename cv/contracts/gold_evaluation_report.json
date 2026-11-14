@@ -1,9 +1,9 @@
 {
   "goldVersion": "cv_gold_v1",
-  "generatedAt": "2026-11-14T07:14:38Z",
-  "pipelineVersion": "cv-opencv-v1.7.0-auto",
+  "generatedAt": "2026-11-14T07:34:57Z",
+  "pipelineVersion": "cv-opencv-v1.8.0-auto",
   "videoPipelineVersion": "cv-video-v1.1.0",
-  "configDigest": "ed4f9e12478ee652",
+  "configDigest": "50914b6a3f1d4cff",
   "protocol": "Detection: strict counts PRESENT as positive, lenient counts PRESENT or UNCERTAIN, localized also requires the mask on a flame frame to overlap the labelled flame (IoU >= 0.1); unclear labels are excluded. 95% intervals resample whole tests (groupId), not frames. 'verified' uses only items a person has checked.",
   "splits": {
     "dev": {
@@ -18,15 +18,15 @@
         "detection": {
           "strict": {
             "tp": 15,
-            "fp": 2,
+            "fp": 0,
             "fn": 0,
-            "tn": 42,
-            "precision": 0.8824,
+            "tn": 44,
+            "precision": 1.0,
             "recall": 1.0,
-            "f1": 0.9375,
-            "falsePositiveRate": 0.0455,
+            "f1": 1.0,
+            "falsePositiveRate": 0.0,
             "precisionCI95": [
-              0.4109,
+              1.0,
               1.0
             ],
             "recallCI95": [
@@ -35,7 +35,7 @@
             ],
             "falsePositiveRateCI95": [
               0.0,
-              0.1765
+              0.0
             ]
           },
           "lenient": {
@@ -62,15 +62,15 @@
           },
           "localized": {
             "tp": 14,
-            "fp": 2,
+            "fp": 0,
             "fn": 1,
-            "tn": 42,
-            "precision": 0.875,
+            "tn": 44,
+            "precision": 1.0,
             "recall": 0.9333,
-            "f1": 0.9032,
-            "falsePositiveRate": 0.0455,
+            "f1": 0.9655,
+            "falsePositiveRate": 0.0,
             "precisionCI95": [
-              0.3333,
+              1.0,
               1.0
             ],
             "recallCI95": [
@@ -79,7 +79,7 @@
             ],
             "falsePositiveRateCI95": [
               0.0,
-              0.1765
+              0.0
             ]
           }
         },
@@ -489,7 +489,7 @@
       "groupId": "DSI/ACTIVITE04_HR1",
       "split": "dev",
       "label": "absent",
-      "status": "PRESENT",
+      "status": "UNCERTAIN",
       "confidence": 0.989,
       "verified": false,
       "iou": null
@@ -499,7 +499,7 @@
       "groupId": "DSI/ACTIVITE04_HR1",
       "split": "dev",
       "label": "absent",
-      "status": "PRESENT",
+      "status": "UNCERTAIN",
       "confidence": 0.982,
       "verified": false,
       "iou": null

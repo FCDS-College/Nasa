@@ -1,6 +1,6 @@
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Princess & Ziad | Draft | 2.4.0 | 2026-11-14 | M10, A3, C1, CV audit CV-3 | `cv/gold.py`, `cv/flame_cv.py`, `cv/video_analysis.py` |
+| Princess & Ziad | Draft | 2.5.0 | 2026-11-14 | M10, A3, C1, CV audit CV-3 | `cv/gold.py`, `cv/flame_cv.py`, `cv/video_analysis.py` |
 
 # CV Evaluation Report (v2.2.0, cv_gold_v1)
 
@@ -24,16 +24,17 @@ Video frames are the served pipeline's sampling grid (10 per video). Holdout tes
 
 ## 3. Results
 
-`python -m cv.gold evaluate` (full output for the current pipeline: `cv/contracts/gold_evaluation_report.json`). Six pipelines, each scored with the same command:
+`python -m cv.gold evaluate` (full output for the current pipeline: `cv/contracts/gold_evaluation_report.json`). Seven pipelines, each scored with the same command:
 
 - **Before** fixes 1–2: commit `92b2ef3`.
 - **v1.3.0:** with overlay masking and the detection-scoring fixes.
 - **v1.4.0:** with the small-flame fix from section 4.
 - **v1.5.0:** with the lit-scene rule from section 4.
 - **v1.6.0:** with camera profiles (section 4). The evaluation passes each source's `cameraProfile` (the 15 FLEX colour sources use `flex-colour`), as a client would send `camera_profile`. Its holdout figures equal v1.5.0's: the holdout has no FLEX frames.
-- **v1.7.0:** the current pipeline, with the camera profile's size floor (section 4). Holdout unchanged, for the same reason.
+- **v1.7.0:** with the camera profile's size floor (section 4). Holdout unchanged, for the same reason.
+- **v1.8.0:** the current pipeline, with the straight-edge rule (section 4). It applies to every image, but changes no held-out frame.
 
-| Holdout (8 unseen tests) | Before fixes 1–2 | v1.3.0 | v1.4.0 | **v1.5.0 to v1.7.0 (current)** |
+| Holdout (8 unseen tests) | Before fixes 1–2 | v1.3.0 | v1.4.0 | **v1.5.0 to v1.8.0 (current)** |
 |---|---|---|---|---|
 | False-positive rate | 0.97 [0.89, 1.00] | 0.30 [0.00, 0.65] | 0.30 [0.00, 0.65] | **0.00** (0 of 37 absent frames) |
 | Precision | 0.53 [0.30, 0.75] | 0.68 [0.29, 1.00] | 0.72 [0.31, 1.00] | **1.00** |
@@ -44,12 +45,12 @@ Video frames are the served pipeline's sampling grid (10 per video). Holdout tes
 
 Since v1.5.0 the holdout false-positive rate and precision have no spread across bootstrap draws (interval [0.00, 0.00] and [1.00, 1.00]), because no resample of 8 tests can contain a false positive. That is not a guarantee of zero: 37 absent frames from 8 tests cannot rule out a false-positive rate of a few per cent.
 
-| Dev (16 sample tests, tuned on) | Before | v1.3.0 and v1.4.0 (identical) | v1.5.0 | v1.6.0 | v1.7.0 |
-|---|---|---|---|---|---|
-| False-positive rate | 0.86 [0.65, 1.00] | 0.41 [0.14, 0.71] | 0.16 [0.03, 0.37] | 0.11 [0.00, 0.28] (5 of 44) | 0.05 [0.00, 0.18] (2 of 44) |
-| Precision | 0.28 [0.05, 0.52] | 0.45 [0.08, 0.80] | 0.68 [0.17, 0.94] | 0.75 [0.25, 1.00] | 0.88 [0.41, 1.00] |
-| Localized recall | 0.87 [0.67, 1.00] | 0.93 [0.67, 1.00] | 0.93 [0.67, 1.00] | 0.93 [0.67, 1.00] | 0.93 [0.67, 1.00] |
-| Mean mask IoU | 0.54 [0.32, 0.79] | 0.55 [0.33, 0.79] | 0.55 [0.33, 0.79] | 0.55 [0.33, 0.79] | 0.55 [0.33, 0.79] |
+| Dev (16 sample tests, tuned on) | Before | v1.3.0 and v1.4.0 (identical) | v1.5.0 | v1.6.0 | v1.7.0 | v1.8.0 |
+|---|---|---|---|---|---|---|
+| False-positive rate | 0.86 [0.65, 1.00] | 0.41 [0.14, 0.71] | 0.16 [0.03, 0.37] | 0.11 [0.00, 0.28] (5 of 44) | 0.05 [0.00, 0.18] (2 of 44) | 0.00 (0 of 44) |
+| Precision | 0.28 [0.05, 0.52] | 0.45 [0.08, 0.80] | 0.68 [0.17, 0.94] | 0.75 [0.25, 1.00] | 0.88 [0.41, 1.00] | 1.00 |
+| Localized recall | 0.87 [0.67, 1.00] | 0.93 [0.67, 1.00] | 0.93 [0.67, 1.00] | 0.93 [0.67, 1.00] | 0.93 [0.67, 1.00] | 0.93 [0.67, 1.00] |
+| Mean mask IoU | 0.54 [0.32, 0.79] | 0.55 [0.33, 0.79] | 0.55 [0.33, 0.79] | 0.55 [0.33, 0.79] | 0.55 [0.33, 0.79] | 0.55 [0.33, 0.79] |
 
 Read the intervals before reading the point values. With 8 tests, a single test moves every number.
 
@@ -102,6 +103,17 @@ Results:
 - **Holdout:** unchanged; it has no FLEX frames, so this change, too, has **no held-out validation**.
 - **Threshold:** chosen from physics and the measured scale, not fitted; it falls in the dev gap between glints (≤ 0.060%) and the FLEX flame (1.73%).
 
+### The DSI backlit cell and the v1.8.0 straight-edge rule
+
+The last 2 dev false positives (`DSI_SEQ2_ACTIVITE04_HR1_1018759522_1`, `_1022430520_1`) come from DECLIC's Directional Solidification Insert, a non-combustion experiment. The frames show a backlit transparent sample cell: a bright, flat rectangle filling 14–18% of the frame.
+
+- **Cue:** rectangularity, the region's area over its minimum-area rectangle. Flames are rounded, and a filled ellipse scores π/4 = 0.785. Across the dev split and all 182 committed image samples, real PRESENT flames reach 0.844 at most (`ISS018E030372`, SPICE). The 6 DSI backlit-cell frames score 0.903–0.950.
+- **Rule:** a region that would be PRESENT, fills more than 0.875 of its rectangle (the midpoint of that gap) and is at least 20 px across is UNCERTAIN. The 20 px gate is measured, not assumed: digitised ellipses reach 0.958 at 6 px but stay under 0.83 from 20 px. That keeps small flames out of the rule.
+- **Dev:** false positives 2 → 0; precision 1.00, no flame lost. This is in-sample: the cut-off was set on these frames.
+- **Holdout (scored once):** unchanged. No held-out frame is affected, so this says the rule costs no held-out recall, not that it would catch unseen boxy scenery.
+- **Not measured:** a real flame with straight sides (a SAFFIRE flame spreading across the full width of its rectangular sample, or a flame cut on two opposite sides by the frame) would be UNCERTAIN. No committed flame scores above 0.844, and no such frame is labelled.
+- **Why not a "non-combustion source" rule:** knowing the frames are from DSI would make the test meaningless. These frames measure whether the detector can tell bright non-flame scenery from a flame without being told, and the shape rule does that from the pixels alone.
+
 ### The v1.3.0 small-flame regression and its fix
 
 v1.3.0 raised the minimum region to 0.05% of the frame to drop edge specks in empty frames. On the holdout this missed 5 of the 9 T23 flame frames: real flames 0.019–0.049% of the frame with contrast 100–128. The specks overlap these flames in size, so size alone cannot separate them.
@@ -130,6 +142,7 @@ The committed tests (`tests/cv/test_gold.py`) check the set itself: it validates
 - **No measurement-error evaluation:** there are no calibrated physical reference values.
 
 ## Changelog
+- **v2.5.0 (2026-11-14):** Added v1.8.0 results (straight-edge rule): the DSI backlit-cell false positives are UNCERTAIN; dev false positives 2 → 0; holdout scored once, unchanged.
 - **v2.4.0 (2026-11-14):** Added v1.7.0 dev results (camera-profile size floor): the three FLEX glint false positives are UNCERTAIN, dev false positives 5 → 2; the H08M101 label checked against the FLEX table (methanol, extinction at 0.3 s).
 - **v2.3.0 (2026-11-14):** Added v1.6.0 dev results (camera profiles): dev false positives 7 → 5, holdout unchanged and not informative for this change (no FLEX frames).
 - **v2.2.0 (2026-11-14):** Added v1.5.0 results. The lit-scene rule (tuned on dev only) removes all 11 held-out false positives with no recall loss; the blindness caveat and the remaining dark-scene false positives are documented.

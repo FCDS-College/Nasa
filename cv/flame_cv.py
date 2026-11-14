@@ -1,5 +1,5 @@
 """
-flame_cv.py - Flame in Freefall: computer-vision pipeline (Engineer 3), v1.7.0
+flame_cv.py - Flame in Freefall: computer-vision pipeline (Engineer 3), v1.8.0
 
 Image -> Validation -> Letterbox preprocessing -> Segmentation -> Features
       -> Confidence / quality flags -> AnalysisResult (+ mask/overlay artifacts)
@@ -35,10 +35,10 @@ from pydantic import BaseModel, ConfigDict, Field
 # Versions
 # --------------------------------------------------------------------------------------
 SCHEMA_VERSION = "1.5.0"
-PIPELINE_VERSION = "cv-opencv-v1.7.0-auto"
+PIPELINE_VERSION = "cv-opencv-v1.8.0-auto"
 PREPROCESS_VERSION = "letterbox-lanczos-auto-v2"  # v2: 16-bit input scaled, not clipped
 SEGMENTER_NAME = "otsu-contour-adaptive"
-SEGMENTER_VERSION = "1.7.0"   # 1.6.0 (camera profiles) left this at 1.5.0 by mistake
+SEGMENTER_VERSION = "1.8.0"
 
 DEFAULT_OPTIONS = {
     "runSegmentation": True,
@@ -98,6 +98,14 @@ class CVConfig:
     # region that would be PRESENT is UNCERTAIN: on a known droplet camera a visible flame encloses its droplet, so
     # anything smaller than a droplet is a glint or a flame in its last moments. 0 = off (no profile).
     min_present_area_ratio: float = 0.0
+    # A region that fills more than max_present_rectangularity of its minimum-area rectangle has straight sides and
+    # square corners (a window, a panel, a backlit sample cell), and is UNCERTAIN, not PRESENT. Flames are rounded: a
+    # filled ellipse scores pi/4 = 0.785. Chosen on the dev split and committed samples: real flames reach 0.844, the
+    # DSI backlit cell starts at 0.903; 0.875 is the midpoint. Only judged from rectangularity_min_diameter_px across
+    # (equivalent diameter on the analysed canvas): below about 10 px a pixelated ellipse can score 0.90; from 20 px
+    # up it stays under 0.83.
+    max_present_rectangularity: float = 0.875
+    rectangularity_min_diameter_px: float = 20.0
     score_contrast_weight: float = 0.5
     score_area_weight: float = 0.3
     score_stability_weight: float = 0.2
@@ -675,6 +683,12 @@ def _intake_record(intake, lb, derived_path, derived_sha, cfg, source=None, lice
         source=source, license=license, groupId=group_id, split=split, ingestedAt=utc_now())
 
 
+def _rectangularity(contour: np.ndarray) -> float:
+    """Contour area over the area of its minimum-area (rotated) rectangle: 1 for a rectangle, pi/4 for an ellipse."""
+    (_, (w, h), _) = cv2.minAreaRect(contour)
+    return float(cv2.contourArea(contour)) / max(float(w * h), 1.0)
+
+
 def _find_main(gray_blur: np.ndarray, lb: Letterbox, cfg: CVConfig, thr: Optional[float] = None,
                content: Optional[np.ndarray] = None) -> Dict[str, Any]:
     """``content``: the analysed region (letterbox content minus excluded zones); defaults to the content area."""
@@ -821,6 +835,7 @@ def _compute(req: Dict[str, Any], intake: Dict[str, Any], cfg: CVConfig, options
     warnings: List[str] = []
     det_conf, seg_conf = 0.0, 0.0
     status = "ABSENT"
+    would_be_present = False   # passed the PRESENT test; the demotion rules below each judge it and give their reason
     metrics: Dict[str, Any] = {"boundaryGradient": None, "flameContrast": None, "clippedFraction": None}
     median_intensity = float(np.median(content_gray))
     lowlight_threshold = cfg.lowlight_peak if cfg.lowlight_peak is not None else max(50.0, median_intensity * 0.8)
@@ -879,6 +894,15 @@ def _compute(req: Dict[str, Any], intake: Dict[str, Any], cfg: CVConfig, options
                                 f"< {cfg.small_region_min_contrast:g}: treated as a speck, not a flame.")
             elif score >= cfg.present_score and contrast >= min_contrast and seg_conf >= cfg.min_present_stability:
                 status, det_conf = "PRESENT", _clip01(score)
+                would_be_present = True
+                rectangularity = _rectangularity(cnt)
+                if (rectangularity > cfg.max_present_rectangularity and
+                        2 * np.sqrt(float(sel.sum()) / np.pi) >= cfg.rectangularity_min_diameter_px):
+                    status = "UNCERTAIN"
+                    warnings.append(f"Detection UNCERTAIN: a straight-edged region (it fills {100 * rectangularity:.0f}% of "
+                                    f"its bounding rectangle, > {100 * cfg.max_present_rectangularity:g}%). Flames are "
+                                    "rounded; straight sides and square corners suggest a window, a panel or a backlit "
+                                    "sample cell.")
                 if area_frac < cfg.min_present_area_ratio:
                     status = "UNCERTAIN"
                     warnings.append(f"Detection UNCERTAIN: the region ({100 * area_frac:.3f}% of the image) is smaller "
@@ -918,7 +942,7 @@ def _compute(req: Dict[str, Any], intake: Dict[str, Any], cfg: CVConfig, options
         det_conf = min(cfg.absent_confidence_cap, _clip01(1 - clutter))
 
     scene_light = median_intensity - float(np.percentile(content_gray, 1))
-    if status == "PRESENT" and scene_light > cfg.lit_scene_level:
+    if would_be_present and scene_light > cfg.lit_scene_level:
         status = "UNCERTAIN"
         warnings.append(f"Detection UNCERTAIN: lit scene (median {scene_light:.0f} gray levels above the darkest "
                         f"pixels, > {cfg.lit_scene_level:g}). A bright region in a lit scene may be scenery or "
