@@ -161,7 +161,7 @@ The committed tests (`tests/cv/test_gold.py`) check the set itself: it validates
 ## Known limitations
 
 - **Unverified drafts:** see the top of this page. There is one labeller and no inter-annotator agreement.
-- **Holdout is 8 BASS-II tests:** there are no held-out SPICE, FLEX or SAFFIRE-I frames, so FLEX-specific changes such as the `flex-colour` profile are only measured in-sample.
+- **Holdout is 8 BASS-II tests:** there are no held-out SPICE, FLEX or SAFFIRE-I frames, so FLEX-specific changes such as the `flex-colour` profile are only measured in-sample. The plan to close this, and the M10 dim-flame miss, with a fresh held-out cohort is [CV_HELDOUT_V2_PLAN.md](../plan/CV_HELDOUT_V2_PLAN.md).
 - **Masks are approximate,** and the pipeline is scored on its largest region only.
 - **Detection confidence is not evaluated:** it is still a heuristic score, not a calibrated probability.
 - **No measurement-error evaluation:** there are no calibrated physical reference values.
