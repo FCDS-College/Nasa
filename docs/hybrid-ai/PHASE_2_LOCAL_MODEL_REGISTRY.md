@@ -19,6 +19,7 @@
 | <a id="reranker"></a>`sentence-transformers:cross-encoder/ms-marco-MiniLM-L-6-v2` | reranking | sentence-transformers | Pending | — | Apache-2.0 | Pending | Pending | ~400 MB (e) | yes | candidate |
 | <a id="computer-vision"></a>`flame_cv:cv-opencv-v1.2.0-auto` | vision | OpenCV | `cv-opencv-v1.2.0-auto` (v1.1.0 kept in `cv/oldversion/`) | — | project code | n/a (code; git commit is the version) | — | ~0.5 GB / 50 MP (e) | yes | approved |
 | <a id="video"></a>`flame_cv_video:cv-video-v1.0.0` | video | OpenCV | `cv-video-v1.0.0` (wraps `cv-opencv-v1.2.0-auto`) | — | project code | n/a (code; git commit is the version) | — | ~0.5 GB (e) | yes | approved |
+| <a id="transcription"></a>`faster_whisper:small` | transcription | faster-whisper (CTranslate2) | `Systran/faster-whisper-small@536b0662742c02347bc0e980a01041f333bce120` | int8 at load | MIT | `3e305921506d8872816023e4c273e75d2419fb89b24da97b4fe7bce14170d671` (m, `model.bin`) | 483,546,902 B (m) | ~1 GB (e) | yes | candidate |
 | `hf_space:flame_cv` | vision (external) | HF Space | same pipeline | — | project code | n/a | — | — | yes | approved |
 | `aura:orchestrator` | structured (external) | AURA | whatever AURA routes to (reported per response) | — | self-hosted | n/a | — | — | — | approved |
 

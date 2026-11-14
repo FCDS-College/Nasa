@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ArrowRight, Database, Flame, FlaskConical, Layers, Rocket, ShieldAlert } from "lucide-react";
+import { ArrowRight, Database, FireExtinguisher, Flame, FlaskConical, Layers, Rocket, ShieldAlert } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import {
   Empty, ErrorNote, InsightCard, Loading, RelevanceBar, ScenarioNote, ScenarioPicker, SectionTitle, SweepChart,
@@ -207,6 +207,11 @@ export default function FireSafetyDashboard() {
           <Link href="/explorer" className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold"
                 style={{ background: "var(--accent-flame)", color: "white" }}>
             <Flame className="h-4 w-4" aria-hidden="true" /> Explore droplet-flame outcomes <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </Link>
+          <Link href={scenario ? `/suppression?o2_fraction=${scenario.o2_fraction}&pressure_kpa=${scenario.pressure_kpa}` : "/suppression"}
+                className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold"
+                style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-default)", color: "var(--text-primary)" }}>
+            <FireExtinguisher className="h-4 w-4" aria-hidden="true" /> Which extinguisher here?
           </Link>
           <Link href="/chat" className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold"
                 style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-default)", color: "var(--text-primary)" }}>

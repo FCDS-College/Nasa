@@ -32,8 +32,9 @@ cd infrastructure
 COMPOSE_PROFILES=local-llm docker compose build            # api/worker image includes ai/, cv/, NTRS PDFs
 COMPOSE_PROFILES=local-llm docker compose pull postgres redis minio minio-init ollama
 docker save -o flame-images.tar \
-  pgvector/pgvector:pg16 redis:7-alpine minio/minio:RELEASE.2025-02-07T23-21-09Z \
-  minio/mc:RELEASE.2025-02-08T19-14-21Z ollama/ollama:0.5.7 flame-in-freefall-api flame-in-freefall-worker
+  pgvector/pgvector:pg16 redis:7-alpine chrislusf/seaweedfs:4.53 \
+  amazon/aws-cli@sha256:acc32af784911165a8e78b63950625d174ba79b800a66a436c974689c87cd755 \
+  ollama/ollama:0.5.7 flame-in-freefall-api flame-in-freefall-worker
 sha256sum flame-images.tar > flame-images.tar.sha256
 # On the offline host:
 sha256sum -c flame-images.tar.sha256 && docker load -i flame-images.tar

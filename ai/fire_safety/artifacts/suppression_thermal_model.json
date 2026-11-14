@@ -1,0 +1,40 @@
+{
+  "model_version": "suppression-thermal-logistic-1.0.0",
+  "kind": "logistic_regression_binary",
+  "features": [
+    "h_eff_kj_per_mol_o2",
+    "ln_pressure_atm",
+    "heptane"
+  ],
+  "target": "Extinction (1) vs Disruption or Completion (0)",
+  "logistic": {
+    "mean": [
+      234.3575261957,
+      -0.099600367,
+      0.4137931034
+    ],
+    "scale": [
+      56.9720183732,
+      0.2671977101,
+      0.4925123054
+    ],
+    "coef": [
+      1.6717198098,
+      -0.3095034763,
+      -0.5603896343
+    ],
+    "intercept": 1.2783994241
+  },
+  "domain": {
+    "h_eff_kj_per_mol_o2": {
+      "min": 125.605294,
+      "max": 367.664286
+    },
+    "pressure_atm": {
+      "min": 0.6925,
+      "max": 3.0525
+    }
+  },
+  "training_rows": 261,
+  "flex_table_sha256": "37c88ce8ae9391b7544ff630a45ce87543d04d317cdbfbed104fe7d5c27e1b96"
+}

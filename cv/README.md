@@ -12,7 +12,7 @@ Flame-image analysis with OpenCV (PyTorch layer planned). **Owner:** Engineer 3.
 | `notebooks/models.ipynb` | Thin driver for the two modules above |
 | `overlay_mask.py` | Finds burned-in text overlays (telemetry banner, timestamps) across a video and masks them before segmentation, so the banner is never measured as a flame. Steady flames are not masked. See [docs/cv/video-ingestion.md §5](../docs/cv/video-ingestion.md#5-overlay-exclusion-pipeline-cv-video-v110) |
 | `video_ingestion.py`, `temporal_analysis.py`, `video_analysis.py` | **[E3-6, E3-7, E3-8]** Video ingestion (validation, metadata, stable frame IDs, sampling, VFR normalization), tracking and temporal metrics, and the resumable end-to-end `python -m cv.video_analysis <video>` CLI. Temporal metrics are unevaluated against ground truth |
-| `cnn_pipeline.py`, `pinn_pipeline.py` | **Unvalidated prototypes** (TensorFlow). Not registered models; see the roadmap scope boundaries |
+| `cnn_pipeline.py`, `pinn_pipeline.py` | **Unvalidated prototypes** (TensorFlow). Not registered models; see the roadmap scope boundaries. `pinn_pipeline.py` is superseded by [`physics/`](../physics/README.md) (gravity-aware PyTorch PINN) |
 | `configs/offline_manifest.json`, `utils/verify_offline_env.py` | Offline asset manifest and verifier (`python -m cv.utils.verify_offline_env --manifest cv/configs/offline_manifest.json`) |
 | [docs/cv/offline-operation.md](../docs/cv/offline-operation.md) | **[E3-10]** Offline installation and verification |
 | [docs/cv/pipeline.md](../docs/cv/pipeline.md) | **[E3-1]** Auto-adaptive pipeline stages, validation limits, configuration digests, and cache reuse. |

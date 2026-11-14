@@ -1,4 +1,6 @@
-"""Speech transcription. Contract only: transcription is not in the first offline feature set."""
+"""Speech transcription, implemented locally by `ai/providers/local/faster_whisper_transcription.py`.
+
+``audio_path`` may be a WAV or any media file with an audio track; the provider decodes it itself."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -20,6 +22,7 @@ class TranscriptionResponse:
     segments: tuple[dict, ...]
     model: str
     provider: str
+    language: str | None = None   # detected (or requested) language code, e.g. "en"
 
 
 @runtime_checkable

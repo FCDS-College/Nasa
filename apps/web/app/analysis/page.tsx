@@ -81,9 +81,12 @@ export default function AnalysisPage() {
                 <span className="text-xs" style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
                   ID: {analysis.image_id}
                 </span>
-                <Badge variant={analysis.status === "completed" ? "success" : "default"}>
+                <Badge variant={analysis.status === "completed" ? "success" : analysis.status === "failed" ? "danger" : analysis.status === "cancelled" ? "warning" : "default"}>
                   {analysis.status.toUpperCase()}
                 </Badge>
+                {analysis.failure_message && (analysis.status === "failed" || analysis.status === "cancelled") && (
+                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{analysis.failure_message}</span>
+                )}
               </div>
               <button
                 onClick={() => setShowMask(!showMask)}

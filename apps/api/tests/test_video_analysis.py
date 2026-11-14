@@ -150,6 +150,115 @@ def test_worker_produces_a_time_ordered_temporal_result_with_evidence(client, st
     assert listed["analysis_type"] == "flame_video"
 
 
+def _h264_video_with_audio(path, frames=24, fps=12, size=(128, 96), seconds=2.0):
+    """H.264 + AAC MP4 encoded with PyAV, so these tests need no ffmpeg binary: a pulsing blob and a loud tone."""
+    av = pytest.importorskip("av")
+    width, height = size
+    yy, xx = np.mgrid[0:height, 0:width]
+    rate = 48_000
+    t = np.arange(int(seconds * rate)) / rate
+    tone = (0.3 * np.sin(2 * np.pi * 440 * t)).astype(np.float32)
+    with av.open(str(path), "w") as out:
+        video = out.add_stream("libx264", rate=fps)
+        video.width, video.height, video.pix_fmt = width, height, "yuv420p"
+        audio = out.add_stream("aac", rate=rate)
+        audio.layout = "mono"
+        for index in range(frames):
+            rgb = np.zeros((height, width, 3), np.uint8)
+            radius = 14 + 4 * (index % 4)
+            rgb[(xx - width // 2) ** 2 + (yy - height // 2) ** 2 <= radius ** 2] = (255, 210, 120)
+            frame = av.VideoFrame.from_ndarray(rgb, format="rgb24")
+            frame.pts = index
+            for packet in video.encode(frame):
+                out.mux(packet)
+        for start in range(0, len(tone) - 1023, 1024):
+            frame = av.AudioFrame.from_ndarray(tone[start:start + 1024][np.newaxis, :], format="fltp", layout="mono")
+            frame.sample_rate = rate
+            for packet in audio.encode(frame):
+                out.mux(packet)
+        for stream in (video, audio):
+            for packet in stream.encode(None):
+                out.mux(packet)
+    return path.read_bytes()
+
+
+class _Transcriber:
+    def __init__(self, fail=None):
+        from ai.providers.contracts.base import Capability, Locality, ProviderInfo
+
+        self.info = ProviderInfo(name="fake_stt", runtime="fake", locality=Locality.LOCAL,
+                                 capabilities=frozenset({Capability.TRANSCRIPTION}), model="fake-small",
+                                 modalities=frozenset({"audio"}))
+        self.fail = fail
+
+    def health(self, timeout_s):
+        from ai.providers.contracts.base import HealthStatus
+
+        return HealthStatus("up", 1.0)
+
+    def transcribe(self, request):
+        from ai.providers.contracts.transcription import TranscriptionResponse
+
+        if self.fail:
+            raise self.fail
+        segment = {"start_s": 0.5, "end_s": 1.5, "text": "Fan to zero.", "avg_logprob": -0.2, "no_speech_prob": 0.05}
+        return TranscriptionResponse(text="Fan to zero.", segments=(segment,), model="fake-small",
+                                     provider="fake_stt", language="en")
+
+
+def _enable_transcription(monkeypatch, provider):
+    from flame_api import ai_runtime
+
+    router = ai_runtime.build_router(worker.settings)   # built with transcription off, then the fake is added
+    router.registry.register(provider)
+    monkeypatch.setattr(ai_runtime, "get_router", lambda settings=None: router)
+    monkeypatch.setattr(worker, "settings", worker.settings.model_copy(update={"transcription_enabled": True}))
+
+
+def _run_video_with_audio(client, tmp_path):
+    content = _h264_video_with_audio(tmp_path / "flame.mp4")
+    created = client.post("/api/analyses", files={"video": ("flame.mp4", content)},
+                          data={"sample_every_n_frames": "4", "max_frames": "5"}, headers=WRITE)
+    assert created.status_code == 202, created.json()
+    analysis_id = created.json()["analysis"]["analysis_id"]
+    worker.process_video_analysis(analysis_id)
+    detail = client.get(f"/api/analyses/{analysis_id}")
+    assert_contract_component(detail.json(), "AnalysisResponse")
+    return detail.json()["analysis"]
+
+
+def test_worker_attaches_machine_transcribed_speech_when_enabled(client, storage, tmp_path, monkeypatch):
+    _enable_transcription(monkeypatch, _Transcriber())
+    body = _run_video_with_audio(client, tmp_path)
+
+    assert body["status"] == "completed", body["failure"]
+    audio = body["result"]["audio"]
+    assert audio["status"] == "transcribed" and audio["language"] == "en"
+    assert [s["text"] for s in audio["segments"]] == ["Fan to zero."]
+    assert audio["classification"] == "machine_transcribed" and audio["execution"]["provider"] == "fake_stt"
+    assert audio["duration_s"] == pytest.approx(2.0, abs=0.3)
+    assert body["result"]["sampling"]["frames_analyzed"] == 5, "the video result is unchanged"
+    assert {w["code"] for w in body["warnings"]} <= {"TEMPERATURE_NOT_AVAILABLE", "SCALE_CALIBRATION_ABSENT",
+                                                      "LOW_DETECTION_CONFIDENCE"}, "no new warning code is introduced"
+
+
+def test_a_missing_speech_model_never_fails_the_video_analysis(client, storage, tmp_path, monkeypatch):
+    from ai.providers.contracts.errors import ProviderError, ProviderErrorCode
+
+    _enable_transcription(monkeypatch, _Transcriber(fail=ProviderError(ProviderErrorCode.MODEL_MISSING, "not cached",
+                                                                       request_sent=False)))
+    body = _run_video_with_audio(client, tmp_path)
+
+    assert body["status"] == "completed"
+    assert body["result"]["audio"]["status"] == "unavailable" and body["result"]["audio"]["failure_code"] == "model_missing"
+    assert body["result"]["sampling"]["frames_analyzed"] == 5
+
+
+def test_audio_is_ignored_unless_transcription_is_enabled(client, storage, tmp_path):
+    body = _run_video_with_audio(client, tmp_path)   # the clip has a loud audio track; the default setting is off
+    assert body["status"] == "completed" and "audio" not in body["result"]
+
+
 def test_tracking_is_not_estimable_when_sampled_frames_are_too_far_apart(client, storage, tmp_path):
     content = _h264_video(tmp_path / "flame.mp4")
     created = client.post("/api/analyses", files={"video": ("flame.mp4", content)},

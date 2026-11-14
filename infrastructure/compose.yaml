@@ -45,35 +45,41 @@ services:
       retries: 20
     restart: unless-stopped
 
+  # S3-compatible artifact store. The MinIO images this used to pin are no longer published on Docker Hub or
+  # quay.io (pull access denied, checked 2026-11-13), so it is SeaweedFS's S3 gateway, kept under the service name
+  # `minio` so every FLAME_S3_* setting still points at http://minio:9000. The identities config makes the gateway
+  # accept only the MINIO_ROOT_* key pair from .env (as MinIO did). The port stays loopback-only.
   minio:
-    image: minio/minio:RELEASE.2025-02-07T23-21-09Z
-    command: ["server", "/data", "--console-address", ":9001"]
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-flame-local}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-flame-local-only-change-me}
+    image: chrislusf/seaweedfs:4.53
+    command: ["server", "-dir=/data", "-s3", "-s3.port=9000", "-s3.config=/etc/seaweedfs/s3.json", "-volume.max=20"]
+    configs:
+      - source: seaweedfs-s3
+        target: /etc/seaweedfs/s3.json
     ports:
       - "127.0.0.1:${MINIO_PORT:-9000}:9000"
-      - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
     volumes:
       - minio-data:/data
     restart: unless-stopped
 
+  # Creates the artifact bucket once the store answers (idempotent).
   minio-init:
-    image: minio/mc:RELEASE.2025-02-08T19-14-21Z
+    image: amazon/aws-cli@sha256:acc32af784911165a8e78b63950625d174ba79b800a66a436c974689c87cd755  # aws-cli/2.40.2
     depends_on:
       minio:
         condition: service_started
     entrypoint: ["/bin/sh", "-c"]
     command:
-      - 'until mc alias set local http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}"; do sleep 2; done; mc mb --ignore-existing local/flame-artifacts'
+      - 'until aws --endpoint-url http://minio:9000 s3api head-bucket --bucket flame-artifacts 2>/dev/null || aws --endpoint-url http://minio:9000 s3 mb s3://flame-artifacts; do sleep 2; done; echo bucket ready'
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-flame-local}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-flame-local-only-change-me}
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-flame-local}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-flame-local-only-change-me}
+      AWS_DEFAULT_REGION: us-east-1
 
   api:
     build:
       context: ..
       dockerfile: apps/api/Dockerfile
+    image: flame-in-freefall-api:latest    # also run by the one-off `ingest` service
     environment:
       FLAME_ENVIRONMENT: development
       FLAME_API_AUTH_ENABLED: ${FLAME_API_AUTH_ENABLED:-true}
@@ -106,9 +112,10 @@ services:
         condition: service_healthy
       minio-init:
         condition: service_completed_successfully
-    # The vector index makes search hybrid (hit@1 0.81 vs 0.31 lexical-only: docs/evaluation/reports/retrieval-2026-11-07.md).
-    # A failed build (e.g. offline without the embedding cache) leaves search lexical instead of blocking start-up.
-    command: ["sh", "-c", "alembic upgrade head && python -m flame_api.seed && python -m flame_api.ingest && (python -m flame_api.vector_index build || echo 'vector index build failed; search stays lexical-only') && uvicorn flame_api.main:app --host 0.0.0.0 --port 8000"]
+    # Migrations and the server only. Loading data is the one-off `ingest` service below, so the API is up in
+    # seconds and serves what is already in the database while new files are parsed (a first OCR pass over new
+    # PDFs can take hours). It picks up the new data when the ingest commits: caches key on the knowledge version.
+    command: ["sh", "-c", "alembic upgrade head && exec uvicorn flame_api.main:app --host 0.0.0.0 --port 8000"]
     healthcheck:
       test:
         - CMD
@@ -125,6 +132,37 @@ services:
       retries: 10
       start_period: 20s
     restart: unless-stopped
+
+  # One-off data load: seed the registry and file checksums, parse every registered file, then build the vector
+  # index. Runs once per `docker compose up` and exits; it never blocks the API. Unchanged files are skipped (same
+  # bytes + same parser version), so a re-run after a restart takes seconds; new or re-versioned files are parsed.
+  # Waits for a healthy API, which has applied the migrations. Re-run by hand after acquiring data:
+  #   docker compose -f infrastructure/compose.yaml run --rm ingest
+  # The vector index makes search hybrid (hit@1 0.81 vs 0.31 lexical-only: docs/evaluation/reports/retrieval-2026-11-07.md);
+  # a failed build (e.g. offline without the embedding cache) leaves search lexical instead of failing the load.
+  ingest:
+    image: flame-in-freefall-api:latest    # the image the `api` service builds; never pulled from a registry
+    pull_policy: never
+    environment:
+      FLAME_ENVIRONMENT: development
+      FLAME_API_AUTH_ENABLED: ${FLAME_API_AUTH_ENABLED:-true}
+      FLAME_READ_API_TOKEN: ${FLAME_READ_API_TOKEN:?Set FLAME_READ_API_TOKEN in infrastructure/.env}
+      FLAME_WRITE_API_TOKEN: ${FLAME_WRITE_API_TOKEN:?Set FLAME_WRITE_API_TOKEN in infrastructure/.env}
+      FLAME_DATABASE_URL: postgresql+psycopg://flame:${POSTGRES_PASSWORD:-flame-local-only}@postgres:5432/flame
+      FLAME_REDIS_URL: redis://redis:6379/0
+      FLAME_S3_ENDPOINT_URL: http://minio:9000
+      FLAME_S3_ACCESS_KEY: ${MINIO_ROOT_USER:-flame-local}
+      FLAME_S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-flame-local-only-change-me}
+      FLAME_S3_BUCKET: flame-artifacts
+      <<: *ai-env
+    volumes:
+      - ../datasets:/app/datasets:ro
+      - model-cache:/app/models
+    depends_on:
+      api:
+        condition: service_healthy
+    command: ["sh", "-c", "python -m flame_api.ingest && (python -m flame_api.vector_index build || echo 'vector index build failed; search stays lexical-only')"]
+    restart: "no"
 
   worker:
     build:
@@ -192,3 +230,12 @@ volumes:
   minio-data:
   model-cache:
   ollama-models:
+
+configs:
+  # SeaweedFS S3 identities: the one key pair the `minio` service accepts, from .env.
+  seaweedfs-s3:
+    content: |
+      {"identities": [{"name": "flame",
+        "credentials": [{"accessKey": "${MINIO_ROOT_USER:-flame-local}",
+                         "secretKey": "${MINIO_ROOT_PASSWORD:-flame-local-only-change-me}"}],
+        "actions": ["Admin", "Read", "Write", "List", "Tagging"]}]}

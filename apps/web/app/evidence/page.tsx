@@ -3,7 +3,15 @@
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { fetchEvidence } from "@/lib/api/client";
-import { EvidenceRecord } from "@/lib/api/types";
+import { EvidenceRecord, ReviewStatus } from "@/lib/api/types";
+
+// The contract requires human_verified to be visibly distinct, and rejected never to read as support.
+const REVIEW: Record<ReviewStatus, { badge: string; detail: string; variant: "success" | "danger" | "default"; color: string; rgb: string }> = {
+  human_verified: { badge: "Human-verified record", detail: "HUMAN VERIFIED", variant: "success", color: "var(--accent-success)", rgb: "16,185,129" },
+  machine_extracted: { badge: "Machine-extracted, not reviewed", detail: "MACHINE EXTRACTED", variant: "default", color: "var(--text-secondary)", rgb: "148,163,184" },
+  raw: { badge: "Unreviewed record", detail: "RAW", variant: "default", color: "var(--text-secondary)", rgb: "148,163,184" },
+  rejected: { badge: "Rejected: not supporting evidence", detail: "REJECTED", variant: "danger", color: "var(--accent-danger)", rgb: "239,68,68" },
+};
 
 import { Badge } from "@/components/ui/Badge";
 import {
@@ -46,8 +54,8 @@ function EvidenceContent() {
             Evidence Inspector
           </h1>
           {evidence && (
-            <Badge variant={evidence.review_status === "verified" ? "success" : "default"}>
-              {evidence.review_status === "verified" ? "Verified Record" : "Unreviewed Record"}
+            <Badge variant={REVIEW[evidence.review_status].variant}>
+              {REVIEW[evidence.review_status].badge}
             </Badge>
           )}
         </div>
@@ -92,7 +100,7 @@ function EvidenceContent() {
               <div>
                 <span className="text-[10px] font-bold uppercase tracking-[0.15em]"
                       style={{ color: 'var(--accent-flame)' }}>
-                  {evidence.kind.replace("_", " ")}
+                  {evidence.kind.replaceAll("_", " ")}
                 </span>
                 <h2 className="mt-1 text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
                   {evidence.citation}
@@ -108,12 +116,12 @@ function EvidenceContent() {
               <div className="flex items-center gap-2">
                 <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
                       style={{
-                        background: 'rgba(16,185,129,0.08)',
-                        color: 'var(--accent-success)',
-                        border: '1px solid rgba(16,185,129,0.2)',
+                        background: `rgba(${REVIEW[evidence.review_status].rgb},0.08)`,
+                        color: REVIEW[evidence.review_status].color,
+                        border: `1px solid rgba(${REVIEW[evidence.review_status].rgb},0.2)`,
                       }}>
-                  <ShieldCheck className="h-4 w-4" />
-                  {evidence.review_status.toUpperCase()}
+                  {evidence.review_status === "human_verified" && <ShieldCheck className="h-4 w-4" />}
+                  {REVIEW[evidence.review_status].detail}
                 </span>
               </div>
             </div>

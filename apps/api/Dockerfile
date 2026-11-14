@@ -33,6 +33,10 @@ COPY datasets/metadata/files.jsonl /app/datasets/metadata/files.jsonl
 COPY datasets/samples/cv/manifest.jsonl /app/datasets/samples/cv/manifest.jsonl
 WORKDIR /app/apps/api
 RUN pip install '.[cv,ingestion,ocr,vector]'
+# The retrieval stack (ADR-006) and its query rewriter, imported by flame_api.main. On PYTHONPATH, not
+# installed, so they sit after the pip layer and changing them does not reinstall dependencies.
+COPY ai/rag/retrieval/search_stack.py /app/ai/rag/retrieval/search_stack.py
+COPY ai/rag/query /app/ai/rag/query
 
 EXPOSE 8000
 CMD ["uvicorn", "flame_api.main:app", "--host", "0.0.0.0", "--port", "8000"]

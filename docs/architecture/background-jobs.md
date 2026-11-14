@@ -10,7 +10,7 @@
 |---|---|---|---|---|
 | Image analysis | RQ `flame_api.worker.process_analysis(analysis_id)` | `flame-analysis` (Redis, AOF) | `analysis_id` only; inputs are in `analysis_result` and MinIO | `Idempotency-Key` header → `analysis_result.idempotency_key` (unique) |
 | Interpretation | in-process at the end of the analysis job | — | measured evidence + linked context | `analysis_id` (sent to AURA as `Idempotency-Key`) |
-| Ingestion | CLI `python -m flame_api.ingest` (Compose start-up, Railway pre-deploy) | — | the file registry | `ingestion_run (file_id, transformation_id, input_sha256)` unique |
+| Ingestion | CLI `python -m flame_api.ingest` (Compose one-off `ingest` service after the API is healthy, Railway pre-deploy); skips files already parsed from the same bytes by the same parser version, `--force` re-parses | — | the file registry | `ingestion_run (file_id, transformation_id, input_sha256)` unique |
 | Vector index build | CLI `python -m flame_api.vector_index build` | — | — | chunk_id + model |
 | Video analysis | RQ `flame_api.worker.process_video_analysis(analysis_id)`, `job_timeout = FLAME_VIDEO_JOB_TIMEOUT_S` | `flame-analysis` | `analysis_id`; the checkpoint is in `video_checkpoint_frame` | as image |
 

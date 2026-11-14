@@ -1,0 +1,77 @@
+<style>
+.sr-page{display:flex;flex-direction:column;gap:24px;width:100%;padding:32px}
+.sr-h1{display:flex;align-items:center;gap:10px;font-size:24px;line-height:32px;font-weight:700;letter-spacing:-.025em;color:var(--text-primary)}
+.sr-ico{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.2)}
+.sr-sub{margin-top:8px;font-size:14px;line-height:20px;color:var(--text-muted)}
+.sr-form{display:flex;gap:12px}
+.sr-wrap{position:relative;flex:1;min-width:0}
+.sr-wrap .i{position:absolute;left:16px;top:14px}
+.sr-in{width:100%;border-radius:12px;padding:12px 16px 12px 44px;font-size:14px;line-height:20px;color:var(--text-muted);background:var(--border-subtle);border:1px solid var(--border-default)}
+.sr-go{border-radius:12px;padding:12px 24px;font-size:14px;line-height:20px;font-weight:600;color:#000;background:linear-gradient(135deg,var(--accent-flame),var(--accent-ember));box-shadow:0 0 12px rgba(59,130,246,.2)}
+.sr-dom{display:flex;align-items:center;justify-content:space-between;border-radius:12px;padding:10px 16px;font-size:12px;line-height:16px;color:var(--text-muted);background:var(--border-subtle);border:1px solid var(--border-subtle)}
+.sr-dl{display:flex;align-items:center;gap:8px}
+.sr-dl u{font-weight:600;text-underline-offset:2px;color:var(--accent-flame)}
+.sr-dr{font-family:var(--font-mono);color:var(--text-dim)}
+.sr-list{display:flex;flex-direction:column;gap:16px}
+.sr-card{display:flex;flex-direction:column;gap:16px;border-radius:16px;padding:20px;background:var(--bg-card);border:1px solid var(--border-default);box-shadow:var(--shadow-card)}
+.sr-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.sr-l{display:flex;flex-direction:column;gap:8px;min-width:0}
+.sr-tr{display:flex;align-items:center;gap:10px}
+.sr-t{font-size:16px;line-height:24px;font-weight:600;letter-spacing:-.025em;color:var(--text-primary)}
+.sr-m{display:flex;flex-wrap:wrap;align-items:center;gap:12px;font-size:12px;line-height:16px;color:var(--text-muted)}
+.sr-m .src{display:flex;align-items:center;gap:4px;color:var(--accent-flame)}
+.sr-m .loc{border-radius:4px;padding:2px 8px;font-family:var(--font-mono);font-size:11px;line-height:16.5px;color:var(--text-secondary);background:var(--border-subtle);border:1px solid var(--border-subtle)}
+.sr-m .sc{display:flex;align-items:center;gap:4px;color:var(--text-dim)}
+.sr-insp{flex:none;display:inline-flex;align-items:center;gap:6px;border-radius:8px;padding:6px 12px;font-size:12px;line-height:16px;font-weight:600;color:var(--accent-flame);background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2)}
+.sr-q{margin:0;border-radius:12px;padding:16px;font-size:14px;line-height:22.75px;font-style:italic;color:var(--text-secondary);background:var(--border-subtle);border-left:3px solid rgba(59,130,246,.4)}
+.sr-ft{display:flex;align-items:center;justify-content:space-between;padding-top:12px;font-size:12px;line-height:16px;color:var(--text-dim);border-top:1px solid var(--border-subtle)}
+.sr-ft .id{font-family:var(--font-mono)}
+.sr-ft .lk{display:inline-flex;align-items:center;gap:4px;color:var(--text-muted)}
+</style>
+<div class="sr-page">
+<div>
+<h1 class="sr-h1"><span class="sr-ico">[[icon:Search:16:var(--accent-flame)]]</span>Scientific Evidence Search</h1>
+<p class="sr-sub">Search indexed NASA NTRS technical papers, PSI experiment matrices, and research corpora.</p>
+</div>
+
+<div class="sr-form">
+<div class="sr-wrap"><span class="i">[[icon:Search:16:var(--text-dim)]]</span><div class="sr-in">Search experiments, fuels, microgravity conditions, or papers...</div></div>
+<div class="sr-go">Search</div>
+</div>
+
+<div class="sr-dom">
+<div class="sr-dl">[[icon:Filter:14:var(--text-dim)]]<span>Domain Filter:</span><u>Combustion Only</u></div>
+<span class="sr-dr">hybrid · 24 results</span>
+</div>
+
+<div class="sr-list">
+
+<div class="sr-card">
+<div class="sr-top"><div class="sr-l">
+<div class="sr-tr"><span class="badge">DOCUMENT</span><h2 class="sr-t">Structure and Soot Properties of Laminar Jet Nonpremixed Flames</h2></div>
+<div class="sr-m"><span class="src">[[icon:Globe:12]]NTRS (NASA GLENN)</span><span class="loc">Page 12, Figure 4</span><span class="sc">[[icon:BarChart3:12]]Score: 0.94</span></div>
+</div><span class="sr-insp">[[icon:Fingerprint:14]]Inspect Evidence</span></div>
+<blockquote class="sr-q">"Under microgravity conditions, the lack of buoyant acceleration leads to wider flames, lower strain rates, and consequently, enhanced soot volume fractions in the flame region..."</blockquote>
+<div class="sr-ft"><span class="id">Source ID: NTRS-20150001</span><span class="lk">NASA Repository [[icon:ExternalLink:12]]</span></div>
+</div>
+
+<div class="sr-card">
+<div class="sr-top"><div class="sr-l">
+<div class="sr-tr"><span class="badge flame">EXPERIMENT</span><h2 class="sr-t">FLEX droplet combustion test matrix: CO2 and helium diluents</h2></div>
+<div class="sr-m"><span class="src">[[icon:Globe:12]]PSI (NASA PSI)</span><span class="loc">Table 2, Row 14</span><span class="sc">[[icon:BarChart3:12]]Score: 0.87</span></div>
+</div><span class="sr-insp">[[icon:Fingerprint:14]]Inspect Evidence</span></div>
+<blockquote class="sr-q">"Test FF-107 used n-heptane droplets in a 30% O2, CO2-diluted atmosphere at 100 kPa; radiative extinction occurred at a droplet diameter of 0.62 mm..."</blockquote>
+<div class="sr-ft"><span class="id">Source ID: FF-PSI-69</span><span class="lk">NASA Repository [[icon:ExternalLink:12]]</span></div>
+</div>
+
+<div class="sr-card">
+<div class="sr-top"><div class="sr-l">
+<div class="sr-tr"><span class="badge">DOCUMENT</span><h2 class="sr-t">Burning and Suppression of Solids II: Flame Spread in Low-Speed Flow</h2></div>
+<div class="sr-m"><span class="src">[[icon:Globe:12]]NTRS (NASA GLENN)</span><span class="loc">Page 7, Table 3</span><span class="sc">[[icon:BarChart3:12]]Score: 0.81</span></div>
+</div><span class="sr-insp">[[icon:Fingerprint:14]]Inspect Evidence</span></div>
+<blockquote class="sr-q">"Flame spread rate over thin cellulose samples decreased with decreasing opposed-flow velocity until radiative quenching limited propagation below approximately 5 cm/s..."</blockquote>
+<div class="sr-ft"><span class="id">Source ID: NTRS-20160004</span><span class="lk">NASA Repository [[icon:ExternalLink:12]]</span></div>
+</div>
+
+</div>
+</div>

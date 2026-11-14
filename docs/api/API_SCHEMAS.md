@@ -1,6 +1,6 @@
 # Flame in Freefall: API Response Schemas
 
-**Generated from [`openapi.json`](openapi.json)** (OpenAPI 3.1.0, API 0.7.0) by `docs/tools/render_api_schemas.py`. Do not edit by hand.
+**Generated from [`openapi.json`](openapi.json)** (OpenAPI 3.1.0, API 0.8.0) by `docs/tools/render_api_schemas.py`. Do not edit by hand.
 Endpoint behaviour, examples and display rules: [`FRONTEND_API_CONTRACT.md`](FRONTEND_API_CONTRACT.md).
 
 Reading the tables: *Required = yes* means the key is always present. A nullable field (`| null`) is still present, with value `null`, which means "not present or not established" and is never a stand-in for `0`. The only optional keys in responses are those of [`ErrorDetails`](#errordetails).
@@ -38,6 +38,7 @@ Reading the tables: *Required = yes* means the key is always present. A nullable
 | GET | `/api/graph/entities/{entity_id}` | 200 [`GraphEntityResponse`](#graphentityresponse) | 400, 401, 403, 404, 429, 500, 503 |
 | GET | `/api/admin/graph/consistency` | 200 [`GraphConsistencyResponse`](#graphconsistencyresponse) | 400, 401, 403, 429, 500, 503 |
 | GET | `/api/scenarios/{scenario_id}/history` | 200 [`ScenarioHistoryResponse`](#scenariohistoryresponse) | 400, 401, 403, 404, 429, 500, 503 |
+| GET | `/api/insights/suppression-advice` | 200 [`SuppressionAdviceResponse`](#suppressionadviceresponse) | 400, 401, 403, 429, 500, 503 |
 
 ## 2. Object schemas
 
@@ -301,6 +302,30 @@ A historical scenario (contract 0.7.0): its cited story, timeline and the data-c
 | `timeline` | object[] | yes |  |
 | `alternative` | object | yes |  |
 | `claim_class` | `"cited_history"` | yes |  |
+| `meta` | [`ResponseMeta`](#responsemeta) | yes |  |
+
+### SuppressionAdviceResponse
+
+Suppression Advisor output. outcome is recommend, no_clear_winner or no_recommendation; recommended_agent is null unless outcome is recommend.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `input` | object | yes |  |
+| `assumptions` | object | yes |  |
+| `outcome` | `"recommend"` \| `"no_clear_winner"` \| `"no_recommendation"` | yes |  |
+| `recommended_agent` | `"co2"` \| `"water_mist"` \| `null` | yes |  |
+| `confidence` | `"high"` \| `"moderate"` \| `"low"` \| `"none"` | yes |  |
+| `basis` | `"thermal_model_comparison"` \| `"relative_only"` \| `"hazard_veto"` \| `"sourced_rule"` \| `"out_of_scope"` | yes |  |
+| `why` | string[] | yes |  |
+| `what_would_change_it` | string[] | yes |  |
+| `decision_sources` | string[] | yes |  |
+| `crossover_delivery_fraction` | object \| `null` | yes |  |
+| `co2_idlh_volume_m3` | number | yes | Cabin volume below which one CO₂ PFE, well mixed, reaches the CO₂ IDLH. |
+| `agents` | object | yes |  |
+| `gates` | object | yes |  |
+| `evidence` | object[] | yes |  |
+| `scope` | string | yes |  |
+| `disclaimer` | string | yes |  |
 | `meta` | [`ResponseMeta`](#responsemeta) | yes |  |
 
 ### VersionInfo
@@ -794,6 +819,21 @@ An NTRS report page. `evidence_id` is the ingested page (null until the report i
 | `access_url` | string \| `null` | yes |  |
 | `evidence_id` | string \| `null` | yes |  |
 
+### SuppressionAgentAdvice
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `agent` | `"co2"` \| `"water_mist"` | yes |  |
+| `extinguisher` | string | yes |  |
+| `charge` | object | yes |  |
+| `post_discharge` | object | yes |  |
+| `effective_enthalpy_kcal_per_mol_o2` | number \| `null` | yes |  |
+| `hazards` | [`SuppressionHazard`](#suppressionhazard)[] | yes |  |
+| `hazard_level` | `"red"` \| `"amber"` \| `"green"` \| `"info"` | yes |  |
+| `flex_estimate` | object \| `null` | yes | FLEX outcome model for CO₂ (claim class estimated) with nearest flight tests. Null for water mist and for non-FLEX fire types. |
+| `thermal_estimate` | object \| `null` | yes | Thermal (effective-enthalpy) model, claim class computed. Null when withheld. |
+| `withheld` | string[] | yes | Why a number is not shown. |
+
 ### ServiceHealth
 
 | Field | Type | Required | Description |
@@ -970,7 +1010,7 @@ Structured value for table/measurement evidence.
 
 ### FlameVideoAnalysisResult
 
-Result of a flame_video analysis (0.3.0). Pixel units only; no temperature.
+Result of a flame_video analysis (0.3.0). Pixel units only; no temperature. `audio` (0.7.0) is present only when the deployment runs with FLAME_TRANSCRIPTION_ENABLED=true.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
@@ -979,6 +1019,7 @@ Result of a flame_video analysis (0.3.0). Pixel units only; no temperature.
 | `frames` | [`VideoFrameMeasurement`](#videoframemeasurement)[] | yes | Sampled frames in time order; temporal order is preserved. |
 | `temporal_summary` | [`VideoTemporalSummary`](#videotemporalsummary) | yes |  |
 | `observations` | [`Statement`](#statement)[] | yes |  |
+| `audio` | [`VideoAudioTranscript`](#videoaudiotranscript) | no |  |
 
 ### Interpretation
 
@@ -1106,6 +1147,18 @@ One ISA-Tab section (Objective, Hypothesis, Approach, Research impacts), verbati
 | `review_status` | [`GraphReviewStatus`](#graphreviewstatus) | yes |  |
 | `properties` | object | yes | For `has_condition`: `value_si`, `unit_si`, `value_numeric`, `value_text`, `unit_original`, `origin` of the cell. |
 
+### SuppressionHazard
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `hazard` | string | yes |  |
+| `level` | `"red"` \| `"amber"` \| `"green"` \| `"info"` | yes |  |
+| `value` | number | no |  |
+| `unit` | string | no |  |
+| `statement` | string | yes |  |
+| `claim_class` | `"reference"` \| `"computed"` | yes |  |
+| `sources` | string[] | no |  |
+
 ### Calibration
 
 | Field | Type | Required | Description |
@@ -1220,6 +1273,24 @@ Thresholds and configuration are in docs/cv/temporal-analysis.md.
 | `method` | string | yes |  |
 | `tracking_note` | string \| `null` | yes | Why tracking metrics are null, e.g. sampled frames are further apart than the 0.5 s tracking gap. |
 
+### VideoAudioTranscript
+
+Operator speech from a flame_video analysis's audio track (0.7.0). Context only: not measurement, not evidence, and not used by AI interpretation.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `status` | `"no_audio_track"` \| `"silent"` \| `"transcribed"` \| `"no_speech"` \| `"unavailable"` | yes | `silent` means the track exists but its loudest second is at or below -55 dBFS, so no model was run. `unavailable` means transcription could not run (see `failure_code`); the video analysis itself is unaffected. |
+| `language` | string \| `null` | yes | Detected language code, e.g. `en`. |
+| `duration_s` | number \| `null` (minimum=0) | yes |  |
+| `rms_dbfs` | number \| `null` | yes |  |
+| `loudest_second_dbfs` | number \| `null` | yes | RMS level of the loudest one-second window of the audio track, in dBFS. |
+| `segments` | [`VideoAudioSegment`](#videoaudiosegment)[] | yes | Time-ordered. Empty unless status is `transcribed`. |
+| `classification` | `"machine_transcribed"` | yes | Never `measured` and never evidence: this is machine speech-to-text of operator audio. |
+| `method` | string | yes |  |
+| `note` | string | yes | The caveat to show next to the text. |
+| `failure_code` | string \| `null` | yes | Set when status is `unavailable`: a provider error code such as `model_missing`, or `decode_failed`, `no_provider`, `transcription_failed`. |
+| `execution` | [`ExecutionMetadata`](#executionmetadata) \| `null` | yes | Which local provider produced the transcript; null when none ran. |
+
 ### ConditionRange
 
 | Field | Type | Required | Description |
@@ -1284,6 +1355,16 @@ Projected physical size from the caller-supplied spatial scale. A 2-D projection
 | `mean_intensity` | [`MeasuredValue`](#measuredvalue) | yes | Mean luma inside the mask, unit intensity_8bit. |
 | `saturated_fraction` | [`MeasuredValue`](#measuredvalue) | yes | Fraction of mask pixels at sensor maximum in any channel, unit fraction. |
 | `physical_interpretation` | `"none"` | yes | Constant. Image-derived colour/intensity statistics are not physical state variables; in particular they are NOT temperature (MVP plan §10). |
+
+### VideoAudioSegment
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `start_s` | number (minimum=0) | yes | Seconds from the start of the audio track. Approximate to a few seconds: voice-activity detection merges speech into long chunks. |
+| `end_s` | number (minimum=0) | yes |  |
+| `text` | string | yes | Machine speech-to-text. Untrusted text; words can be wrong. |
+| `avg_logprob` | number \| `null` | yes | Whisper's average token log-probability for the chunk the segment belongs to; closer to 0 is more confident. |
+| `no_speech_prob` | number \| `null` (minimum=0, maximum=1) | yes | Whisper's probability that the chunk is not speech; high values suggest noise. |
 
 ### MeasuredValue
 

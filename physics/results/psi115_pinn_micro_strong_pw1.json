@@ -1,0 +1,96 @@
+{
+  "case": "psi115-case1-micro",
+  "buoyancy": 0.06599563360214233,
+  "expected_buoyancy": -0.0,
+  "inverse_peclet": 0.015514031983911991,
+  "nominal_inverse_peclet": 0.06315922440472431,
+  "rmse": {
+    "u": 0.03323260694742203,
+    "v": 0.0260924119502306,
+    "T": 0.012214393354952335
+  },
+  "history": [
+    {
+      "step": 500,
+      "data_loss": 0.005216877441853285,
+      "physics_loss": 0.0,
+      "buoyancy": 0.0,
+      "inverse_peclet": 0.09999999403953552
+    },
+    {
+      "step": 1000,
+      "data_loss": 0.00203045760281384,
+      "physics_loss": 0.0,
+      "buoyancy": 0.0,
+      "inverse_peclet": 0.09999999403953552
+    },
+    {
+      "step": 1500,
+      "data_loss": 0.0012902157614007592,
+      "physics_loss": 0.0,
+      "buoyancy": 0.0,
+      "inverse_peclet": 0.09999999403953552
+    },
+    {
+      "step": 2000,
+      "data_loss": 0.0013812864199280739,
+      "physics_loss": 0.010528689250349998,
+      "buoyancy": 0.020742563530802727,
+      "inverse_peclet": 0.02861008234322071
+    },
+    {
+      "step": 2500,
+      "data_loss": 0.0011123752919957042,
+      "physics_loss": 0.010838247835636139,
+      "buoyancy": 0.01567060686647892,
+      "inverse_peclet": 0.02066618576645851
+    },
+    {
+      "step": 3000,
+      "data_loss": 0.001048015896230936,
+      "physics_loss": 0.005593502894043922,
+      "buoyancy": 0.03567742183804512,
+      "inverse_peclet": 0.018360452726483345
+    },
+    {
+      "step": 3500,
+      "data_loss": 0.0010374285047873855,
+      "physics_loss": 0.005688006523996592,
+      "buoyancy": 0.04812576621770859,
+      "inverse_peclet": 0.01687842793762684
+    },
+    {
+      "step": 4000,
+      "data_loss": 0.0010365869384258986,
+      "physics_loss": 0.006185411941260099,
+      "buoyancy": 0.0615570954978466,
+      "inverse_peclet": 0.016095589846372604
+    },
+    {
+      "step": 4500,
+      "data_loss": 0.0008236424182541668,
+      "physics_loss": 0.004082629922777414,
+      "buoyancy": 0.06599563360214233,
+      "inverse_peclet": 0.015514031983911991
+    }
+  ],
+  "config": {
+    "hidden": 64,
+    "layers": 5,
+    "n_data": 4096,
+    "n_colloc": 2048,
+    "warmup_steps": 1500,
+    "steps": 3000,
+    "lr": 0.002,
+    "coeff_lr": 0.02,
+    "data_weight": 10.0,
+    "physics_weight": 1.0,
+    "viscosity_exponent": 0.7,
+    "infer_buoyancy": true,
+    "infer_peclet": true,
+    "init_buoyancy": 0.0,
+    "init_inverse_peclet": 0.1,
+    "seed": 0,
+    "log_every": 500
+  }
+}

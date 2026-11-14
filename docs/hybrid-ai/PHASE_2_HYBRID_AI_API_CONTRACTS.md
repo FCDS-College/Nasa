@@ -14,7 +14,7 @@
 | reranking | `RerankRequest(query, documents: (id,text)[], top_k)` | `RerankResponse(scores: (id,score)[], model)` | `rerank()` |
 | vision | `ImageAnalysisRequest(image_path, image_id, media_type, work_dir, mm_per_pixel, max_pixels)` | `ImageAnalysisResponse(analysis, provider, pipeline_version, artifacts)` | `analyze_image()` |
 | video | `VideoAnalysisRequest(video_path, video_id, work_dir, sample_every_n_frames, max_frames)` | `VideoAnalysisResponse(frames, provider, pipeline_version, summary)` | `analyze_video()` (adapter: `ai/providers/local/flame_cv_video.py`, local only) |
-| transcription | `TranscriptionRequest(audio_path, language)` | `TranscriptionResponse(text, segments, model, provider)` | `transcribe()` (no adapter yet) |
+| transcription | `TranscriptionRequest(audio_path, language)` | `TranscriptionResponse(text, segments, model, provider, language)` | `transcribe()` (local `faster_whisper` adapter, optional) |
 
 Every provider also has `info: ProviderInfo` (name, runtime, locality, capabilities, model, version, context_window, modalities) and `health(timeout_s) -> HealthStatus(state, latency_ms, detail, model_present)`.
 
@@ -82,7 +82,7 @@ This is the actual body from the 2026-10-11 run with Ollama stopped, with IDs el
 
 ## Known limitations
 - Streaming responses are not part of the contract; every model call is a single request.
-- `video` is served by the local `flame_cv_video` provider (resumable: the same `work_dir` resumes from its checkpoint); `transcription` is a contract only.
+- `video` is served by the local `flame_cv_video` provider (resumable: the same `work_dir` resumes from its checkpoint); `transcription` is served by the local `faster_whisper` provider, registered only when `FLAME_TRANSCRIPTION_ENABLED=true` (task `speech.transcribe`; see `docs/cv/audio-transcription.md`).
 - `model.version` is `unknown` for runtimes that don't report a model digest. The manifest (H-3) holds the authoritative version.
 
 ## Changelog

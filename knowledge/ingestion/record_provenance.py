@@ -30,11 +30,14 @@ DATA_DIR = Path(__file__).resolve().parents[2] / "datasets"
 RAW_DIRS = {"s3": DATA_DIR / "raw" / "nasa_psi", "psi_api": DATA_DIR / "raw" / "psi_api"}
 LISTING = DATA_DIR / "manifests" / "nasa_psi_full_listing.txt"
 INVENTORY = DATA_DIR / "manifests" / "psi_combustion_file_inventory.csv"
+ALL_INVENTORY = DATA_DIR / "manifests" / "psi_all_combustion_inventory.csv"
 CHECKSUMS = DATA_DIR / "checksums" / "sha256.txt"
 METADATA = DATA_DIR / "metadata" / "files.jsonl"
 BUCKET = "nasa-psi"
 PSI_DOWNLOAD_API = "https://psi.nasa.gov/geode-py/ws/studies/{psi_id}/download?"
 LISTING_LINE = re.compile(r"^\S+ \S+\s+(\d+)\s+(.+)$")
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from psi_download import safe_relative  # noqa: E402
 
 
 def load_listing(prefix):
@@ -53,16 +56,38 @@ def load_listing(prefix):
 
 def load_inventory(psi_id):
     """psi_api layout: map 'psi-data/PSI-25/...' object key -> {size, version, updated}."""
-    if not INVENTORY.exists():
-        return {}
     objects = {}
-    with INVENTORY.open(encoding="utf-8", newline="") as fh:
-        for row in csv.DictReader(fh):
-            if row["psi_id"] == psi_id:
-                objects[row["object_key"]] = {"size": int(row["size_bytes"]),
-                                              "version": row["file_version"],
-                                              "updated": row["updated"]}
+    # The pilot inventory (4 investigations) first, then psi_inventory.py's full one, which wins when both list a key.
+    for inventory in (INVENTORY, ALL_INVENTORY):
+        if not inventory.exists():
+            continue
+        with inventory.open(encoding="utf-8", newline="") as fh:
+            for row in csv.DictReader(fh):
+                if row["psi_id"] == psi_id:
+                    objects[row["object_key"]] = {"size": int(row["size_bytes"]),
+                                                  "version": row["file_version"],
+                                                  "updated": row["updated"]}
     return objects
+
+
+def merge_duplicates(existing, new):
+    """One files.jsonl record per content hash. file_id is content-addressed (sha256:<16 hex>), and PSI publishes the
+    same PDF under several investigations (ACME, SAME, SAFFIRE share documents), so a later identical copy becomes an
+    entry in the first record's `also_published_as` instead of a second record with the same file_id.
+    Returns (all records as JSON lines, number of new copies merged)."""
+    records, by_id, merged = [], {}, 0
+    for n, line in enumerate(existing + new):
+        record = json.loads(line)
+        first = by_id.get(record["file_id"])
+        if first is None:
+            by_id[record["file_id"]] = record
+            records.append(record)
+            continue
+        merged += n >= len(existing)
+        first.setdefault("also_published_as", []).append({
+            key: record[key] for key in ("source_id", "original_filename", "remote_object_key", "canonical_source_url", "local_path")
+        })
+    return [json.dumps(r) for r in records], merged
 
 
 def sha256_of(path):
@@ -103,15 +128,34 @@ def main():
         keep_sums = [l for l in CHECKSUMS.read_text(encoding="utf-8").splitlines()
                      if l and local_prefix not in l]
     if METADATA.exists():
-        keep_meta = [l for l in METADATA.read_text(encoding="utf-8").splitlines()
-                     if l and json.loads(l)["source_id"] != source_id]
+        keep_meta = []
+        for line in METADATA.read_text(encoding="utf-8").splitlines():
+            if not line:
+                continue
+            record = json.loads(line)
+            if record["source_id"] == source_id:
+                continue
+            # This source's copies listed under another source's record are rebuilt below.
+            aliases = [a for a in record.get("also_published_as", []) if a["source_id"] != source_id]
+            if aliases:
+                record["also_published_as"] = aliases
+            else:
+                record.pop("also_published_as", None)
+            keep_meta.append(json.dumps(record))
 
     recorded_at = iso_utc(datetime.now(timezone.utc))
     sums, meta, mismatches, unlisted = [], [], [], []
+    # psi_download.py replaces characters Windows forbids; map those local names back to the real object keys.
+    by_local = {key_prefix + safe_relative(k[len(key_prefix):]): k for k in expected} if layout == "psi_api" else {}
     for path in files:
         key = key_prefix + path.relative_to(local_root).as_posix()
+        key = by_local.get(key, key)
         obj = expected.get(key)
         size = path.stat().st_size
+        if obj is None and layout == "psi_api":
+            # Not a PSI object (e.g. a zip someone extracted in place): derived data, never recorded as an original.
+            unlisted.append(key)
+            continue
         if obj is None:
             unlisted.append(key)
         elif obj["size"] != size:
@@ -146,13 +190,16 @@ def main():
         }))
         print(f"{digest[:12]}  {size:>14,}  {key}")
 
+    meta, aliased = merge_duplicates(keep_meta, meta)
+    keep_meta = []      # merge_duplicates returned the whole file
     CHECKSUMS.parent.mkdir(parents=True, exist_ok=True)
     METADATA.parent.mkdir(parents=True, exist_ok=True)
     # LF endings: on Windows, CRLF makes `sha256sum -c` read "\r" as part of the path.
     CHECKSUMS.write_text("\n".join(keep_sums + sums) + "\n", encoding="utf-8", newline="\n")
     METADATA.write_text("\n".join(keep_meta + meta) + "\n", encoding="utf-8", newline="\n")
 
-    print(f"\n{len(files)} files recorded for {source_id}; "
+    print(f"\n{len(files) - len(unlisted) if layout == 'psi_api' else len(files)} files recorded for {source_id} "
+          f"({aliased} identical to a file already recorded, listed under its also_published_as); "
           f"{len(unlisted)} not in listing; {len(mismatches)} size mismatches")
     for key in unlisted:
         print(f"  UNLISTED {key}")

@@ -1,0 +1,8 @@
+psi_id,object_key,file_name,size_bytes,file_version
+PSI-115,psi-data/PSI-115/Analyzed Data/PSI-115_Analyzed Data_8cmGravityU.dat,PSI-115_Analyzed Data_8cmGravityU.dat,6220838,2
+PSI-115,psi-data/PSI-115/Analyzed Data/PSI-115_Analyzed Data_8cmGravityTemperature.dat,PSI-115_Analyzed Data_8cmGravityTemperature.dat,6220838,2
+PSI-115,psi-data/PSI-115/Analyzed Data/PSI-115_Analyzed Data_8cmGravityV.dat,PSI-115_Analyzed Data_8cmGravityV.dat,6220838,2
+PSI-115,psi-data/PSI-115/Analyzed Data/PSI-115_Analyzed Data_8cmNoGravityV.dat,PSI-115_Analyzed Data_8cmNoGravityV.dat,6220838,2
+PSI-115,psi-data/PSI-115/Analyzed Data/PSI-115_Analyzed Data_8cmNoGravityTemperature.dat,PSI-115_Analyzed Data_8cmNoGravityTemperature.dat,6220838,2
+PSI-115,psi-data/PSI-115/Analyzed Data/PSI-115_Analyzed Data_8cmNoGravityU.dat,PSI-115_Analyzed Data_8cmNoGravityU.dat,6220838,2
+PSI-115,psi-data/PSI-115/Analyzed Data/PSI-115_Analyzed Data_8cm_sGrid_grid3d.dat,PSI-115_Analyzed Data_8cm_sGrid_grid3d.dat,17971238,2

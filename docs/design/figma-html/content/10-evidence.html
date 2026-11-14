@@ -1,0 +1,73 @@
+<style>
+.ev-page{display:flex;flex-direction:column;width:100%;padding:32px;gap:24px}
+.ev-h1{display:flex;align-items:center;gap:10px;font-size:24px;line-height:32px;font-weight:700;letter-spacing:-.025em;color:var(--text-primary)}
+.ev-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.2)}
+.ev-badge{display:inline-flex;align-items:center;border-radius:999px;padding:4px 10px;font-size:11px;font-weight:600;letter-spacing:.025em;background:rgba(16,185,129,.1);color:var(--accent-success);border:1px solid rgba(16,185,129,.2)}
+.ev-sub{margin-top:8px;font-size:14px;line-height:20px;color:var(--text-muted)}
+.ev-form{display:flex;gap:8px}
+.ev-input{flex:1;min-width:0;border-radius:8px;padding:8px 12px;font-size:12px;line-height:16px;font-family:var(--font-mono);background:var(--border-subtle);border:1px solid var(--border-subtle);color:var(--text-primary)}
+.ev-go{border-radius:8px;padding:8px 16px;font-size:12px;line-height:16px;font-weight:600;font-family:inherit;background:rgba(59,130,246,.1);color:var(--accent-flame);border:1px solid rgba(59,130,246,.3)}
+.ev-card{display:flex;flex-direction:column;gap:24px;border-radius:16px;padding:24px;background:var(--bg-card);border:1px solid var(--border-default);box-shadow:var(--shadow-card)}
+.ev-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding-bottom:20px;border-bottom:1px solid var(--border-subtle)}
+.ev-kind{font-size:10px;line-height:15px;font-weight:700;text-transform:uppercase;letter-spacing:.15em;color:var(--accent-flame)}
+.ev-cit{margin-top:4px;font-size:18px;line-height:28px;font-weight:700;color:var(--text-primary)}
+.ev-via{margin-top:4px;font-size:12px;line-height:16px;color:var(--text-muted)}
+.ev-via .m{font-family:var(--font-mono);color:var(--text-secondary)}
+.ev-pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:4px 12px;font-size:12px;line-height:16px;font-weight:600;background:rgba(16,185,129,.08);color:var(--accent-success);border:1px solid rgba(16,185,129,.2)}
+.ev-label{font-size:10px;line-height:15px;font-weight:700;text-transform:uppercase;letter-spacing:.15em;color:var(--text-muted)}
+.ev-excerpt{margin-top:8px;border-radius:12px;padding:20px;font-size:14px;line-height:22.75px;font-style:italic;font-family:Georgia,serif;background:var(--border-subtle);border:1px solid var(--border-default);color:var(--text-primary)}
+.ev-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.ev-tile{border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:8px;min-width:0;background:var(--border-subtle);border:1px solid var(--border-subtle)}
+.ev-tl{display:flex;align-items:center;gap:6px;font-size:10px;line-height:15px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--text-muted)}
+.ev-tb{display:flex;flex-direction:column;gap:4px;font-size:12px;line-height:16px;font-family:var(--font-mono);color:var(--text-secondary)}
+.ev-tb p{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ev-src{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;padding-top:16px;font-size:12px;line-height:16px;border-top:1px solid var(--border-subtle);color:var(--text-muted)}
+.ev-src strong{color:var(--text-secondary);font-weight:700}
+.ev-link{display:inline-flex;align-items:center;gap:4px;color:var(--accent-flame)}
+</style>
+<div class="ev-page">
+  <div>
+    <div class="row" style="gap:12px">
+      <h1 class="ev-h1"><div class="ev-icon">[[icon:Fingerprint:16:#3B82F6]]</div>Evidence Inspector</h1>
+      <span class="ev-badge">Verified Record</span>
+    </div>
+    <p class="ev-sub">Trace scientific claims back to exact documents, pages, raw experimental tables, and SHA-256 signatures.</p>
+  </div>
+
+  <div class="ev-form">
+    <div class="ev-input">01J9Z3N5B8C1E3G5J7M9P1R3T5</div>
+    <button class="ev-go">Inspect</button>
+  </div>
+
+  <div class="ev-card">
+    <div class="ev-head">
+      <div>
+        <span class="ev-kind">observed</span>
+        <h2 class="ev-cit">Urban, D. L. et al. (2015). NASA NTRS</h2>
+        <p class="ev-via">Extracted via: <span class="m">semantic_chunking_v2</span> (tx_9921)</p>
+      </div>
+      <div class="row" style="gap:8px"><span class="ev-pill">[[icon:ShieldCheck:16:#22C55E]]VERIFIED</span></div>
+    </div>
+
+    <div class="col" style="gap:8px">
+      <span class="ev-label">Verbatim Scientific Content</span>
+      <div class="ev-excerpt" style="margin-top:0">"Under microgravity conditions, the lack of buoyant acceleration leads to wider flames, lower strain rates, and consequently, enhanced soot volume fractions in the flame region."</div>
+    </div>
+
+    <div class="ev-grid">
+      <div class="ev-tile">
+        <span class="ev-tl">[[icon:BookOpen:14:#3B82F6]]Exact Locator &amp; Citation</span>
+        <div class="ev-tb"><p>Type: pdf_page</p><p>Label: Page 12</p><p>Section: 2.1 Microgravity Effects</p></div>
+      </div>
+      <div class="ev-tile">
+        <span class="ev-tl">[[icon:Hash:14:#3B82F6]]Cryptographic Integrity (SHA-256)</span>
+        <div class="ev-tb"><p>Hash: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855</p><p>File: ntrs-20150001.pdf</p><p>Size: 4093.8 KB</p></div>
+      </div>
+    </div>
+
+    <div class="ev-src">
+      <span>Repository: <strong>NTRS</strong> (Source ID: NTRS-20150001)</span>
+      <span class="ev-link">Open in NASA Archives [[icon:ExternalLink:14:#3B82F6]]</span>
+    </div>
+  </div>
+</div>
