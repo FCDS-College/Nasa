@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Anas (E2) | In review (peer sign-off: Eman E1) | 2.1.0 | 2026-11-12 | M8, MVP §9, E2-3 | `apps/api/flame_api/models.py`, `apps/api/migrations/versions/0001`–`0009` |
+| Anas (E2) | In review (peer sign-off: Eman E1) | 2.2.0 | 2026-11-14 | M8, MVP §9, E2-3 | `apps/api/flame_api/models.py`, `apps/api/migrations/versions/0001`–`0009` |
 
 Every table in the database is listed here. §4 is **generated** from the SQLAlchemy metadata (the generator script is quoted in §4). §5 covers the two raw-SQL tables from migration `0003`. Field definitions for the source registry CSV are in [E2-1](SOURCE_REGISTRY.md).
 
@@ -29,6 +29,7 @@ knowledge_relation, memory, model, source, vector_index_manifest
 | `0009_video_checkpoints` | `analysis_result.cancel_requested_at` (TIMESTAMPTZ, nullable) and table `video_checkpoint_frame` (PK `analysis_id` + `frame_index`, FK → `analysis_result` ON DELETE CASCADE; `video_id`, `job_digest`, `row`, `created_at`), each create-if-missing (ADR-008). |
 | `0010_nlp_record` | table `nlp_record` (PK `record_id`; `record_type`, `text`, `normalized`, `document_id`, `document_version`, `page`, `char_start`, `char_end`, `chunk_id`, `extractor`, `extractor_version`, `method`, `confidence`, `review_status` (`machine_extracted`, `human_verified`, `rejected`, `superseded`), `payload`, timestamps), create-if-missing (D1). Offsets refer to `document_chunk.text`. Records are candidates: a changed chunk or a new extractor version marks old rows `superseded`, never edits them. |
 | `0011_chunk_window_embedding` | PostgreSQL + pgvector only, create-if-missing: table `chunk_window_embedding` (PK `window_id` = `chunk_id#w<ordinal>`; `chunk_id` FK → `document_chunk` ON DELETE CASCADE, `ordinal`, `char_start`, `char_end` (offsets into `document_chunk.text`), `text_sha` (to detect a changed page), `model`, `embedding vector(384)`), btree on `chunk_id`, HNSW cosine on `embedding`. Filled by `python -m flame_api.vector_index build-windows`; used only when `FLAME_DENSE_GRANULARITY=window`. |
+| `0013_chunk_embedding_text_sha` | PostgreSQL only, add-if-missing: `chunk_embedding.text_sha` VARCHAR(16), nullable (the first 16 hex of the sha256 of the page text the vector was built from). Existing rows get NULL and are re-embedded once by the next `vector_index build`. Downgrade drops the column. |
 | `0012_chunk_search_tsv_keep` | PostgreSQL only, create-if-missing: text search dictionary `flame_stem` (snowball English, no stopwords), configuration `flame_english`, generated column `document_chunk.search_tsv_keep` (`to_tsvector('flame_english', text)`) and a GIN index. Read only by `FLAME_LEXICAL_MODE=or_idf`; it makes `He` (helium) searchable. Downgrade drops all four. |
 
 **Note.** `0001` builds from the live models. A brand-new database therefore gets the newest schema at `0001`, and later migrations must be idempotent, as `0004` is. An existing database gets the columns from `0004`. Both paths were verified to produce identical schemas (L-8 §2).
@@ -430,6 +431,7 @@ Indexes: `ix_experiment_condition_evidence_id` (evidence_id); `ix_experiment_con
 | `chunk_id` | VARCHAR(80) | no | PK, FK → `document_chunk.chunk_id` ON DELETE CASCADE |
 | `model` | TEXT | no | embedding model name (`BAAI/bge-small-en-v1.5`) |
 | `embedding` | vector(384) | no | HNSW index `ix_chunk_embedding_hnsw` (cosine) |
+| `text_sha` | VARCHAR(16) | yes | sha256 prefix of the page text the vector was built from (`0013`); a mismatch or NULL makes `vector_index build` re-embed the page |
 
 ### `vector_index_manifest`
 
@@ -467,9 +469,9 @@ All values are illustrative. Where real hashes and IDs appear, they are from the
 | `dataset` | `{"name":"rag_gold","version":"1.0.0","kind":"evaluation","split":"holdout","sha256":"…","item_count":120,"path":"datasets/evaluation/rag_gold.jsonl"}` |
 | `image_asset` | `{"image_id":"stable_ulid('image-asset:00a9fbef…')","parent_file_id":"sha256:0473cfa2f03e287e","source_id":"FF-PSI-DSI","sha256":"00a9fbef…e5c1","media_type":"image/png","width":1024,"height":1024,"frame_index":0,"derivation":"lossless-png","payload":{"member":"S1 activity 4/DA_TC_DSI_SEQ2_ACTIVITE04_HR1.zip!/DSI_SEQ2_ACTIVITE04_HR1_1018759522_1.bmp"}}` |
 | `audit_event` | `{"actor":"write-token","action":"ai.mode.changed","target_type":"ai_execution_mode","before":{"mode":"local_first"},"after":{"mode":"offline_only"},"request_id":"req_…"}` |
-| `knowledge_publication` | `{"knowledge_version":"bge-small-en-v1.5-37-20261011","previous_version":"corpus-12a92c60110f","trigger":"vector_index_build","payload":{"counts":{"chunk_embeddings":37,"embedded":37}}}` |
-| `chunk_embedding` | `{"chunk_id":"dc531270ffb646b2:v1:17","model":"BAAI/bge-small-en-v1.5","embedding":"[0.0123,…] (384)"}` |
-| `vector_index_manifest` | `{"id":1,"model":"BAAI/bge-small-en-v1.5","dim":384,"row_count":37,"knowledge_version":"bge-small-en-v1.5-37-20261011"}` |
+| `knowledge_publication` | `{"knowledge_version":"bge-small-en-v1.5-37-3f9a1c0d2b7e","previous_version":"corpus-12a92c60110f","trigger":"vector_index_build","payload":{"counts":{"chunk_embeddings":37,"embedded":37}}}` |
+| `chunk_embedding` | `{"chunk_id":"dc531270ffb646b2:v1:17","model":"BAAI/bge-small-en-v1.5","embedding":"[0.0123,…] (384)","text_sha":"5d41402abc4b2a76"}` |
+| `vector_index_manifest` | `{"id":1,"model":"BAAI/bge-small-en-v1.5","dim":384,"row_count":37,"knowledge_version":"bge-small-en-v1.5-37-3f9a1c0d2b7e"}` |
 
 ## 7. Registry and manifest files (not tables)
 
@@ -484,6 +486,7 @@ All values are illustrative. Where real hashes and IDs appear, they are from the
 - §6 rows are synthetic, apart from the IDs and hashes quoted from committed files.
 
 ## Changelog
+- 2.2.0 (2026-11-14): §1 adds `0013`; `chunk_embedding.text_sha`; index-version examples use the content-hash format.
 - 2.1.0 (2026-11-12): §1 adds `0005`–`0009`; §4 regenerated (adds `api_client`, `api_client.owner`, `analysis_result.cancel_requested_at`, `video_checkpoint_frame`).
 - 2.0.0 (2026-10-12): rewritten for E2-3. Covers migrations `0002`–`0004`, every table, and generated listings. The Day 1 field lists moved to E2-1 (registry) and to §7.
 - 1.0.0 (Day 1): canonical field lists.

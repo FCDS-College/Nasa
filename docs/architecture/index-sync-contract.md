@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Lead (Anas) | In review (sign-off: Anas E2, Eman E1) | 1.0.0 | 2026-10-12 | D3, D6, §11 | `flame_api/ids.py`, `ingest.py`, `vector_index.py`, `knowledge_version.py`, migration `0004` |
+| Lead (Anas) | In review (sign-off: Anas E2, Eman E1) | 1.1.0 | 2026-11-14 | D3, D6, §11 | `flame_api/ids.py`, `ingest.py`, `vector_index.py`, `knowledge_version.py`, migration `0004` |
 
 PostgreSQL is the system of record. Everything else is a derived index rebuilt from it:
 - the pgvector table `chunk_embedding` (ADR-002);
@@ -31,14 +31,14 @@ A parser upgrade (`pymupdf-pages-0.1.0` → `0.2.0`) keeps every ID: IDs never i
 
 A knowledge version is published (E2-5) when:
 - `ingest` finishes with a changed file set (`corpus-<hash>`);
-- `vector_index build` finishes (`bge-small-en-v1.5-<rows>-<date>`);
+- `vector_index build` finishes (`bge-small-en-v1.5-<rows>-<content hash>`; a build that changes no vector republishes the same version);
 - an operator publishes manually, or rolls back.
 
 Each publication writes one `knowledge_publication` row, then sends `{type: "knowledge_version.published", knowledge_version, previous_version, trigger, counts, …}` on Redis channel `flame:knowledge.published`.
 
 | Consumer | On event | Catch-up (missed event, restart) |
 |---|---|---|
-| Vector index | the `ingestion` trigger means chunks may be missing vectors → run `vector_index build`, which embeds only chunks without a current-model vector and deletes vectors of other models | compare `vector_index_manifest.row_count` with `count(document_chunk)` |
+| Vector index | the `ingestion` trigger means chunks may be missing vectors → run `vector_index build`, which embeds every chunk with no vector, a vector of another model, or a vector built from different text (`text_sha`, migration `0013`), and deletes vectors of other models | compare `vector_index_manifest.row_count` with `count(document_chunk)` |
 | CAG (Eman, M4) | invalidate entries whose `cache_entry.knowledge_version` ≠ the new version | on startup, invalidate where the version ≠ `current_knowledge_version()` |
 | Graph (D6) | re-extract entities and edges for documents whose evidence changed | compare the extraction's `knowledge_version` per relation |
 
@@ -64,4 +64,5 @@ Each publication writes one `knowledge_publication` row, then sends `{type: "kno
 - Section chunk IDs are ordinal, so editing an HTML or JSON source changes its later section IDs. The changed file is a new file (new sha256), so this is consistent, but its evidence IDs change.
 
 ## Changelog
+- 1.1.0 (2026-11-14): the page index re-embeds chunks whose text changed and is versioned by content (KB audit 2026-11-13).
 - 1.0.0 (2026-10-12): contract as built in PR #14.

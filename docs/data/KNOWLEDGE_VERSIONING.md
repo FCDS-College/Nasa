@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Anas (E2), with Eman (E1) | In review: **needs Eman's sign-off** on the consumer contract | 1.0.0 | 2026-10-12 | M4, D6, 2H Task 7 | `apps/api/flame_api/knowledge_version.py`, `ingest.py`, `vector_index.py`, table `knowledge_publication` |
+| Anas (E2), with Eman (E1) | In review: **needs Eman's sign-off** on the consumer contract | 1.1.0 | 2026-11-14 | M4, D6, 2H Task 7 | `apps/api/flame_api/knowledge_version.py`, `ingest.py`, `vector_index.py`, table `knowledge_publication` |
 
 ## 1. What a knowledge version is
 
@@ -11,7 +11,7 @@ A name for one consistent state of the searchable knowledge:
 | Kind | Format | Changes when | Trigger |
 |---|---|---|---|
 | Corpus | `corpus-<12 hex>` = sha256 of the sorted `(file_id, input_sha256, transformation_id)` of every non-quarantine `ingestion_run` | a file is added, changed or removed, or a parser is upgraded | `ingestion` (end of `python -m flame_api.ingest`) |
-| Index | `bge-small-en-v1.5-<rows>-<YYYYMMDD>` | a vector build completes | `vector_index_build` |
+| Index | `bge-small-en-v1.5-<rows>-<12 hex>` = sha256 of the model name and the sorted `(chunk_id, text_sha)` of every vector | a vector build changes any vector (a page added, removed or re-embedded because its text changed); a rebuild that changes nothing republishes the same version, a no-op | `vector_index_build` |
 | Manual / rollback | any | an operator republishes | `manual`, `rollback` |
 | Sync | any | reconnection sync completed (E2-10) | `sync` |
 
@@ -71,4 +71,5 @@ A completed reconnection sync (E2-10 §6) publishes with trigger `sync`. Its eff
 - No consumer subscribes yet.
 
 ## Changelog
+- 1.1.0 (2026-11-14): the index version is named by its content, not `<rows>-<YYYYMMDD>`, which collided for two same-day builds with the same row count (KB audit 2026-11-13); migration `0013`.
 - 1.0.0 (2026-10-12): the publication event is implemented; the contract is drafted for Eman's sign-off.
