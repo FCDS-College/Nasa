@@ -354,3 +354,38 @@ def test_dsi_backlit_cell_is_not_present(tmp_path, dirs, name):
 def test_the_boxiest_real_flames_stay_present(tmp_path, dirs, name):
     # The two real flames with the highest rectangularity among the committed samples (0.844 and 0.829).
     assert run(_samples(name)[0], dirs)["detection"]["status"] == "PRESENT"
+
+
+# ------------------------------------------------- v1.9.0: a faint coherent glow in a dark frame is UNCERTAIN
+def _faint_glow(path, level, noise=True):
+    rng = np.random.default_rng(5)
+    img = np.zeros((480, 720, 3), np.uint8)
+    if noise:   # scattered compression-like dots at the same per-pixel level as the glow
+        ys, xs = rng.integers(0, 480, 400), rng.integers(0, 720, 400)
+        img[ys, xs, 0] = 10
+    if level:
+        cv2.ellipse(img, (360, 240), (40, 14), 0, 0, 360, (level, 0, 0), -1)   # a dim blue lobe
+    cv2.imwrite(str(path), img)
+    return path
+
+
+def test_faint_coherent_glow_is_uncertain_and_flagged(tmp_path, dirs):
+    r = run(_faint_glow(tmp_path / "glow.png", 7), dirs)
+    assert r["detection"]["status"] == "UNCERTAIN"
+    assert r["confidenceAndQualityFlags"]["qualityFlags"]["dimGlow"] is True
+    assert r["detection"]["confidence"] <= 0.5
+    assert any("faint coherent glow" in w for w in r["scientificInterpretation"]["warnings"])
+
+
+def test_scattered_noise_alone_is_absent(tmp_path, dirs):
+    r = run(_faint_glow(tmp_path / "noise.png", 0), dirs)
+    assert r["detection"]["status"] == "ABSENT"
+    assert r["confidenceAndQualityFlags"]["qualityFlags"]["dimGlow"] is False
+
+
+def test_flex_dark_frame_gradient_is_not_a_glow(tmp_path, dirs):
+    # 16-bit FLEX dark frame: a sensor floor with a smooth gradient forms a large faint patch but stands out by < 2
+    # noise units, so the glow pass must not fire.
+    path = _samples("FF-PSI-69/H14H101C/H14H101C_00765.png")[0]
+    r = run(path, dirs)
+    assert r["detection"]["status"] == "ABSENT" and r["confidenceAndQualityFlags"]["qualityFlags"]["dimGlow"] is False

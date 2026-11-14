@@ -261,3 +261,28 @@ def test_real_sample_video_end_to_end(tmp_path):
     assert result["videoMetadata"]["resolution"] == [720, 480]
     assert result["lineage"]["codec"] in vi.ALLOWED_CODECS
     assert re.fullmatch(r"vid_[0-9a-f]{16}", result["videoId"])
+
+
+def test_a_glow_that_never_moves_is_rejected_and_a_moving_one_is_kept(tmp_path):
+    # Two synthetic dark videos: a faint blue lobe fixed in place (scenery) and one drifting across the frame
+    # (a spreading dim flame). Only the drifting one stays UNCERTAIN.
+    from cv.video_analysis import analyze_video
+    from cv.video_ingestion import VideoConfig
+
+    def write(path, moving):
+        vw = cv2.VideoWriter(str(path), cv2.VideoWriter_fourcc(*"MJPG"), 10, (320, 240))
+        for i in range(30):
+            img = np.zeros((240, 320, 3), np.uint8)
+            x = 60 + 7 * i if moving else 160
+            cv2.ellipse(img, (x, 120), (22, 8), 0, 0, 360, (8, 0, 0), -1)
+            vw.write(img)
+        vw.release()
+        return path
+
+    cfg = VideoConfig(allowed_codecs=None, sample_every=3, max_frames=10)
+    still = analyze_video(write(tmp_path / "still.avi", False), tmp_path / "w1", video_cfg=cfg, resume=False)
+    moving = analyze_video(write(tmp_path / "moving.avi", True), tmp_path / "w2", video_cfg=cfg, resume=False)
+    assert {f["detectionStatus"] for f in still["frameMeasurements"]} == {"ABSENT"}
+    assert any(f.get("qualityFlags", {}).get("staticGlow") for f in still["frameMeasurements"])
+    kept = [f for f in moving["frameMeasurements"] if f["detectionStatus"] == "UNCERTAIN"]
+    assert len(kept) >= 5 and all(f["qualityFlags"]["dimGlow"] for f in kept)

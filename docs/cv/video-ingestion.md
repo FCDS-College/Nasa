@@ -1,6 +1,6 @@
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Princess | Draft | 1.2.0 | 2026-11-13 | A1, E3-6 | `cv/video_ingestion.py`, `cv/video_analysis.py`, `cv/overlay_mask.py` |
+| Princess | Draft | 1.3.0 | 2026-11-14 | A1, E3-6 | `cv/video_ingestion.py`, `cv/video_analysis.py`, `cv/overlay_mask.py` |
 
 # Video Ingestion Specification (A1)
 
@@ -40,6 +40,10 @@ Each sampled frame is copied, the masked pixels are set to black (the segmenter'
 
 **Why only text.** A steady flame that burns for the whole clip is also persistent. A single flame, large or small, never forms a row of 3 or more glyphs, so it is not masked (tested with a large and a small steady flame). Large static scene content, such as cabin hardware or the bright glovebox floor in `TEST_T25_2ND_VIEW`, is deliberately **not** masked; that view is still reported as a flame (audit CV-1, open).
 
+## 5a. Static faint glows (pipeline `cv-video-v1.2.0`)
+
+The per-frame faint-glow pass (CV v1.9.0, [pipeline.md §4](pipeline.md#4-detection-decision)) reports a faint coherent glow UNCERTAIN with `qualityFlags.dimGlow`. After all sampled frames are analysed, each such frame's glow mask is compared with the faint-glow map of every other sampled frame. If another frame's glow covers at least 30% of it in at least 70% of the other frames, the glow does not move, so it is treated as scenery: the frame becomes ABSENT, with `qualityFlags.staticGlow`. `staticGlowFrames` records the evidence (for example `9/9`). Dim flames spread along their sample. On dev, the M16/M19 dim lobes overlap 0–2 of 9 other frames. The check fired on no dev frame (the moving P12 smudge it was meant for overlaps 3 of 9; see the evaluation report), so it is tested on synthetic videos only.
+
 ## 6. Resumable processing
 See [offline-operation.md](offline-operation.md#5-resumable-video-processing).
 
@@ -52,6 +56,7 @@ See [offline-operation.md](offline-operation.md#5-resumable-video-processing).
 - Camera jitter or dropped frames can still cause temporal misalignment that resampling cannot repair.
 
 ## Changelog
+- **v1.3.0 (2026-11-14):** Static faint glows (§5a); pipeline `cv-video-v1.2.0`.
 - **v1.2.0 (2026-11-13):** Overlay exclusion (§5): burned-in text rows are masked before segmentation; pipeline `cv-video-v1.1.0`.
 - **v1.1.0 (2026-10-14):** Implemented. Documented actual formats, limits, error codes, VFR policy (nearest-frame resampling instead of interpolation), IDs and sampling.
 - **v1.0.0 (2026-10-12):** Initial specification draft.
