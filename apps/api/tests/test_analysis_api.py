@@ -1,4 +1,5 @@
 import io
+import json
 import os
 
 from PIL import Image
@@ -128,3 +129,24 @@ def test_read_token_cannot_upload_and_write_token_is_required(client):
     assert without_token.headers["WWW-Authenticate"] == "Bearer"
     assert write_token_upload.status_code == 400
     assert without_token.json()["error"]["code"] == "AUTHENTICATION_REQUIRED"
+
+def test_camera_profile_is_validated_stored_and_echoed(client, monkeypatch):
+    from api_contract import assert_contract_component
+
+    mock_queue_and_storage(monkeypatch)
+    headers = {"Authorization": f"Bearer {os.environ['FLAME_WRITE_API_TOKEN']}"}
+    files = {"image": ("flame.png", png_bytes(), "application/octet-stream")}
+
+    created = client.post("/api/analyses", files=files, data={"camera_profile": "flex-colour"}, headers=headers)
+    assert created.status_code == 202
+    assert created.json()["analysis"]["input"]["camera_profile"] == "flex-colour"
+    assert_contract_component(created.json(), "AnalysisResponse")
+
+    plain = client.post("/api/analyses", files={"image": ("f2.png", png_bytes((90, 70)), "application/octet-stream")},
+                        headers=headers)
+    assert plain.status_code == 202 and plain.json()["analysis"]["input"]["camera_profile"] is None
+
+    unknown = client.post("/api/analyses", files=files, data={"camera_profile": "no-such-camera"}, headers=headers)
+    assert unknown.status_code == 400
+    assert unknown.json()["error"]["code"] == "VALIDATION_ERROR"
+    assert "flex-colour" in json.dumps(unknown.json())

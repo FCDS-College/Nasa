@@ -1,8 +1,8 @@
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Princess | Draft | 1.5.0 | 2026-11-14 | MVP §10, M4, CV audit CV-2, CV-3 | `cv/flame_cv.py` |
+| Princess | Draft | 1.6.0 | 2026-11-14 | MVP §10, M4, CV audit CV-2, CV-3 | `cv/flame_cv.py` |
 
-# CV Pipeline Specification (v1.5.0, auto-adaptive)
+# CV Pipeline Specification (v1.6.0, auto-adaptive)
 
 ## 1. Stage diagram
 
@@ -31,6 +31,11 @@ Image -> Validation (validate_image)
 - **Blur kernel:** proportional to the image size (`compute_auto_blur_kernel()`).
 - **Thresholds and contrast:** Otsu with an optional offset; minimum contrast adapts to the background's standard deviation.
 - **Config digest:** every parameter contributes to `configDigest`.
+- **Camera profiles (v1.6.0).** A request may name a fixed camera with `metadata.cameraProfile` (API form field `camera_profile`). The profile, from [`cv/configs/camera_profiles.json`](../../cv/configs/camera_profiles.json), lists exclusion zones as `[x0, y0, x1, y1]` fractions of the original image: regions of that camera's view that hold static bright hardware, never a flame. A zone is removed from everything the decision looks at: it is blacked out before thresholding, left out of the Otsu threshold, the scene statistics (the lit-scene test, the no-background test) and the background ring. Removing it from the statistics matters: counting the blacked-out pixels would make a lit frame look dark and turn its UNCERTAIN into PRESENT. The result records `preprocessing.cameraProfile` and `preprocessing.excludedRegions`. An unknown profile is `INVALID_REQUEST`. Without a profile nothing changes (checked on all 368 committed sample items). Zones are drawn by people from measured frames, not learned, and each records its evidence and review state.
+
+  | Profile | Zone | Why |
+  |---|---|---|
+  | `flex-colour` (FF-PSI-69 colour camera, 640 × 480) | the full-width band below 0.82 of the frame height | a static glowing hardware arc at the bottom of the view, PRESENT in 5 dev frames of `cv_gold_v1`. Its median-frame position is x 0.36–0.60, y 0.86–0.98, but the view shifts within a sequence (x 0.02–0.20 in `195F002D_00000`), so the zone spans the whole width. The highest real flame centroid in the dev split is at 0.67 of the height. |
 
 ## 4. Detection decision
 
@@ -79,7 +84,10 @@ Masks and overlays are written to the artifact directories with SHA-256 checksum
 
 ## Known limitations and failure modes
 
-- Detection is brightness-based. **Lit scenery** (cabin views, a lit chamber) is UNCERTAIN since v1.5.0, but **bright hardware in a dark scene is still reported as a flame**: the glowing FLEX igniter arc and point lights (`176F001D`, `195F002D`, `H08M101D` frames) are bright, contrasting and stable on a dark background, like a flame. Separating them needs colour or motion cues.
+- Detection is brightness-based. **Lit scenery** (cabin views, a lit chamber) is UNCERTAIN since v1.5.0, but **bright hardware in a dark scene is still reported as a flame** unless a camera profile excludes it. Measured on the dev split, the hardware's elongation, circularity, saturation and hue overlap with real flames', so no single-image shape or colour rule separates them; only its fixed position in a known camera's view does.
+  - The FLEX colour arc is excluded by the `flex-colour` profile (v1.6.0). That fixes 2 of its 5 dev false positives. In the other 3 frames, once the arc is gone, the largest bright region is other hardware: a glint at the top edge (`195F002D_00000`) and droplet point lights (`H08M101D_00642`, `_01284`). These still count as false positives. Excluding them would need zones over parts of the view where flames can be.
+  - The profile is applied only when the client names it. A FLEX colour upload without `camera_profile` keeps the arc false positive.
+  - A real flame inside an exclusion zone is not seen. For `flex-colour` no dev flame is there, but the zone is fitted to the dev split. The holdout has no FLEX frames, so it is not validated on held-out data.
 - A real flame filmed in a lit scene is reported UNCERTAIN, not PRESENT. No such frame is in `cv_gold_v1`, so this recall cost is not measured.
 - The thresholds were chosen on the committed samples and the dev split of `cv_gold_v1`. Their held-out performance is in [evaluation-report.md](evaluation-report.md), measured against labels that are not yet verified by a person.
 - A small flame with contrast below 83 is treated as a speck. Dev data has no small flames, so the 83 cut-off is set from the specks and from larger flames only.
@@ -87,6 +95,7 @@ Masks and overlays are written to the artifact directories with SHA-256 checksum
 - Spatial measurements are 2D projections unless calibrated with `mmPerPixel`.
 
 ## Changelog
+- **v1.6.0 (2026-11-14):** Camera profiles: per-camera exclusion zones for static hardware, selected per request (`metadata.cameraProfile`, API `camera_profile`). First profile `flex-colour`. Dev false positives 7 → 5 (FPR 0.16 → 0.11, precision 0.68 → 0.75) with no flame lost. Holdout unchanged (it has no FLEX frames). No change without a profile.
 - **v1.5.0 (2026-11-14):** In a lit scene a detection is UNCERTAIN, never PRESENT (cut-off tuned on dev only). Held-out false-positive rate 0.30 → 0.00, with no held-out flame lost.
 - **v1.4.0 (2026-11-13):** Minimum region back to 0.01%; regions under 0.05% are specks unless their contrast is ≥ 83 (tuned on dev only). Fixes the v1.3.0 regression on small flames. No status changed on any committed sample.
 

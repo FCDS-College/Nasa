@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "description": "Per-camera exclusion zones: regions of a fixed camera's field of view that hold static bright hardware, never a flame. A request selects a profile with metadata.cameraProfile (API: camera_profile). Boxes are [x0, y0, x1, y1] fractions of the original image. Zones are defined by people from measured frames, not learned; each records its evidence and review state.",
+  "profiles": {
+    "flex-colour": {
+      "description": "FLEX (FF-PSI-69) colour camera, 640 x 480: a static glowing hardware arc at the bottom centre of every frame, detected as a flame in 5 dev frames of cv_gold_v1.",
+      "appliesTo": "FF-PSI-69 colour sequences (176F001D, 195F002D, H08M101D, X168M03D, X177H10D)",
+      "excludeRegions": [
+        {
+          "name": "hardware arc band",
+          "box": [
+            0.0,
+            0.82,
+            1.0,
+            1.0
+          ]
+        }
+      ],
+      "evidence": "Largest bright static component in the bottom quarter of the per-sequence median of all 75 committed FLEX colour frames: union of the five boxes [0.358, 0.858, 0.595, 0.979]. The view shifts within a sequence (in 195F002D_00000 the arc is at x 0.02-0.20), so the zone spans the full width of the band below y 0.82. The widening was fitted to that dev false positive. The highest real flame centroid in the dev split is 0.67 of the frame height.",
+      "author": "claude-draft",
+      "reviewed": false
+    }
+  }
+}

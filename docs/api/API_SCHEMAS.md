@@ -986,6 +986,7 @@ Structured value for table/measurement evidence.
 | `calibration` | [`Calibration`](#calibration) | yes |  |
 | `notes` | string \| `null` | yes |  |
 | `video` | [`VideoInput`](#videoinput) \| `null` | no | Probe metadata and sampling policy; present only for flame_video (0.3.0). |
+| `camera_profile` | string \| `null` | no | The camera_profile the analysis was requested with, or null. Absent on analyses created before it was added. |
 
 ### PipelineInfo
 
@@ -1407,6 +1408,7 @@ multipart/form-data body for POST /api/analyses.
 | `video` | string (application/octet-stream) | no | MP4/MOV/AVI (detected from the bytes), H.264/H.265, ≤ 200 MiB (FLAME_MAX_VIDEO_UPLOAD_BYTES), ≤ 600 s. Creates a flame_video analysis (0.3.0). Calibration fields are rejected for video. |
 | `sample_every_n_frames` | integer (minimum=1, maximum=10000, default=30) | no | Video only: analyse every N-th frame. |
 | `max_frames` | integer (minimum=1, default=300) | no | Video only: cap on sampled frames (≤ FLAME_MAX_VIDEO_FRAMES, default 600). |
+| `camera_profile` | string (minLength=1, maxLength=64) | no | Optional fixed-camera profile from `cv/configs/camera_profiles.json` (e.g. `flex-colour`). Its exclusion zones (static bright hardware in that camera's view) are removed before detection; the zones used are reported in the CV result's preprocessing. An unknown name is a 400 VALIDATION_ERROR. |
 
 ### ModeChangeRequest
 

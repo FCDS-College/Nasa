@@ -13,6 +13,7 @@ def analyze_image_on_hf(
     *,
     media_type: str,
     mm_per_pixel: float | None,
+    camera_profile: str | None = None,
 ) -> tuple[dict[str, Any], dict[str, bytes]]:
     if settings.cv_provider != "hf_space" or settings.cv_hf_space_url is None:
         raise HfCvError("Hugging Face CV is not configured.")
@@ -24,4 +25,5 @@ def analyze_image_on_hf(
         image_bytes=image_bytes,
         media_type=media_type,
         mm_per_pixel=mm_per_pixel,
+        camera_profile=camera_profile,
     )

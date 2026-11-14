@@ -1,6 +1,6 @@
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Princess & Ziad | Draft | 2.2.0 | 2026-11-14 | M10, A3, C1, CV audit CV-3 | `cv/gold.py`, `cv/flame_cv.py`, `cv/video_analysis.py` |
+| Princess & Ziad | Draft | 2.3.0 | 2026-11-14 | M10, A3, C1, CV audit CV-3 | `cv/gold.py`, `cv/flame_cv.py`, `cv/video_analysis.py` |
 
 # CV Evaluation Report (v2.2.0, cv_gold_v1)
 
@@ -24,14 +24,15 @@ Video frames are the served pipeline's sampling grid (10 per video). Holdout tes
 
 ## 3. Results
 
-`python -m cv.gold evaluate` (full output for the current pipeline: `cv/contracts/gold_evaluation_report.json`). Four pipelines, each scored with the same command:
+`python -m cv.gold evaluate` (full output for the current pipeline: `cv/contracts/gold_evaluation_report.json`). Five pipelines, each scored with the same command:
 
 - **Before** fixes 1–2: commit `92b2ef3`.
 - **v1.3.0:** with overlay masking and the detection-scoring fixes.
 - **v1.4.0:** with the small-flame fix from section 4.
-- **v1.5.0:** the current pipeline, with the lit-scene rule from section 4.
+- **v1.5.0:** with the lit-scene rule from section 4.
+- **v1.6.0:** the current pipeline, with camera profiles (section 4). The evaluation passes each source's `cameraProfile` (the 15 FLEX colour sources use `flex-colour`), as a client would send `camera_profile`. Its holdout figures equal v1.5.0's: the holdout has no FLEX frames.
 
-| Holdout (8 unseen tests) | Before fixes 1–2 | v1.3.0 | v1.4.0 | **v1.5.0 (current)** |
+| Holdout (8 unseen tests) | Before fixes 1–2 | v1.3.0 | v1.4.0 | **v1.5.0 and v1.6.0 (current)** |
 |---|---|---|---|---|
 | False-positive rate | 0.97 [0.89, 1.00] | 0.30 [0.00, 0.65] | 0.30 [0.00, 0.65] | **0.00** (0 of 37 absent frames) |
 | Precision | 0.53 [0.30, 0.75] | 0.68 [0.29, 1.00] | 0.72 [0.31, 1.00] | **1.00** |
@@ -40,14 +41,14 @@ Video frames are the served pipeline's sampling grid (10 per video). Holdout tes
 | Mean mask IoU | 0.28 [0.04, 0.57] | 0.30 [0.10, 0.55] | 0.32 [0.13, 0.55] | **0.32 [0.13, 0.55]** |
 | Mean IoU on detected flames | 0.28 | 0.53 | 0.47 (the recovered T23 flames are tiny, so their masks overlap less) | 0.47 |
 
-At v1.5.0 the holdout false-positive rate and precision have no spread across bootstrap draws (interval [0.00, 0.00] and [1.00, 1.00]), because no resample of 8 tests can contain a false positive. That is not a guarantee of zero: 37 absent frames from 8 tests cannot rule out a false-positive rate of a few per cent.
+Since v1.5.0 the holdout false-positive rate and precision have no spread across bootstrap draws (interval [0.00, 0.00] and [1.00, 1.00]), because no resample of 8 tests can contain a false positive. That is not a guarantee of zero: 37 absent frames from 8 tests cannot rule out a false-positive rate of a few per cent.
 
-| Dev (16 sample tests, tuned on) | Before | v1.3.0 and v1.4.0 (identical) | v1.5.0 |
-|---|---|---|---|
-| False-positive rate | 0.86 [0.65, 1.00] | 0.41 [0.14, 0.71] | 0.16 [0.03, 0.37] |
-| Precision | 0.28 [0.05, 0.52] | 0.45 [0.08, 0.80] | 0.68 [0.17, 0.94] |
-| Localized recall | 0.87 [0.67, 1.00] | 0.93 [0.67, 1.00] | 0.93 [0.67, 1.00] |
-| Mean mask IoU | 0.54 [0.32, 0.79] | 0.55 [0.33, 0.79] | 0.55 [0.33, 0.79] |
+| Dev (16 sample tests, tuned on) | Before | v1.3.0 and v1.4.0 (identical) | v1.5.0 | v1.6.0 |
+|---|---|---|---|---|
+| False-positive rate | 0.86 [0.65, 1.00] | 0.41 [0.14, 0.71] | 0.16 [0.03, 0.37] | 0.11 [0.00, 0.28] (5 of 44) |
+| Precision | 0.28 [0.05, 0.52] | 0.45 [0.08, 0.80] | 0.68 [0.17, 0.94] | 0.75 [0.25, 1.00] |
+| Localized recall | 0.87 [0.67, 1.00] | 0.93 [0.67, 1.00] | 0.93 [0.67, 1.00] | 0.93 [0.67, 1.00] |
+| Mean mask IoU | 0.54 [0.32, 0.79] | 0.55 [0.33, 0.79] | 0.55 [0.33, 0.79] | 0.55 [0.33, 0.79] |
 
 Read the intervals before reading the point values. With 8 tests, a single test moves every number.
 
@@ -70,8 +71,18 @@ Every held-out false positive at v1.4.0 was a bright region in a **lit** scene: 
 - **Cut-off:** chosen on **dev data only**. Dev flame frames reach 4 at most; lit scenery false positives (the T25 cabin view, lit FLEX hardware) start at 19; the cut-off is 11, the midpoint. Across all committed samples it demoted 82 T25 cabin frames, 8 lit-hardware FLEX frames, 4 DSI frames, and one FLEX frame (`X168M03D_00164`) that shows glowing igniter tips in an orange-lit chamber, which is probably not a flame. It demoted no dev flame frame.
 - **Holdout result:** all 11 false positives gone, no held-out flame lost.
 - **How blind?** No holdout number was used and T20 and B3 were never measured. But the choice of *cue* (lighting) came from knowing that the held-out false positives were lit scenes. Treat the holdout gain as less blind than a fresh test would be.
-- **Not fixed:** bright hardware in a **dark** scene. In dev, the glowing FLEX igniter arc and point lights (`176F001D`, `195F002D`, `H08M101D`) and DSI frames are still PRESENT (dev false-positive rate 0.16).
+- **Not fixed by this rule:** bright hardware in a **dark** scene (next subsection).
 - **Recall cost:** a real flame filmed in a lit scene would now be UNCERTAIN. `cv_gold_v1` has no such frame, so this cost is not measured.
+
+### Hardware in a dark scene and the v1.6.0 camera profiles
+
+At v1.5.0 all 7 dev false positives were bright hardware in a dark scene: 5 FLEX colour frames (`176F001D_01319`, `195F002D_00000`, `195F002D_01061`, `H08M101D_00642`, `H08M101D_01284`) and 2 DSI frames.
+
+- **Why not a shape or colour rule:** on dev, the hardware regions' elongation, circularity, saturation and hue overlap with real flames'. Only position separates the FLEX arc: it sits at the bottom of every FF-PSI-69 colour frame.
+- **Fix:** a per-camera exclusion zone (`cv/configs/camera_profiles.json`, profile `flex-colour`: the full-width band below 0.82 of the frame height), applied when the request names the profile. The zone was drawn from the per-sequence median of the 75 committed FLEX colour frames, then widened to the full width because the view shifts within a sequence. That widening was fitted to a dev false positive (`195F002D_00000`).
+- **Result on dev:** 2 of the 5 FLEX false positives are gone (`176F001D_01319`, `195F002D_01061`). In the other 3, the next-largest bright region is also hardware: a glint at the top edge (`195F002D_00000`) and droplet point lights (`H08M101D_00642`, `_01284`). The 2 DSI frames are kept as negatives and remain false positives. No dev flame was lost; the real FLEX flame `195F002D_00530` gives the same status and box.
+- **Holdout:** unchanged. It has no FLEX frames, so this change has **no held-out validation**: the dev gain is in-sample.
+- **Recall risk:** a flame inside the zone is not seen. The highest real flame centroid in dev is at 0.67 of the frame height, above the zone's top at 0.82.
 
 ### The v1.3.0 small-flame regression and its fix
 
@@ -95,12 +106,13 @@ The committed tests (`tests/cv/test_gold.py`) check the set itself: it validates
 ## Known limitations
 
 - **Unverified drafts:** see the top of this page. There is one labeller and no inter-annotator agreement.
-- **Holdout is 8 BASS-II tests:** there are no held-out SPICE, FLEX or SAFFIRE-I frames.
+- **Holdout is 8 BASS-II tests:** there are no held-out SPICE, FLEX or SAFFIRE-I frames, so FLEX-specific changes such as the `flex-colour` profile are only measured in-sample.
 - **Masks are approximate,** and the pipeline is scored on its largest region only.
 - **Detection confidence is not evaluated:** it is still a heuristic score, not a calibrated probability.
 - **No measurement-error evaluation:** there are no calibrated physical reference values.
 
 ## Changelog
+- **v2.3.0 (2026-11-14):** Added v1.6.0 dev results (camera profiles): dev false positives 7 → 5, holdout unchanged and not informative for this change (no FLEX frames).
 - **v2.2.0 (2026-11-14):** Added v1.5.0 results. The lit-scene rule (tuned on dev only) removes all 11 held-out false positives with no recall loss; the blindness caveat and the remaining dark-scene false positives are documented.
 - **v2.1.0 (2026-11-13):** Added v1.4.0 results. The small-flame regression is fixed with a contrast rule tuned on dev only; the holdout-blindness caveat is documented.
 
