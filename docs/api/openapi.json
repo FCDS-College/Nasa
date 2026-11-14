@@ -5768,7 +5768,8 @@
               "minimum": 0,
               "maximum": 1,
               "default": 0.5
-            }
+            },
+            "x-aura-unreachable": "AURA carries at most 8 optional query parameters per tool, in spec order (MAX_OPTIONAL_QUERY, AURA aura_core/adaptation/normalize.py); this is the 9th, so AURA's tool cannot set it and the API uses its default."
           },
           {
             "name": "droplet_diameter_mm",
@@ -5780,7 +5781,8 @@
               "exclusiveMinimum": 0,
               "maximum": 20,
               "default": 3
-            }
+            },
+            "x-aura-unreachable": "AURA carries at most 8 optional query parameters per tool, in spec order (MAX_OPTIONAL_QUERY, AURA aura_core/adaptation/normalize.py); this is the 10th, so AURA's tool cannot set it and the API uses its default."
           }
         ],
         "security": [

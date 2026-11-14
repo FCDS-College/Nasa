@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Lead (Anas) | Current for Flame contract 0.6.0 and AURA `667c7c4` | 1.2.1 | 2026-11-14 | L-12, ADR-004 | `docs/api/openapi.json`, `ai/providers/cloud/aura.py`, `apps/api/flame_api/{ai_runtime,aura_integration,worker,clients}.py`, `tests/integration/aura_blueprint_dryrun.py`, `.github/workflows/aura-link2-contract.yml` |
+| Lead (Anas) | Current for Flame contract 0.6.0 and AURA `667c7c4` | 1.2.2 | 2026-11-14 | L-12, ADR-004 | `docs/api/openapi.json`, `ai/providers/cloud/aura.py`, `apps/api/flame_api/{ai_runtime,aura_integration,worker,clients}.py`, `tests/integration/aura_blueprint_dryrun.py`, `.github/workflows/aura-link2-contract.yml` |
 
 This is the entry point for connecting **AURA** (`anasibrahimgnedy-collab/AURA-AI`, a self-hosted AI platform) to **Flame in Freefall**: what the integration is, what is proven, how to set it up, and how to keep it working. The detailed records are linked in §9.
 
@@ -183,6 +183,7 @@ Otherwise AURA answers 503 `capability_unavailable` (`retryable: false`): AURA i
 | AURA tool calls return 403 | The key has the wrong scope | Issue a `read`-scoped key |
 | AURA tool calls return 429 | Per-client read limit reached | Honour `Retry-After`; raise `FLAME_READ_RATE_LIMIT_PER_MINUTE` if needed |
 | Dry run shows fewer tools or `not reachable by AURA` | The contract changed, or the AURA revision differs | Read the dry run's per-tool verdicts; fix the contract or bump the pin |
+| `not reachable by AURA` for a parameter past the 8th optional query parameter of an endpoint | AURA carries at most 8 optional query parameters per tool, in spec order (`MAX_OPTIONAL_QUERY`) | Put the parameters AURA needs first. Mark the rest `"x-aura-unreachable": "<reason>"` (allowed, listed as `documented unreachable`), or raise the cap in AURA and bump the pin. A mark on a parameter AURA does reach fails the run as `STALE`; `tests/unit/test_aura_reachability.py` checks the marks without AURA |
 | AURA agents do not see `api_list_investigations`, `api_get_graph_entity` or the other new tools | AURA has not re-discovered since contract 0.5.0 / 0.6.0 | Re-discovery (§7) |
 | `/api/health` says "AURA has no healthy local model and FLAME_AURA_REQUIRE_LOCAL is true" | AURA's `/health/ready` reports `local_healthy: false` | Run a local model on AURA, or follow "What AURA needs to answer" (§5) |
 | Link 1 calls fail with 503 and the log says `upstream=capability_unavailable` | No AURA model allowed to receive SENSITIVE content answered (§5) | A local model on AURA, or a hosted slot raised to `sensitive` with `FLAME_AURA_REQUIRE_LOCAL=false` |
@@ -214,5 +215,6 @@ Otherwise AURA answers 503 `capability_unavailable` (`retryable: false`): AURA i
 
 - 1.1.0 (2026-11-12): contract 0.6.0: 16 tools (two knowledge-graph reads) and 10 exclusions (cancel, graph consistency); fresh dry run.
 - 1.2.0 (2026-11-12): re-checked against AURA `main` `667c7c4`, and the CI pin moved there. Link 1 now has a section on what AURA needs to answer (SENSITIVE caller evidence, data ceilings, `capability_unavailable`) and the guard check over Flame's evidence. Flame now reads `local_healthy` and names AURA's error slug. Also: the live AURA hosts were unreachable on 2026-11-12, and the stale runbook notes and test count are fixed.
+- 1.2.2 (2026-11-14): the dry run checks reachability per endpoint, and `x-aura-unreachable` documents parameters past AURA's 8-parameter cap (`delivery_fraction`, `droplet_diameter_mm` on the Suppression Advisor).
 - 1.2.1 (2026-11-14): `api_search` row: 1958 table experiments from the 19 PSI investigations on `main`, not 840.
 - 1.0.0 (2026-11-07): first README. It reflects contract 0.5.0 (14 tools, 8 exclusions), per-client keys, and a fresh dry run.
