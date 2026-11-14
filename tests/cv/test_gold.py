@@ -202,3 +202,66 @@ def test_dim_flame_items_have_masks_and_notes():
     assert len(items) == 20 and all(i["split"] == "dev" for i in items)
     dim = [i for i in items if i["mask"] and i["mask"]["method"] == "coherent-blue-patch"]
     assert len(dim) == 7 and all("dim blue flame" in i["notes"] for i in dim)
+
+
+# ---------------------------------------------------------------- cohort 2 tooling (CV_HELDOUT_V2_PLAN.md)
+def test_exact_upper_bound_matches_the_plan():
+    assert gold.binomial_upper(0, 12) == pytest.approx(1 - 0.05 ** (1 / 12), abs=1e-3)   # 0.221
+    assert gold.binomial_upper(0, 30) == pytest.approx(0.0950, abs=1e-3)
+    assert gold.binomial_upper(1, 30) == pytest.approx(0.1487, abs=1e-3)   # exact one-sided Clopper-Pearson
+    assert gold.binomial_upper(0, 0) is None and gold.binomial_upper(3, 3) == 1.0
+
+
+def test_cohorts_are_reported_separately_with_test_level_false_positives(tmp_path):
+    sources, items = _synthetic_set(tmp_path)
+    items[1]["cohort"] = "v2-flex"
+    report = gold.evaluate(sources, items, tmp_path / "w", reps=20)
+    assert set(report["cohorts"]) == {"v1", "v2-flex"}
+    flex = report["cohorts"]["v2-flex"]["all"]
+    assert flex["nVerified"] == 0
+    tl = flex["detection"]["strict"]["testLevelFalsePositives"]
+    assert (tl["tests"], tl["testsWithFalsePositive"]) == (1, 0) and tl["upper95"] == pytest.approx(0.95, abs=1e-3)
+    assert {r["cohort"] for r in report["items"]} == {"v1", "v2-flex"}
+
+
+def test_sample_members_takes_evenly_spaced_frames_including_both_ends():
+    names = [f"S_{i:05d}.bmp" for i in range(1285)] + ["readme.txt"]
+    picked = gold.sample_members(names, 15)
+    assert len(picked) == 15 and picked[0] == "S_00000.bmp" and picked[-1] == "S_01284.bmp"
+    assert picked[7] == "S_00642.bmp"            # the committed FLEX samples use the same spacing (H08M101D_00642)
+
+
+def test_zip_member_is_extracted_losslessly_with_its_checksum(tmp_path):
+    import hashlib
+    import io
+    import zipfile
+    from PIL import Image
+    img = np.zeros((48, 64, 3), np.uint8)
+    img[10:20, 30:40] = (200, 120, 40)
+    buf = io.BytesIO()
+    Image.fromarray(img).save(buf, format="BMP")
+    zpath = tmp_path / "PSI-69_Raw Data_TEST123D.zip"
+    with zipfile.ZipFile(zpath, "w") as zf:
+        zf.writestr("TEST123D_00000.bmp", buf.getvalue())
+    out = tmp_path / "f.png"
+    digest = gold.extract_zip_member(zpath, "TEST123D_00000.bmp", out)
+    assert digest == hashlib.sha256(buf.getvalue()).hexdigest()
+    assert np.array_equal(np.asarray(Image.open(out).convert("RGB")), img)
+    assert gold.zip_frame_path("PSI-69_Raw Data_TEST123D.zip", "TEST123D_00000.bmp").parts[-2:] == ("TEST123D", "TEST123D_00000.png")
+
+
+def test_selection_is_deterministic_stratified_and_excludes_used_tests():
+    import csv as _csv
+    inventory = list(_csv.DictReader((REPO / gold.INVENTORY_PATH).open(encoding="utf-8")))
+    flex_table = list(_csv.DictReader((REPO / gold.FLEX_TABLE_PATH).open(encoding="cp1252")))
+    bass_table = list(_csv.reader((REPO / gold.BASS_TABLE_PATH).open(encoding="cp1252")))
+    a = gold.select_cohorts(inventory, flex_table, bass_table)
+    b = gold.select_cohorts(inventory, flex_table, bass_table)
+    assert a == b, "same seed, same selection"
+    dim = [d["test"] for d in a["dim"]["selected"]]
+    assert len(dim) == 15 and not set(dim) & {"M10", "M16", "M19"}
+    flex = a["flex"]["selected"]
+    assert len(flex) == gold.FLEX_COHORT_SIZE and len({f["sequence"] for f in flex}) == len(flex)
+    assert not {f["sequence"] for f in flex} & set(gold.DEV_FLEX_SEQUENCES)
+    assert all(v["selected"] >= 1 for v in a["flex"]["strata"].values())
+    assert gold.select_cohorts(inventory, flex_table, bass_table, seed=1)["flex"]["selected"] != flex

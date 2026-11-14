@@ -146,5 +146,6 @@ These are measurements of the camera, not tuning. They are recorded before scori
 
 ## Changelog
 
+- 2026-11-14: T1–T4 built in `cv/gold.py` (cohort field and per-cohort reports with a test-level false-positive bound; zip-member sources; `python -m cv.gold select`; verified counts). The cohort-2 selection is committed in `datasets/evaluation/cv_gold_v2_selection.json` before any download: 15 Miller tests (2.28 GB) and 30 FLEX sequences over 8 strata (8.82 GB).
 - 2026-11-14: Decisions D1–D4 recorded (§8a). Cohorts resized to 15 dim-flame tests and 30 FLEX sequences after a within-test correlation check; budget about 12 GB.
 - 2026-11-14: Proposed.

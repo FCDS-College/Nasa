@@ -23,8 +23,12 @@ import copy
 import csv
 import hashlib
 import importlib.util
+import io
 import json
+import random
+import re
 import sys
+import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple
@@ -47,6 +51,9 @@ FRAMES_DIR = Path("datasets/derived/cv_gold/frames")
 REVIEW_IMAGES_DIR = Path("datasets/derived/cv_gold/review")
 REPORT_PATH = Path("cv/contracts/gold_evaluation_report.json")
 LABELS = ("present", "absent", "unclear")
+COHORTS = ("v1", "v2-dim", "v2-flex")   # v1: the original set; v2-*: the held-out cohort of CV_HELDOUT_V2_PLAN.md
+SELECTION_PATH = Path("datasets/evaluation/cv_gold_v2_selection.json")
+SELECTION_SEED = 20261114
 LOCALIZED_IOU = 0.1
 REVIEW_FIELDS = ["itemId", "split", "groupId", "draftLabel", "hasMask", "reviewImage",
                  "verdict", "correctedLabel", "maskOk", "reviewer", "notes"]
@@ -110,12 +117,76 @@ def _psi_download_module():
     return module
 
 
+def _psi_row(meta: Dict[str, Any], size_bytes: int) -> Dict[str, str]:
+    return {"psi_id": meta["psiId"], "file_name": meta["fileName"], "file_version": meta["version"],
+            "size_bytes": str(size_bytes), "object_key": f"psi-data/{meta['psiId']}/Raw Data/{meta['fileName']}"}
+
+
+ZIP_FRAMES_DIR = Path("datasets/raw/psi_api/PSI-69/frames")
+
+
+def zip_frame_path(zip_name: str, member: str) -> Path:
+    """Where a frame extracted from a NASA zip is kept (lossless PNG, not in Git)."""
+    stem = Path(zip_name).stem.split("_")[-1]
+    return ZIP_FRAMES_DIR / stem / (Path(member).stem + ".png")
+
+
+def extract_zip_member(zip_path: Any, member: str, out_png: Any) -> str:
+    """Write one zip member as a lossless PNG; return the SHA-256 of the member's original bytes."""
+    with zipfile.ZipFile(zip_path) as zf:
+        data = zf.read(member)
+    out_png = Path(out_png)
+    out_png.parent.mkdir(parents=True, exist_ok=True)
+    with Image.open(io.BytesIO(data)) as im:
+        im.save(out_png, format="PNG")
+    return hashlib.sha256(data).hexdigest()
+
+
+def sample_members(names: Sequence[str], k: int = 15) -> List[str]:
+    """k frames evenly spaced over the sorted image members (first and last included), as the committed samples."""
+    frames = sorted(n for n in names if n.lower().endswith((".bmp", ".png", ".tif", ".tiff")))
+    if len(frames) <= k:
+        return frames
+    return [frames[round(i * (len(frames) - 1) / (k - 1))] for i in range(k)]
+
+
+def _fetch_zip_members(srcs: List[Dict[str, Any]], psi, delete_zip: bool = True) -> List[Tuple[str, str]]:
+    """Extract the recorded members of one zip (downloading it if a frame is missing) and check their SHA-256."""
+    meta = srcs[0]["zip"]
+    missing = [s for s in srcs if not Path(s["path"]).exists()]
+    out = []
+    if missing:
+        row = _psi_row(meta["psi"], meta["sizeBytes"])
+        status = psi.download(row)[0]
+        zip_path = psi.local_path(row)
+        for s in srcs:
+            digest = extract_zip_member(zip_path, s["zip"]["member"], s["path"])
+            if digest != s["zip"]["memberSha256"]:
+                raise RuntimeError(f"{s['sourceId']}: checksum mismatch for member {s['zip']['member']}")
+            out.append((s["sourceId"], status))
+        if delete_zip:
+            Path(zip_path).unlink(missing_ok=True)
+    else:
+        out += [(s["sourceId"], "present") for s in srcs]
+    return out
+
+
 def fetch(sources_doc: Dict[str, Any]) -> List[Tuple[str, str]]:
-    """Download sources that are not in Git and check them against the manifest's SHA-256."""
+    """Download sources that are not in Git and check them against the manifest's SHA-256.
+
+    A source with a `zip` block is one frame of a NASA zip: the zip is downloaded only if a recorded frame is
+    missing, the recorded members are extracted as PNG and checked against their SHA-256, and the zip is deleted.
+    """
     psi = _psi_download_module()
     out = []
+    by_zip: Dict[str, List[Dict[str, Any]]] = {}
     for src in sources_doc["sources"]:
-        if src["inGit"]:
+        if src.get("zip"):
+            by_zip.setdefault(src["zip"]["psi"]["fileName"], []).append(src)
+    for srcs in by_zip.values():
+        out += _fetch_zip_members(srcs, psi)
+    for src in sources_doc["sources"]:
+        if src["inGit"] or src.get("zip"):
             continue
         meta = src["psi"]
         row = {"psi_id": meta["psiId"], "file_name": meta["fileName"], "file_version": meta["version"],
@@ -268,6 +339,42 @@ def group_bootstrap(rows: Sequence[Tuple[str, Any]], stat: Callable[[List[Any]],
     return round(float(np.percentile(values, 2.5)), 4), round(float(np.percentile(values, 97.5)), 4)
 
 
+def cohort_of(item: Dict[str, Any]) -> str:
+    """The item's cohort; items written before cohorts existed are v1."""
+    return item.get("cohort") or "v1"
+
+
+def binomial_upper(successes: int, n: int, level: float = 0.95) -> Optional[float]:
+    """Exact (Clopper-Pearson) one-sided upper bound on a proportion, by bisection on the binomial CDF."""
+    if n == 0:
+        return None
+    if successes >= n:
+        return 1.0
+    alpha = 1 - level
+    def cdf(p):   # P(X <= successes | n, p)
+        term, total = (1 - p) ** n, 0.0
+        for k in range(successes + 1):
+            total += term
+            term = term * (n - k) / (k + 1) * p / (1 - p) if p < 1 else 0.0
+        return total
+    lo, hi = successes / n, 1.0
+    for _ in range(60):
+        mid = (lo + hi) / 2
+        lo, hi = (mid, hi) if cdf(mid) > alpha else (lo, mid)
+    return round(hi, 4)
+
+
+def _test_level_false_positives(rows: List[Dict[str, Any]], positive: set) -> Dict[str, Any]:
+    """Tests with at least one false-positive frame among their absent frames; frames within a test are strongly
+    correlated (ICC 0.76-0.87 on cv_gold_v1), so the test is the unit for a bound."""
+    tests: Dict[str, bool] = {}
+    for r in rows:
+        if r["label"] == "absent":
+            tests[r["groupId"]] = tests.get(r["groupId"], False) or r["status"] in positive
+    k, j = len(tests), sum(tests.values())
+    return {"tests": k, "testsWithFalsePositive": j, "rate": _ratio(j, k), "upper95": binomial_upper(j, k)}
+
+
 def _summary(rows: List[Dict[str, Any]], reps: int, seed: int) -> Dict[str, Any]:
     out: Dict[str, Any] = {"n": len(rows), "nTests": len({r["groupId"] for r in rows}),
                            "labels": {k: sum(r["label"] == k for r in rows) for k in LABELS}}
@@ -288,8 +395,10 @@ def _summary(rows: List[Dict[str, Any]], reps: int, seed: int) -> Dict[str, Any]
         for metric in ("precision", "recall", "falsePositiveRate"):
             m[f"{metric}CI95"] = list(group_bootstrap(pairs, lambda s, p=positive, k=metric: detection_metrics(s, p)[k],
                                                       reps, seed))
+        m["testLevelFalsePositives"] = _test_level_false_positives(rows, positive)
         det[name] = m
     out["detection"] = det
+    out["nVerified"] = sum(1 for r in rows if r.get("verified"))
     seg = [(r["groupId"], r["iou"]) for r in rows if r.get("iou") is not None]
     seg_det = [(g, v) for (g, v), r in zip(seg, [r for r in rows if r.get("iou") is not None]) if r["status"] == "PRESENT"]
     mean = lambda s: float(np.mean(s)) if s else None  # noqa: E731
@@ -345,6 +454,7 @@ def evaluate(sources_doc: Dict[str, Any], items: List[Dict[str, Any]], work_dir:
         if pred is None:
             raise RuntimeError(f"{item['itemId']}: frame {item['frameIndex']} was not sampled by the pipeline")
         row = {"itemId": item["itemId"], "groupId": item["groupId"], "split": item["split"], "label": item["label"],
+               "cohort": cohort_of(item),
                "status": pred["status"], "confidence": pred["confidence"],
                "verified": bool(item["provenance"]["verified"]), "iou": None}
         if item["label"] == "present" and item["mask"] and pred["lb"] is not None:
@@ -361,6 +471,11 @@ def evaluate(sources_doc: Dict[str, Any], items: List[Dict[str, Any]], work_dir:
         in_split = [r for r in rows if r["split"] == split]
         splits[split] = {"all": _summary(in_split, reps, seed),
                          "verified": _summary([r for r in in_split if r["verified"]], reps, seed)}
+    cohorts = {}
+    for cohort in sorted({r["cohort"] for r in rows}):
+        in_cohort = [r for r in rows if r["cohort"] == cohort]
+        cohorts[cohort] = {"all": _summary(in_cohort, reps, seed),
+                           "verified": _summary([r for r in in_cohort if r["verified"]], reps, seed)}
     cfg = cfg or CVConfig()
     return {"goldVersion": GOLD_VERSION, "generatedAt": utc_now(), "pipelineVersion": PIPELINE_VERSION,
             "videoPipelineVersion": VIDEO_PIPELINE_VERSION, "configDigest": cfg.digest(),
@@ -368,7 +483,78 @@ def evaluate(sources_doc: Dict[str, Any], items: List[Dict[str, Any]], work_dir:
                         "also requires the mask on a flame frame to overlap the labelled flame (IoU >= 0.1); unclear "
                         "labels are excluded. 95% intervals resample whole tests (groupId), not frames. 'verified' "
                         "uses only items a person has checked.",
-            "splits": splits, "items": rows}
+            "splits": splits, "cohorts": cohorts, "items": rows}
+
+
+# --------------------------------------------------------------------------------------- cohort 2 selection
+INVENTORY_PATH = Path("datasets/manifests/psi_all_combustion_inventory.csv")
+FLEX_TABLE_PATH = Path("datasets/raw/psi_api/PSI-69/Experimental table/PSI-69_Experimental table_FLEX.csv")
+BASS_TABLE_PATH = Path("datasets/raw/psi_api/PSI-25/Experimental table/PSI-25_Experimental table_BASS-II.csv")
+DEV_FLEX_SEQUENCES = ("176F001", "195F002", "H08M101", "X168M03", "X177H10")
+USED_MILLER_TESTS = ("M10", "M16", "M19")
+FLEX_COHORT_SIZE = 30
+
+
+def _proportional(counts: Dict[str, int], total: int) -> Dict[str, int]:
+    """Largest-remainder allocation of `total` over strata, at least one per non-empty stratum."""
+    pool = sum(counts.values())
+    quota = {k: max(1, total * v / pool) for k, v in counts.items()}
+    alloc = {k: min(counts[k], int(q)) for k, q in quota.items()}
+    order = sorted(counts, key=lambda k: (-(quota[k] - int(quota[k])), k))
+    i = 0
+    while sum(alloc.values()) < min(total, pool) and i < 10 * len(order):
+        k = order[i % len(order)]
+        if alloc[k] < counts[k]:
+            alloc[k] += 1
+        i += 1
+    return alloc
+
+
+def select_cohorts(inventory: List[Dict[str, str]], flex_table: List[Dict[str, str]], bass_table: List[List[str]],
+                   seed: int = SELECTION_SEED, flex_size: int = FLEX_COHORT_SIZE) -> Dict[str, Any]:
+    """Cohort 2 from metadata only (no frame is opened): every unused Miller test, and FLEX colour sequences drawn
+    with a fixed seed, stratified by ID series x fuel. See docs/plan/CV_HELDOUT_V2_PLAN.md (sections 4.1 and 5.1)."""
+    rng = random.Random(seed)
+    # Dim flames: Miller main-view videos (not the second view, not LOS portions or still sequences).
+    days = {r[1].strip(): r[3].strip() for r in bass_table[1:] if len(r) > 3 and re.fullmatch(r"M\d+", r[1].strip())}
+    miller = {}
+    for r in inventory:
+        m = re.fullmatch(r"PSI-25_Raw Data_BASS_GMT\d+_SAMPLE_\w+_TEST_(M\d+)\.mp4", r["file_name"])
+        if m and m.group(1) not in USED_MILLER_TESTS:
+            miller[m.group(1)] = {"test": m.group(1), "fileName": r["file_name"], "version": r["file_version"],
+                                  "sizeBytes": int(r["size_bytes"]), "gmtDay": days.get(m.group(1))}
+    dim = [miller[k] for k in sorted(miller, key=lambda t: int(t[1:]))]
+    # FLEX colour sequences that match a table row.
+    table = {r["FLEX Identifier"].strip(): r for r in flex_table}
+    zips = {}
+    for r in inventory:
+        m = re.search(r"_([0-9A-Z]{7})D\.zip$", r["file_name"])
+        if r["psi_id"] == "PSI-69" and r["category"] == "Raw Data" and m and m.group(1) in table \
+                and m.group(1) not in DEV_FLEX_SEQUENCES:
+            zips[m.group(1)] = r
+    def stratum(seq_id):
+        series = "numeric" if seq_id[0].isdigit() else seq_id[0]
+        return f"{series}/{table[seq_id]['Fuel'].strip()}"
+    strata: Dict[str, List[str]] = {}
+    for seq_id in sorted(zips):
+        strata.setdefault(stratum(seq_id), []).append(seq_id)
+    alloc = _proportional({k: len(v) for k, v in strata.items()}, flex_size)
+    chosen = []
+    for k in sorted(strata):
+        chosen += sorted(rng.sample(strata[k], alloc[k]))
+    def flex_entry(seq_id):
+        z, t = zips[seq_id], table[seq_id]
+        col = lambda prefix: next((v for c, v in t.items() if c.startswith(prefix)), None)  # noqa: E731
+        return {"sequence": seq_id, "stratum": stratum(seq_id), "fileName": z["file_name"], "version": z["file_version"],
+                "sizeBytes": int(z["size_bytes"]), "fuel": t["Fuel"].strip(), "testEnd": t.get("Test end", "").strip(),
+                "burnTimeS": col("Burn time"), "dropletInitialDiameterMm": col("Droplet initial")}
+    return {"seed": seed, "plan": "docs/plan/CV_HELDOUT_V2_PLAN.md",
+            "rule": {"dim": "every unused BASS-II Miller main-view video (M10, M16, M19 excluded)",
+                     "flex": f"{flex_size} FLEX colour sequences matching the FLEX table, minus the 5 dev sequences, "
+                             "stratified by ID series x fuel (largest remainder, >= 1 per stratum), random.Random(seed)"},
+            "dim": {"poolSize": len(dim), "selected": dim},
+            "flex": {"poolSize": len(zips), "strata": {k: {"pool": len(v), "selected": alloc[k]} for k, v in sorted(strata.items())},
+                     "selected": [flex_entry(s) for s in chosen]}}
 
 
 # --------------------------------------------------------------------------------------- review / adopt
@@ -462,10 +648,13 @@ def _markdown(report: Dict[str, Any]) -> str:
 
     def fmt(v, ci):
         return "n/a" if v is None else (f"{v:.2f} [{ci[0]:.2f}, {ci[1]:.2f}]" if ci and ci[0] is not None else f"{v:.2f}")
-    for split, subsets in report["splits"].items():
+    blocks = [(f"split {k}", v) for k, v in report["splits"].items()]
+    blocks += [(f"cohort {k}", v) for k, v in report.get("cohorts", {}).items()]
+    for split, subsets in blocks:
         for subset, s in subsets.items():
             d, g, loc = s["detection"]["strict"], s["segmentation"], s["detection"]["localized"]
             lab = s["labels"]
+            subset = f"{subset} ({s.get('nVerified', 0)} verified)" if subset == "all" else subset
             lines.append(f"| {split} | {subset} | {s['n']} ({s['nTests']}) | {lab['present']} / {lab['absent']} / "
                          f"{lab['unclear']} | {fmt(d['precision'], d['precisionCI95'])} | {fmt(d['recall'], d['recallCI95'])} | "
                          f"{fmt(loc['recall'], loc['recallCI95'])}"
@@ -485,11 +674,22 @@ def main(argv: Optional[List[str]] = None) -> int:
     sub.add_parser("review")
     ad = sub.add_parser("adopt")
     ad.add_argument("--sheet", default=str(REVIEW_PATH))
+    sub.add_parser("select", help="write the cohort-2 selection from metadata only (no frame is opened)")
     ev = sub.add_parser("evaluate")
     ev.add_argument("--work-dir", default="datasets/derived/cv_gold/eval")
     ev.add_argument("--out", default=str(REPORT_PATH))
     args = ap.parse_args(argv)
 
+    if args.cmd == "select":
+        inventory = list(csv.DictReader(INVENTORY_PATH.open(encoding="utf-8")))
+        flex_table = list(csv.DictReader(FLEX_TABLE_PATH.open(encoding="cp1252")))
+        bass_table = list(csv.reader(BASS_TABLE_PATH.open(encoding="cp1252")))
+        selection = select_cohorts(inventory, flex_table, bass_table)
+        selection["createdAt"] = utc_now()
+        atomic_write_text(SELECTION_PATH, json.dumps(selection, indent=1, ensure_ascii=False) + "\n")
+        print(f"{SELECTION_PATH}: {len(selection['dim']['selected'])} dim-flame tests, "
+              f"{len(selection['flex']['selected'])} FLEX sequences")
+        return 0
     sources = load_sources()
     if args.cmd == "fetch":
         for sid, status in fetch(sources):

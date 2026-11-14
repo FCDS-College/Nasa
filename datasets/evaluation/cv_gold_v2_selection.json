@@ -1,0 +1,488 @@
+{
+ "seed": 20261114,
+ "plan": "docs/plan/CV_HELDOUT_V2_PLAN.md",
+ "rule": {
+  "dim": "every unused BASS-II Miller main-view video (M10, M16, M19 excluded)",
+  "flex": "30 FLEX colour sequences matching the FLEX table, minus the 5 dev sequences, stratified by ID series x fuel (largest remainder, >= 1 per stratum), random.Random(seed)"
+ },
+ "dim": {
+  "poolSize": 15,
+  "selected": [
+   {
+    "test": "M1",
+    "fileName": "PSI-25_Raw Data_BASS_GMT51_SAMPLE_222_TEST_M1.mp4",
+    "version": "2",
+    "sizeBytes": 57914129,
+    "gmtDay": "51"
+   },
+   {
+    "test": "M2",
+    "fileName": "PSI-25_Raw Data_BASS_GMT51_SAMPLE_224_TEST_M2.mp4",
+    "version": "2",
+    "sizeBytes": 212015133,
+    "gmtDay": "51"
+   },
+   {
+    "test": "M4",
+    "fileName": "PSI-25_Raw Data_BASS_GMT212_SAMPLE_171_TEST_M4.mp4",
+    "version": "2",
+    "sizeBytes": 153411020,
+    "gmtDay": "212"
+   },
+   {
+    "test": "M5",
+    "fileName": "PSI-25_Raw Data_BASS_GMT51_SAMPLE_167_TEST_M5.mp4",
+    "version": "2",
+    "sizeBytes": 193476993,
+    "gmtDay": "51"
+   },
+   {
+    "test": "M6",
+    "fileName": "PSI-25_Raw Data_BASS_GMT212_SAMPLE_163_TEST_M6.mp4",
+    "version": "2",
+    "sizeBytes": 144868608,
+    "gmtDay": "212"
+   },
+   {
+    "test": "M7",
+    "fileName": "PSI-25_Raw Data_BASS_GMT192_SAMPLE_177_TEST_M7.mp4",
+    "version": "2",
+    "sizeBytes": 110011647,
+    "gmtDay": "192"
+   },
+   {
+    "test": "M8",
+    "fileName": "PSI-25_Raw Data_BASS_GMT192_SAMPLE_178_TEST_M8.mp4",
+    "version": "2",
+    "sizeBytes": 163852409,
+    "gmtDay": "192"
+   },
+   {
+    "test": "M9",
+    "fileName": "PSI-25_Raw Data_BASS_GMT192_SAMPLE_179_TEST_M9.mp4",
+    "version": "2",
+    "sizeBytes": 97701031,
+    "gmtDay": "192"
+   },
+   {
+    "test": "M11",
+    "fileName": "PSI-25_Raw Data_BASS_GMT192_SAMPLE_181_TEST_M11.mp4",
+    "version": "2",
+    "sizeBytes": 172643300,
+    "gmtDay": "192"
+   },
+   {
+    "test": "M12",
+    "fileName": "PSI-25_Raw Data_BASS_GMT212_SAMPLE_165_TEST_M12.mp4",
+    "version": "2",
+    "sizeBytes": 125655846,
+    "gmtDay": "212"
+   },
+   {
+    "test": "M13",
+    "fileName": "PSI-25_Raw Data_BASS_GMT212_SAMPLE_169_TEST_M13.mp4",
+    "version": "2",
+    "sizeBytes": 142341116,
+    "gmtDay": "212"
+   },
+   {
+    "test": "M14",
+    "fileName": "PSI-25_Raw Data_BASS_GMT51_SAMPLE_223_TEST_M14.mp4",
+    "version": "2",
+    "sizeBytes": 187975972,
+    "gmtDay": "51"
+   },
+   {
+    "test": "M17",
+    "fileName": "PSI-25_Raw Data_BASS_GMT196_SAMPLE_166_TEST_M17.mp4",
+    "version": "2",
+    "sizeBytes": 188454727,
+    "gmtDay": "196"
+   },
+   {
+    "test": "M18",
+    "fileName": "PSI-25_Raw Data_BASS_GMT196_SAMPLE_168_TEST_M18.mp4",
+    "version": "2",
+    "sizeBytes": 154679243,
+    "gmtDay": "196"
+   },
+   {
+    "test": "M20",
+    "fileName": "PSI-25_Raw Data_BASS_GMT213_SAMPLE_172_TEST_M20.mp4",
+    "version": "2",
+    "sizeBytes": 170044149,
+    "gmtDay": "213"
+   }
+  ]
+ },
+ "flex": {
+  "poolSize": 244,
+  "strata": {
+   "C/Heptane": {
+    "pool": 38,
+    "selected": 5
+   },
+   "C/Methanol": {
+    "pool": 61,
+    "selected": 7
+   },
+   "H/Heptane": {
+    "pool": 21,
+    "selected": 3
+   },
+   "H/Methanol": {
+    "pool": 26,
+    "selected": 3
+   },
+   "N/Heptane": {
+    "pool": 14,
+    "selected": 2
+   },
+   "N/Methanol": {
+    "pool": 9,
+    "selected": 1
+   },
+   "numeric/Heptane": {
+    "pool": 32,
+    "selected": 4
+   },
+   "numeric/Methanol": {
+    "pool": 43,
+    "selected": 5
+   }
+  },
+  "selected": [
+   {
+    "sequence": "C03H101",
+    "stratum": "C/Heptane",
+    "fileName": "PSI-69_Raw Data_C03H101D.zip",
+    "version": "1",
+    "sizeBytes": 450774731,
+    "fuel": "Heptane",
+    "testEnd": "Extinction",
+    "burnTimeS": "2.2",
+    "dropletInitialDiameterMm": "3.7"
+   },
+   {
+    "sequence": "C08H301",
+    "stratum": "C/Heptane",
+    "fileName": "PSI-69_Raw Data_C08H301D.zip",
+    "version": "1",
+    "sizeBytes": 325736256,
+    "fuel": "Heptane",
+    "testEnd": "Disruption",
+    "burnTimeS": "5.2",
+    "dropletInitialDiameterMm": "–"
+   },
+   {
+    "sequence": "C21H201",
+    "stratum": "C/Heptane",
+    "fileName": "PSI-69_Raw Data_C21H201D.zip",
+    "version": "1",
+    "sizeBytes": 218465918,
+    "fuel": "Heptane",
+    "testEnd": "Disruption",
+    "burnTimeS": "12.4",
+    "dropletInitialDiameterMm": "2.63"
+   },
+   {
+    "sequence": "C21H305",
+    "stratum": "C/Heptane",
+    "fileName": "PSI-69_Raw Data_C21H305D.zip",
+    "version": "1",
+    "sizeBytes": 400510130,
+    "fuel": "Heptane",
+    "testEnd": "Disruption",
+    "burnTimeS": "5.4",
+    "dropletInitialDiameterMm": "1.75"
+   },
+   {
+    "sequence": "C21H501",
+    "stratum": "C/Heptane",
+    "fileName": "PSI-69_Raw Data_C21H501D.zip",
+    "version": "1",
+    "sizeBytes": 419111875,
+    "fuel": "Heptane",
+    "testEnd": "Completion",
+    "burnTimeS": "10.8",
+    "dropletInitialDiameterMm": "2.78"
+   },
+   {
+    "sequence": "C01M201",
+    "stratum": "C/Methanol",
+    "fileName": "PSI-69_Raw Data_C01M201D.zip",
+    "version": "1",
+    "sizeBytes": 215390271,
+    "fuel": "Methanol",
+    "testEnd": "Extinction",
+    "burnTimeS": "20",
+    "dropletInitialDiameterMm": "3.33"
+   },
+   {
+    "sequence": "C03M301",
+    "stratum": "C/Methanol",
+    "fileName": "PSI-69_Raw Data_C03M301D.zip",
+    "version": "1",
+    "sizeBytes": 345209266,
+    "fuel": "Methanol",
+    "testEnd": "Extinction",
+    "burnTimeS": "15.7",
+    "dropletInitialDiameterMm": "2.78"
+   },
+   {
+    "sequence": "C08M601",
+    "stratum": "C/Methanol",
+    "fileName": "PSI-69_Raw Data_C08M601D.zip",
+    "version": "1",
+    "sizeBytes": 45494155,
+    "fuel": "Methanol",
+    "testEnd": "Extinction",
+    "burnTimeS": "14.5",
+    "dropletInitialDiameterMm": "3.02"
+   },
+   {
+    "sequence": "C09M301",
+    "stratum": "C/Methanol",
+    "fileName": "PSI-69_Raw Data_C09M301D.zip",
+    "version": "1",
+    "sizeBytes": 374476017,
+    "fuel": "Methanol",
+    "testEnd": "Completion",
+    "burnTimeS": "24.3",
+    "dropletInitialDiameterMm": "3.75"
+   },
+   {
+    "sequence": "C09M401",
+    "stratum": "C/Methanol",
+    "fileName": "PSI-69_Raw Data_C09M401D.zip",
+    "version": "1",
+    "sizeBytes": 421904256,
+    "fuel": "Methanol",
+    "testEnd": "Disruption",
+    "burnTimeS": "14.1",
+    "dropletInitialDiameterMm": "3.08"
+   },
+   {
+    "sequence": "C12M401",
+    "stratum": "C/Methanol",
+    "fileName": "PSI-69_Raw Data_C12M401D.zip",
+    "version": "1",
+    "sizeBytes": 226480314,
+    "fuel": "Methanol",
+    "testEnd": "Extinction",
+    "burnTimeS": "2.4",
+    "dropletInitialDiameterMm": "2.87"
+   },
+   {
+    "sequence": "C13M103",
+    "stratum": "C/Methanol",
+    "fileName": "PSI-69_Raw Data_C13M103D.zip",
+    "version": "1",
+    "sizeBytes": 364859749,
+    "fuel": "Methanol",
+    "testEnd": "Extinction",
+    "burnTimeS": "5.7",
+    "dropletInitialDiameterMm": "3.63"
+   },
+   {
+    "sequence": "H03H202",
+    "stratum": "H/Heptane",
+    "fileName": "PSI-69_Raw Data_H03H202D.zip",
+    "version": "1",
+    "sizeBytes": 46354018,
+    "fuel": "Heptane",
+    "testEnd": "Completion",
+    "burnTimeS": "8.6",
+    "dropletInitialDiameterMm": "2.27"
+   },
+   {
+    "sequence": "H04H303",
+    "stratum": "H/Heptane",
+    "fileName": "PSI-69_Raw Data_H04H303D.zip",
+    "version": "1",
+    "sizeBytes": 372838337,
+    "fuel": "Heptane",
+    "testEnd": "Completion",
+    "burnTimeS": "2.7",
+    "dropletInitialDiameterMm": "1.61"
+   },
+   {
+    "sequence": "H13H101",
+    "stratum": "H/Heptane",
+    "fileName": "PSI-69_Raw Data_H13H101D.zip",
+    "version": "1",
+    "sizeBytes": 398184678,
+    "fuel": "Heptane",
+    "testEnd": "Extinction",
+    "burnTimeS": "4.3",
+    "dropletInitialDiameterMm": "3.69"
+   },
+   {
+    "sequence": "H01M102",
+    "stratum": "H/Methanol",
+    "fileName": "PSI-69_Raw Data_H01M102D.zip",
+    "version": "1",
+    "sizeBytes": 45604651,
+    "fuel": "Methanol",
+    "testEnd": "Extinction",
+    "burnTimeS": "14.4",
+    "dropletInitialDiameterMm": "2.91"
+   },
+   {
+    "sequence": "H10M101",
+    "stratum": "H/Methanol",
+    "fileName": "PSI-69_Raw Data_H10M101D.zip",
+    "version": "1",
+    "sizeBytes": 215267163,
+    "fuel": "Methanol",
+    "testEnd": "Extinction",
+    "burnTimeS": "11.2",
+    "dropletInitialDiameterMm": "2.82"
+   },
+   {
+    "sequence": "H12M201",
+    "stratum": "H/Methanol",
+    "fileName": "PSI-69_Raw Data_H12M201D.zip",
+    "version": "1",
+    "sizeBytes": 393535157,
+    "fuel": "Methanol",
+    "testEnd": "Extinction",
+    "burnTimeS": "7.6",
+    "dropletInitialDiameterMm": "2.67"
+   },
+   {
+    "sequence": "N02H203",
+    "stratum": "N/Heptane",
+    "fileName": "PSI-69_Raw Data_N02H203D.zip",
+    "version": "1",
+    "sizeBytes": 484208970,
+    "fuel": "Heptane",
+    "testEnd": "Extinction",
+    "burnTimeS": "4.5",
+    "dropletInitialDiameterMm": "2.52"
+   },
+   {
+    "sequence": "N04H101",
+    "stratum": "N/Heptane",
+    "fileName": "PSI-69_Raw Data_N04H101D.zip",
+    "version": "1",
+    "sizeBytes": 503735782,
+    "fuel": "Heptane",
+    "testEnd": "Extinction",
+    "burnTimeS": "1.6",
+    "dropletInitialDiameterMm": "4.16"
+   },
+   {
+    "sequence": "N06M202",
+    "stratum": "N/Methanol",
+    "fileName": "PSI-69_Raw Data_N06M202D.zip",
+    "version": "1",
+    "sizeBytes": 45936878,
+    "fuel": "Methanol",
+    "testEnd": "Extinction",
+    "burnTimeS": "6",
+    "dropletInitialDiameterMm": "1.84"
+   },
+   {
+    "sequence": "207F001",
+    "stratum": "numeric/Heptane",
+    "fileName": "PSI-69_Raw Data_207F001D.zip",
+    "version": "1",
+    "sizeBytes": 439793570,
+    "fuel": "Heptane",
+    "testEnd": "Extinction",
+    "burnTimeS": "1",
+    "dropletInitialDiameterMm": "–"
+   },
+   {
+    "sequence": "209F002",
+    "stratum": "numeric/Heptane",
+    "fileName": "PSI-69_Raw Data_209F002D.zip",
+    "version": "1",
+    "sizeBytes": 325734540,
+    "fuel": "Heptane",
+    "testEnd": "Disruption",
+    "burnTimeS": "18.5",
+    "dropletInitialDiameterMm": ""
+   },
+   {
+    "sequence": "223F002",
+    "stratum": "numeric/Heptane",
+    "fileName": "PSI-69_Raw Data_223F002D.zip",
+    "version": "1",
+    "sizeBytes": 372895070,
+    "fuel": "Heptane",
+    "testEnd": "Disruption",
+    "burnTimeS": "11.4",
+    "dropletInitialDiameterMm": "2.97"
+   },
+   {
+    "sequence": "224F001",
+    "stratum": "numeric/Heptane",
+    "fileName": "PSI-69_Raw Data_224F001D.zip",
+    "version": "1",
+    "sizeBytes": 383416040,
+    "fuel": "Heptane",
+    "testEnd": "Disruption",
+    "burnTimeS": "9.9",
+    "dropletInitialDiameterMm": "2.91"
+   },
+   {
+    "sequence": "178F001",
+    "stratum": "numeric/Methanol",
+    "fileName": "PSI-69_Raw Data_178F001D.zip",
+    "version": "1",
+    "sizeBytes": 324258972,
+    "fuel": "Methanol",
+    "testEnd": "Extinction",
+    "burnTimeS": "15.6",
+    "dropletInitialDiameterMm": "3.26"
+   },
+   {
+    "sequence": "190R002",
+    "stratum": "numeric/Methanol",
+    "fileName": "PSI-69_Raw Data_190R002D.zip",
+    "version": "1",
+    "sizeBytes": 346697434,
+    "fuel": "Methanol",
+    "testEnd": "Extinction",
+    "burnTimeS": "7.1",
+    "dropletInitialDiameterMm": "2.4"
+   },
+   {
+    "sequence": "219F001",
+    "stratum": "numeric/Methanol",
+    "fileName": "PSI-69_Raw Data_219F001D.zip",
+    "version": "1",
+    "sizeBytes": 41570758,
+    "fuel": "Methanol",
+    "testEnd": "Disruption",
+    "burnTimeS": "14.1",
+    "dropletInitialDiameterMm": "3.35"
+   },
+   {
+    "sequence": "240R003",
+    "stratum": "numeric/Methanol",
+    "fileName": "PSI-69_Raw Data_240R003D.zip",
+    "version": "1",
+    "sizeBytes": 224472010,
+    "fuel": "Methanol",
+    "testEnd": "Disruption",
+    "burnTimeS": "2.4",
+    "dropletInitialDiameterMm": "2.67"
+   },
+   {
+    "sequence": "305F002",
+    "stratum": "numeric/Methanol",
+    "fileName": "PSI-69_Raw Data_305F002D.zip",
+    "version": "1",
+    "sizeBytes": 42657228,
+    "fuel": "Methanol",
+    "testEnd": "Extinction",
+    "burnTimeS": "9",
+    "dropletInitialDiameterMm": "3.07"
+   }
+  ]
+ },
+ "createdAt": "2026-11-14T09:25:15Z"
+}
