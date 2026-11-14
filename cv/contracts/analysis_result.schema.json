@@ -484,6 +484,18 @@
           },
           "title": "Excludedregions",
           "type": "array"
+        },
+        "minPresentAreaFraction": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Minpresentareafraction"
         }
       },
       "required": [
@@ -828,7 +840,7 @@
   "additionalProperties": false,
   "properties": {
     "schemaVersion": {
-      "default": "1.4.0",
+      "default": "1.5.0",
       "title": "Schemaversion",
       "type": "string"
     },
@@ -908,7 +920,7 @@
     "scientificInterpretation",
     "provenance"
   ],
-  "title": "AnalysisResult v1.4.0",
+  "title": "AnalysisResult v1.5.0",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema"
 }
