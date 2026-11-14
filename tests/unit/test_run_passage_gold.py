@@ -91,3 +91,9 @@ def test_calibration_proposes_a_threshold_only_from_enough_verified_cases_and_ne
     few["per_question"] = [q for q in few["per_question"] if q["answerable"] or q["id"] < "PG-103"]     # only 3 unanswerable remain
     with pytest.raises(ValueError, match="unanswerable"):
         calibrate(few)
+
+
+def test_a_run_refuses_a_gold_file_that_breaks_its_own_rules(tmp_path):
+    cases = _cases(n_answerable=20, n_unanswerable=0)          # 0 % unanswerable: the set is incomplete
+    with pytest.raises(ValueError, match="unanswerable"):
+        run(cases, lambda q: _body(), label="partial")
