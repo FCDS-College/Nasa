@@ -192,8 +192,19 @@ est = estimate_parameters_fd(load_case("earth"))      # numpy only, seconds
     pixel, 1.80 mm per quarter px**. That gives a steady spread rate of **1.78 mm/s** (0.9916 px/s) and a front travel of about 836 mm by 416 s
     (the sample is 940 mm). It matches the bright-band estimate (0.445 mm per px) and rules out the length-based one (0.49 mm per px).
     It assumes the checkerboard lay in the sample plane. The CSV now has one position column, `x_mm`.
-  - Assumptions not verified: that the dark side is burned fabric (it fits the geometry, the 420 s burn time, and the glow sitting about
-    30 px behind the boundary, but I have no independent ground truth), and the direction of the front relative to the airflow. The `source` hook is where a reaction model plugs in.
+  - **Is the dark side burned fabric? Image check (2026-11-14).** Seven lit S1C1 Mapped frames at 1, 29, 99, 199, 275, 399 and 419 s
+    show: a uniformly bright sample at 1 s (no dark region before the burn, so it is not a fixture shadow); a sharp edge with a steady shape
+    that grows right to left and never recedes; glowing embers along the advancing edge; a mottled fibrous texture behind it, as expected for
+    the fiberglass skeleton left once the cotton is gone; and a fully dark sample at 399 and 419 s with the flame out, so the change
+    is lasting and not smoke or flame shadow. The glow also sits about 30 px behind the boundary. This supports "dark side = burned fabric".
+    It is not a physical inspection: there is no measured char, mass loss or post-burn photo in what is mirrored (the readme lists
+    "post-flow" image sets that were not downloaded and could be a stronger check). The 1 s frame is much more exposed than the later ones, so brightness is not compared across times.
+  - **Airflow direction: concurrent.** The PSI-98 experimental table (`Experimental table/PSI-98_Experimental table_SAFFIRE-1.csv`)
+    lists sample S1 (cameras S1C1/S1C2) with Flow Direction "Concurrent", 20 cm/s, 8 s ignition, 420 s burn, and sample S2 as "Opposed"
+    (70 s burn). So the 1.78 mm/s front spreads with the flow. This comes from the table, not from the pixels: I did not measure the flow
+    direction in the images, and the F2C2 flow-visualisation run belongs to sample 2 (opposed), so it does not decide sample 1;
+    the sample 1 run (F1C1/F1C2) was only downloaded as distortion grids. Use 1.78 mm/s as a concurrent-flow rate at 20 cm/s and about 21.5 % O2
+    when comparing with published rates. The `source` hook is where a reaction model plugs in.
 - A second inlet speed (PSI-115 Case 2, Uo = 0.1 m/s) to test that `G` is a property of gravity rather than of one flow.
 - Multiple seeds for a spread on `G` and `1/Pe` (one seed so far).
 - Close the PINN-specific part of the Earth `G` gap (about 4.5 points below the FD estimate). The viscosity sweep did
