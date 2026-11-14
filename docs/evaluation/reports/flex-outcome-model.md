@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Lead (Anas), built with Claude Code | Current (needs review by Ziad, E5) | 1.0.0 | 2026-11-07 | T4 (final challenge plan) | `ai/fire_safety/`, `apps/api/flame_api/investigations.py` |
+| Lead (Anas), built with Claude Code | Current (needs review by Ziad, E5) | 1.1.0 | 2026-11-14 | T4 (final challenge plan) | `ai/fire_safety/`, `apps/api/flame_api/investigations.py` |
 
 Every number below is copied from `ai/fire_safety/artifacts/flex_outcome_evaluation.json`. That file is written by:
 
@@ -63,6 +63,7 @@ The API rebuilds the features from ingested database rows. `test_api_features_ma
 3. **Selection.** Candidates are compared by 5× repeated grouped 5-fold CV on the other 80 % of days, using macro-F1 because the classes are imbalanced. Logistic regression is preferred unless another exportable model beats it by more than one SD.
 4. **Primary estimate.** 5× repeated grouped 5-fold CV over all 261 rows.
 5. **Deployment.** The deployed model is the selected candidate refit on all rows. It is exported to JSON and executed with numpy in the API. The numpy and scikit-learn probabilities differ by at most 2.2 × 10⁻¹⁶.
+6. **Calibration.** The served probabilities are prior-corrected (§4, Calibration). This step was added after the hold-out had been viewed (protocol history v1.1); it fits nothing beyond the training class frequencies.
 
 **Disclosure (protocol history).** The first version selected by a *single* grouped 5-fold split on the development days, and that chose random forest (0.570 vs 0.540). On the held-out days the random forest then scored 0.497, against 0.640 for logistic regression. A single split was judged too noisy to select on, so selection moved to repeated grouped CV.
 
@@ -109,7 +110,30 @@ Calibration of P(extinction) on the hold-out (predicted → observed):
 | 0.6–0.8 | 12 | 0.70 | 0.83 |
 | 0.8–1.0 | 10 | 0.87 | 1.00 |
 
-The probabilities are under-confident in the middle range. The bins are small, so the figure is indicative only.
+These are the **uncalibrated** probabilities: under-confident in the middle range. The bins are small, so the figure is indicative only.
+
+**Calibration (since `flex-outcome-logreg-1.1.0`, KB audit 2026-11-13).** Both exportable candidates are trained with `class_weight="balanced"`, which fits the three outcomes as if they were equally common. That helps the rare classes get predicted, but it means the raw probabilities are not frequencies: in the table above, held-out tests given 0.2–0.4 extinguished half the time. The API now reports **prior-corrected** probabilities: the raw ones multiplied by the training class frequencies (Extinction 179, Disruption 55, Completion 27 of 261) and renormalised, which undoes the weighting exactly for a well-specified model and fits nothing else. The predicted end state is the most likely class under these probabilities.
+
+Scored by 5× repeated 5-fold CV grouped by test day over all 261 rows, with the class frequencies taken from each training fold (ECE: 10 equal-width bins of P(extinction)):
+
+| Probabilities | Log loss | Extinction ECE | Extinction Brier | Extinction ROC-AUC | Most-likely-class macro-F1 |
+|---|---|---|---|---|---|
+| Uncalibrated (classifier's own) | 0.817 ± 0.037 | 0.202 ± 0.012 | 0.192 ± 0.002 | 0.857 ± 0.010 | 0.540 ± 0.018 |
+| **Calibrated (served)** | 0.662 ± 0.032 | 0.074 ± 0.013 | 0.137 ± 0.005 | 0.855 ± 0.009 | 0.491 ± 0.010 |
+
+Calibration error falls by about two thirds and log loss improves. The cost is the most-likely label: it follows the base rates, so it names Disruption and Completion less often, and its macro-F1 is lower than the classifier's own decisions (0.540 above). The probabilities, not the label, carry the estimate.
+
+On the 49 held-out tests (supporting evidence only; the hold-out had been viewed, §3), ECE goes from 0.218 to 0.150, log loss from 0.667 to 0.604, and the most-likely-class macro-F1 from 0.640 to 0.393. Calibrated bins:
+
+| Bin | Tests | Predicted | Observed |
+|---|---|---|---|
+| 0.0–0.2 | 1 | 0.01 | 0.00 |
+| 0.2–0.4 | 2 | 0.26 | 0.00 |
+| 0.4–0.6 | 9 | 0.48 | 0.00 |
+| 0.6–0.8 | 11 | 0.68 | 0.64 |
+| 0.8–1.0 | 26 | 0.93 | 0.92 |
+
+The calibrated probabilities are not uniformly better on these few tests: the 9 held-out tests given about 0.48 did not extinguish. Example of the change: heptane at 0.21 O₂, 101.3 kPa, 3 mm, no diluent went from 16 % to 46 % chance of self-extinction.
 
 ## 5. What drives the estimate
 
@@ -156,8 +180,10 @@ Example: the Altair lunar-lander atmosphere (34 % O₂ at 62.7 kPa) is refused b
 - Droplet combustion of two fuels only; spacecraft cabin fires are mostly solid materials.
 - 261 tests on 80 days; the Completion class has only 27 examples, so its precision is low (0.29 on the hold-out).
 - Microgravity only; partial gravity is not represented.
-- The hold-out was viewed before the final selection rule was fixed (§3).
+- The hold-out was viewed before the final selection rule was fixed, and before calibration was added (§3).
+- Prior correction assumes the classifier is well specified; it is not fitted to the calibration curve, and with 261 tests the per-bin calibration is uncertain.
 - The gold labels are NASA's published `Test end` values; their definitions come from the FLEX documentation and were not re-reviewed by a domain expert for this report.
 
 ## Changelog
+- 1.1.0 (2026-11-14): served probabilities are prior-corrected (`flex-outcome-logreg-1.1.0`); raw and calibrated probabilities scored side by side (KB audit 2026-11-13).
 - 1.0.0 (2026-11-07): first release (`flex-outcome-logreg-1.0.0`).

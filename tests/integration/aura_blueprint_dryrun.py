@@ -19,6 +19,12 @@ from pathlib import Path
 
 FLAME_ROOT = Path(__file__).resolve().parents[2]
 SPEC_PATH = FLAME_ROOT / "docs" / "api" / "openapi.json"
+#: AURA carries at most this many optional query parameters per generated tool, in spec order (MAX_OPTIONAL_QUERY in
+#: aura_core/adaptation/normalize.py at the pinned revision: 12 since AURA #235, b655421; 8 before). A parameter past it is
+#: unreachable by design; the contract would mark such a parameter with `x-aura-unreachable` (its reason), and any other
+#: unreachable parameter fails this run. Keep this equal to the pinned AURA's value when the pin moves.
+AURA_MAX_OPTIONAL_QUERY = 12
+UNREACHABLE_EXTENSION = "x-aura-unreachable"
 
 
 def main() -> int:
@@ -86,16 +92,45 @@ def main() -> int:
     for tool in compiled.blueprint.tools:
         http = templates[tool.template].http
         exposed.setdefault(http.path, set()).update(http.query_params)
-    unreachable = 0
-    for path, item in sorted(spec["paths"].items()):
-        if ("GET", path) in excluded:
-            continue
-        for param in item.get("get", {}).get("parameters", []):
-            param = _resolve(spec, param)
-            if param.get("in") == "query" and param.get("name") not in exposed.get(path, set()):
-                print(f"  not reachable by AURA: optional query parameter {param.get('name')!r} on GET {path}")
-                unreachable += 1
+    result = reachability(spec, exposed)
+    for path, name, reason in result["documented"]:
+        print(f"  documented unreachable (allowed): {name!r} on GET {path}: {reason}")
+    for path, name in result["unexpected"]:
+        print(f"  not reachable by AURA: optional query parameter {name!r} on GET {path}")
+    for path, name in result["stale"]:
+        print(f"  STALE {UNREACHABLE_EXTENSION}: {name!r} on GET {path} is reachable by AURA; remove the mark")
+    unreachable = len(result["unexpected"]) + len(result["stale"])
     return 1 if rejected or missing_examples or unreachable or leaked else 0
+
+
+def optional_query_parameters(spec: dict, operation: dict) -> list[dict]:
+    """The operation's optional query parameters in spec order: what AURA turns into optional tool parameters."""
+    params = (_resolve(spec, p) for p in operation.get("parameters", []))
+    return [p for p in params if p.get("in") == "query" and not p.get("required", False)]
+
+
+def reachability(spec: dict, exposed: dict[str, set[str]]) -> dict[str, list]:
+    """Per GET path: optional query parameters AURA did not expose on that path's tool.
+
+    `unexpected` are unmarked gaps (a failure); `documented` carry `x-aura-unreachable` with its reason (allowed);
+    `stale` are marked but exposed after all (a failure: the mark no longer describes AURA).
+    """
+    out: dict[str, list] = {"unexpected": [], "documented": [], "stale": []}
+    for path, item in sorted(spec["paths"].items()):
+        operation = item.get("get")
+        if not isinstance(operation, dict) or operation.get("x-aura-exclude") is True or item.get("x-aura-exclude") is True:
+            continue
+        reached = exposed.get(path, set())
+        for param in optional_query_parameters(spec, operation):
+            name, reason = param.get("name"), param.get(UNREACHABLE_EXTENSION)
+            if name in reached:
+                if reason:
+                    out["stale"].append((path, name))
+            elif reason:
+                out["documented"].append((path, name, reason))
+            else:
+                out["unexpected"].append((path, name))
+    return out
 
 
 def _resolve(spec: dict, node: dict) -> dict:

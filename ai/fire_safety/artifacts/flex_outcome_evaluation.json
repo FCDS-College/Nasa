@@ -1,6 +1,6 @@
 {
-  "model_version": "flex-outcome-logreg-1.0.0",
-  "generated_at": "2026-11-07T18:51:32Z",
+  "model_version": "flex-outcome-logreg-1.1.0",
+  "generated_at": "2026-11-14T01:43:21Z",
   "training_data": {
     "source_id": "FF-PSI-69",
     "file": "datasets/raw/psi_api/PSI-69/Experimental table/PSI-69_Experimental table_FLEX.csv",
@@ -139,7 +139,8 @@
   },
   "protocol_history": [
     "v0 (discarded): selection by a single grouped 5-fold CV on the development days chose random_forest (macro-F1 0.570 vs 0.540 for logistic regression); on the held-out days it scored 0.497 vs 0.640.",
-    "v1 (this report): a single 5-fold split was judged too noisy to select on, so selection now uses 5x repeated grouped CV on the development days and prefers the simpler model within one SD. This change was made AFTER the v0 hold-out was viewed, so the hold-out is no longer untouched; treat the repeated grouped CV over all rows as the primary estimate and the hold-out as supporting evidence."
+    "v1 (this report): a single 5-fold split was judged too noisy to select on, so selection now uses 5x repeated grouped CV on the development days and prefers the simpler model within one SD. This change was made AFTER the v0 hold-out was viewed, so the hold-out is no longer untouched; treat the repeated grouped CV over all rows as the primary estimate and the hold-out as supporting evidence.",
+    "v1.1 (2026-11-14, KB audit): the API showed the raw extinction probability as a 'chance', but the balanced class weighting makes it under-confident (hold-out bin 0.2-0.4: observed 0.50). Probabilities are now prior-corrected. This was added after the hold-out calibration was viewed; it fits no parameters beyond the training class frequencies, and the repeated grouped CV over all rows (calibration section) is the primary evidence. The most likely class now follows the calibrated probabilities, so its macro-F1 is lower."
   ],
   "holdout": {
     "majority_class": {
@@ -426,6 +427,228 @@
       }
     }
   },
+  "calibration": {
+    "method": "prior_correction",
+    "note": "Classifier metrics above score the raw classifier (its own decisions). The API reports the calibrated probabilities and their most likely class, scored here; ECE uses 10 equal-width bins of P(extinction).",
+    "repeated_grouped_cv_all_rows": {
+      "raw": {
+        "log_loss": {
+          "mean": 0.8168,
+          "sd": 0.0375
+        },
+        "extinction_brier": {
+          "mean": 0.1923,
+          "sd": 0.0024
+        },
+        "extinction_ece": {
+          "mean": 0.2022,
+          "sd": 0.012
+        },
+        "extinction_roc_auc": {
+          "mean": 0.8573,
+          "sd": 0.0096
+        },
+        "macro_f1": {
+          "mean": 0.5398,
+          "sd": 0.018
+        }
+      },
+      "calibrated": {
+        "log_loss": {
+          "mean": 0.6623,
+          "sd": 0.0319
+        },
+        "extinction_brier": {
+          "mean": 0.1366,
+          "sd": 0.0049
+        },
+        "extinction_ece": {
+          "mean": 0.0738,
+          "sd": 0.0134
+        },
+        "extinction_roc_auc": {
+          "mean": 0.8554,
+          "sd": 0.009
+        },
+        "macro_f1": {
+          "mean": 0.4915,
+          "sd": 0.0101
+        }
+      }
+    },
+    "holdout": {
+      "raw": {
+        "macro_f1": 0.6398,
+        "balanced_accuracy": 0.7001,
+        "accuracy": 0.7347,
+        "per_class": {
+          "Completion": {
+            "precision": 0.2857,
+            "recall": 0.8,
+            "f1": 0.4211,
+            "support": 5
+          },
+          "Disruption": {
+            "precision": 1.0,
+            "recall": 0.4615,
+            "f1": 0.6316,
+            "support": 13
+          },
+          "Extinction": {
+            "precision": 0.8966,
+            "recall": 0.8387,
+            "f1": 0.8667,
+            "support": 31
+          }
+        },
+        "confusion_matrix": {
+          "labels": [
+            "Completion",
+            "Disruption",
+            "Extinction"
+          ],
+          "rows_true_cols_predicted": [
+            [
+              4,
+              0,
+              1
+            ],
+            [
+              5,
+              6,
+              2
+            ],
+            [
+              5,
+              0,
+              26
+            ]
+          ]
+        },
+        "extinction_roc_auc": 0.9265,
+        "extinction_brier": 0.1343,
+        "extinction_calibration": [
+          {
+            "bin": "0.0-0.2",
+            "n": 11,
+            "mean_predicted": 0.123,
+            "observed_extinction_rate": 0.0
+          },
+          {
+            "bin": "0.2-0.4",
+            "n": 10,
+            "mean_predicted": 0.281,
+            "observed_extinction_rate": 0.5
+          },
+          {
+            "bin": "0.4-0.6",
+            "n": 6,
+            "mean_predicted": 0.516,
+            "observed_extinction_rate": 1.0
+          },
+          {
+            "bin": "0.6-0.8",
+            "n": 12,
+            "mean_predicted": 0.695,
+            "observed_extinction_rate": 0.833
+          },
+          {
+            "bin": "0.8-1.0",
+            "n": 10,
+            "mean_predicted": 0.867,
+            "observed_extinction_rate": 1.0
+          }
+        ],
+        "log_loss": 0.6672,
+        "extinction_ece": 0.2185
+      },
+      "calibrated": {
+        "macro_f1": 0.3934,
+        "balanced_accuracy": 0.4103,
+        "accuracy": 0.6939,
+        "per_class": {
+          "Completion": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 5
+          },
+          "Disruption": {
+            "precision": 1.0,
+            "recall": 0.2308,
+            "f1": 0.375,
+            "support": 13
+          },
+          "Extinction": {
+            "precision": 0.6739,
+            "recall": 1.0,
+            "f1": 0.8052,
+            "support": 31
+          }
+        },
+        "confusion_matrix": {
+          "labels": [
+            "Completion",
+            "Disruption",
+            "Extinction"
+          ],
+          "rows_true_cols_predicted": [
+            [
+              0,
+              0,
+              5
+            ],
+            [
+              0,
+              3,
+              10
+            ],
+            [
+              0,
+              0,
+              31
+            ]
+          ]
+        },
+        "extinction_roc_auc": 0.9391,
+        "extinction_brier": 0.1322,
+        "extinction_calibration": [
+          {
+            "bin": "0.0-0.2",
+            "n": 1,
+            "mean_predicted": 0.01,
+            "observed_extinction_rate": 0.0
+          },
+          {
+            "bin": "0.2-0.4",
+            "n": 2,
+            "mean_predicted": 0.257,
+            "observed_extinction_rate": 0.0
+          },
+          {
+            "bin": "0.4-0.6",
+            "n": 9,
+            "mean_predicted": 0.48,
+            "observed_extinction_rate": 0.0
+          },
+          {
+            "bin": "0.6-0.8",
+            "n": 11,
+            "mean_predicted": 0.68,
+            "observed_extinction_rate": 0.636
+          },
+          {
+            "bin": "0.8-1.0",
+            "n": 26,
+            "mean_predicted": 0.933,
+            "observed_extinction_rate": 0.923
+          }
+        ],
+        "log_loss": 0.6039,
+        "extinction_ece": 0.1498
+      }
+    }
+  },
   "permutation_importance_final_model": [
     {
       "feature": "o2",
@@ -470,6 +693,6 @@
       "sd": 0.0255
     }
   ],
-  "elapsed_s": 12.3,
+  "elapsed_s": 17.3,
   "numpy_vs_sklearn_max_abs_probability_difference": 2.220446049250313e-16
 }

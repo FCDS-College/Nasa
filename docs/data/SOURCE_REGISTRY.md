@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Anas (E2) | In review (peer sign-off: Eman E1 or Ziad E5) | 1.0.0 | 2026-10-12 | M9, B2, E2-1 | `datasets/registry/source_registry.csv`, `source_registry.schema.json`, `apps/api/flame_api/registry.py`, `knowledge/ingestion/validate_registry.py` |
+| Anas (E2) | In review (peer sign-off: Eman E1 or Ziad E5) | 1.1.0 | 2026-11-14 | M9, B2, E2-1 | `datasets/registry/source_registry.csv`, `source_registry.schema.json`, `apps/api/flame_api/registry.py`, `knowledge/ingestion/validate_registry.py` |
 
 The registry is the list of every source Flame knows about: one CSV row per source, validated against a JSON Schema (draft 2020-12). `python -m flame_api.seed` loads it into the `source` table. Image datasets are described per source in [CV image sources](CV_IMAGE_SOURCES.md), which Princess's annotation protocol also links.
 
@@ -15,6 +15,8 @@ python knowledge/ingestion/validate_registry.py --json    # the decoded rows
 ```
 
 The validator checks `uri` and `date-time` formats when `jsonschema[format-nongpl]` is installed (it is part of `apps/api[dev]`). It also flags duplicate `source_id`s.
+
+**Clearance (since 2026-11-14, KB audit).** A source is *cleared* when its row is `verified` and records a `license`. A source with files in `datasets/metadata/files.jsonl` that is not cleared is a validation problem, and `python -m flame_api.ingest` skips the files of any uncleared source (counted as `not_cleared`, logged as `ingest_source_not_cleared`). So a `partially_verified` or unlicensed source is metadata only: registered, never ingested or cited. The one allowed exception is listed in `flame_api.registry.KNOWN_UNCLEARED` with its reason and printed as `NOT CLEARED (allowed: not ingested)`: today `FF-PSI-DSI`, which is never ingested into the knowledge base.
 
 ## 2. CSV encoding rules (arrays and nulls)
 
@@ -67,7 +69,7 @@ Text values must not contain `;` when the field is an array. Use `,` inside an i
 
 ## 4. Adding a source (review checklist)
 
-1. **Licence and terms.** Record the licence, or `null` with the reason in `notes`. Never scrape restricted content (MVP §7). A source whose terms aren't reviewed is `reference_only`.
+1. **Licence and terms.** Record the licence, or `null` with the reason in `notes`. Never scrape restricted content (MVP §7). A source whose terms aren't reviewed is `reference_only`. Its files are not ingested until it is `verified` with a licence (§1, clearance); for an NTRS report, read the terms from the NTRS API record (`knowledge/ingestion/fetch_ntrs.py`, `permission()`), not from the PDF.
 2. **Relevance.** It must serve microgravity combustion or fire safety. Non-combustion sources get `domain = non_combustion` in `seed.py` (today only `FF-PSI-DSI`).
 3. **Duplicates.** Search the registry for the same DOI, PSI ID or report number.
 4. **Trust tier and priority.** P0 = needed for the MVP corpus; P1 = Phase 2; P2 = context. The trust tier comes from C4 / E2-7.
@@ -94,9 +96,10 @@ Text values must not contain `;` when the field is an array. Use `,` inside an i
 The DSI file count is the bucket listing. The four PSI P0 sources are mirrored locally under `datasets/raw/` (git-ignored, E2-10). The three NTRS PDFs are committed in `docs/research/`. NIST WebBook is registered only.
 
 ## Known limitations
-- `FF-PSI-DSI` is `confirmed_public` with no licence recorded; it needs a follow-up.
-- The NTRS rows were verified from the PDFs' own title pages, not from the NTRS record pages, so their licence is `null` until the record terms are read.
+- `FF-PSI-DSI` is `confirmed_public` with no licence recorded; it needs a follow-up by a person (PSI's study API returned 403 from the build environment on 2026-11-14). Until then it is a `KNOWN_UNCLEARED` exception: allowed only because nothing of it enters the knowledge base.
+- The three NTRS reports registered on 2026-10-11 (`FF-NTRS-20000034017`, `-20040053557`, `-20080034883`) were verified against their NTRS API records on 2026-11-14: public distribution, `GOV_PUBLIC_USE_PERMITTED` (the first two) or `PUBLIC_USE_PERMITTED`, no third-party material, not export controlled, and each NTRS download is byte-identical to the committed PDF. The §5 snapshot still shows their 2026-10-12 state.
 - `last_verified_utc` is set by hand; nothing re-checks the URLs automatically.
 
 ## Changelog
+- 1.1.0 (2026-11-14): clearance rule (verified + licensed) enforced by the validator and by ingest; the three 2026-10-11 NTRS reports verified against their NTRS records (KB audit 2026-11-13).
 - 1.0.0 (2026-10-12): first guide. Shared decoder and validator added; 3 NTRS sources and NIST WebBook registered.

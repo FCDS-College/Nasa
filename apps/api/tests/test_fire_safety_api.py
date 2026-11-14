@@ -154,6 +154,42 @@ def test_committed_artefact_matches_its_evaluation_report_and_training_table():
     assert np.isclose(probabilities.sum(), 1.0)
 
 
+
+# ------------------------------------------- KB audit 2026-11-13, finding 8: probabilities shown as a "chance" are calibrated
+
+def test_the_shown_probabilities_undo_the_balanced_class_weighting():
+    """class_weight="balanced" trains toward a uniform class prior, so its raw probabilities are not frequencies (the
+    hold-out 0.2-0.4 bin was observed at 0.50). The model multiplies them by the training class prior and renormalises."""
+    artefact = json.loads(outcome_model.ARTIFACT.read_text(encoding="utf-8"))
+    counts = artefact["training_data"]["class_counts"]
+    calibration = artefact["calibration"]
+    assert calibration["method"] == "prior_correction"
+    assert calibration["class_prior"] == pytest.approx([counts[c] / sum(counts.values()) for c in artefact["classes"]])
+    model = outcome_model.load()
+    features = {"o2": 0.21, "pressure_atm": 1.0, "ppo2_atm": 0.21, "co2": 0.0, "he": 0.0, "d0_mm": 3.0, "heptane": 1.0}
+    raw = model.raw_probabilities(features)
+    expected = raw * np.array(calibration["class_prior"])
+    assert model.probabilities(features) == pytest.approx(expected / expected.sum())
+
+
+def test_the_calibrated_probabilities_are_measured_better_calibrated_than_the_raw_ones():
+    report = json.loads(outcome_model.ARTIFACT.with_name("flex_outcome_evaluation.json").read_text(encoding="utf-8"))
+    cv = report["calibration"]["repeated_grouped_cv_all_rows"]
+    assert cv["calibrated"]["extinction_ece"]["mean"] < cv["raw"]["extinction_ece"]["mean"] / 2
+    assert cv["calibrated"]["log_loss"]["mean"] < cv["raw"]["log_loss"]["mean"]
+    assert report["calibration"]["holdout"]["calibrated"]["extinction_calibration"]
+
+
+def test_the_estimate_reports_the_figures_of_the_probabilities_it_shows(client, ingested):
+    body = client.get("/api/insights/flex-outcome", params={"fuel": "Heptane", "o2_fraction": 0.21, "pressure_kpa": 101.3}).json()
+    calibration = body["model"]["calibration"]
+    assert calibration["method"] == "prior_correction"
+    assert calibration["extinction_ece"]["mean"] < calibration["raw_extinction_ece"]["mean"]
+    assert body["predicted_end_state"] == max(body["probabilities"], key=body["probabilities"].get)
+    estimate = {i["insight_id"]: i for i in client.get("/api/insights", params={"scenario": "iss_nominal"}).json()["items"]}
+    caveat = estimate["flex_model_scenario_estimate"]["caveats"][0]
+    assert "calibrated" in caveat and "calibration error" in caveat
+
 def test_review_fixes_low_oxygen_scenario_and_evidence_semantics(client, ingested):
     """Code-review regressions (2026-11-07)."""
     # A scenario below BASS-II's lowest O2 is a coverage gap, not "inside the range".

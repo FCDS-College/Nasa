@@ -190,6 +190,17 @@ export interface FlexOutcome {
     };
     holdout: { macro_f1: number; balanced_accuracy: number; extinction_roc_auc: number; accuracy: number };
     holdout_note: string;
+    /** Since model 1.1.0: the probabilities are prior-corrected; grouped-CV figures, calibrated vs uncalibrated. */
+    calibration?: {
+      method: string;
+      estimate: string;
+      extinction_ece: { mean: number; sd: number };
+      raw_extinction_ece: { mean: number; sd: number };
+      log_loss: { mean: number; sd: number };
+      raw_log_loss: { mean: number; sd: number };
+      extinction_roc_auc: { mean: number; sd: number };
+      most_likely_class_macro_f1: { mean: number; sd: number };
+    } | null;
     feature_importance: { feature: string; label: string; mean_drop_in_macro_f1: number; sd: number }[];
     report: string;
   };

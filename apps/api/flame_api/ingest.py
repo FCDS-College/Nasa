@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from flame_api.database import SessionLocal
 from flame_api.ids import stable_ulid
+from flame_api.registry import uncleared_sources
 from flame_api.models import (
     DocumentChunk,
     DocumentRecord,
@@ -867,7 +868,7 @@ def ingest(force: bool = False) -> dict[str, int]:
     session = SessionLocal()
     totals = {"pdf_documents": 0, "pdf_pages": 0, "pdf_chunks": 0, "ocr_pages": 0, "ocr_low_confidence": 0,
               "text_documents": 0, "text_chunks": 0, "experiments": 0, "table_evidence": 0, "spice_duplicates": 0,
-              "skipped": 0, "quarantined": 0, "failed": 0, "unchanged": 0}
+              "skipped": 0, "quarantined": 0, "failed": 0, "not_cleared": 0, "unchanged": 0}
     try:
         files = (
             session.query(FileRecord)
@@ -876,7 +877,14 @@ def ingest(force: bool = False) -> dict[str, int]:
             .all()
         )
         done = set() if force else _already_ingested(session)
+        # A source that is not verified and licensed in the registry stays metadata only (KB audit 2026-11-13).
+        blocked = uncleared_sources()
+        for source_id in sorted({f.source_id for f in files} & blocked.keys()):
+            logger.warning("ingest_source_not_cleared source_id=%s reason=%s", source_id, blocked[source_id])
         for file_record in files:
+            if file_record.source_id in blocked:
+                totals["not_cleared"] += 1
+                continue
             transformation = _transformation_for(file_record)
             if transformation and file_record.status != "quarantined" \
                     and (file_record.file_id, file_record.sha256, transformation) in done:
