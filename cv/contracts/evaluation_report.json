@@ -1,14 +1,14 @@
 {
-  "schemaVersion": "1.1.0",
-  "generatedAt": "2026-10-07T11:34:02Z",
-  "pipelineVersion": "cv-opencv-v1.1.0",
-  "segmenterVersion": "1.1.0",
-  "configDigest": "5140c618f88cd05b",
+  "schemaVersion": "1.3.0",
+  "generatedAt": "2026-11-14T00:21:18Z",
+  "pipelineVersion": "cv-opencv-v1.4.0-auto",
+  "segmenterVersion": "1.4.0",
+  "configDigest": "f121ec5921581f80",
   "dataset": {
     "imageDir": "datasets/samples/cv/FF-PSI-107/SPICE_GMT045_2009_jpegs",
     "nImagesFound": 10,
     "nAnalyzed": 10,
-    "nWithGroundTruth": 0,
+    "nWithGroundTruth": 5,
     "nErrors": 0
   },
   "detection": {
@@ -20,17 +20,22 @@
     "note": "Heuristic detector: counts are not accuracy."
   },
   "qualityFlagRates": {
-    "saturationClipping": 1.0,
-    "lowLight": 0.1
+    "saturationClipping": 1.0
   },
   "segmentation": {
-    "status": "NOT_EVALUATED",
-    "reason": "No ground-truth masks were provided."
+    "status": "EVALUATED",
+    "n": 5,
+    "meanIoU": 0.821,
+    "medianIoU": 0.8013,
+    "minIoU": 0.7949,
+    "meanF1": 0.9015,
+    "meanPrecision": 0.9999,
+    "meanRecall": 0.8211
   },
   "acceptance": {
     "metric": "meanIoU",
     "threshold": null,
-    "verdict": "NOT_EVALUATED"
+    "verdict": "REPORT_ONLY"
   },
   "perImage": [
     {
@@ -39,15 +44,18 @@
       "detectorConfidence": 0.985,
       "flags": [
         "saturationClipping"
-      ]
+      ],
+      "iou": 0.7999,
+      "f1": 0.8888,
+      "precision": 1.0,
+      "recall": 0.7999
     },
     {
       "imageId": "ISS018E030340",
       "detection": "PRESENT",
       "detectorConfidence": 0.986,
       "flags": [
-        "saturationClipping",
-        "lowLight"
+        "saturationClipping"
       ]
     },
     {
@@ -56,7 +64,11 @@
       "detectorConfidence": 0.989,
       "flags": [
         "saturationClipping"
-      ]
+      ],
+      "iou": 0.8668,
+      "f1": 0.9287,
+      "precision": 1.0,
+      "recall": 0.8668
     },
     {
       "imageId": "ISS018E030351",
@@ -72,7 +84,11 @@
       "detectorConfidence": 0.987,
       "flags": [
         "saturationClipping"
-      ]
+      ],
+      "iou": 0.7949,
+      "f1": 0.8858,
+      "precision": 1.0,
+      "recall": 0.7949
     },
     {
       "imageId": "ISS018E030359",
@@ -88,7 +104,11 @@
       "detectorConfidence": 0.987,
       "flags": [
         "saturationClipping"
-      ]
+      ],
+      "iou": 0.8013,
+      "f1": 0.8897,
+      "precision": 1.0,
+      "recall": 0.8013
     },
     {
       "imageId": "ISS018E030368",
@@ -104,7 +124,11 @@
       "detectorConfidence": 0.983,
       "flags": [
         "saturationClipping"
-      ]
+      ],
+      "iou": 0.8421,
+      "f1": 0.9143,
+      "precision": 0.9995,
+      "recall": 0.8425
     },
     {
       "imageId": "ISS018E030376",
@@ -120,5 +144,6 @@
     "No measurement-error evaluation: no calibrated reference values are available.",
     "Frames from the same experiment are highly correlated; split by group, not by frame.",
     "Detector confidence is a heuristic score, not a calibrated probability."
-  ]
+  ],
+  "note": "Per-image run of cv.flame_cv.run_cv_evaluation on the 10 SPICE ISS photos (dev data; all contain a flame, so this measures segmentation, not false positives). Ground truth: the 5 cv_gold_v1 masks for these images, Claude-drafted and not yet verified. The evaluation of record, with negatives and a held-out split, is cv/contracts/gold_evaluation_report.json (docs/cv/evaluation-report.md)."
 }

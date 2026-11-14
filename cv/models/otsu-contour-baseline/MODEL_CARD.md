@@ -25,7 +25,7 @@
 - **Main failures:** static bright scenery (cabin views, lit chamber) is called a flame; dim blue flames are missed. (The v1.3.0 regression on small flames is fixed in v1.4.0.)
 
 ## 4. Hardware Requirements
-- **Hardware:** Runs efficiently on standard CPU architectures; compatible with GPU acceleration environments via OpenCV/NumPy optimizations.
+- **Hardware:** CPU only (OpenCV and NumPy); there is no GPU path. Measured on a 4-core Xeon @ 2.10 GHz: 63–170 ms per image (512² to 3008 × 2000) and 33.6 video frames per second at 720 × 480 ([docs/cv/performance.md](../../../docs/cv/performance.md)).
 
 ## 5. Intended and Out-of-Scope Uses
 - **Intended Uses:** Primary automated screening of space experiment flame imagery, geometric projection calculations, and anomaly flagging.
@@ -39,6 +39,7 @@
 - 2D projected spatial measurements without depth correction or scale calibration (`scaleAbsent`).
 
 ## Changelog
+- **Docs (2026-11-14):** Hardware line replaced with measured CPU figures; the GPU-acceleration claim is removed.
 - **v1.4.0 (2026-11-13):** Small regions are specks unless high-contrast, replacing the 0.05% minimum region that missed small flames (tuned on dev only).
 - **v1.3.0 evaluation (2026-11-13):** First evaluation with negatives and a held-out split (`cv_gold_v1`).
 - **v1.3.0 (2026-11-13):** 16-bit input scaled instead of clipped (45 FLEX dark frames were reported as flames); no PRESENT without background or with unstable segmentation; 0.05% minimum region; computed ABSENT confidence. Removed the `[cite: 7]` debris.
