@@ -1,5 +1,5 @@
 """
-flame_cv.py - Flame in Freefall: computer-vision pipeline (Engineer 3), v1.4.0
+flame_cv.py - Flame in Freefall: computer-vision pipeline (Engineer 3), v1.5.0
 
 Image -> Validation -> Letterbox preprocessing -> Segmentation -> Features
       -> Confidence / quality flags -> AnalysisResult (+ mask/overlay artifacts)
@@ -35,10 +35,10 @@ from pydantic import BaseModel, ConfigDict, Field
 # Versions
 # --------------------------------------------------------------------------------------
 SCHEMA_VERSION = "1.3.0"
-PIPELINE_VERSION = "cv-opencv-v1.4.0-auto"
+PIPELINE_VERSION = "cv-opencv-v1.5.0-auto"
 PREPROCESS_VERSION = "letterbox-lanczos-auto-v2"  # v2: 16-bit input scaled, not clipped
 SEGMENTER_NAME = "otsu-contour-adaptive"
-SEGMENTER_VERSION = "1.4.0"
+SEGMENTER_VERSION = "1.5.0"
 
 DEFAULT_OPTIONS = {
     "runSegmentation": True,
@@ -84,6 +84,12 @@ class CVConfig:
     min_present_stability: float = 0.5   # threshold-stability IoU required for PRESENT (real SPICE flames >= 0.56)
     min_background_fraction: float = 0.05  # content left outside the region; below it contrast is not estimable
     absent_confidence_cap: float = 0.9
+    # The detector assumes a dark background: luminous flames are filmed in dark chambers. In a lit scene
+    # (cabin view, lit hardware) a bright region is as likely scenery as flame, so it is never PRESENT.
+    # Lighting = median gray minus the 1st-percentile gray, so a sensor's constant black level does not count
+    # as light. Chosen on the dev split of cv_gold_v1 only: dev flame frames reach 4 at most, lit scenery false
+    # positives start at 19; 11 is the midpoint (rounded down).
+    lit_scene_level: float = 11.0
     score_contrast_weight: float = 0.5
     score_area_weight: float = 0.3
     score_stability_weight: float = 0.2
@@ -874,6 +880,13 @@ def _compute(req: Dict[str, Any], intake: Dict[str, Any], cfg: CVConfig, options
         # the frame (the same contrast term the detector would have scored).
         clutter = cfg.score_contrast_weight * _clip01((p995 - median_intensity) / 120.0)
         det_conf = min(cfg.absent_confidence_cap, _clip01(1 - clutter))
+
+    scene_light = median_intensity - float(np.percentile(content_gray, 1))
+    if status == "PRESENT" and scene_light > cfg.lit_scene_level:
+        status = "UNCERTAIN"
+        warnings.append(f"Detection UNCERTAIN: lit scene (median {scene_light:.0f} gray levels above the darkest "
+                        f"pixels, > {cfg.lit_scene_level:g}). A bright region in a lit scene may be scenery or "
+                        "hardware, not a flame; brightness alone cannot tell them apart.")
 
     if status == "ABSENT":
         main = cnt = None
