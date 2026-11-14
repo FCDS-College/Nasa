@@ -2,3 +2,5 @@
 # baseline use numpy alone. CI does not install this file; the torch tests skip when torch is absent.
 torch>=2.3.0
 numpy>=1.26.0
+# Only physics/saffire_flame_front.py decodes images; its tests use synthetic profiles and need no pillow.
+pillow>=10.0.0

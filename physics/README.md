@@ -121,8 +121,82 @@ est = estimate_parameters_fd(load_case("earth"))      # numpy only, seconds
 ## Not done yet
 
 - Real **flame** data. PSI-115 is the only local set with T, u, v at two gravity levels; combustion sets
-  (FLEX PSI-69, SAFFIRE PSI-98) need thermocouple extraction first. The `source` hook is where a reaction model plugs in.
+  (FLEX PSI-69, SAFFIRE PSI-98) are not field data: FLEX is droplet-combustion video (flame and droplet size from images, no
+  temperature or velocity fields), so the PINN cannot be fitted to it as it stands. The local SAFFIRE-I copy is also images only:
+  a 2-row sample table (SIBAL fabric, concurrent and opposed flow), and one pre-test flow-visualisation camera run
+  (F2C2, 778 JPEGs at about 30 fps, raw and "mapped"). The big spreadsheet is just a per-frame filename and timestamp index.
+  The sensor channels were downloaded separately (`datasets/manifests/saffire1_sensor_selection.csv`, 4 files, 51 MB):
+  per-sample workbooks with 6 plume and 6 sample thermocouples, 4 radiometers, 2 anemometers, CO2, O2, pressure,
+  humidity, inlet temperature and igniter V/I (about 20,000 time rows for sample 1), plus a telemetry workbook that also
+  has the host vehicle's accelerations (a microgravity quality check) and the thermocouple placement PDF. These are
+  real flame temperature records, but at 12 points only, so they cannot constrain the 2D PINN.
+  SAFFIRE-II (PSI-99, 9 samples) and SAFFIRE-III (PSI-100, 2 samples) sensor and telemetry files were downloaded the same
+  way (`saffire23_sensor_selection.csv`, 26 files, 267 MB). They have the same 12-thermocouple channel layout at about 30 Hz.
+  Checked values and units (SAFFIRE-I sample 1, plus samples I-2, II-1, III-1 on key channels; the units row under the
+  header gives RPM, %, cm/sec, PSIA, mW/cm2, degrees C, Amps, Volts, identical across flights):
+  - Anemometers read about 21 and 18.5 cm/s (I-1) against 20 cm/s nominal; O2 22.4 % against 21.5 % nominal (I-1), 21.5 % (II-1),
+    19.8 % (III-1); pressure 14.9 PSIA (14.5 in III); humidity 45 to 51 %. Gas, flow and pressure channels look plausible but are
+    not calibration-checked, and the O2 offset in I-1 is about 1 point.
+  - Radiometers have a negative baseline of -8 to -17 mW/cm2 and peak near 130 to 150; the extra columns "Downstream Front" and
+    similar are offset-corrected versions (baseline near 0).
+  - Sample thermocouples peak at 330 to 1,090 degrees C in I-1 and III-1. Their quiet baseline sits 2 to 7 degrees C below the inlet
+    temperature, which suggests a cold-junction or calibration offset. Plume TCs peak at 58 to 122 degrees C (I-1).
+  - Igniter: SAFFIRE-I peaks at 45.8 V x 4.12 A = 189 W, matching the 182 W in the sample table. SAFFIRE-II sample 1 reports
+    670 to 770 V at 3.6 to 3.8 A (about 2.9 kW), which is not physical, so that voltage channel looks mis-scaled.
+  - No burn signal in SAFFIRE-II sample 1 (all thermocouples stay under 24 degrees C) or in SAFFIRE-I sample 2's sample TCs (under 25 degrees C,
+    though plume TC3 reaches 94 degrees C and the table lists a 70 s burn). Check before using those samples.
+  - The workbooks carry many blank trailing rows (32,599 rows, of which 13,182 hold data in II-1). Count rows with numeric elapsed time.
+  - "Timestamp (ms)" is a date string, and "Epoch Time" is in ms. Time steps are about 33 ms.
+  - The thermocouple placement PDF (SFSDP-VIS-0295) is a 3-page verification sheet, not a drawing. It says only that 6 temperature
+    sensors were installed on the flame-spread sample "as specified in Table 3.7.4-7 and Figure 3.7.4-1" of the system
+    requirements document SFSDP-REQ-102, with as-built drawings 120102MFA000 and 120102MFA310. Those table, figure and drawings are
+    not in the PDF and not mirrored, so TC positions are still unknown. It also gives the required sample size as 300 x 800 mm
+    (12 x 31.5 in), whereas the sample table lists 40.6 cm length and 94 cm width, which needs reconciling.
+    The 6 sample TCs (TC7 to 12) are the ones this covers; nothing here describes the 6 plume TCs.
+  - The objectives paper (Schoren et al., NTRS 20170001636) and the SAFFIRE-I/III readme settle two of the questions above.
+    The SIBAL sample (75 % cotton, 25 % fiberglass) is about 0.94 m long and 0.4 m wide, so the sample table's "length 40.6 /
+    width 94 cm" has the labels swapped, and the 300 x 800 mm in the verification sheet is only the minimum requirement.
+    SAFFIRE-II carries nine 5 x 29 cm samples (silicone 0.25, 0.61, 1.02 and 0.36 mm (S4 has the igniter downstream, opposed), SIBAL 0.33 mm at 20 and 30 cm/s,
+    PMMA-to-Nomex, structured PMMA, flat PMMA), chosen to burn just above and below 21 % O2, so "some are expected not to burn":
+    the dead SAFFIRE-II sample 1 (0.25 mm silicone) is probably a non-burn, not a sensor fault. Design flow is 20 cm/s (I) and 30 cm/s (III);
+    SAFFIRE-III sample 1 anemometers read about 24 and 26 cm/s, 15 to 20 % below that, which is unexplained.
+    Sensor locations (paper Table 2): flow-temperature TCs at duct inlet and outlet, flame TCs embedded in the sample, plume TC (no
+    location given), 4 radiometers (2 viewing the front of the sample, 2 the back, matching the "Upstream/Downstream Front/Back"
+    columns), O2 at the avionics-bay inlet, CO2 and pressure in the avionics bay (so not measured at the sample), one anemometer
+    each side, 2 cameras on the front, smoke wire at the leading edge. TC coordinates are still not given anywhere read so far.
+    The paper's dates are plans (SAFFIRE-I on 2 Jun 2016, II on 19 Sep 2016, III on 3 Mar 2017); the workbook timestamps show the
+    actual burns on 14 Jun 2016, 21 Nov 2016 and 4 Jun 2017. The readme explains the image sets: "Mapped" means distortion-corrected
+    to a flat grid (the one to use for measuring flame fronts), and "icmad" files carry exposure and gain in a strip under each frame.
+  - The SAFFIRE-I Operations note and the Image Directory Nomenclature sheet add no sensor positions. They say the SAFFIRE-I/III
+    sample is 0.4 m wide by 0.94 m tall (so the long side is along the flow), that the SAFFIRE-II samples are 5 cm wide x 25 cm long
+    (the objectives paper says 5 x 29 cm, a small unresolved difference), that the whole burn is recorded and downlinked (at most
+    20 gigabit), and that SAFFIRE-II samples burn one at a time with the cameras recording only the sample being burned. Image
+    sets: "Raw_CamOriginal" carries an 8-byte offset that must be corrected first, "Raw_DistroMaster" is the corrected raw,
+    "jpeg" is the flight-generated version, and "jpeg_corrupt" holds frames damaged in downlink (so expect missing frames).
+- **Flame spread measured from the SAFFIRE-I sample 1 Mapped frames** (`saffire1_s1_mapped_selection.csv`, 7 zips, 874 MB;
+  result `results/saffire1_s1_flame_front.csv`, 200 one-second points). Reproduce with
+  `python -m physics.saffire_flame_front --cache-dir <dir>` (about 2 minutes for the decode with 6 worker processes; needs pillow;
+  `tests/physics/test_saffire_flame_front.py` covers the tracker on synthetic profiles). A full rerun reproduced the numbers below.
+  Camera 1 has 14,388 frames over 602 s and camera 2 has 14,553 unique frames over 577 s (S1C2 `part3` repeats `part2`'s 5,000
+  frame names, so it was dropped as a duplicate). Roughly a fifth of the frames are LED-lit and show the dark burned region against
+  bright unburned fabric; in the rest only the dim flame glow is visible.
+  - The burned/unburned boundary in the lit frames moves in a straight line, right to left, in both cameras. Camera 2 sees the same
+    front shifted by a constant 221.5 +/- 3 columns (quarter-resolution pixels), so the two chain into one track covering 11 to 418 s.
+    The track ends at 418 s, matching the 420 s burn time in the sample table.
+  - Steady spread rate (100 to 410 s): 0.991 px/s at quarter resolution (residual 2.7 px). Camera 1 and camera 2 alone give
+    1.011 and 1.006 px/s, and the glow centroid gives 1.02 to 1.05 px/s. The first 40 s are about twice as fast (1.9 px/s), then
+    0.92 to 1.12 px/s with a slight rise near the end (about 10 % over the run).
+  - **Scale, settled with the distortion-grid images** (`saffire1_distortion_grids_selection.csv`, 6 of 7 files, 3 MB; the
+    ROI-offsets PDF returns 404 from PSI's own storage, so it is not available). The Mapped "30mmBlock" checkerboards have 66.7 px blocks
+    for 30 mm in both cameras (Fourier peak; left, right and centre crops agree within about 1.5 %), so **0.450 mm per full-resolution
+    pixel, 1.80 mm per quarter px**. That gives a steady spread rate of **1.78 mm/s** (0.9916 px/s) and a front travel of about 836 mm by 416 s
+    (the sample is 940 mm). It matches the bright-band estimate (0.445 mm per px) and rules out the length-based one (0.49 mm per px).
+    It assumes the checkerboard lay in the sample plane. The CSV now has one position column, `x_mm`.
+  - Assumptions not verified: that the dark side is burned fabric (it fits the geometry, the 420 s burn time, and the glow sitting about
+    30 px behind the boundary, but I have no independent ground truth), and the direction of the front relative to the airflow. The `source` hook is where a reaction model plugs in.
 - A second inlet speed (PSI-115 Case 2, Uo = 0.1 m/s) to test that `G` is a property of gravity rather than of one flow.
 - Multiple seeds for a spread on `G` and `1/Pe` (one seed so far).
 - Close the PINN-specific part of the Earth `G` gap (about 4.5 points below the FD estimate). The viscosity sweep did
-  not explain it, so look at the network and training instead (larger network, more cells, several seeds).
+  not explain it. A larger network (128 units, 1,024 cells per step, `--hidden 128 --n-cells 1024`) gave `G` = -6.305
+  (from -6.27) and `1/Pe` = 0.0635 (nominal 0.0632), RMSE u 0.021, v 0.017, T 0.005. So capacity is not the limit
+  either. Not tried: several seeds, a longer weak-form schedule, a different coefficient parametrisation.
