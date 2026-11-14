@@ -27,3 +27,6 @@ cv/weights/
 
 # Redis snapshot written by a local redis-server started from the repo root
 dump.rdb
+
+# Local Codex config (a personal Figma MCP setup), never shared
+.codex/
