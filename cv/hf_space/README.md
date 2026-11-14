@@ -13,7 +13,8 @@ artifacts. `GET /health` is available for readiness checks.
 
 To create a dedicated Hugging Face Space, copy this directory's `README.md`,
 `app.py`, `Dockerfile`, and `requirements.txt` to the Space repository root.
-Also copy the project's `cv/flame_cv.py` to `cv/flame_cv.py` in that repository.
+Also copy the project's `cv/flame_cv.py` to `cv/flame_cv.py` and `cv/configs/camera_profiles.json`
+to `cv/configs/camera_profiles.json` in that repository (the `camera_profile` form field reads it).
 Keep the Space private when requests or uploaded images should not be publicly
 accessible. Use the Space's read-scoped Hugging Face token as `FLAME_CV_HF_TOKEN`
 in the Flame worker environment.

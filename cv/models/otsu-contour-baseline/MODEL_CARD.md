@@ -1,12 +1,12 @@
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Princess | Draft | 1.3.0 | 2026-11-13 | C1, CV audit CV-2 | `cv/flame_cv.py` |
+| Princess | Draft | 1.6.0 | 2026-11-14 | C1, CV audit CV-2 | `cv/flame_cv.py` |
 
 # Model Card: Auto-Adaptive Otsu Contour Segmenter (`otsu-contour-adaptive`)
 
 ## 1. Model Overview
 - **Model ID:** `otsu-contour-adaptive`
-- **Version:** `1.5.0`
+- **Version:** `1.6.0`
 - **Task:** Heuristic-based flame detection, binary mask segmentation, and geometric feature extraction.
 - **Architecture:** OpenCV-based dimension-scaled Gaussian blurring, Otsu thresholding with configurable offset, morphological filtering, and adaptive minimum-area contour extraction (`_find_main`). The PRESENT / UNCERTAIN / ABSENT rules are in [docs/cv/pipeline.md §4](../../../docs/cv/pipeline.md#4-detection-decision).
 
@@ -16,13 +16,13 @@
 
 ## 3. Evaluation & Performance
 - **Evaluation set:** `cv_gold_v1`: 150 frames, 56 masks, with a held-out split of 8 unseen BASS-II tests ([docs/cv/evaluation-report.md](../../../docs/cv/evaluation-report.md)). Labels are Claude-drafted and not yet verified by a person.
-- **Held-out results (v1.5.0, 95% intervals over tests):**
+- **Held-out results (v1.6.0, unchanged from v1.5.0; 95% intervals over tests):**
   - false-positive rate 0.00 (0 of 37 absent frames; 8 tests cannot rule out a few per cent);
   - precision 1.00;
   - localized recall 0.68 [0.28, 1.00];
   - mean mask IoU 0.32 [0.13, 0.55].
 - **Before fixes 1–2:** false-positive rate 0.97 and localized recall 0.37.
-- **Main failures:** dim blue flames are missed; bright hardware in a dark scene (the FLEX igniter arc, point lights) is still called a flame (dev false-positive rate 0.16). Lit scenery (cabin views, a lit chamber) is UNCERTAIN since v1.5.0.
+- **Main failures:** dim blue flames are missed; bright hardware in a dark scene is still called a flame (dev false-positive rate 0.11 with the `flex-colour` camera profile, 0.16 without). The profile removes the FLEX arc; a top-edge glint and droplet point lights remain. Lit scenery (cabin views, a lit chamber) is UNCERTAIN since v1.5.0.
 
 ## 4. Hardware Requirements
 - **Hardware:** CPU only (OpenCV and NumPy); there is no GPU path. Measured on a 4-core Xeon @ 2.10 GHz: 63–170 ms per image (512² to 3008 × 2000) and 33.6 video frames per second at 720 × 480 ([docs/cv/performance.md](../../../docs/cv/performance.md)).
@@ -34,11 +34,12 @@
   - Deployment in safety-critical automated control systems without human review of overlays.
 
 ## 6. Known Limitations and Failure Modes
-- False positives on static bright hardware (FLEX deployment needle, glovebox floor): stable, contrasting regions that the brightness rules cannot tell from a flame.
+- False positives on static bright hardware (FLEX deployment needle, glovebox floor): stable, contrasting regions that the brightness rules cannot tell from a flame. A camera profile (v1.6.0) can exclude a known camera's hardware zone, but only when the client names the profile, and a flame inside the zone is not seen.
 - Sensitivity to overexposed/clipped regions (`saturationClipping`).
 - 2D projected spatial measurements without depth correction or scale calibration (`scaleAbsent`).
 
 ## Changelog
+- **v1.6.0 (2026-11-14):** Per-camera exclusion zones (`cv/configs/camera_profiles.json`, request `cameraProfile` / API `camera_profile`); first profile `flex-colour`. Dev false positives 7 → 5; holdout unchanged (no FLEX frames there).
 - **v1.5.0 (2026-11-14):** A detection in a lit scene is UNCERTAIN, never PRESENT (tuned on dev only); held-out false-positive rate 0.30 → 0.00.
 - **Docs (2026-11-14):** Hardware line replaced with measured CPU figures; the GPU-acceleration claim is removed.
 - **v1.4.0 (2026-11-13):** Small regions are specks unless high-contrast, replacing the 0.05% minimum region that missed small flames (tuned on dev only).

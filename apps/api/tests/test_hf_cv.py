@@ -173,3 +173,16 @@ def test_hf_space_endpoint_returns_analysis_and_artifacts(tmp_path, monkeypatch)
     )
     assert adapted["result"]["detection"]["status"] == "present"
     assert_contract_component(adapted["result"], "FlameAnalysisResult")
+
+
+def test_hf_cv_sends_the_camera_profile(monkeypatch):
+    sent = {}
+
+    def fake_urlopen(request, timeout):
+        sent["body"] = request.data
+        return FakeResponse(json.dumps(valid_reply()).encode())
+
+    monkeypatch.setattr("ai.providers.cloud.hf_space_cv.urlopen", fake_urlopen)
+    analyze_image_on_hf(hf_settings(), b"image bytes", media_type="image/png", mm_per_pixel=None,
+                        camera_profile="flex-colour")
+    assert b'name="camera_profile"\r\n\r\nflex-colour' in sent["body"]

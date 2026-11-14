@@ -21,6 +21,7 @@ def health():
 async def analyze(
     image: UploadFile = File(...),
     mm_per_pixel: float | None = Form(default=None, gt=0),
+    camera_profile: str | None = Form(default=None, max_length=64),
 ):
     if image.content_type not in {"image/jpeg", "image/png"}:
         raise HTTPException(status_code=415, detail="Only JPEG and PNG images are supported.")
@@ -38,7 +39,7 @@ async def analyze(
                 {
                     "imagePath": str(input_path),
                     "imageId": "hf-space-inference",
-                    "metadata": {"mmPerPixel": mm_per_pixel},
+                    "metadata": {"mmPerPixel": mm_per_pixel, "cameraProfile": camera_profile},
                 },
                 root / "processed",
                 root / "masks",

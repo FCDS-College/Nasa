@@ -35,7 +35,7 @@ class FlameCvProvider:
 
     def analyze_image(self, request: ImageAnalysisRequest) -> ImageAnalysisResponse:
         try:
-            from cv.flame_cv import CVConfig, analyze_image
+            from cv.flame_cv import CVConfig, CVError, analyze_image
         except ImportError as exc:
             raise ProviderError(ProviderErrorCode.MODEL_MISSING, "The local CV pipeline is not installed.",
                                 provider="flame_cv", request_sent=False) from exc
@@ -43,9 +43,12 @@ class FlameCvProvider:
         try:
             analysis = analyze_image(
                 {"imagePath": str(request.image_path), "imageId": request.image_id,
-                 "metadata": {"mmPerPixel": request.mm_per_pixel}},
+                 "metadata": {"mmPerPixel": request.mm_per_pixel, "cameraProfile": request.camera_profile}},
                 request.work_dir / "processed", request.work_dir / "masks", cfg=config,
             )
+        except CVError as exc:
+            code = ProviderErrorCode.UNAVAILABLE if exc.retryable else ProviderErrorCode.INVALID_REQUEST
+            raise ProviderError(code, exc.message, provider="flame_cv") from exc
         except MemoryError as exc:
             raise ProviderError(ProviderErrorCode.RESOURCE_EXHAUSTED, "The image is too large for local CV.",
                                 provider="flame_cv") from exc

@@ -340,7 +340,8 @@
    "sizeBytes": 354891,
    "psi": null,
    "inGit": true,
-   "sampling": null
+   "sampling": null,
+   "cameraProfile": "flex-colour"
   },
   {
    "sourceId": "176F001D_00660",
@@ -352,7 +353,8 @@
    "sizeBytes": 211575,
    "psi": null,
    "inGit": true,
-   "sampling": null
+   "sampling": null,
+   "cameraProfile": "flex-colour"
   },
   {
    "sourceId": "176F001D_01319",
@@ -364,7 +366,8 @@
    "sizeBytes": 209558,
    "psi": null,
    "inGit": true,
-   "sampling": null
+   "sampling": null,
+   "cameraProfile": "flex-colour"
   },
   {
    "sourceId": "195F002D_00000",
@@ -376,7 +379,8 @@
    "sizeBytes": 203158,
    "psi": null,
    "inGit": true,
-   "sampling": null
+   "sampling": null,
+   "cameraProfile": "flex-colour"
   },
   {
    "sourceId": "195F002D_00530",
@@ -388,7 +392,8 @@
    "sizeBytes": 269655,
    "psi": null,
    "inGit": true,
-   "sampling": null
+   "sampling": null,
+   "cameraProfile": "flex-colour"
   },
   {
    "sourceId": "195F002D_01061",
@@ -400,7 +405,8 @@
    "sizeBytes": 216589,
    "psi": null,
    "inGit": true,
-   "sampling": null
+   "sampling": null,
+   "cameraProfile": "flex-colour"
   },
   {
    "sourceId": "C021H03C_00000",
@@ -484,7 +490,8 @@
    "sizeBytes": 972,
    "psi": null,
    "inGit": true,
-   "sampling": null
+   "sampling": null,
+   "cameraProfile": "flex-colour"
   },
   {
    "sourceId": "H08M101D_00642",
@@ -496,7 +503,8 @@
    "sizeBytes": 231207,
    "psi": null,
    "inGit": true,
-   "sampling": null
+   "sampling": null,
+   "cameraProfile": "flex-colour"
   },
   {
    "sourceId": "H08M101D_01284",
@@ -508,7 +516,8 @@
    "sizeBytes": 228494,
    "psi": null,
    "inGit": true,
-   "sampling": null
+   "sampling": null,
+   "cameraProfile": "flex-colour"
   },
   {
    "sourceId": "H14H101C_00000",
@@ -556,7 +565,8 @@
    "sizeBytes": 384693,
    "psi": null,
    "inGit": true,
-   "sampling": null
+   "sampling": null,
+   "cameraProfile": "flex-colour"
   },
   {
    "sourceId": "X168M03D_00575",
@@ -568,7 +578,8 @@
    "sizeBytes": 255242,
    "psi": null,
    "inGit": true,
-   "sampling": null
+   "sampling": null,
+   "cameraProfile": "flex-colour"
   },
   {
    "sourceId": "X168M03D_01150",
@@ -580,7 +591,8 @@
    "sizeBytes": 257605,
    "psi": null,
    "inGit": true,
-   "sampling": null
+   "sampling": null,
+   "cameraProfile": "flex-colour"
   },
   {
    "sourceId": "X177H10D_00000",
@@ -592,7 +604,8 @@
    "sizeBytes": 379351,
    "psi": null,
    "inGit": true,
-   "sampling": null
+   "sampling": null,
+   "cameraProfile": "flex-colour"
   },
   {
    "sourceId": "X177H10D_00562",
@@ -604,7 +617,8 @@
    "sizeBytes": 263091,
    "psi": null,
    "inGit": true,
-   "sampling": null
+   "sampling": null,
+   "cameraProfile": "flex-colour"
   },
   {
    "sourceId": "X177H10D_01125",
@@ -616,7 +630,8 @@
    "sizeBytes": 261055,
    "psi": null,
    "inGit": true,
-   "sampling": null
+   "sampling": null,
+   "cameraProfile": "flex-colour"
   },
   {
    "sourceId": "F2C2-1465938488551",

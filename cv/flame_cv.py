@@ -1,5 +1,5 @@
 """
-flame_cv.py - Flame in Freefall: computer-vision pipeline (Engineer 3), v1.5.0
+flame_cv.py - Flame in Freefall: computer-vision pipeline (Engineer 3), v1.6.0
 
 Image -> Validation -> Letterbox preprocessing -> Segmentation -> Features
       -> Confidence / quality flags -> AnalysisResult (+ mask/overlay artifacts)
@@ -34,8 +34,8 @@ from pydantic import BaseModel, ConfigDict, Field
 # --------------------------------------------------------------------------------------
 # Versions
 # --------------------------------------------------------------------------------------
-SCHEMA_VERSION = "1.3.0"
-PIPELINE_VERSION = "cv-opencv-v1.5.0-auto"
+SCHEMA_VERSION = "1.4.0"
+PIPELINE_VERSION = "cv-opencv-v1.6.0-auto"
 PREPROCESS_VERSION = "letterbox-lanczos-auto-v2"  # v2: 16-bit input scaled, not clipped
 SEGMENTER_NAME = "otsu-contour-adaptive"
 SEGMENTER_VERSION = "1.5.0"
@@ -90,6 +90,10 @@ class CVConfig:
     # as light. Chosen on the dev split of cv_gold_v1 only: dev flame frames reach 4 at most, lit scenery false
     # positives start at 19; 11 is the midpoint (rounded down).
     lit_scene_level: float = 11.0
+    # Per-camera exclusion zones ([x0, y0, x1, y1] fractions of the original image): static hardware that is
+    # never a flame. Set from a reviewed camera profile (cv/configs/camera_profiles.json), never learned.
+    camera_profile: Optional[str] = None
+    exclude_regions: Tuple[Tuple[float, float, float, float], ...] = ()
     score_contrast_weight: float = 0.5
     score_area_weight: float = 0.3
     score_stability_weight: float = 0.2
@@ -243,6 +247,8 @@ class PreprocessingInfo(_M):
     derivedUri: str
     derivedChecksum: str
     sourceBitDepth: int = 8
+    cameraProfile: Optional[str] = None
+    excludedRegions: List[List[float]] = Field(default_factory=list)
 
 
 class Detection(_M):
@@ -664,14 +670,21 @@ def _intake_record(intake, lb, derived_path, derived_sha, cfg, source=None, lice
         source=source, license=license, groupId=group_id, split=split, ingestedAt=utc_now())
 
 
-def _find_main(gray_blur: np.ndarray, lb: Letterbox, cfg: CVConfig, thr: Optional[float] = None) -> Dict[str, Any]:
-    crop = gray_blur[lb.pad_y:lb.pad_y + lb.new_h, lb.pad_x:lb.pad_x + lb.new_w]
-    otsu, _ = cv2.threshold(crop, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+def _find_main(gray_blur: np.ndarray, lb: Letterbox, cfg: CVConfig, thr: Optional[float] = None,
+               content: Optional[np.ndarray] = None) -> Dict[str, Any]:
+    """``content``: the analysed region (letterbox content minus excluded zones); defaults to the content area."""
+    if content is None:
+        values = gray_blur[lb.pad_y:lb.pad_y + lb.new_h, lb.pad_x:lb.pad_x + lb.new_w]
+    else:
+        values = gray_blur[content > 0].reshape(-1, 1)
+    otsu, _ = cv2.threshold(values, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     threshold = otsu + cfg.min_threshold_offset
     if cfg.min_threshold is not None:
         threshold = max(threshold, cfg.min_threshold)
     t = float(threshold) if thr is None else float(thr)
     binm = (gray_blur > t).astype(np.uint8) * 255
+    if content is not None:
+        binm[content == 0] = 0
     k = np.ones((3, 3), np.uint8)
     binm = cv2.morphologyEx(binm, cv2.MORPH_OPEN, k)
     binm = cv2.morphologyEx(binm, cv2.MORPH_CLOSE, k)
@@ -778,15 +791,27 @@ def _compute(req: Dict[str, Any], intake: Dict[str, Any], cfg: CVConfig, options
         IntakeManifest(manifest_path).upsert_record(
             _intake_record(intake, lb, derived_path, derived_sha, cfg), cfg.target_size)
 
+    # The analysed region: the letterbox content minus the camera's excluded zones. Excluded pixels are not part
+    # of the scene (like padding): they are blacked out on the analysed copy, so they cannot be segmented, and
+    # they are left out of every scene statistic (brightness, background, Otsu), so they cannot skew them.
+    # The derived image artefact is unchanged.
+    content = _content_mask(lb)
+    if cfg.exclude_regions:
+        rgb = rgb.copy()
+        for x0, y0, x1, y1 in cfg.exclude_regions:
+            c0, c1 = lb.pad_x + int(np.floor(x0 * lb.new_w)), lb.pad_x + int(np.ceil(x1 * lb.new_w))
+            r0, r1 = lb.pad_y + int(np.floor(y0 * lb.new_h)), lb.pad_y + int(np.ceil(y1 * lb.new_h))
+            rgb[r0:r1, c0:c1] = 0
+            content[r0:r1, c0:c1] = 0
+    analysed = content if cfg.exclude_regions else None
     gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
     blur_kernel = cfg.blur_kernel or compute_auto_blur_kernel(lb.new_w, lb.new_h)
     k = blur_kernel | 1
     gb = cv2.GaussianBlur(gray, (k, k), 0)
-    content = _content_mask(lb)
     content_gray = gray[content > 0]
     p995 = float(np.percentile(content_gray, cfg.lowlight_percentile_threshold))
 
-    seg_info = _find_main(gb, lb, cfg)
+    seg_info = _find_main(gb, lb, cfg, content=analysed)
     main, cnt = seg_info["main"], seg_info["contour"]
     warnings: List[str] = []
     det_conf, seg_conf = 0.0, 0.0
@@ -808,8 +833,8 @@ def _compute(req: Dict[str, Any], intake: Dict[str, Any], cfg: CVConfig, options
         # Stability of THIS region: full masks at threshold +/-d, compared inside the region's (padded) box.
         # Comparing only the largest component would score 0 whenever two similar blobs (e.g. the two lobes
         # of a BASS-II flame) swap places as the largest, although the segmentation itself is stable.
-        hi = _find_main(gb, lb, cfg, thr=t * (1 + d))["binary"]
-        lo = _find_main(gb, lb, cfg, thr=t * (1 - d))["binary"]
+        hi = _find_main(gb, lb, cfg, thr=t * (1 + d), content=analysed)["binary"]
+        lo = _find_main(gb, lb, cfg, thr=t * (1 - d), content=analysed)["binary"]
         bx, by, bw, bh = cv2.boundingRect(cnt)
         px, py = max(2, bw // 10), max(2, bh // 10)
         win = (slice(max(0, by - py), by + bh + py), slice(max(0, bx - px), bx + bw + px))
@@ -820,7 +845,7 @@ def _compute(req: Dict[str, Any], intake: Dict[str, Any], cfg: CVConfig, options
         outside_sel = (content > 0) & (ring == 0)
         inside_mean = float(gray[sel].mean())
         area_frac = float(sel.sum()) / float(lb.new_w * lb.new_h)
-        background_frac = float(outside_sel.sum()) / float(lb.new_w * lb.new_h)
+        background_frac = float(outside_sel.sum()) / max(1.0, float((content > 0).sum()))   # of the analysed region
         area_and_stability = (cfg.score_area_weight * _clip01(area_frac / 0.002)
                               + cfg.score_stability_weight * seg_conf)
 
@@ -951,7 +976,8 @@ def _compute(req: Dict[str, Any], intake: Dict[str, Any], cfg: CVConfig, options
             contentWidth=lb.new_w, contentHeight=lb.new_h,
             denoising=f"none on derived image; segmentation uses a {k}x{k} Gaussian on a copy",
             derivedUri=derived_path, derivedChecksum=derived_sha,
-            sourceBitDepth=source_bit_depth(intake["originalPath"])),
+            sourceBitDepth=source_bit_depth(intake["originalPath"]), cameraProfile=cfg.camera_profile,
+            excludedRegions=[list(r) for r in cfg.exclude_regions]),
         detection=Detection(status=status, confidence=round(det_conf, 3), boundingBox=bbox, modelName=SEGMENTER_NAME,
                             modelVersion=SEGMENTER_VERSION, modelDigest=cfg.digest()),
         segmentation=seg,
@@ -980,6 +1006,25 @@ def _artifacts_exist(payload: Dict[str, Any]) -> bool:
     return all(Path(u).exists() for u in (seg.get("maskUri"), seg.get("overlayArtifactUri")) if u)
 
 
+CAMERA_PROFILES_PATH = Path(__file__).resolve().parent / "configs" / "camera_profiles.json"
+
+
+def load_camera_profiles(path: Any = CAMERA_PROFILES_PATH) -> Dict[str, Dict[str, Any]]:
+    return json.loads(Path(path).read_text(encoding="utf-8"))["profiles"]
+
+
+def with_camera_profile(cfg: CVConfig, name: str, path: Any = CAMERA_PROFILES_PATH) -> CVConfig:
+    """cfg with the named profile's exclusion zones (InvalidRequestError for an unknown profile)."""
+    profiles = load_camera_profiles(path)
+    if name not in profiles:
+        raise InvalidRequestError(f"Unknown camera profile '{name}'. Known: {sorted(profiles)}.")
+    regions = tuple(tuple(float(v) for v in r["box"]) for r in profiles[name]["excludeRegions"])
+    for x0, y0, x1, y1 in regions:
+        if not (0 <= x0 < x1 <= 1 and 0 <= y0 < y1 <= 1):
+            raise InvalidRequestError(f"Camera profile '{name}' has an invalid box {[x0, y0, x1, y1]}.")
+    return replace(cfg, camera_profile=name, exclude_regions=regions)
+
+
 def analyze_image(request: Dict[str, Any], out_cv_dir: Any, out_masks_dir: Any, cfg: Optional[CVConfig] = None,
                   cache: Optional[AnalysisCache] = None, manifest_path: Any = None) -> Dict[str, Any]:
     cfg = cfg or CVConfig()
@@ -995,6 +1040,8 @@ def analyze_image(request: Dict[str, Any], out_cv_dir: Any, out_masks_dir: Any, 
     mm = meta.get("mmPerPixel")
     if mm is not None and not (isinstance(mm, (int, float)) and mm > 0):
         raise InvalidRequestError("metadata.mmPerPixel must be a positive number.")
+    if meta.get("cameraProfile"):
+        cfg = with_camera_profile(cfg, meta["cameraProfile"])
     options = {**DEFAULT_OPTIONS, **{k: bool(v) for k, v in (req.get("options") or {}).items() if k in DEFAULT_OPTIONS}}
 
     intake = validate_image(req["imagePath"], cfg)

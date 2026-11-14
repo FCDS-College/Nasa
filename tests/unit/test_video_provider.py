@@ -72,3 +72,31 @@ def test_rejected_input_is_an_invalid_request(tmp_path):
     with pytest.raises(ProviderError) as err:
         FlameCvVideoProvider().analyze_video(VideoAnalysisRequest(bad, "vid-2", tmp_path / "work"))
     assert err.value.code is ProviderErrorCode.INVALID_REQUEST
+
+def test_camera_profile_reaches_the_video_pipeline(tmp_path, monkeypatch):
+    seen = {}
+
+    def fake_analyze_video(video_path, work_dir, cfg=None, video_cfg=None, **kwargs):
+        seen["cfg"] = cfg
+        return {"frameMeasurements": [], "pipelineVersion": "x"}
+
+    monkeypatch.setattr(video_analysis, "analyze_video", fake_analyze_video)
+    video = make_video(tmp_path / "flame.avi")
+    FlameCvVideoProvider().analyze_video(VideoAnalysisRequest(video, "vid-3", tmp_path / "w", camera_profile="flex-colour"))
+    assert seen["cfg"].camera_profile == "flex-colour" and seen["cfg"].exclude_regions
+    FlameCvVideoProvider().analyze_video(VideoAnalysisRequest(video, "vid-4", tmp_path / "w2"))
+    assert seen["cfg"] is None or not seen["cfg"].exclude_regions
+
+
+def test_image_provider_applies_the_camera_profile(tmp_path):
+    from ai.providers.contracts.vision import ImageAnalysisRequest
+    from ai.providers.local.flame_cv import FlameCvProvider
+    img = np.zeros((480, 640, 3), np.uint8)
+    cv2.ellipse(img, (320, 440), (60, 15), 0, 180, 360, (60, 60, 230), 6)
+    path = tmp_path / "arc.png"
+    cv2.imwrite(str(path), img)
+    (tmp_path / "w").mkdir()
+    response = FlameCvProvider().analyze_image(
+        ImageAnalysisRequest(path, "arc", "image/png", tmp_path / "w", camera_profile="flex-colour"))
+    assert response.analysis["preprocessing"]["cameraProfile"] == "flex-colour"
+    assert response.analysis["detection"]["status"] == "ABSENT"

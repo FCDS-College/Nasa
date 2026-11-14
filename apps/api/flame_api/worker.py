@@ -177,6 +177,7 @@ def process_analysis(analysis_id: str) -> None:
             request = ImageAnalysisRequest(
                 image_path=image_path, image_id=analysis_id, media_type=input_data["media_type"], work_dir=work,
                 mm_per_pixel=mm_per_pixel, max_pixels=settings.max_image_pixels,
+                camera_profile=input_data.get("camera_profile"),
             )
             routed_cv = ai_runtime.get_router(settings).route("vision.analyze", lambda provider: provider.analyze_image(request))
             legacy = routed_cv.value.analysis
@@ -333,6 +334,7 @@ def process_video_analysis(analysis_id: str) -> None:
                 video_path=video_path, video_id=analysis_id, work_dir=work / "job",
                 sample_every_n_frames=video_input["sample_every_n_frames"], max_frames=video_input["max_frames"],
                 resume_from=_load_checkpoint(analysis_id), on_frame=checkpoint,
+                camera_profile=payload["input"].get("camera_profile"),
             )
             routed = ai_runtime.get_router(settings).route("video.analyze", lambda provider: provider.analyze_video(request))
             # Speech is best-effort context: it never fails the job (see audio_transcript.py).

@@ -200,3 +200,78 @@ def test_cabin_view_video_has_no_present_frames(tmp_path):
         pytest.skip("TEST_T25 2nd view not installed")
     result = analyze_video(video, tmp_path, video_cfg=VideoConfig(sample_every=500))
     assert [f["frameIndex"] for f in result["frameMeasurements"] if f["detectionStatus"] == "PRESENT"] == []
+
+
+# ---- per-camera exclusion zones (camera profiles) -----------------------------------------------
+def run_profile(path, dirs, profile):
+    return analyze_image({"imagePath": str(path), "imageId": Path(path).stem, "metadata": {"cameraProfile": profile}},
+                         *dirs)
+
+
+def test_exclusion_zone_hides_a_bright_region_and_is_recorded(tmp_path, dirs):
+    from cv.flame_cv import CVConfig as _C
+    img = np.zeros((480, 640, 3), np.uint8)
+    cv2.ellipse(img, (320, 440), (60, 15), 0, 180, 360, (60, 60, 230), 6)   # an arc at the bottom centre
+    path = tmp_path / "arc.png"
+    Image.fromarray(img).save(path)
+    assert run(path, dirs)["detection"]["status"] == "PRESENT"
+    r = run(path, dirs, cfg=_C(exclude_regions=((0.30, 0.82, 0.70, 1.00),)))
+    assert r["detection"]["status"] == "ABSENT"
+    assert r["preprocessing"]["excludedRegions"] == [[0.30, 0.82, 0.70, 1.00]]
+
+
+def test_unknown_camera_profile_is_rejected(tmp_path, dirs):
+    p = tmp_path / "c.png"
+    make_synthetic_flame(p, size=(800, 600), blobs=[(400, 300, 120, 120)])
+    from cv.flame_cv import CVError
+    with pytest.raises(CVError) as err:
+        run_profile(p, dirs, "no-such-camera")
+    assert err.value.code == "INVALID_REQUEST"
+
+
+def test_no_profile_changes_nothing(tmp_path, dirs):
+    p = tmp_path / "c.png"
+    make_synthetic_flame(p, size=(800, 600), blobs=[(400, 300, 120, 120)])
+    r = run(p, dirs)
+    assert r["preprocessing"]["excludedRegions"] == [] and r["preprocessing"]["cameraProfile"] is None
+
+
+ARC_FRAMES = ["176F001D/176F001D_01319", "195F002D/195F002D_00000", "195F002D/195F002D_01061",
+              "H08M101D/H08M101D_00642", "H08M101D/H08M101D_01284"]
+
+
+@pytest.mark.parametrize("name", ARC_FRAMES)
+def test_flex_profile_excludes_the_hardware_arc(tmp_path, dirs, name):
+    # The five FLEX colour frames whose false positive was a static glowing arc (dev split of cv_gold_v1). With the
+    # profile the arc is never the detection. (Three of them then detect other static hardware: see the next test.)
+    path = _samples(f"FF-PSI-69/{name}.png")[0]
+    before = run(path, dirs)
+    assert before["detection"]["status"] == "PRESENT" and before["detection"]["boundingBox"]["ymin"] > 0.82 * 480
+    r = run_profile(path, dirs, "flex-colour")
+    assert r["preprocessing"]["cameraProfile"] == "flex-colour"
+    if r["detection"]["status"] == "PRESENT":
+        assert r["detection"]["boundingBox"]["ymax"] <= 0.82 * 480, "the excluded arc was detected"
+
+
+@pytest.mark.parametrize("name", ["176F001D/176F001D_01319", "195F002D/195F002D_01061"])
+def test_flex_profile_fixes_frames_where_the_arc_was_the_only_hardware(tmp_path, dirs, name):
+    path = _samples(f"FF-PSI-69/{name}.png")[0]
+    assert run_profile(path, dirs, "flex-colour")["detection"]["status"] != "PRESENT"
+
+
+def test_real_flex_flame_survives_the_flex_profile(tmp_path, dirs):
+    # 195F002D_00530: the one verified real FLEX flame in the dev split (a large burning droplet).
+    path = _samples("FF-PSI-69/195F002D/195F002D_00530.png")[0]
+    before, after = run(path, dirs), run_profile(path, dirs, "flex-colour")
+    assert before["detection"]["status"] == after["detection"]["status"] == "PRESENT"
+    assert before["detection"]["boundingBox"] == after["detection"]["boundingBox"]
+
+
+@pytest.mark.parametrize("name", ["176F001D/176F001D_00000", "X168M03D/X168M03D_00000", "X177H10D/X177H10D_00000"])
+def test_excluded_region_does_not_count_as_dark_scene(tmp_path, dirs, name):
+    # Lit FLEX hardware frames are UNCERTAIN by the lit-scene rule. With the camera profile they must stay so: the
+    # excluded band is not part of the scene, so its pixels must not pull the scene's brightness statistics down
+    # (blacking them out and counting them flipped these frames to PRESENT).
+    path = _samples(f"FF-PSI-69/{name}.png")[0]
+    assert run(path, dirs)["detection"]["status"] == "UNCERTAIN"
+    assert run_profile(path, dirs, "flex-colour")["detection"]["status"] != "PRESENT"

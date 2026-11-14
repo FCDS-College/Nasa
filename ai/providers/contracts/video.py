@@ -16,6 +16,7 @@ class VideoAnalysisRequest:
     work_dir: Path
     sample_every_n_frames: int = 30
     max_frames: int | None = None
+    camera_profile: str | None = None    # a cv/configs/camera_profiles.json key (exclusion zones)
     # ADR-008: a checkpoint kept by the caller ({"video_id", "digest", "rows"}) to resume from, and a
     # hook called with each progress event. The hook may raise to stop the job (cancellation); the
     # frames checkpointed so far survive. Neither takes part in equality.

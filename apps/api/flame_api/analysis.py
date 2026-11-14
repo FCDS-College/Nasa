@@ -37,6 +37,13 @@ def _error(request: Request, status: int, code: str, message: str, *, details=No
     )
 
 
+def _camera_profiles() -> list[str]:
+    """The camera profiles cv/configs/camera_profiles.json defines (exclusion zones for fixed cameras)."""
+    from cv.flame_cv import load_camera_profiles
+
+    return sorted(load_camera_profiles())
+
+
 def _utc(value: datetime | None) -> str | None:
     if value is None:
         return None
@@ -63,6 +70,7 @@ async def create_analysis(
     scale_source: str | None = Form(None, min_length=1, max_length=500),
     request_interpretation: bool = Form(False),
     notes: str | None = Form(None, max_length=2000),
+    camera_profile: str | None = Form(None, min_length=1, max_length=64),
     idempotency_key: str | None = Header(None, alias="Idempotency-Key", min_length=8, max_length=128),
     session: Session = Depends(get_session),
 ):
@@ -72,6 +80,11 @@ async def create_analysis(
         return _error(request, 400, "VALIDATION_ERROR", "scale_px_per_mm and scale_source must be provided together.")
     if video is None and (sample_every_n_frames is not None or max_frames is not None):
         return _error(request, 400, "VALIDATION_ERROR", "sample_every_n_frames and max_frames apply to video uploads only.")
+    if camera_profile is not None:
+        known = _camera_profiles()
+        if camera_profile not in known:
+            return _error(request, 400, "VALIDATION_ERROR", f"Unknown camera_profile '{camera_profile}'.",
+                          details={"field": "camera_profile", "allowed": known})
     if idempotency_key:
         existing = session.query(AnalysisRecord).filter_by(idempotency_key=idempotency_key).one_or_none()
         if existing:
@@ -85,7 +98,7 @@ async def create_analysis(
             request, session, video, experiment_id=experiment_id, source_file_id=source_file_id,
             sample_every=sample_every_n_frames or DEFAULT_SAMPLE_EVERY, max_frames=max_frames or DEFAULT_MAX_FRAMES,
             scale_given=scale_px_per_mm is not None, request_interpretation=request_interpretation, notes=notes,
-            idempotency_key=idempotency_key,
+            camera_profile=camera_profile, idempotency_key=idempotency_key,
         )
 
     content = await image.read(settings.max_upload_bytes + 1)
@@ -132,6 +145,7 @@ async def create_analysis(
             "scale_source": scale_source,
         },
         "notes": notes,
+        "camera_profile": camera_profile,
     }
     original_artifact = {
         "kind": "original",
@@ -211,7 +225,7 @@ def _probe(path: Path):
 
 async def _create_video_analysis(request: Request, session: Session, video: UploadFile, *, experiment_id, source_file_id,
                                  sample_every: int, max_frames: int, scale_given: bool, request_interpretation: bool,
-                                 notes, idempotency_key):
+                                 notes, idempotency_key, camera_profile=None):
     if scale_given:
         # The video pipeline reports pixel measurements only; accepting a scale would imply physical output.
         return _error(request, 400, "VALIDATION_ERROR", "Spatial calibration is not supported for video analyses yet.")
@@ -263,6 +277,7 @@ async def _create_video_analysis(request: Request, session: Session, video: Uplo
         "frame_index": None,
         "calibration": {"state": "absent", "scale_px_per_mm": None, "scale_source": None},
         "notes": notes,
+        "camera_profile": camera_profile,
         "video": {
             "container": container,
             "codec": record["codec"],

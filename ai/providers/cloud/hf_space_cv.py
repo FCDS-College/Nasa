@@ -36,6 +36,7 @@ def analyze_on_hf_space(
     image_bytes: bytes,
     media_type: str,
     mm_per_pixel: float | None,
+    camera_profile: str | None = None,
 ) -> tuple[dict[str, Any], dict[str, bytes]]:
     if media_type not in {"image/jpeg", "image/png"}:
         raise HfCvError("Hugging Face CV supports JPEG and PNG images only.", ProviderErrorCode.INVALID_REQUEST)
@@ -50,6 +51,12 @@ def analyze_on_hf_space(
             f"--{boundary}\r\n"
             'Content-Disposition: form-data; name="mm_per_pixel"\r\n\r\n'
             f"{mm_per_pixel}\r\n"
+        )
+    if camera_profile is not None:
+        fields.append(
+            f"--{boundary}\r\n"
+            'Content-Disposition: form-data; name="camera_profile"\r\n\r\n'
+            f"{camera_profile}\r\n"
         )
     prefix = "".join(fields).encode("ascii")
     body = (
@@ -146,6 +153,7 @@ class HfSpaceCvProvider:
             base_url=self._base_url, token=self._token, timeout_s=self._timeout_s,
             max_upload_bytes=self._max_upload_bytes, image_bytes=request.image_path.read_bytes(),
             media_type=request.media_type, mm_per_pixel=request.mm_per_pixel,
+            camera_profile=request.camera_profile,
         )
         analysis["provenance"]["inputUri"] = str(request.image_path)
         paths = {}

@@ -35,7 +35,7 @@ class FlameCvVideoProvider:
 
     def analyze_video(self, request: VideoAnalysisRequest) -> VideoAnalysisResponse:
         try:
-            from cv.flame_cv import CVError
+            from cv.flame_cv import CVConfig, CVError, with_camera_profile
             from cv.video_analysis import analyze_video, seed_checkpoint
             from cv.video_ingestion import VideoConfig
         except ImportError as exc:
@@ -48,7 +48,9 @@ class FlameCvVideoProvider:
             seed = request.resume_from
             if seed and seed.get("rows"):
                 seed_checkpoint(request.work_dir, seed["video_id"], seed["digest"], list(seed["rows"]))
-            result = analyze_video(request.video_path, request.work_dir, video_cfg=config, on_frame=request.on_frame)
+            cfg = with_camera_profile(CVConfig(), request.camera_profile) if request.camera_profile else None
+            result = analyze_video(request.video_path, request.work_dir, cfg=cfg, video_cfg=config,
+                                   on_frame=request.on_frame)
         except CVError as exc:
             code = ProviderErrorCode.UNAVAILABLE if exc.retryable else ProviderErrorCode.INVALID_REQUEST
             raise ProviderError(code, exc.message, provider="flame_cv_video") from exc
