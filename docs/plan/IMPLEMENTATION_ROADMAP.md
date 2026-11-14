@@ -83,7 +83,7 @@ Changes since the P2 status table of 2026-11-02, which is kept above as dated hi
 | P3-2 | Shared (Redis) CAG for more than one replica | Single replica today |
 | P3-3 | Video interpretation by a model; per-frame overlay artifacts | Measurements first; interpretation needs evaluation |
 | P3-4 | Persist search and chat history ("research history") | Needs a privacy decision |
-| P3-5 | Move `tests/eval/Ziad____10/` and the zip out of the test tree | Excluded already; cleanup only |
+| P3-5 | ~~Move `tests/eval/Ziad____10/` and the zip out of the test tree~~ **Done 2026-11-14**: both deleted (recoverable from commits `1fd1d2d` and `7340782`); `pytest.ini` and `ruff.toml` exclusions removed | The nested copy shadowed `tests/eval/master_pipeline.py` whenever `addopts` was overridden |
 | P3-6 | Remove `AURA_UNAVAILABLE` from `ErrorCode` | Breaking change; coordinate with AURA's compiled tools |
 | P3-7 | Audio analysis | Reversed 2026-11-13: 11 of 17 BASS-II videos carry operator speech. Built as optional transcription, off by default (`docs/cv/audio-transcription.md`); review, UI and evidence use remain open |
 
