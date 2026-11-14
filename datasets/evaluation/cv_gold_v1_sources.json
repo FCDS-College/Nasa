@@ -716,6 +716,48 @@
    "psi": null,
    "inGit": true,
    "sampling": null
+  },
+  {
+   "sourceId": "PSI-25-M16-main",
+   "groupId": "PSI-25/M16",
+   "split": "dev",
+   "kind": "video",
+   "path": "datasets/raw/psi_api/PSI-25/Raw Data/PSI-25_Raw Data_BASS_GMT204_SAMPLE_164_TEST_M16.mp4",
+   "sha256": "78cc8be621aa392c1f6c7f81e2dafd3da3adb5643e05a77175f267ab6e0d41cd",
+   "sizeBytes": 112162685,
+   "psi": {
+    "psiId": "PSI-25",
+    "fileName": "PSI-25_Raw Data_BASS_GMT204_SAMPLE_164_TEST_M16.mp4",
+    "version": "2"
+   },
+   "inGit": false,
+   "sampling": {
+    "sampleEvery": 2655,
+    "maxFrames": 10,
+    "frameCount": 26553,
+    "maxDurationS": 1800
+   }
+  },
+  {
+   "sourceId": "PSI-25-M19-main",
+   "groupId": "PSI-25/M19",
+   "split": "dev",
+   "kind": "video",
+   "path": "datasets/raw/psi_api/PSI-25/Raw Data/PSI-25_Raw Data_BASS_GMT204_SAMPLE_170_TEST_M19.mp4",
+   "sha256": "07e16023b179af408e454b4aff87d8638f361c58bd28d772b8ba3be87df61c78",
+   "sizeBytes": 183298910,
+   "psi": {
+    "psiId": "PSI-25",
+    "fileName": "PSI-25_Raw Data_BASS_GMT204_SAMPLE_170_TEST_M19.mp4",
+    "version": "2"
+   },
+   "inGit": false,
+   "sampling": {
+    "sampleEvery": 4643,
+    "maxFrames": 10,
+    "frameCount": 46436,
+    "maxDurationS": 1800
+   }
   }
  ]
 }

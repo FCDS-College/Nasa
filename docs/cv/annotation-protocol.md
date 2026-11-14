@@ -1,6 +1,6 @@
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Princess & Ziad | Draft | 1.3.0 | 2026-11-13 | M10, A3, CV audit CV-3 | `cv/gold.py`, `datasets/evaluation/cv_gold_v1*` |
+| Princess & Ziad | Draft | 1.4.0 | 2026-11-14 | M10, A3, CV audit CV-3 | `cv/gold.py`, `datasets/evaluation/cv_gold_v1*` |
 
 # Annotation Protocol and Ground-Truth Dataset (cv_gold_v1)
 
@@ -23,7 +23,7 @@ The CV evaluation set `cv_gold_v1` holds 150 frames, each labelled for whether a
 - **Split by test, never by frame.** No `groupId` appears in two splits (a test asserts this).
 - **`holdout`:** 8 BASS-II tests that were never used to choose a threshold: T7, T12, T20 (cabin view), T23, B3, F1, M10 and P20. Use them only to measure. If you change the pipeline because of something seen in a holdout frame, that test becomes dev data; move it and record that in the evaluation report.
 - **`dev`:** the committed samples (BASS-II B1, P12 and the T25 cabin view; SPICE; FLEX; SAFFIRE-I; DSI). Thresholds were tuned on these.
-- **Video frames** are the served pipeline's sampling grid: `sample_every = frameCount // 10`, 10 frames per video, so pre-ignition, burning and post-extinction frames are all included and the evaluation scores exactly the frames the API would analyse.
+- **Video frames** are the served pipeline's sampling grid: `sample_every = frameCount // 10`, 10 frames per video, so pre-ignition, burning and post-extinction frames are all included and the evaluation scores exactly the frames the API would analyse. A source longer than the API's 600 s upload limit (a full NASA test video) sets `sampling.maxDurationS`; only that upload guard is lifted.
 
 ## 3. Label rules
 
@@ -46,6 +46,7 @@ Specific cases:
 - **Masks are drafted from a box drawn around the flame:**
   - `grabcut-from-box`: GrabCut inside the box.
   - `threshold-in-box`: Otsu on the box's own contrast range, for dim flames where GrabCut finds nothing.
+  - `coherent-blue-patch`: for flames too dim for Otsu (BASS-II M16, M19). The blue channel is smoothed (21×21 Gaussian), and every connected patch above 2 gray levels of at least 150 px is kept, so both lobes are included. Noise patches in a flame-free frame of the same test stay under 80 px. Redraw with `draft-mask` like any other.
 
   Both are different from the pipeline's global Otsu threshold, and nothing outside the box can enter the mask. The box and method are stored with each mask, and `notes` says when the box was set by hand.
 - **Redraw a mask:** `python -m cv.gold draft-mask ITEM X0 Y0 X1 Y1 [--method threshold-in-box]`. This resets the item to unverified.
@@ -75,5 +76,6 @@ Specific cases:
 
 ## Changelog
 
+- **v1.4.0 (2026-11-14):** Dev split extended with BASS-II M16 and M19; `sampling.maxDurationS` for sources longer than the upload limit; the `coherent-blue-patch` mask method.
 - **v1.3.0 (2026-11-13):** Built `cv_gold_v1`: 150 frames, 56 masks, a held-out split, label and mask rules, and the draft/verify workflow with tooling (`cv/gold.py`).
 - **v1.2.0 (2026-10-12):** Initial protocol.

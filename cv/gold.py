@@ -83,7 +83,10 @@ class ItemRef:
 
 def video_config(source: Dict[str, Any]) -> VideoConfig:
     s = source["sampling"]
-    return VideoConfig(sample_every=s["sampleEvery"], max_frames=s["maxFrames"])
+    # maxDurationS lifts the API's 600 s upload limit for a long source (a full NASA test video). The per-frame
+    # analysis, sampling and overlay masking are the same; only the upload guard differs.
+    extra = {"max_duration_s": float(s["maxDurationS"])} if s.get("maxDurationS") else {}
+    return VideoConfig(sample_every=s["sampleEvery"], max_frames=s["maxFrames"], **extra)
 
 
 def enumerate_items(sources_doc: Dict[str, Any]) -> List[ItemRef]:

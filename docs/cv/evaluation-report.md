@@ -1,6 +1,6 @@
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Princess & Ziad | Draft | 2.5.1 | 2026-11-14 | M10, A3, C1, CV audit CV-3 | `cv/gold.py`, `cv/flame_cv.py`, `cv/video_analysis.py` |
+| Princess & Ziad | Draft | 2.6.0 | 2026-11-14 | M10, A3, C1, CV audit CV-3 | `cv/gold.py`, `cv/flame_cv.py`, `cv/video_analysis.py` |
 
 # CV Evaluation Report (v2.2.0, cv_gold_v1)
 
@@ -11,9 +11,18 @@
 | Split | Frames | Tests | present / absent / unclear | What it is |
 |---|---|---|---|---|
 | holdout | 80 | 8 | 41 / 37 / 2 | Unseen BASS-II tests (T7, T12, T20 cabin view, T23, B3, F1, M10, P20), never used to tune |
-| dev | 70 | 16 | 15 / 44 / 11 | The committed samples (BASS-II B1, P12, T25; SPICE; FLEX; SAFFIRE-I; DSI), used to tune fix 2 |
+| dev | 90 | 18 | 29 / 45 / 16 | The committed samples (BASS-II B1, P12, T25; SPICE; FLEX; SAFFIRE-I; DSI), used to tune fix 2; since 2026-11-14 also BASS-II **M16 and M19** (20 frames, dim blue PMMA flames; see below) |
 
-Video frames are the served pipeline's sampling grid (10 per video). Holdout tests sit only in holdout (a test checks this). Masks: 56 (43 GrabCut, 13 threshold-in-box for dim flames).
+Video frames are the served pipeline's sampling grid (10 per video). Holdout tests sit only in holdout (a test checks this). Masks: 70 (50 GrabCut, 13 threshold-in-box for dim flames, 7 coherent blue patch for the dim M16/M19 flames).
+
+**Dev extension (2026-11-14): M16 and M19.** All 13 remaining held-out misses (M10, B3) are dim flames, and the dev split had none, so nothing in dev could guide a fix without spending the holdout. M16 and M19 are Miller PMMA slab flame-spread tests (BASS-II), recorded the same day as the held-out M10 with the same flow schedule. They are the closest analogues and are separate tests, so the split by test still holds.
+- **Download:** the full NASA videos (886 s and 1549 s, 112 MB and 183 MB) through `python -m cv.gold fetch`, SHA-256 checked. They exceed the API's 600 s upload limit, so their sources set `sampling.maxDurationS`. Sampling, overlay masking and per-frame analysis are unchanged.
+- **Labels (Claude-drafted):**
+  - present: 14 (7 visible, 7 dim);
+  - unclear: 5 (borderline traces, and M19's first frame, where the red streak may be the igniter);
+  - absent: 1 (M16 before ignition).
+- **The dim frames:** pure blue, 4–8 gray levels per pixel, the same as compression noise. Their signal is one coherent patch after a 21×21 blur (680–3615 px), against at most 76 px in the frame before ignition. Their masks are those patches (every patch of at least 150 px, both lobes).
+- **Earlier columns:** the dev columns in section 3 were measured on the 70-frame dev split. On the 90-frame split, v1.8.0 scores strict recall 0.76 (22 of 29) and false-positive rate 0.00. All 7 misses are the dim M16/M19 frames.
 
 ## 2. Metrics
 
@@ -143,6 +152,7 @@ The committed tests (`tests/cv/test_gold.py`) check the set itself: it validates
 - **No measurement-error evaluation:** there are no calibrated physical reference values.
 
 ## Changelog
+- **v2.6.0 (2026-11-14):** Dev split extended with BASS-II M16 and M19 (20 frames, 7 dim blue flames) so dim-flame misses can be worked on without the holdout; v1.8.0 baseline on the extended dev split.
 - **v2.5.1 (2026-11-14):** `195F002D_00000` is a first-frame readout artefact, not a glint; why it stays UNCERTAIN.
 - **v2.5.0 (2026-11-14):** Added v1.8.0 results (straight-edge rule): the DSI backlit-cell false positives are UNCERTAIN; dev false positives 2 → 0; holdout scored once, unchanged.
 - **v2.4.0 (2026-11-14):** Added v1.7.0 dev results (camera-profile size floor): the three FLEX glint false positives are UNCERTAIN, dev false positives 5 → 2; the H08M101 label checked against the FLEX table (methanol, extinction at 0.3 s).
