@@ -296,7 +296,7 @@ def test_small_region_is_uncertain_with_the_flex_profile_and_present_without(tmp
     assert plain["preprocessing"]["minPresentAreaFraction"] is None
 
 
-# Droplet glints after a methanol flame went out (H08M101: extinction at 0.3 s) and a hardware glint at the top edge
+# Droplet glints after a methanol flame went out (H08M101: extinction at 0.3 s) and a readout artefact at the top edge
 # of 195F002D_00000: the three FLEX colour false positives left at v1.6.0.
 GLINT_FRAMES = ["H08M101D/H08M101D_00642", "H08M101D/H08M101D_01284", "195F002D/195F002D_00000"]
 

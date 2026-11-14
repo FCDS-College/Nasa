@@ -1,6 +1,6 @@
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Princess & Ziad | Draft | 2.5.0 | 2026-11-14 | M10, A3, C1, CV audit CV-3 | `cv/gold.py`, `cv/flame_cv.py`, `cv/video_analysis.py` |
+| Princess & Ziad | Draft | 2.5.1 | 2026-11-14 | M10, A3, C1, CV audit CV-3 | `cv/gold.py`, `cv/flame_cv.py`, `cv/video_analysis.py` |
 
 # CV Evaluation Report (v2.2.0, cv_gold_v1)
 
@@ -82,7 +82,7 @@ At v1.5.0 all 7 dev false positives were bright hardware in a dark scene: 5 FLEX
 
 - **Why not a shape or colour rule:** on dev, the hardware regions' elongation, circularity, saturation and hue overlap with real flames'. Only position separates the FLEX arc: it sits at the bottom of every FF-PSI-69 colour frame.
 - **Fix:** a per-camera exclusion zone (`cv/configs/camera_profiles.json`, profile `flex-colour`: the full-width band below 0.82 of the frame height), applied when the request names the profile. The zone was drawn from the per-sequence median of the 75 committed FLEX colour frames, then widened to the full width because the view shifts within a sequence. That widening was fitted to a dev false positive (`195F002D_00000`).
-- **Result on dev:** 2 of the 5 FLEX false positives are gone (`176F001D_01319`, `195F002D_01061`). In the other 3, the next-largest bright region is also hardware: a glint at the top edge (`195F002D_00000`) and droplet point lights (`H08M101D_00642`, `_01284`). The 2 DSI frames are kept as negatives and remain false positives. No dev flame was lost; the real FLEX flame `195F002D_00530` gives the same status and box.
+- **Result on dev:** 2 of the 5 FLEX false positives are gone (`176F001D_01319`, `195F002D_01061`). In the other 3, the next-largest bright region is something else: a bright strip at the top edge (`195F002D_00000`, later found to be a readout artefact; see below)) and droplet point lights (`H08M101D_00642`, `_01284`). The 2 DSI frames are kept as negatives and remain false positives. No dev flame was lost; the real FLEX flame `195F002D_00530` gives the same status and box.
 - **Holdout:** unchanged. It has no FLEX frames, so this change has **no held-out validation**: the dev gain is in-sample.
 - **Recall risk:** a flame inside the zone is not seen. The highest real flame centroid in dev is at 0.67 of the frame height, above the zone's top at 0.82.
 
@@ -90,7 +90,7 @@ At v1.5.0 all 7 dev false positives were bright hardware in a dark scene: 5 FLEX
 
 Three FLEX false positives were left at v1.6.0. They are glints, not flames:
 - `H08M101D_00642` and `_01284`: specular reflections on the droplet. The droplet appears as two point lights that persist in 13 consecutive committed frames, drift slightly, and sit where the lit frame `H08M101D_00092` shows the deployed droplet. The FLEX table records H08M101 as **methanol**, with the flame out at **0.3 s** and the droplet almost unburned (3.56 → 3.54 mm), so the draft label "absent" stands.
-- `195F002D_00000`: a glint along the top edge.
+- `195F002D_00000`: a bright strip along the top edge. On closer inspection it is not a glint but a **readout artefact**: rows 0–10 of this, the first frame of the sequence, are a green strip from a different exposure, with a one-row step to near-black (row mean 15.6 → 0.6 in green). No other of the 75 committed FLEX colour frames has it.
 
 What was tried, on dev only:
 - **Colour does not separate them.** The sensor fringes a point source, so a glint is not neutral white: white-clipped fraction 0–0.011, chroma 0.26–0.48. That overlaps the dim, reddish unclear FLEX blobs (chroma 0.54–0.67).
@@ -99,9 +99,10 @@ What was tried, on dev only:
 
 Results:
 - **Dev:** strict false positives 5 → 2. The 2 left are the DSI frames, kept as negatives. Precision 0.75 → 0.88, false-positive rate 0.11 → 0.05, no flame lost. Lenient metrics are unchanged, because the frames are UNCERTAIN, not ABSENT.
-- **Status changes:** 4 dev items: the three glints and `176F001D_00660` (unclear). Across all 75 committed FLEX colour frames the floor demotes 19 PRESENT frames; each was checked by eye, and each detection is a droplet glint or the top-edge glint. In `176F001D` (methanol, burning for 29.1 s) a faint flame shell may surround the glint in some of those frames, but the pipeline had segmented the glint, not the shell.
+- **Status changes:** 4 dev items: the three glints and `176F001D_00660` (unclear). Across all 75 committed FLEX colour frames the floor demotes 19 PRESENT frames; each was checked by eye, and each detection is a droplet glint or the top-edge readout artefact. In `176F001D` (methanol, burning for 29.1 s) a faint flame shell may surround the glint in some of those frames, but the pipeline had segmented the glint, not the shell.
 - **Holdout:** unchanged; it has no FLEX frames, so this change, too, has **no held-out validation**.
 - **Threshold:** chosen from physics and the measured scale, not fitted; it falls in the dev gap between glints (≤ 0.060%) and the FLEX flame (1.73%).
+- **`195F002D_00000` stays UNCERTAIN by decision.** It still counts as a false positive in the lenient metric. A rule that masks edge strips is not viable: full-width steps near the frame edge are common and legitimate in the committed data (the SAFFIRE `vlcsnap` letterbox bars at row 22, the DSI vignette, the T25 banner at row 10), and only this one frame has the artefact. Excluding a thin top band in the `flex-colour` profile would fit a zone to one corrupted frame. UNCERTAIN is an honest answer for a frame the pipeline cannot know is corrupt.
 
 ### The DSI backlit cell and the v1.8.0 straight-edge rule
 
@@ -142,6 +143,7 @@ The committed tests (`tests/cv/test_gold.py`) check the set itself: it validates
 - **No measurement-error evaluation:** there are no calibrated physical reference values.
 
 ## Changelog
+- **v2.5.1 (2026-11-14):** `195F002D_00000` is a first-frame readout artefact, not a glint; why it stays UNCERTAIN.
 - **v2.5.0 (2026-11-14):** Added v1.8.0 results (straight-edge rule): the DSI backlit-cell false positives are UNCERTAIN; dev false positives 2 → 0; holdout scored once, unchanged.
 - **v2.4.0 (2026-11-14):** Added v1.7.0 dev results (camera-profile size floor): the three FLEX glint false positives are UNCERTAIN, dev false positives 5 → 2; the H08M101 label checked against the FLEX table (methanol, extinction at 0.3 s).
 - **v2.3.0 (2026-11-14):** Added v1.6.0 dev results (camera profiles): dev false positives 7 → 5, holdout unchanged and not informative for this change (no FLEX frames).
