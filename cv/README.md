@@ -1,6 +1,6 @@
 ﻿# cv/
 
-Flame-image analysis with OpenCV and NumPy on the CPU; no learned model is served (the CNN, PINN and ResNet code are unvalidated prototypes). **Owner:** Engineer 3. **Status:** auto-adaptive Otsu/contour pipeline `cv-opencv-v1.4.0-auto`, with telemetry-overlay masking for video (`cv-video-v1.1.0`); evaluated on `cv_gold_v1` (held-out, Claude-drafted labels pending human verification; see docs/cv/evaluation-report.md).
+Flame-image analysis with OpenCV and NumPy on the CPU; no learned model is served (the CNN, PINN and ResNet code are unvalidated prototypes). **Owner:** Engineer 3. **Status:** auto-adaptive Otsu/contour pipeline `cv-opencv-v1.5.0-auto`, with telemetry-overlay masking for video (`cv-video-v1.1.0`); evaluated on `cv_gold_v1` (held-out, Claude-drafted labels pending human verification; see docs/cv/evaluation-report.md).
 
 | Path | What it is |
 |---|---|

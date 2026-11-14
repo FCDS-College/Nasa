@@ -1,8 +1,8 @@
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Princess & Ziad | Draft | 2.1.0 | 2026-11-13 | M10, A3, C1, CV audit CV-3 | `cv/gold.py`, `cv/flame_cv.py`, `cv/video_analysis.py` |
+| Princess & Ziad | Draft | 2.2.0 | 2026-11-14 | M10, A3, C1, CV audit CV-3 | `cv/gold.py`, `cv/flame_cv.py`, `cv/video_analysis.py` |
 
-# CV Evaluation Report (v2.1.0, cv_gold_v1)
+# CV Evaluation Report (v2.2.0, cv_gold_v1)
 
 **Every label in this report is a Claude-drafted, unverified draft.** The numbers measure the pipeline against those drafts. They will change, probably a little, once people verify the set ([annotation-protocol.md §5](annotation-protocol.md#5-draft-and-verify-workflow)); the report then shows verified-only numbers next to these.
 
@@ -24,40 +24,54 @@ Video frames are the served pipeline's sampling grid (10 per video). Holdout tes
 
 ## 3. Results
 
-`python -m cv.gold evaluate` (full output for the current pipeline: `cv/contracts/gold_evaluation_report.json`). Three pipelines, each scored with the same command:
+`python -m cv.gold evaluate` (full output for the current pipeline: `cv/contracts/gold_evaluation_report.json`). Four pipelines, each scored with the same command:
 
 - **Before** fixes 1–2: commit `92b2ef3`.
 - **v1.3.0:** with overlay masking and the detection-scoring fixes.
-- **v1.4.0:** the current pipeline, with the small-flame fix from section 4.
+- **v1.4.0:** with the small-flame fix from section 4.
+- **v1.5.0:** the current pipeline, with the lit-scene rule from section 4.
 
-| Holdout (8 unseen tests) | Before fixes 1–2 | v1.3.0 | **v1.4.0 (current)** |
+| Holdout (8 unseen tests) | Before fixes 1–2 | v1.3.0 | v1.4.0 | **v1.5.0 (current)** |
+|---|---|---|---|---|
+| False-positive rate | 0.97 [0.89, 1.00] | 0.30 [0.00, 0.65] | 0.30 [0.00, 0.65] | **0.00** (0 of 37 absent frames) |
+| Precision | 0.53 [0.30, 0.75] | 0.68 [0.29, 1.00] | 0.72 [0.31, 1.00] | **1.00** |
+| Localized recall | 0.37 [0.05, 0.76] | 0.56 [0.22, 0.91] | 0.68 [0.28, 1.00] | **0.68 [0.28, 1.00]** |
+| Recall (frame-level) | 1.00, illusory: almost every frame was PRESENT | 0.56 | 0.68 | 0.68 |
+| Mean mask IoU | 0.28 [0.04, 0.57] | 0.30 [0.10, 0.55] | 0.32 [0.13, 0.55] | **0.32 [0.13, 0.55]** |
+| Mean IoU on detected flames | 0.28 | 0.53 | 0.47 (the recovered T23 flames are tiny, so their masks overlap less) | 0.47 |
+
+At v1.5.0 the holdout false-positive rate and precision have no spread across bootstrap draws (interval [0.00, 0.00] and [1.00, 1.00]), because no resample of 8 tests can contain a false positive. That is not a guarantee of zero: 37 absent frames from 8 tests cannot rule out a false-positive rate of a few per cent.
+
+| Dev (16 sample tests, tuned on) | Before | v1.3.0 and v1.4.0 (identical) | v1.5.0 |
 |---|---|---|---|
-| False-positive rate | 0.97 [0.89, 1.00] | 0.30 [0.00, 0.65] | **0.30 [0.00, 0.65]** |
-| Precision | 0.53 [0.30, 0.75] | 0.68 [0.29, 1.00] | **0.72 [0.31, 1.00]** |
-| Localized recall | 0.37 [0.05, 0.76] | 0.56 [0.22, 0.91] | **0.68 [0.28, 1.00]** |
-| Recall (frame-level) | 1.00, illusory: almost every frame was PRESENT | 0.56 | 0.68 |
-| Mean mask IoU | 0.28 [0.04, 0.57] | 0.30 [0.10, 0.55] | **0.32 [0.13, 0.55]** |
-| Mean IoU on detected flames | 0.28 | 0.53 | 0.47 (the recovered T23 flames are tiny, so their masks overlap less) |
-
-| Dev (16 sample tests, tuned on) | Before | v1.3.0 and v1.4.0 (identical) |
-|---|---|---|
-| False-positive rate | 0.86 [0.65, 1.00] | 0.41 [0.14, 0.71] |
-| Precision | 0.28 [0.05, 0.52] | 0.45 [0.08, 0.80] |
-| Localized recall | 0.87 [0.67, 1.00] | 0.93 [0.67, 1.00] |
-| Mean mask IoU | 0.54 [0.32, 0.79] | 0.55 [0.33, 0.79] |
+| False-positive rate | 0.86 [0.65, 1.00] | 0.41 [0.14, 0.71] | 0.16 [0.03, 0.37] |
+| Precision | 0.28 [0.05, 0.52] | 0.45 [0.08, 0.80] | 0.68 [0.17, 0.94] |
+| Localized recall | 0.87 [0.67, 1.00] | 0.93 [0.67, 1.00] | 0.93 [0.67, 1.00] |
+| Mean mask IoU | 0.54 [0.32, 0.79] | 0.55 [0.33, 0.79] | 0.55 [0.33, 0.79] |
 
 Read the intervals before reading the point values. With 8 tests, a single test moves every number.
 
-## 4. Where it fails (holdout, v1.4.0)
+## 4. Where it fails (holdout, v1.5.0)
 
 | Failure | Frames | Cause |
 |---|---|---|
-| Cabin view called a flame | T20: 8 of 8 absent frames | Static bright scenery (glovebox floor, monitors). The same problem as T25 in dev; no rule in the detector can separate it. |
-| Chamber lights on, called a flame | B3: 3 of 5 absent frames | Brightly lit hardware |
+| ~~Cabin view called a flame~~ (fixed in v1.5.0) | T20: was 8 of 8 absent frames PRESENT, now UNCERTAIN | Lit scene; see below |
+| ~~Chamber lights on, called a flame~~ (fixed in v1.5.0) | B3: was 3 of 5 absent frames PRESENT, now UNCERTAIN | Lit scene; see below |
 | Dim blue flame missed | M10: 9 of 9 flame frames ABSENT | Too faint for a brightness detector. A real limit of the method, not a threshold. |
 | ~~Small flame missed~~ (fixed in v1.4.0) | T23: was 5 of 9 flame frames ABSENT in v1.3.0, now 9 of 9 PRESENT | See below |
 | Dim lobes not PRESENT | B3: 4 of 5 flame frames (3 UNCERTAIN, 1 ABSENT) | Low contrast |
 | Low IoU on detected flames | B1, T23, F1 | The pipeline keeps only the largest region, so a two-lobed flame scores about half |
+
+### Lit scenery and the v1.5.0 rule
+
+Every held-out false positive at v1.4.0 was a bright region in a **lit** scene: the T20 cabin view (glovebox floor and monitors) and the B3 chamber with its lights on. The detector assumes a dark background, because luminous flames are filmed in dark chambers. In a lit scene a bright region may be scenery, so v1.5.0 reports it UNCERTAIN, never PRESENT.
+
+- **Lighting measure:** the median gray minus the 1st-percentile gray. A first version used the median alone; an existing 12-bit sensor test showed it would call a sensor's constant black level (pedestal) "lit" and demote every flame on such a sensor.
+- **Cut-off:** chosen on **dev data only**. Dev flame frames reach 4 at most; lit scenery false positives (the T25 cabin view, lit FLEX hardware) start at 19; the cut-off is 11, the midpoint. Across all committed samples it demoted 82 T25 cabin frames, 8 lit-hardware FLEX frames, 4 DSI frames, and one FLEX frame (`X168M03D_00164`) that shows glowing igniter tips in an orange-lit chamber, which is probably not a flame. It demoted no dev flame frame.
+- **Holdout result:** all 11 false positives gone, no held-out flame lost.
+- **How blind?** No holdout number was used and T20 and B3 were never measured. But the choice of *cue* (lighting) came from knowing that the held-out false positives were lit scenes. Treat the holdout gain as less blind than a fresh test would be.
+- **Not fixed:** bright hardware in a **dark** scene. In dev, the glowing FLEX igniter arc and point lights (`176F001D`, `195F002D`, `H08M101D`) and DSI frames are still PRESENT (dev false-positive rate 0.16).
+- **Recall cost:** a real flame filmed in a lit scene would now be UNCERTAIN. `cv_gold_v1` has no such frame, so this cost is not measured.
 
 ### The v1.3.0 small-flame regression and its fix
 
@@ -87,6 +101,7 @@ The committed tests (`tests/cv/test_gold.py`) check the set itself: it validates
 - **No measurement-error evaluation:** there are no calibrated physical reference values.
 
 ## Changelog
+- **v2.2.0 (2026-11-14):** Added v1.5.0 results. The lit-scene rule (tuned on dev only) removes all 11 held-out false positives with no recall loss; the blindness caveat and the remaining dark-scene false positives are documented.
 - **v2.1.0 (2026-11-13):** Added v1.4.0 results. The small-flame regression is fixed with a contrast rule tuned on dev only; the holdout-blindness caveat is documented.
 
 - **v2.0.0 (2026-11-13):** Replaced the v1.1.0 report (10 flame-only SPICE images, no negatives, no ground truth) with an evaluation on `cv_gold_v1`: a held-out split, negatives, masks, test-level intervals, localized recall, and a before/after comparison of fixes 1–2. Found the T23 small-flame regression.
