@@ -13,6 +13,7 @@ Pick a spacecraft cabin atmosphere (ISS air, pre-EVA, Orion, a lunar lander, or 
 |---|---|
 | What it is and why | [FINAL_CHALLENGE_PRESENTATION.md](FINAL_CHALLENGE_PRESENTATION.md) |
 | 3-minute pitch (deck + script, English; Arabic rehearsal script) | [flame-in-freefall-3min-pitch.pptx](docs/presentations/flame-in-freefall-3min-pitch.pptx) · [script](docs/presentations/PITCH_SCRIPT_3MIN.md) · [النص العربي](docs/presentations/PITCH_SCRIPT_3MIN.ar.md) |
+| 7-slide product demo (live deck, PDF) | [demo deck](docs/presentations/demo-deck/README.md) · [PDF](docs/presentations/demo-deck/flame-in-freefall-demo.pdf) |
 | The Apollo 1 scenario and how it generalises | [APOLLO1_SCENARIO_ANALYSIS.md](docs/reports/APOLLO1_SCENARIO_ANALYSIS.md) · [ADR-013](docs/architecture/adr/ADR-013-historical-scenarios-coverage-verdict.md) |
 | Business plan (commercial space) | [docs/business/BUSINESS_PLAN.md](docs/business/BUSINESS_PLAN.md) |
 | Run the demo | [DEMO_RUNBOOK.md](DEMO_RUNBOOK.md) |
