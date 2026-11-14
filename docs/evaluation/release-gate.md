@@ -20,6 +20,10 @@ A candidate version cannot be promoted to release or merged to `main` unless it 
 
 ---
 
+**How the rows are measured and judged.** `python -m ai.rag.evaluation.gate` reads one report per row and prints PASS, FAIL, INCONCLUSIVE or NOT_MEASURED for each; see [eval-gate.md](eval-gate.md) for where every number comes from, the exams that were added (PII, trick questions) and the CI workflow.
+
+---
+
 ## 2. Regression Policy and Tolerances
 
 * **Performance Regression**: A drop of more than $2\%$ on any retrieval or generation metric compared to the frozen baseline triggers a build failure.

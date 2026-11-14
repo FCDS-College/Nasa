@@ -39,6 +39,8 @@ These are small and cheap to fix, and each one makes a result untrustworthy toda
 
 ## 3. Roadmap
 
+**Progress 2026-11-14 ([eval-gate.md](eval-gate.md)).** EV-02 (thresholds that fail the build) is met by `ai.rag.evaluation.gate`; EV-17 (baseline and the 2 % rule) by `docs/evaluation/baselines/gate_baseline.json` and `--baseline`; EV-15 and EV-16 by `.github/workflows/eval.yml` (a regression check on every relevant change and nightly; the live part is manual); EV-09 and EV-10 have their exams and scorers (`run_pii_exam.py`, `run_safety_exam.py`) but the exams are AI-drafted and unverified, and the trick-question exam still needs a live run. EV-08 and EV-11 (generated-answer evaluation) remain open.
+
 Estimates are for one engineer unless noted. Phases are ordered by dependency: nothing in Phase 2 is worth automating before Phase 0 makes the numbers real.
 
 ### Phase 0: Make the measurements real (about 1 week)

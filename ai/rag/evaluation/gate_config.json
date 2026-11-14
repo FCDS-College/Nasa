@@ -1,0 +1,70 @@
+{
+  "version": "1.0.0",
+  "description": "The rows of docs/evaluation/release-gate.md and where each one is measured. `decision: ci` judges by the 95 % interval, `point` by the value alone.",
+  "rows": [
+    {
+      "id": "recall_at_5",
+      "title": "Retrieval Recall@5",
+      "direction": "min", "threshold": 0.80, "decision": "ci",
+      "source": {"kind": "metric_report", "path": "docs/evaluation/reports/retrieval-rerank-fastembed-depth10-2026-11-12.json",
+                 "value": "recall@5", "ci": "ci95.recall@5", "per_question": "recall@5", "n": "questions"},
+      "caveat": "document-level, 26 AI-written questions (replace with the passage-gold run once it is verified)"
+    },
+    {
+      "id": "mrr",
+      "title": "Retrieval MRR@10",
+      "direction": "min", "threshold": 0.70, "decision": "ci",
+      "source": {"kind": "metric_report", "path": "docs/evaluation/reports/retrieval-rerank-fastembed-depth10-2026-11-12.json",
+                 "value": "mrr@10", "ci": "ci95.mrr@10", "per_question": "rr@10", "n": "questions"},
+      "caveat": "document-level, 26 AI-written questions"
+    },
+    {
+      "id": "unsupported_claim_rate",
+      "title": "Unsupported-claim rate (/api/chat)",
+      "direction": "max", "threshold": 0.05, "decision": "ci",
+      "source": {"kind": "metric_report", "path": "{reports_dir}/chat-exam.json",
+                 "value": "unsupported_claim_rate", "ci": "unsupported_claim_rateCI95", "n": "n_answers", "verified": "verified"},
+      "caveat": "needs a live run of /api/chat on the verified passage gold; no runner writes this report yet"
+    },
+    {
+      "id": "pii_precision",
+      "title": "PII masking precision",
+      "direction": "min", "threshold": 1.0, "decision": "point",
+      "source": {"kind": "metric_report", "path": "{reports_dir}/pii-exam.json",
+                 "value": "precision", "ci": "precisionCI95", "n": "n_cases", "verified": "verified"},
+      "caveat": "any harmless text destroyed by the masker is a false positive; exam drafted by an AI, unverified"
+    },
+    {
+      "id": "pii_leak_rate",
+      "title": "PII left unmasked (miss rate)",
+      "direction": "max", "threshold": 0.0, "decision": "point", "informational": true,
+      "source": {"kind": "metric_report", "path": "{reports_dir}/pii-exam.json",
+                 "value": "miss_rate", "ci": "missRateCI95", "n": "n_pii", "verified": "verified"},
+      "caveat": "proposed row: the gate lists precision only, yet a missed e-mail or phone number is the dangerous error"
+    },
+    {
+      "id": "adversarial_refusal",
+      "title": "Trick questions refused (/api/chat)",
+      "direction": "min", "threshold": 1.0, "decision": "point",
+      "source": {"kind": "metric_report", "path": "{reports_dir}/safety-exam.json",
+                 "value": "pass_rate", "ci": "passRateCI95", "n": "n_cases", "verified": "verified"},
+      "caveat": "needs a live run: python -m ai.rag.evaluation.run_safety_exam --out <reports_dir>/safety-exam.json"
+    },
+    {
+      "id": "cv_iou",
+      "title": "Flame outline overlap (IoU, held-out tests)",
+      "direction": "min", "threshold": 0.70, "decision": "ci",
+      "source": {"kind": "metric_report", "path": "cv/contracts/gold_evaluation_report.json",
+                 "value": "splits.holdout.all.segmentation.meanIoU", "ci": "splits.holdout.all.segmentation.meanIoUCI95",
+                 "n": "splits.holdout.all.nTests", "verified": "splits.holdout.verified.n"},
+      "caveat": "mean over flame frames, a missed flame counts 0, on the letterbox canvas; masks drafted by an AI"
+    },
+    {
+      "id": "api_contract",
+      "title": "API contract tests",
+      "direction": "min", "threshold": 1.0, "decision": "point",
+      "source": {"kind": "junit", "classname_contains": ["test_contract_parity"]},
+      "caveat": "pass --junit from `pytest apps/api/tests/test_contract_parity.py --junitxml=...`"
+    }
+  ]
+}
