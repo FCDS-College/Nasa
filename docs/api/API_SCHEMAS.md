@@ -1,6 +1,6 @@
 # Flame in Freefall: API Response Schemas
 
-**Generated from [`openapi.json`](openapi.json)** (OpenAPI 3.1.0, API 0.7.0) by `docs/tools/render_api_schemas.py`. Do not edit by hand.
+**Generated from [`openapi.json`](openapi.json)** (OpenAPI 3.1.0, API 0.8.0) by `docs/tools/render_api_schemas.py`. Do not edit by hand.
 Endpoint behaviour, examples and display rules: [`FRONTEND_API_CONTRACT.md`](FRONTEND_API_CONTRACT.md).
 
 Reading the tables: *Required = yes* means the key is always present. A nullable field (`| null`) is still present, with value `null`, which means "not present or not established" and is never a stand-in for `0`. The only optional keys in responses are those of [`ErrorDetails`](#errordetails).
@@ -34,11 +34,11 @@ Reading the tables: *Required = yes* means the key is always present. A nullable
 | GET | `/api/investigations/{investigation_id}` | 200 [`InvestigationResponse`](#investigationresponse) | 400, 401, 403, 404, 429, 500, 503 |
 | GET | `/api/insights` | 200 [`InsightListResponse`](#insightlistresponse) | 400, 401, 403, 429, 500, 503 |
 | GET | `/api/insights/flex-outcome` | 200 [`FlexOutcomeResponse`](#flexoutcomeresponse) | 400, 401, 403, 429, 500, 503 |
-| GET | `/api/insights/suppression-advice` | 200 `SuppressionAdviceResponse` (see `docs/api/openapi.json` and ADR-014) | 400, 401, 403, 429, 500, 503 |
 | GET | `/api/graph/entities` | 200 [`GraphEntityListResponse`](#graphentitylistresponse) | 400, 401, 403, 429, 500, 503 |
 | GET | `/api/graph/entities/{entity_id}` | 200 [`GraphEntityResponse`](#graphentityresponse) | 400, 401, 403, 404, 429, 500, 503 |
 | GET | `/api/admin/graph/consistency` | 200 [`GraphConsistencyResponse`](#graphconsistencyresponse) | 400, 401, 403, 429, 500, 503 |
 | GET | `/api/scenarios/{scenario_id}/history` | 200 [`ScenarioHistoryResponse`](#scenariohistoryresponse) | 400, 401, 403, 404, 429, 500, 503 |
+| GET | `/api/insights/suppression-advice` | 200 [`SuppressionAdviceResponse`](#suppressionadviceresponse) | 400, 401, 403, 429, 500, 503 |
 
 ## 2. Object schemas
 
@@ -302,6 +302,30 @@ A historical scenario (contract 0.7.0): its cited story, timeline and the data-c
 | `timeline` | object[] | yes |  |
 | `alternative` | object | yes |  |
 | `claim_class` | `"cited_history"` | yes |  |
+| `meta` | [`ResponseMeta`](#responsemeta) | yes |  |
+
+### SuppressionAdviceResponse
+
+Suppression Advisor output. outcome is recommend, no_clear_winner or no_recommendation; recommended_agent is null unless outcome is recommend.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `input` | object | yes |  |
+| `assumptions` | object | yes |  |
+| `outcome` | `"recommend"` \| `"no_clear_winner"` \| `"no_recommendation"` | yes |  |
+| `recommended_agent` | `"co2"` \| `"water_mist"` \| `null` | yes |  |
+| `confidence` | `"high"` \| `"moderate"` \| `"low"` \| `"none"` | yes |  |
+| `basis` | `"thermal_model_comparison"` \| `"relative_only"` \| `"hazard_veto"` \| `"sourced_rule"` \| `"out_of_scope"` | yes |  |
+| `why` | string[] | yes |  |
+| `what_would_change_it` | string[] | yes |  |
+| `decision_sources` | string[] | yes |  |
+| `crossover_delivery_fraction` | object \| `null` | yes |  |
+| `co2_idlh_volume_m3` | number | yes | Cabin volume below which one CO₂ PFE, well mixed, reaches the CO₂ IDLH. |
+| `agents` | object | yes |  |
+| `gates` | object | yes |  |
+| `evidence` | object[] | yes |  |
+| `scope` | string | yes |  |
+| `disclaimer` | string | yes |  |
 | `meta` | [`ResponseMeta`](#responsemeta) | yes |  |
 
 ### VersionInfo
@@ -795,6 +819,21 @@ An NTRS report page. `evidence_id` is the ingested page (null until the report i
 | `access_url` | string \| `null` | yes |  |
 | `evidence_id` | string \| `null` | yes |  |
 
+### SuppressionAgentAdvice
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `agent` | `"co2"` \| `"water_mist"` | yes |  |
+| `extinguisher` | string | yes |  |
+| `charge` | object | yes |  |
+| `post_discharge` | object | yes |  |
+| `effective_enthalpy_kcal_per_mol_o2` | number \| `null` | yes |  |
+| `hazards` | [`SuppressionHazard`](#suppressionhazard)[] | yes |  |
+| `hazard_level` | `"red"` \| `"amber"` \| `"green"` \| `"info"` | yes |  |
+| `flex_estimate` | object \| `null` | yes | FLEX outcome model for CO₂ (claim class estimated) with nearest flight tests. Null for water mist and for non-FLEX fire types. |
+| `thermal_estimate` | object \| `null` | yes | Thermal (effective-enthalpy) model, claim class computed. Null when withheld. |
+| `withheld` | string[] | yes | Why a number is not shown. |
+
 ### ServiceHealth
 
 | Field | Type | Required | Description |
@@ -1107,6 +1146,18 @@ One ISA-Tab section (Objective, Hypothesis, Approach, Research impacts), verbati
 | `confidence` | number \| `null` (minimum=0, maximum=1) | yes | 1.0 for deterministic table parses. |
 | `review_status` | [`GraphReviewStatus`](#graphreviewstatus) | yes |  |
 | `properties` | object | yes | For `has_condition`: `value_si`, `unit_si`, `value_numeric`, `value_text`, `unit_original`, `origin` of the cell. |
+
+### SuppressionHazard
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `hazard` | string | yes |  |
+| `level` | `"red"` \| `"amber"` \| `"green"` \| `"info"` | yes |  |
+| `value` | number | no |  |
+| `unit` | string | no |  |
+| `statement` | string | yes |  |
+| `claim_class` | `"reference"` \| `"computed"` | yes |  |
+| `sources` | string[] | no |  |
 
 ### Calibration
 
