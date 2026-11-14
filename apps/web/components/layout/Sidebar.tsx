@@ -4,7 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import {
-  Flame,
   Plus,
   MessageSquare,
   Trash2,
@@ -21,21 +20,36 @@ import {
   Network,
   FireExtinguisher,
 } from "lucide-react";
-
-// Primary navigation: every page a judge needs is one click away.
-const NAV = [
-  { href: "/", label: "Fire Safety Dashboard", icon: ShieldCheck },
-  { href: "/explorer", label: "Flame Outcome Explorer", icon: FlaskConical },
-  { href: "/suppression", label: "Suppression Advisor", icon: FireExtinguisher },
-  { href: "/experiments", label: "Flight Test Browser", icon: Sparkles },
-  { href: "/chat", label: "Ask the NASA Corpus", icon: MessageSquare },
-  { href: "/search", label: "Search Evidence", icon: FileSearch },
-  { href: "/knowledge", label: "Knowledge Graph", icon: Network },
-  { href: "/analysis", label: "Image & Video Analysis", icon: Microscope },
-  { href: "/history", label: "Analysis History", icon: History },
-  { href: "/status", label: "System Status", icon: Activity },
-];
 import { useChat } from "@/lib/context/ChatContext";
+
+// Primary navigation: every page a judge needs is one click away, grouped like a mission console.
+const NAV_GROUPS = [
+  {
+    label: "Mission",
+    items: [
+      { href: "/", label: "Fire Safety Dashboard", icon: ShieldCheck },
+      { href: "/explorer", label: "Flame Outcome Explorer", icon: FlaskConical },
+      { href: "/suppression", label: "Suppression Advisor", icon: FireExtinguisher },
+      { href: "/experiments", label: "Flight Test Browser", icon: Sparkles },
+    ],
+  },
+  {
+    label: "Research",
+    items: [
+      { href: "/chat", label: "Ask the NASA Corpus", icon: MessageSquare },
+      { href: "/search", label: "Search Evidence", icon: FileSearch },
+      { href: "/knowledge", label: "Knowledge Graph", icon: Network },
+    ],
+  },
+  {
+    label: "Lab",
+    items: [
+      { href: "/analysis", label: "Image & Video Analysis", icon: Microscope },
+      { href: "/history", label: "Analysis History", icon: History },
+      { href: "/status", label: "System Status", icon: Activity },
+    ],
+  },
+];
 
 function formatRelativeTime(timestamp: number) {
   const diff = Math.max(0, Date.now() - timestamp);
@@ -47,6 +61,32 @@ function formatRelativeTime(timestamp: number) {
   const days = Math.floor(hours / 24);
   if (days === 1) return "Yesterday";
   return `${days}d ago`;
+}
+
+/** The brand mark: a spherical microgravity flame inside an orbit ring. */
+export function FlameMark({ size = 36 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 40 40" aria-hidden="true">
+      <defs>
+        <radialGradient id="fm-core" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#ffffff" />
+          <stop offset="30%" stopColor="#9CC6FF" />
+          <stop offset="70%" stopColor="#4F8CFF" />
+          <stop offset="100%" stopColor="#4F8CFF" stopOpacity="0" />
+        </radialGradient>
+        <linearGradient id="fm-ring" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#22D3EE" />
+          <stop offset="100%" stopColor="#A78BFA" />
+        </linearGradient>
+      </defs>
+      <circle cx="20" cy="20" r="11" fill="url(#fm-core)" className="flame-breathe" />
+      <circle cx="20" cy="20" r="4" fill="#fff" opacity="0.9" />
+      <g className="orbit-spin">
+        <ellipse cx="20" cy="20" rx="18" ry="7" fill="none" stroke="url(#fm-ring)" strokeWidth="1.3" transform="rotate(-28 20 20)" opacity="0.9" />
+        <circle cx="35.5" cy="12" r="1.8" fill="#22D3EE" />
+      </g>
+    </svg>
+  );
 }
 
 export function Sidebar() {
@@ -97,41 +137,41 @@ export function Sidebar() {
 
       {/* Sidebar Drawer */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex h-full w-[280px] sm:w-[300px] flex-col shadow-2xl lg:sticky lg:top-0 lg:h-screen lg:z-auto ${
+        className={`fixed inset-y-0 left-0 z-50 flex h-full w-[280px] sm:w-[292px] flex-col shadow-2xl lg:sticky lg:top-0 lg:h-screen lg:z-auto ${
           isSidebarOpen
             ? "translate-x-0 opacity-100"
             : "-translate-x-full opacity-0 lg:w-0 lg:overflow-hidden lg:opacity-0 pointer-events-none lg:pointer-events-none"
         }`}
         style={{
-          background: 'var(--bg-card)',
+          background: 'linear-gradient(180deg, rgba(12,15,26,0.92) 0%, rgba(7,9,15,0.95) 100%)',
           backdropFilter: 'blur(32px) saturate(1.4)',
-          borderRight: '1px solid var(--border-subtle)',
+          borderRight: '1px solid var(--border-default)',
           transition: 'all var(--transition-default)',
         }}
       >
+        {/* Edge light along the sidebar's right border */}
+        <div aria-hidden="true" className="pointer-events-none absolute right-0 top-0 h-full w-px"
+             style={{ background: 'linear-gradient(180deg, transparent, rgba(79,140,255,0.5) 30%, rgba(167,139,250,0.35) 70%, transparent)' }} />
+
         {/* Branding Header */}
         <div className="flex h-16 shrink-0 items-center justify-between px-5"
              style={{ borderBottom: '1px solid var(--border-subtle)' }}>
           <Link href="/" className="group flex items-center gap-3">
-            <div className="relative flex h-9 w-9 items-center justify-center rounded-xl"
+            <div className="relative flex h-10 w-10 items-center justify-center rounded-xl"
                  style={{
-                   background: 'linear-gradient(135deg, rgba(59,130,246,0.15), rgba(96,165,250,0.1))',
-                   border: '1px solid rgba(59,130,246,0.25)',
+                   background: 'radial-gradient(circle at 50% 50%, rgba(79,140,255,0.22), rgba(12,15,26,0.6) 70%)',
+                   border: '1px solid rgba(124,180,255,0.28)',
+                   boxShadow: '0 0 24px -6px rgba(79,140,255,0.7)',
                  }}>
-              <Flame className="h-5 w-5" style={{ color: 'var(--accent-flame)' }} />
-              <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100"
-                   style={{
-                     background: 'linear-gradient(135deg, rgba(59,130,246,0.25), rgba(96,165,250,0.15))',
-                     transition: 'opacity var(--transition-default)',
-                   }} />
+              <FlameMark size={34} />
             </div>
             <div className="flex flex-col">
-              <span className="text-[11px] font-bold tracking-[0.2em] uppercase"
+              <span className="text-[12px] font-extrabold tracking-[0.22em] uppercase"
                     style={{ color: 'var(--text-primary)' }}>
                 Flame in Freefall
               </span>
-              <span className="text-[10px] font-medium tracking-wide"
-                    style={{ color: 'var(--accent-flame)', fontFamily: 'var(--font-mono)', opacity: 0.8 }}>
+              <span className="text-[10px] font-medium tracking-[0.12em] uppercase text-gradient-flame"
+                    style={{ fontFamily: 'var(--font-mono)' }}>
                 Fire-Safety Insights
               </span>
             </div>
@@ -141,75 +181,55 @@ export function Sidebar() {
             type="button"
             onClick={closeSidebar}
             aria-label="Close sidebar"
-            className="flex h-8 w-8 items-center justify-center rounded-lg lg:hidden"
-            style={{
-              color: 'var(--text-muted)',
-              transition: 'all var(--transition-fast)',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'var(--border-subtle)';
-              e.currentTarget.style.color = 'var(--text-primary)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'transparent';
-              e.currentTarget.style.color = 'var(--text-muted)';
-            }}
+            className="btn-ghost flex h-8 w-8 items-center justify-center rounded-lg lg:hidden"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
         {/* Primary navigation */}
-        <nav aria-label="Main" className="px-3 pt-3">
-          <ul className="flex flex-col gap-0.5">
-            {NAV.map(({ href, label, icon: Icon }) => {
-              const active = href === "/" ? pathname === "/" : pathname?.startsWith(href);
-              return (
-                <li key={href}>
-                  <Link href={href} onClick={() => { if (typeof window !== "undefined" && window.innerWidth < 1024) closeSidebar(); }}
-                        aria-current={active ? "page" : undefined}
-                        className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium"
-                        style={{
-                          background: active ? "rgba(59,130,246,0.12)" : "transparent",
-                          border: `1px solid ${active ? "rgba(59,130,246,0.25)" : "transparent"}`,
-                          color: active ? "var(--text-primary)" : "var(--text-secondary)",
-                        }}>
-                    <Icon className="h-4 w-4" style={{ color: active ? "var(--accent-flame)" : "var(--text-dim)" }} aria-hidden="true" />
-                    {label}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+        <nav aria-label="Main" className="shrink-0 px-3 pt-3">
+          {NAV_GROUPS.map((group) => (
+            <div key={group.label} className="mb-2">
+              <p className="flex items-center gap-2 px-3 pb-1.5 pt-2 text-[9.5px] font-semibold uppercase tracking-[0.24em]"
+                 style={{ color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
+                {group.label}
+                <span className="h-px flex-1" style={{ background: 'linear-gradient(90deg, var(--border-default), transparent)' }} />
+              </p>
+              <ul className="flex flex-col gap-0.5">
+                {group.items.map(({ href, label, icon: Icon }) => {
+                  const active = href === "/" ? pathname === "/" : pathname?.startsWith(href);
+                  return (
+                    <li key={href}>
+                      <Link href={href} onClick={() => { if (typeof window !== "undefined" && window.innerWidth < 1024) closeSidebar(); }}
+                            aria-current={active ? "page" : undefined}
+                            className="nav-item flex items-center gap-2.5 rounded-lg px-3 py-[7px] text-[12.5px] font-medium"
+                            style={{ color: active ? undefined : "var(--text-secondary)" }}>
+                        <span className="flex h-6 w-6 items-center justify-center rounded-md"
+                              style={{
+                                background: active ? 'rgba(79,140,255,0.2)' : 'transparent',
+                                boxShadow: active ? '0 0 14px -2px rgba(79,140,255,0.7)' : 'none',
+                              }}>
+                          <Icon className="h-[15px] w-[15px]" style={{ color: active ? "var(--accent-ember)" : "var(--text-muted)" }} aria-hidden="true" />
+                        </span>
+                        {label}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
         </nav>
-        <div className="mx-4 mt-3" style={{ borderTop: "1px solid var(--border-subtle)" }} />
 
         {/* New Chat Button */}
-        <div className="p-4 pb-2">
+        <div className="px-4 pb-2 pt-2">
           <button
             id="new-chat-btn"
             onClick={handleNewChat}
-            className="group relative flex w-full items-center justify-center gap-2.5 rounded-xl px-4 py-3 text-sm font-semibold"
-            style={{
-              background: 'linear-gradient(135deg, rgba(59,130,246,0.15), rgba(96,165,250,0.12))',
-              border: '1px solid rgba(59,130,246,0.3)',
-              color: 'var(--text-primary)',
-              transition: 'all var(--transition-default)',
-              boxShadow: 'var(--shadow-glow-sm)',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = 'rgba(59,130,246,0.5)';
-              e.currentTarget.style.boxShadow = 'var(--shadow-glow-md)';
-              e.currentTarget.style.background = 'linear-gradient(135deg, rgba(59,130,246,0.22), rgba(96,165,250,0.18))';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = 'rgba(59,130,246,0.3)';
-              e.currentTarget.style.boxShadow = 'var(--shadow-glow-sm)';
-              e.currentTarget.style.background = 'linear-gradient(135deg, rgba(59,130,246,0.15), rgba(96,165,250,0.12))';
-            }}
+            className="btn-primary group flex w-full items-center justify-center gap-2.5 rounded-xl px-4 py-2.5 text-sm font-semibold"
           >
-            <Plus className="h-4 w-4 transition-transform duration-300 group-hover:rotate-90"
-                  style={{ color: 'var(--accent-flame)' }} />
+            <Plus className="h-4 w-4 transition-transform duration-300 group-hover:rotate-90" />
             <span>New Research Chat</span>
           </button>
         </div>
@@ -225,33 +245,26 @@ export function Sidebar() {
                 value={filterText}
                 onChange={(e) => setFilterText(e.target.value)}
                 placeholder="Search history..."
+                aria-label="Search chat history"
                 className="w-full rounded-lg py-2 pl-8 pr-3 text-xs focus:outline-none"
                 style={{
-                  background: 'var(--border-subtle)',
-                  border: '1px solid var(--border-subtle)',
+                  background: 'rgba(124,180,255,0.05)',
+                  border: '1px solid var(--border-default)',
                   color: 'var(--text-secondary)',
-                  fontFamily: 'var(--font-sans)',
-                  transition: 'border-color var(--transition-fast)',
                 }}
-                onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(59,130,246,0.4)'; }}
-                onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}
               />
             </div>
           </div>
         )}
 
         {/* History Header */}
-        <div className="flex items-center justify-between px-5 pt-4 pb-2">
-          <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.15em]"
-               style={{ color: 'var(--text-muted)' }}>
-            <Clock className="h-3.5 w-3.5" style={{ color: 'var(--text-dim)' }} />
-            <span>Chat History</span>
-            <span className="ml-1.5 rounded-full px-1.5 py-0.5 text-[9px]"
-                  style={{
-                    background: 'var(--border-subtle)',
-                    color: 'var(--text-secondary)',
-                    fontFamily: 'var(--font-mono)',
-                  }}>
+        <div className="flex items-center justify-between px-5 pt-3 pb-2">
+          <div className="flex items-center gap-1.5 text-[9.5px] font-semibold uppercase tracking-[0.22em]"
+               style={{ color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
+            <Clock className="h-3.5 w-3.5" />
+            <span>Chat log</span>
+            <span className="ml-1 rounded-full px-1.5 py-0.5 text-[9px]"
+                  style={{ background: 'rgba(124,180,255,0.08)', color: 'var(--text-secondary)' }}>
               {sessions.length}
             </span>
           </div>
@@ -263,13 +276,8 @@ export function Sidebar() {
                 }
               }}
               title="Clear all conversations"
-              className="text-[10px] font-medium"
-              style={{
-                color: 'var(--text-dim)',
-                transition: 'color var(--transition-fast)',
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent-danger)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-dim)'; }}
+              className="text-[10px] font-medium hover:text-red-400"
+              style={{ color: 'var(--text-dim)', transition: 'color var(--transition-fast)' }}
             >
               Clear all
             </button>
@@ -277,15 +285,12 @@ export function Sidebar() {
         </div>
 
         {/* Sessions List */}
-        <div className="flex-1 overflow-y-auto px-3 py-2 space-y-0.5">
+        <div className="flex-1 overflow-y-auto px-3 py-1 space-y-0.5">
           {filteredSessions.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl mb-4"
-                   style={{
-                     background: 'linear-gradient(135deg, rgba(59,130,246,0.08), rgba(96,165,250,0.05))',
-                     border: '1px solid var(--border-subtle)',
-                   }}>
-                <Sparkles className="h-7 w-7" style={{ color: 'var(--text-dim)', opacity: 0.6 }} />
+            <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
+              <div className="relative mb-3 flex h-12 w-12 items-center justify-center">
+                <span className="ping-ring absolute inset-2 rounded-full" style={{ border: '1px solid rgba(79,140,255,0.4)' }} />
+                <Sparkles className="h-5 w-5" style={{ color: 'var(--text-muted)' }} />
               </div>
               <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
                 No conversations yet
@@ -301,38 +306,14 @@ export function Sidebar() {
                 <div
                   key={session.id}
                   onClick={() => handleSelectSession(session.id)}
-                  className="group relative flex items-center justify-between rounded-xl px-3 py-2.5 cursor-pointer"
-                  style={{
-                    background: isActive
-                      ? 'linear-gradient(135deg, rgba(59,130,246,0.1), rgba(96,165,250,0.06))'
-                      : 'transparent',
-                    border: isActive
-                      ? '1px solid rgba(59,130,246,0.2)'
-                      : '1px solid transparent',
-                    color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
-                    transition: 'all var(--transition-fast)',
-                    boxShadow: isActive ? '0 2px 12px rgba(59,130,246,0.08)' : 'none',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isActive) {
-                      e.currentTarget.style.background = 'var(--border-subtle)';
-                      e.currentTarget.style.color = 'var(--text-primary)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isActive) {
-                      e.currentTarget.style.background = 'transparent';
-                      e.currentTarget.style.color = 'var(--text-secondary)';
-                    }
-                  }}
+                  className="nav-item group relative flex items-center justify-between rounded-lg px-3 py-2 cursor-pointer"
+                  aria-current={isActive ? "page" : undefined}
+                  style={{ color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)' }}
                 >
                   <div className="flex min-w-0 items-center gap-2.5 flex-1 pr-2">
                     <MessageSquare
-                      className="h-4 w-4 shrink-0"
-                      style={{
-                        color: isActive ? 'var(--accent-flame)' : 'var(--text-dim)',
-                        transition: 'color var(--transition-fast)',
-                      }}
+                      className="h-3.5 w-3.5 shrink-0"
+                      style={{ color: isActive ? 'var(--accent-ember)' : 'var(--text-dim)' }}
                     />
                     <div className="flex flex-col min-w-0 flex-1">
                       <span className="truncate text-xs font-medium leading-snug">
@@ -352,19 +333,9 @@ export function Sidebar() {
                       deleteSession(session.id);
                     }}
                     title="Delete chat"
-                    className="opacity-0 group-hover:opacity-100 p-1 rounded-md shrink-0"
-                    style={{
-                      color: 'var(--text-dim)',
-                      transition: 'all var(--transition-fast)',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.color = 'var(--accent-danger)';
-                      e.currentTarget.style.background = 'rgba(239,68,68,0.1)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.color = 'var(--text-dim)';
-                      e.currentTarget.style.background = 'transparent';
-                    }}
+                    aria-label="Delete chat"
+                    className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-1 rounded-md shrink-0 hover:bg-red-500/10 hover:text-red-400"
+                    style={{ color: 'var(--text-dim)', transition: 'all var(--transition-fast)' }}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
@@ -374,30 +345,30 @@ export function Sidebar() {
           )}
         </div>
 
-        {/* Footer */}
-        <div className="p-4" style={{ borderTop: '1px solid var(--border-subtle)', background: 'rgba(0,0,0,0.05)' }}>
-          <div className="rounded-xl p-3 text-[11px]"
+        {/* Footer: mission patch */}
+        <div className="p-4" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+          <div className="relative overflow-hidden rounded-xl p-3"
                style={{
-                 background: 'var(--border-subtle)',
-                 border: '1px solid var(--border-subtle)',
-                 color: 'var(--text-muted)',
+                 background: 'linear-gradient(135deg, rgba(79,140,255,0.1), rgba(167,139,250,0.06))',
+                 border: '1px solid var(--border-default)',
                }}>
-            <div className="flex items-center justify-between">
-              <span className="font-semibold" style={{ color: 'var(--text-secondary)' }}>
+            <div aria-hidden="true" className="absolute -right-6 -top-6 h-20 w-20 rounded-full"
+                 style={{ background: 'radial-gradient(circle, rgba(34,211,238,0.25), transparent 70%)' }} />
+            <div className="relative flex items-center justify-between">
+              <span className="text-[11px] font-bold tracking-wide" style={{ color: 'var(--text-primary)' }}>
                 NASA Space Apps
               </span>
-              <span className="px-2 py-0.5 rounded-md text-[9px] font-semibold"
+              <span className="rounded-md px-2 py-0.5 text-[9px] font-bold"
                     style={{
                       fontFamily: 'var(--font-mono)',
-                      color: 'var(--accent-flame)',
-                      background: 'rgba(59,130,246,0.08)',
-                      border: '1px solid rgba(59,130,246,0.15)',
+                      color: '#fff',
+                      background: 'var(--grad-flame)',
                     }}>
                 2026
               </span>
             </div>
-            <p className="text-[10px] mt-1.5" style={{ color: 'var(--text-dim)' }}>
-              NASA PSI flight data · NTRS reports
+            <p className="relative mt-1 text-[10px]" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+              PSI flight data · NTRS reports
             </p>
           </div>
         </div>
