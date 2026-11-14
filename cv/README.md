@@ -1,6 +1,6 @@
 ﻿# cv/
 
-Flame-image analysis with OpenCV and NumPy on the CPU; no learned model is served (the CNN, PINN and ResNet code are unvalidated prototypes). **Owner:** Engineer 3. **Status:** auto-adaptive Otsu/contour pipeline `cv-opencv-v1.6.0-auto`, with telemetry-overlay masking for video (`cv-video-v1.1.0`); evaluated on `cv_gold_v1` (held-out, Claude-drafted labels pending human verification; see docs/cv/evaluation-report.md).
+Flame-image analysis with OpenCV and NumPy on the CPU; no learned model is served (the CNN, PINN and ResNet code are unvalidated prototypes). **Owner:** Engineer 3. **Status:** auto-adaptive Otsu/contour pipeline `cv-opencv-v1.7.0-auto`, with telemetry-overlay masking for video (`cv-video-v1.1.0`); evaluated on `cv_gold_v1` (held-out, Claude-drafted labels pending human verification; see docs/cv/evaluation-report.md).
 
 | Path | What it is |
 |---|---|
@@ -15,7 +15,7 @@ Flame-image analysis with OpenCV and NumPy on the CPU; no learned model is serve
 | `video_ingestion.py`, `temporal_analysis.py`, `video_analysis.py` | **[E3-6, E3-7, E3-8]** Video ingestion (validation, metadata, stable frame IDs, sampling, VFR normalization), tracking and temporal metrics, and the resumable end-to-end `python -m cv.video_analysis <video>` CLI. Temporal metrics are unevaluated against ground truth |
 | `cnn_pipeline.py`, `pinn_pipeline.py` | **Unvalidated prototypes** (TensorFlow). Not registered models; see the roadmap scope boundaries. `pinn_pipeline.py` is superseded by [`physics/`](../physics/README.md) (gravity-aware PyTorch PINN) |
 | `utils/benchmark.py` | CPU latency and video throughput quoted in [docs/cv/performance.md](../docs/cv/performance.md) (`python -m cv.utils.benchmark`) |
-| `configs/camera_profiles.json` | Per-camera exclusion zones for static bright hardware (first: `flex-colour`), chosen per request with `metadata.cameraProfile` / API `camera_profile`. See [docs/cv/pipeline.md §3](../docs/cv/pipeline.md#3-preprocessing-and-auto-adaptive-parameters-cvconfig) |
+| `configs/camera_profiles.json` | Per-camera exclusion zones for static bright hardware and an optional size floor below which a region is UNCERTAIN (first: `flex-colour`), chosen per request with `metadata.cameraProfile` / API `camera_profile`. See [docs/cv/pipeline.md §3](../docs/cv/pipeline.md#3-preprocessing-and-auto-adaptive-parameters-cvconfig) |
 | `configs/offline_manifest.json`, `utils/verify_offline_env.py` | Offline asset manifest and verifier (`python -m cv.utils.verify_offline_env --manifest cv/configs/offline_manifest.json`) |
 | [docs/cv/offline-operation.md](../docs/cv/offline-operation.md) | **[E3-10]** Offline installation and verification |
 | [docs/cv/pipeline.md](../docs/cv/pipeline.md) | **[E3-1]** Auto-adaptive pipeline stages, validation limits, configuration digests, and cache reuse. |

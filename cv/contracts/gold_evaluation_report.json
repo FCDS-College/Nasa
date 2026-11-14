@@ -1,9 +1,9 @@
 {
   "goldVersion": "cv_gold_v1",
-  "generatedAt": "2026-11-14T01:32:34Z",
-  "pipelineVersion": "cv-opencv-v1.6.0-auto",
+  "generatedAt": "2026-11-14T07:14:38Z",
+  "pipelineVersion": "cv-opencv-v1.7.0-auto",
   "videoPipelineVersion": "cv-video-v1.1.0",
-  "configDigest": "81879f64ea24c747",
+  "configDigest": "ed4f9e12478ee652",
   "protocol": "Detection: strict counts PRESENT as positive, lenient counts PRESENT or UNCERTAIN, localized also requires the mask on a flame frame to overlap the labelled flame (IoU >= 0.1); unclear labels are excluded. 95% intervals resample whole tests (groupId), not frames. 'verified' uses only items a person has checked.",
   "splits": {
     "dev": {
@@ -18,15 +18,15 @@
         "detection": {
           "strict": {
             "tp": 15,
-            "fp": 5,
+            "fp": 2,
             "fn": 0,
-            "tn": 39,
-            "precision": 0.75,
+            "tn": 42,
+            "precision": 0.8824,
             "recall": 1.0,
-            "f1": 0.8571,
-            "falsePositiveRate": 0.1136,
+            "f1": 0.9375,
+            "falsePositiveRate": 0.0455,
             "precisionCI95": [
-              0.25,
+              0.4109,
               1.0
             ],
             "recallCI95": [
@@ -35,7 +35,7 @@
             ],
             "falsePositiveRateCI95": [
               0.0,
-              0.2778
+              0.1765
             ]
           },
           "lenient": {
@@ -62,15 +62,15 @@
           },
           "localized": {
             "tp": 14,
-            "fp": 5,
+            "fp": 2,
             "fn": 1,
-            "tn": 39,
-            "precision": 0.7368,
+            "tn": 42,
+            "precision": 0.875,
             "recall": 0.9333,
-            "f1": 0.8235,
-            "falsePositiveRate": 0.1136,
+            "f1": 0.9032,
+            "falsePositiveRate": 0.0455,
             "precisionCI95": [
-              0.25,
+              0.3333,
               1.0
             ],
             "recallCI95": [
@@ -79,7 +79,7 @@
             ],
             "falsePositiveRateCI95": [
               0.0,
-              0.2778
+              0.1765
             ]
           }
         },
@@ -379,7 +379,7 @@
       "groupId": "PSI-69/176F001D",
       "split": "dev",
       "label": "unclear",
-      "status": "PRESENT",
+      "status": "UNCERTAIN",
       "confidence": 0.667,
       "verified": false,
       "iou": null
@@ -399,7 +399,7 @@
       "groupId": "PSI-69/195F002D",
       "split": "dev",
       "label": "absent",
-      "status": "PRESENT",
+      "status": "UNCERTAIN",
       "confidence": 0.788,
       "verified": false,
       "iou": null
@@ -569,7 +569,7 @@
       "groupId": "PSI-69/H08M101D",
       "split": "dev",
       "label": "absent",
-      "status": "PRESENT",
+      "status": "UNCERTAIN",
       "confidence": 0.73,
       "verified": false,
       "iou": null
@@ -579,7 +579,7 @@
       "groupId": "PSI-69/H08M101D",
       "split": "dev",
       "label": "absent",
-      "status": "PRESENT",
+      "status": "UNCERTAIN",
       "confidence": 0.611,
       "verified": false,
       "iou": null

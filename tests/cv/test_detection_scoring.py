@@ -260,7 +260,7 @@ def test_flex_profile_fixes_frames_where_the_arc_was_the_only_hardware(tmp_path,
 
 
 def test_real_flex_flame_survives_the_flex_profile(tmp_path, dirs):
-    # 195F002D_00530: the one verified real FLEX flame in the dev split (a large burning droplet).
+    # 195F002D_00530: the one FLEX frame labelled as a flame in the dev split (a large burning droplet; draft label).
     path = _samples("FF-PSI-69/195F002D/195F002D_00530.png")[0]
     before, after = run(path, dirs), run_profile(path, dirs, "flex-colour")
     assert before["detection"]["status"] == after["detection"]["status"] == "PRESENT"
@@ -275,3 +275,38 @@ def test_excluded_region_does_not_count_as_dark_scene(tmp_path, dirs, name):
     path = _samples(f"FF-PSI-69/{name}.png")[0]
     assert run(path, dirs)["detection"]["status"] == "UNCERTAIN"
     assert run_profile(path, dirs, "flex-colour")["detection"]["status"] != "PRESENT"
+
+
+# ------------------------------------------------- v1.7.0: a FLEX region smaller than a droplet is not PRESENT
+def _point_light(path, radius=5):
+    img = np.zeros((480, 640, 3), np.uint8)
+    cv2.circle(img, (320, 250), radius, (255, 235, 245), -1)   # a small saturated point, like a droplet glint
+    cv2.imwrite(str(path), img)
+    return path
+
+
+def test_small_region_is_uncertain_with_the_flex_profile_and_present_without(tmp_path, dirs):
+    path = _point_light(tmp_path / "glint.png")
+    plain = run(path, dirs)
+    assert plain["detection"]["status"] == "PRESENT"     # bright, contrasting and stable: a flame by brightness
+    flex = run_profile(path, dirs, "flex-colour")
+    assert flex["detection"]["status"] == "UNCERTAIN"
+    assert any("smaller than" in w for w in flex["scientificInterpretation"]["warnings"])
+    assert flex["preprocessing"]["minPresentAreaFraction"] == 0.001
+    assert plain["preprocessing"]["minPresentAreaFraction"] is None
+
+
+# Droplet glints after a methanol flame went out (H08M101: extinction at 0.3 s) and a hardware glint at the top edge
+# of 195F002D_00000: the three FLEX colour false positives left at v1.6.0.
+GLINT_FRAMES = ["H08M101D/H08M101D_00642", "H08M101D/H08M101D_01284", "195F002D/195F002D_00000"]
+
+
+@pytest.mark.parametrize("name", GLINT_FRAMES)
+def test_flex_glints_are_not_present(tmp_path, dirs, name):
+    path = _samples(f"FF-PSI-69/{name.split('/')[0]}/{name.split('/')[1]}.png")[0]
+    assert run_profile(path, dirs, "flex-colour")["detection"]["status"] == "UNCERTAIN"
+
+
+def test_a_large_region_is_unaffected_by_the_floor(tmp_path, dirs):
+    path = _point_light(tmp_path / "big.png", radius=40)
+    assert run_profile(path, dirs, "flex-colour")["detection"]["status"] == "PRESENT"

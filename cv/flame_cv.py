@@ -1,5 +1,5 @@
 """
-flame_cv.py - Flame in Freefall: computer-vision pipeline (Engineer 3), v1.6.0
+flame_cv.py - Flame in Freefall: computer-vision pipeline (Engineer 3), v1.7.0
 
 Image -> Validation -> Letterbox preprocessing -> Segmentation -> Features
       -> Confidence / quality flags -> AnalysisResult (+ mask/overlay artifacts)
@@ -34,11 +34,11 @@ from pydantic import BaseModel, ConfigDict, Field
 # --------------------------------------------------------------------------------------
 # Versions
 # --------------------------------------------------------------------------------------
-SCHEMA_VERSION = "1.4.0"
-PIPELINE_VERSION = "cv-opencv-v1.6.0-auto"
+SCHEMA_VERSION = "1.5.0"
+PIPELINE_VERSION = "cv-opencv-v1.7.0-auto"
 PREPROCESS_VERSION = "letterbox-lanczos-auto-v2"  # v2: 16-bit input scaled, not clipped
 SEGMENTER_NAME = "otsu-contour-adaptive"
-SEGMENTER_VERSION = "1.5.0"
+SEGMENTER_VERSION = "1.7.0"   # 1.6.0 (camera profiles) left this at 1.5.0 by mistake
 
 DEFAULT_OPTIONS = {
     "runSegmentation": True,
@@ -94,6 +94,10 @@ class CVConfig:
     # never a flame. Set from a reviewed camera profile (cv/configs/camera_profiles.json), never learned.
     camera_profile: Optional[str] = None
     exclude_regions: Tuple[Tuple[float, float, float, float], ...] = ()
+    # A camera profile may also set the smallest region that can be PRESENT (fraction of the image). A smaller
+    # region that would be PRESENT is UNCERTAIN: on a known droplet camera a visible flame encloses its droplet, so
+    # anything smaller than a droplet is a glint or a flame in its last moments. 0 = off (no profile).
+    min_present_area_ratio: float = 0.0
     score_contrast_weight: float = 0.5
     score_area_weight: float = 0.3
     score_stability_weight: float = 0.2
@@ -249,6 +253,7 @@ class PreprocessingInfo(_M):
     sourceBitDepth: int = 8
     cameraProfile: Optional[str] = None
     excludedRegions: List[List[float]] = Field(default_factory=list)
+    minPresentAreaFraction: Optional[float] = None
 
 
 class Detection(_M):
@@ -874,6 +879,12 @@ def _compute(req: Dict[str, Any], intake: Dict[str, Any], cfg: CVConfig, options
                                 f"< {cfg.small_region_min_contrast:g}: treated as a speck, not a flame.")
             elif score >= cfg.present_score and contrast >= min_contrast and seg_conf >= cfg.min_present_stability:
                 status, det_conf = "PRESENT", _clip01(score)
+                if area_frac < cfg.min_present_area_ratio:
+                    status = "UNCERTAIN"
+                    warnings.append(f"Detection UNCERTAIN: the region ({100 * area_frac:.3f}% of the image) is smaller "
+                                    f"than the {100 * cfg.min_present_area_ratio:g}% camera profile '{cfg.camera_profile}' "
+                                    "allows for a flame. On this camera that is a droplet glint or a flame in its last "
+                                    "moments; brightness alone cannot tell them apart.")
             elif score >= cfg.present_score and contrast >= min_contrast:
                 status, det_conf = "UNCERTAIN", _clip01(score)
                 warnings.append(f"Detection UNCERTAIN: the region is not stable under a +/-{100 * d:.0f}% threshold "
@@ -977,7 +988,8 @@ def _compute(req: Dict[str, Any], intake: Dict[str, Any], cfg: CVConfig, options
             denoising=f"none on derived image; segmentation uses a {k}x{k} Gaussian on a copy",
             derivedUri=derived_path, derivedChecksum=derived_sha,
             sourceBitDepth=source_bit_depth(intake["originalPath"]), cameraProfile=cfg.camera_profile,
-            excludedRegions=[list(r) for r in cfg.exclude_regions]),
+            excludedRegions=[list(r) for r in cfg.exclude_regions],
+            minPresentAreaFraction=cfg.min_present_area_ratio or None),
         detection=Detection(status=status, confidence=round(det_conf, 3), boundingBox=bbox, modelName=SEGMENTER_NAME,
                             modelVersion=SEGMENTER_VERSION, modelDigest=cfg.digest()),
         segmentation=seg,
@@ -1014,7 +1026,7 @@ def load_camera_profiles(path: Any = CAMERA_PROFILES_PATH) -> Dict[str, Dict[str
 
 
 def with_camera_profile(cfg: CVConfig, name: str, path: Any = CAMERA_PROFILES_PATH) -> CVConfig:
-    """cfg with the named profile's exclusion zones (InvalidRequestError for an unknown profile)."""
+    """cfg with the named profile's exclusion zones and size floor (InvalidRequestError for an unknown profile)."""
     profiles = load_camera_profiles(path)
     if name not in profiles:
         raise InvalidRequestError(f"Unknown camera profile '{name}'. Known: {sorted(profiles)}.")
@@ -1022,7 +1034,10 @@ def with_camera_profile(cfg: CVConfig, name: str, path: Any = CAMERA_PROFILES_PA
     for x0, y0, x1, y1 in regions:
         if not (0 <= x0 < x1 <= 1 and 0 <= y0 < y1 <= 1):
             raise InvalidRequestError(f"Camera profile '{name}' has an invalid box {[x0, y0, x1, y1]}.")
-    return replace(cfg, camera_profile=name, exclude_regions=regions)
+    floor = float(profiles[name].get("minPresentAreaFraction", 0.0))
+    if not 0 <= floor < 1:
+        raise InvalidRequestError(f"Camera profile '{name}' has an invalid minPresentAreaFraction {floor}.")
+    return replace(cfg, camera_profile=name, exclude_regions=regions, min_present_area_ratio=floor)
 
 
 def analyze_image(request: Dict[str, Any], out_cv_dir: Any, out_masks_dir: Any, cfg: Optional[CVConfig] = None,

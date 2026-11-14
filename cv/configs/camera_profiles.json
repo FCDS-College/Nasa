@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "description": "Per-camera exclusion zones: regions of a fixed camera's field of view that hold static bright hardware, never a flame. A request selects a profile with metadata.cameraProfile (API: camera_profile). Boxes are [x0, y0, x1, y1] fractions of the original image. Zones are defined by people from measured frames, not learned; each records its evidence and review state.",
+  "description": "Per-camera exclusion zones: regions of a fixed camera's field of view that hold static bright hardware, never a flame. A request selects a profile with metadata.cameraProfile (API: camera_profile). Boxes are [x0, y0, x1, y1] fractions of the original image. A profile may also set minPresentAreaFraction: a region smaller than that fraction of the image is reported UNCERTAIN, never PRESENT. Zones are defined by people from measured frames, not learned; each records its evidence and review state.",
   "profiles": {
     "flex-colour": {
       "description": "FLEX (FF-PSI-69) colour camera, 640 x 480: a static glowing hardware arc at the bottom centre of every frame, detected as a flame in 5 dev frames of cv_gold_v1.",
@@ -16,6 +16,8 @@
           ]
         }
       ],
+      "minPresentAreaFraction": 0.001,
+      "minPresentAreaEvidence": "A visible droplet flame encloses its droplet. Scale measured on two lit frames with a deployed droplet of known size (H08M101D_00092: 3.56 mm over about 29 px; 176F001D_00000: 3.69 mm over about 25 px): 0.12-0.15 mm/px. The median initial droplet in the FLEX table is 3.0 mm, about 20-25 px across, which is about 0.10% of the frame. So a smaller region is either a glint or a flame near burnout (the FLEX table records extinction at under 0.13 mm for 5% of tests), and is reported UNCERTAIN rather than PRESENT. Set from that physics, not fitted. In dev, every region under 0.1% of a FLEX colour frame (19 PRESENT frames, 0.023-0.060%) is a droplet glint or a glint at the top edge; the one labelled FLEX flame covers 1.73%. In 176F001D (methanol, burning for 29.1 s) a faint flame shell may surround the glint in those frames, but the pipeline segments only the glint.",
       "evidence": "Largest bright static component in the bottom quarter of the per-sequence median of all 75 committed FLEX colour frames: union of the five boxes [0.358, 0.858, 0.595, 0.979]. The view shifts within a sequence (in 195F002D_00000 the arc is at x 0.02-0.20), so the zone spans the full width of the band below y 0.82. The widening was fitted to that dev false positive. The highest real flame centroid in the dev split is 0.67 of the frame height.",
       "author": "claude-draft",
       "reviewed": false

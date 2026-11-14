@@ -217,7 +217,7 @@
     "derived",
     "ingestedAt"
   ],
-  "title": "ImageIntakeRecord v1.4.0",
+  "title": "ImageIntakeRecord v1.5.0",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "x-intakePolicy": {
