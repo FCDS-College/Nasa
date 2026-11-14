@@ -23,7 +23,7 @@ One exception (Lead's decision, 2026-11-14): when a figure an ADR quotes goes ou
 | [011](ADR-011-scenario-relevance-ranking.md) | Rank investigations by evidence relevance to a cabin atmosphere | Accepted (implemented in PR #24) | Ziad (E5), Anas (E2) | Signed off 2026-11-07 |
 | [012](ADR-012-commit-psi-tables.md) | Commit the PSI experimental tables and ISA-Tab metadata to Git | Accepted (implemented in PR #24) | Princess (E3), Ziad (E5) | Signed off 2026-11-07 |
 | [013](ADR-013-historical-scenarios-coverage-verdict.md) | Historical scenarios, a gravity dimension and a scenario-level coverage verdict | Proposed (implemented on branch `ccr-93d3f1f0-bf65vh`) | Ziad (E5), Anas (E2) | Pending |
-| [014](ADR-014-suppression-advisor-scope.md) | Suppression Advisor scope: what each fire type and each extinguisher may claim | Proposed (implemented on `main`, commit 15687d4) | Ziad (E5), Belal (E4) | Pending |
+| [014](ADR-014-suppression-advisor-scope.md) | Suppression Advisor scope: what each fire type and each extinguisher may claim | Proposed (implemented on `main`, commit 15687d4; AURA pin 22b40a0) | Ziad (E5), Belal (E4) | Pending |
 
 "Accepted" means the decision is approved and binding. For ADR-001 to 005, 010, 011 and 012 it also describes what is built: ADR-001 to 005 and 010 on branch `ccr-c6a5a263-498la9` (PR #14), ADR-011 and 012 on `main` (PR #24). ADR-006 to 009 were accepted on 2026-11-07 before they were fully built, and built on 2026-11-12 (below).
 
@@ -58,3 +58,4 @@ The 1.3.0 table listed what was missing on `main` at `73b014b`. Each item is now
 - 1.5.0 (2026-11-13): ADR-013 (historical scenarios, gravity, coverage verdict), Proposed.
 - 1.6.0 (2026-11-14): ADR-014 (Suppression Advisor scope, D2 gates, fire-type matrix), Proposed.
 - 1.7.0 (2026-11-14): dated factual notes allowed (Lead's decision); ADR-012 and ADR-013 get one for the 19 PSI investigations (1950 flight tests). The ADR-007 row keeps its 2026-11-12 build counts; the current graph counts are in `docs/data/KNOWLEDGE_GRAPH_SCHEMA.md` §0.
+- 1.7.1 (2026-11-14): ADR-014 row and status cite the implementation on `main` (15687d4, contract 0.8.0) and the AURA pin 22b40a0; still Proposed pending sign-off.

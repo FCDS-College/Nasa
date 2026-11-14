@@ -2,7 +2,7 @@
 
 | Owner | Status | Created | Depends on |
 |---|---|---|---|
-| Lead (Anas) | Implemented (uncommitted) 2026-11-14; D1–D4 decided; MIST gate failed, water-mist probability withheld (ADR-014) | 2026-11-13 | FLEX outcome model 1.0.0 (`ai/fire_safety/`), `GET /api/insights/flex-outcome` |
+| Lead (Anas) | Implemented on `main` 2026-11-14: commit 15687d4 (feat: Suppression Advisor, contract 0.8.0) and AURA pin 22b40a0 (every suppression-advice parameter reaches AURA). D1–D4 decided; MIST gate failed, water-mist probability withheld (ADR-014). Open: Figma screen not made (Starter-plan limit); solid-material models are a later extension | 2026-11-13 | FLEX outcome model 1.0.0 (`ai/fire_safety/`), `GET /api/insights/flex-outcome` |
 
 ## 1. Goal
 
@@ -146,3 +146,7 @@ Output per call: `recommended_agent` (or `null`), `confidence` (`high` / `modera
 
   - Tests assert that no fire type ever returns a number it is not supported for.
   - Options considered: (a) FLEX fuels only; (b) generic hydrocarbon through the thermal model (rejected: absolute numbers for fuels `T_crit` was never fitted on); (c) as above.
+
+## Changelog
+
+- 2026-11-14: Implemented on `main`: commit 15687d4 (feat: Suppression Advisor, contract 0.8.0) and AURA pin 22b40a0. Open: the Figma screen is not made (Starter-plan limit); solid-material models remain a later extension (BASS / SAFFIRE).

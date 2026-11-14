@@ -1,6 +1,6 @@
 # ADR-014: Suppression Advisor scope: what each fire type and each extinguisher may claim
 
-- **Status:** Proposed (2026-11-14). Decision owner: Lead (Anas). Needs sign-off from Ziad (E5, evaluation and gates) and Belal (E4, the `/suppression` page).
+- **Status:** Proposed (2026-11-14), implemented on `main`: commit 15687d4 (contract 0.8.0) and AURA pin 22b40a0. Decision owner: Lead (Anas). Needs sign-off from Ziad (E5, evaluation and gates) and Belal (E4, the `/suppression` page).
 - **Date:** 2026-11-14
 - **Plan:** `docs/plan/SUPPRESSION_ADVISOR_PLAN.md` (decisions D1–D4, 2026-11-13/14)
 - **Implemented in:**
