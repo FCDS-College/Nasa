@@ -2,10 +2,11 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Lead (Anas) | Current | 1.5.0 | 2026-11-13 | M12, L-1 | — |
+| Lead (Anas) | Current | 1.7.0 | 2026-11-14 | M12, L-1 | — |
 
 Template: **Title, Status (proposed/accepted/superseded), Date, Context, Decision, Alternatives considered, Consequences, Links.**
 ADRs are immutable. A changed decision gets a new ADR that supersedes the old one, and the old one's status is changed to `superseded by ADR-NNN`; nothing else in it is edited.
+One exception (Lead's decision, 2026-11-14): when a figure an ADR quotes goes out of date but the decision stands, a dated **Note (YYYY-MM-DD)** section is appended at the end with the current figure and its source. The original text is not changed.
 
 | ADR | Title | Status | Affected engineers | Sign-off |
 |---|---|---|---|---|
@@ -56,3 +57,4 @@ The 1.3.0 table listed what was missing on `main` at `73b014b`. Each item is now
 - 1.4.2 (2026-11-12): ADR-007's built column names the Knowledge Graph page (PR #32).
 - 1.5.0 (2026-11-13): ADR-013 (historical scenarios, gravity, coverage verdict), Proposed.
 - 1.6.0 (2026-11-14): ADR-014 (Suppression Advisor scope, D2 gates, fire-type matrix), Proposed.
+- 1.7.0 (2026-11-14): dated factual notes allowed (Lead's decision); ADR-012 and ADR-013 get one for the 19 PSI investigations (1950 flight tests). The ADR-007 row keeps its 2026-11-12 build counts; the current graph counts are in `docs/data/KNOWLEDGE_GRAPH_SCHEMA.md` §0.

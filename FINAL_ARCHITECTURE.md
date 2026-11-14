@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Lead (Anas) | Current | 1.2.0 | 2026-11-13 | T7, ADR-006–009, ADR-013 | whole repository |
+| Lead (Anas) | Current | 1.2.1 | 2026-11-14 | T7, ADR-006–009, ADR-013 | whole repository |
 
 Detailed, older material: [docs/architecture/overview.md](docs/architecture/overview.md) (Phase 2, Part A), [ADRs](docs/architecture/adr/README.md), [hybrid AI](docs/hybrid-ai/PHASE_2_HYBRID_AI_ARCHITECTURE.md). This file describes the system that answers the Space Apps challenge.
 
@@ -53,7 +53,7 @@ Local models (optional) ── Ollama / llama.cpp / vLLM behind ai/routing (mode
 3. `ai.fire_safety.investigations.canonical` maps each investigation's columns to comparable variables: O₂, pressure, flow, material, end state, duration. Unrecorded variables become `None`, never 0.
 4. `envelope`, `relevance` and `insights` compute everything the dashboard shows, carrying the evidence IDs of the rows used.
 
-**Knowledge graph (ADR-007).** At the end of every ingest, `knowledge_graph.build_graph` turns the tables into entities (investigations, experiments, fuels, condition variables, phenomena, ISA-Tab documents) and `table_parse` edges, each citing the cell it was read from: 951 entities and 10,683 edges (four reviewed spelling variants resolve to one material each). Rebuilds are idempotent and keep human review and merges.
+**Knowledge graph (ADR-007).** At the end of every ingest, `knowledge_graph.build_graph` turns the tables into entities (investigations, experiments, fuels, condition variables, phenomena, ISA-Tab documents) and `table_parse` edges, each citing the cell it was read from: 2,304 entities and 25,415 edges from the 19 PSI flight investigations and one ground study (re-measured 2026-11-14, `docs/data/KNOWLEDGE_GRAPH_SCHEMA.md` §0; four reviewed spelling variants resolve to one material each). Rebuilds are idempotent and keep human review and merges.
 
 **NASA summaries.** `ingest.parse_isatab` turns the metadata zip into sections (Objective, Hypothesis, Approach, Research impacts, Hardware, Publications). Each section is stored as a citable, searchable document chunk, verbatim.
 
@@ -108,3 +108,4 @@ Local models (optional) ── Ollama / llama.cpp / vLLM behind ai/routing (mode
 - 1.1.3 (2026-11-12): the Knowledge Graph page.
 - 1.1.4 (2026-11-12): AURA pin `667c7c4`; Link 1 data classification and `local_healthy`.
 - 1.2.0 (2026-11-13): contract 0.7.0; historical scenarios as data files and the coverage verdict (ADR-013); 27 NTRS reports.
+- 1.2.1 (2026-11-14): knowledge-graph counts re-measured for the 19 PSI investigations (2,304 entities, 25,415 edges; was 951 and 10,683).
