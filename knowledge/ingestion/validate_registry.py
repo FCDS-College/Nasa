@@ -4,7 +4,8 @@
     python knowledge/ingestion/validate_registry.py --json     # decoded rows, for inspection
 
 Runs in CI (.github/workflows/ci.yml, job `registry`). Uses the same decoder as the API seed, so a
-row that validates here is loaded exactly as validated.
+row that validates here is loaded exactly as validated. A source with files in files.jsonl must also be
+cleared: verified and licensed (KB audit 2026-11-13); flame_api.registry.KNOWN_UNCLEARED lists the exceptions.
 """
 import json
 import sys
@@ -13,7 +14,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "apps" / "api"))
 
-from flame_api.registry import REGISTRY_CSV, read_registry, validate_registry  # noqa: E402
+from flame_api.registry import REGISTRY_CSV, clearance_warnings, read_registry, validate_registry  # noqa: E402
 
 
 def main(argv: list[str]) -> int:
@@ -25,6 +26,8 @@ def main(argv: list[str]) -> int:
     rows = read_registry(path)
     for problem in problems:
         print(f"INVALID {problem}")
+    for warning in clearance_warnings(path):
+        print(f"NOT CLEARED (allowed: not ingested) {warning}")
     print(f"{len(rows)} sources checked, {len(problems)} problems ({path.relative_to(ROOT) if path.is_relative_to(ROOT) else path})")
     return 1 if problems else 0
 
