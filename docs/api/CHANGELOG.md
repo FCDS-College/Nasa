@@ -10,6 +10,7 @@ Semver applies to `docs/api/openapi.json` `info.version`. Breaking changes need 
 
 **Changed**
 - `Coverage` verdict `covered` now needs 5 or more neighbouring tests that **record a pressure** within ±25 %. BASS-II and SAFFIRE publish no pressure, so their tests match on O₂ only: they still count in `neighbourhood_tests` and are named in `reasons`, but they make the verdict at most `partial`. Before, 21 % O₂ at 200 kPa was `covered` by 74 tests, 70 of them BASS-II rows without pressure; it is now `partial` ("only 2 record a pressure near it"). The ISS, pre-EVA and Orion presets stay `covered`, the lunar lander stays `partial`, Apollo 1 stays `none`. No shape change.
+- `/api/chat`: `ANSWER_SUPPORT_CHECK` defaults to `strict` (was `warn`). An answer stating a figure that none of its cited passages contains is withheld (`answer_withheld_unsupported_values`) and the retrieved evidence is listed instead; set `ANSWER_SUPPORT_CHECK=warn` for the old behaviour. The check is unit-aware (`answer-support-1.2.0`): `21% oxygen` in the evidence no longer supports `21 kPa` in the answer.
 - `/api/search` and `/api/chat`: under `domain=combustion` (the chat default), a dense-only hit from a non-combustion source is now dropped like a lexical one. Before, it could be returned and cited.
 
 **Added**

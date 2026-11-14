@@ -116,3 +116,28 @@ def test_the_self_check_swaps_a_name_for_one_the_page_never_mentions():
     swapped = _swap_term("Methane flames were imaged.", "Methane flames were imaged with a camera.")
     assert swapped is not None and "Methane" not in swapped and swapped.endswith("flames were imaged.")
     assert _swap_term("No named thing here.", "anything") is None
+
+
+# --------------------------------------------- KB audit 2026-11-13, finding 6: a number with the wrong unit is not support
+
+def _flagged(answer, evidence, question=""):
+    passages = [{"id": "E", "text": evidence}]
+    return [u.text for u in check_answer_support(answer, passages, cited_ids=["E"], question=question).figures]
+
+
+def test_a_number_the_evidence_states_with_another_unit_does_not_support_a_measurement():
+    assert _flagged("The cabin was held at 21 kPa.", "The cabin air was 21% oxygen at 101.3 kPa.") == ["21 kPa"]
+    assert _flagged("Spread stopped after 1 mm.", "A 1 g sample burned for 5 cm.") == ["1 mm"]
+
+
+def test_a_number_without_a_unit_in_the_evidence_still_supports_a_measurement():
+    """Tables give the unit in the header, so a bare cell value has to count."""
+    assert _flagged("FLEX flew at 101.3 kPa.", "Ambient pressure (kPa): 101.3 | O2 mole fraction: 0.21") == []
+
+
+def test_the_same_measurement_in_another_unit_is_still_supported():
+    assert _flagged("The chamber was at 101.3 kPa.", "The chamber was held at 760 mmHg.") == []
+
+
+def test_a_number_inside_a_measurement_with_a_different_dimension_is_flagged_even_in_a_range():
+    assert _flagged("It flew at 30 kPa.", "Samples were 10–30 mm long, tested at 101 kPa.") == ["30 kPa"]

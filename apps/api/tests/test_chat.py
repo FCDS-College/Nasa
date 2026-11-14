@@ -264,11 +264,19 @@ def _answer_with(monkeypatch, answer, **settings):
 
 
 def test_a_figure_that_is_not_in_the_cited_evidence_adds_a_warning_and_is_not_cached(client, corpus, monkeypatch):
-    _answer_with(monkeypatch, "The cool flame appeared at 412 K.")
+    _answer_with(monkeypatch, "The cool flame appeared at 412 K.", answer_support_check="warn")
     body = client.post("/api/chat", json={"query": "How does n-heptane behave in microgravity?"}).json()
     assert body["warnings"] == ["answer_values_not_in_cited_evidence"]
     assert body["answer"] == "The cool flame appeared at 412 K."          # warn mode never changes the text
     assert [s["evidence_id"] for s in body["sources"]] == [EVIDENCE_ID]
+
+
+def test_fire_safety_answers_are_checked_strictly_by_default(client, corpus, monkeypatch):
+    """KB audit 2026-11-13: an unsupported figure in a fire-safety answer is withheld unless an operator opts into `warn`."""
+    assert chat_settings().answer_support_check == "strict"
+    _answer_with(monkeypatch, "The cool flame appeared at 412 K.")
+    body = client.post("/api/chat", json={"query": "How does n-heptane behave in microgravity?"}).json()
+    assert "answer_withheld_unsupported_values" in body["warnings"] and "withheld" in body["answer"]
 
 
 def test_strict_mode_withholds_an_answer_with_unsupported_figures(client, corpus, monkeypatch):
@@ -299,7 +307,7 @@ def test_a_fuel_the_cited_evidence_never_mentions_adds_a_term_warning_but_strict
 
 
 def test_a_figure_and_a_name_each_get_their_own_warning(client, corpus, monkeypatch):
-    _answer_with(monkeypatch, "Methane reached 412 K.")
+    _answer_with(monkeypatch, "Methane reached 412 K.", answer_support_check="warn")
     body = client.post("/api/chat", json={"query": "How does n-heptane behave in microgravity?"}).json()
     assert body["warnings"] == ["answer_values_not_in_cited_evidence", "answer_terms_not_in_cited_evidence"]
 
