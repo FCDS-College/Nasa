@@ -19,6 +19,13 @@ measures the deployed system. Nothing here has been run against a real language 
 | `ranking.py` | Hard gates plus a weighted composite (`0.40 * recall + 0.40 * faithfulness + 0.20 * speed`). Not a Pareto frontier; no BM25. | No: inputs are typed in tests. |
 | `evaluation_report.json` (in this directory) | A report of 2026-10-05 over 6 test cases from the legacy notebooks (typed scores). Not the same file as the one at the repository root. | No. |
 
+## Added 2026-11-14 (measure the system, not the harness)
+| Artefact | Purpose |
+|---|---|
+| `ai/rag/evaluation/gate.py`, `gate_config.json` | One command that judges every release-gate row (PASS / FAIL / INCONCLUSIVE / NOT_MEASURED) and fails on a regression. See `docs/evaluation/eval-gate.md`. |
+| `ai/rag/evaluation/run_pii_exam.py`, `datasets/evaluation/pii_gold_v1.jsonl` | Scores the masker in `master_pipeline.py`: how much private data it leaks and how much harmless text it damages (AI-drafted, unverified). |
+| `ai/rag/evaluation/run_safety_exam.py`, `datasets/evaluation/safety_gold_v1.jsonl` | 37 trick questions for `POST /api/chat`; needs a live API (AI-drafted, unverified). |
+
 ## Tools for a trustworthy set (no data yet)
 | Tool | Purpose |
 |---|---|

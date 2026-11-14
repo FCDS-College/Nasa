@@ -1,0 +1,7 @@
+{
+  "cv_iou": 0.3197,
+  "mrr": 0.9135,
+  "pii_leak_rate": 0.3704,
+  "pii_precision": 0.85,
+  "recall_at_5": 0.8782
+}

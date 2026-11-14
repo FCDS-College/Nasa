@@ -1,0 +1,97 @@
+name: Evaluation gate
+
+# Docs: docs/evaluation/eval-gate.md. One command (`python -m ai.rag.evaluation.gate`) judges every row of the release gate.
+# CI is advisory here as everywhere (docs/operations/CI_CD.md §3, branch protection is off): this job fails on a REGRESSION against
+# docs/evaluation/baselines/gate_baseline.json, never on a row that has always failed. Run it by hand with --enforce or --release
+# for the strict verdict. It needs no API, no model and no network beyond installing packages.
+on:
+  pull_request:
+    paths:
+      - "ai/rag/evaluation/**"
+      - "tests/eval/**"
+      - "tests/unit/test_eval_gate.py"
+      - "tests/unit/test_pii_exam.py"
+      - "tests/unit/test_safety_exam.py"
+      - "datasets/evaluation/**"
+      - "cv/contracts/gold_evaluation_report.json"
+      - "docs/evaluation/baselines/**"
+      - ".github/workflows/eval.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "ai/rag/evaluation/**"
+      - "tests/eval/**"
+      - "datasets/evaluation/**"
+      - "cv/contracts/gold_evaluation_report.json"
+      - "docs/evaluation/baselines/**"
+      - ".github/workflows/eval.yml"
+  schedule:
+    - cron: "17 3 * * *"          # nightly, so a regression from any other change shows up the next morning
+  workflow_dispatch:
+    inputs:
+      api_origin:
+        description: "Base URL of a running Flame API (for example https://flame.example.com). Empty: offline exams only."
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eval-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    name: Evaluation gate (offline exams and regression check)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: apps/api/pyproject.toml
+      - name: Install dependencies
+        run: python -m pip install -e "apps/api[dev,cv,ingestion]" pandas jsonschema
+      - name: Evaluation unit tests (gate, PII exam, trick-question scorer, harness validity)
+        run: >
+          python -m pytest tests/unit/test_eval_gate.py tests/unit/test_pii_exam.py tests/unit/test_safety_exam.py
+          tests/unit/test_run_passage_gold.py tests/unit/test_passage_gold.py tests/unit/test_eval_stats.py tests/eval
+      - name: API contract tests (feed the gate's contract row)
+        run: python -m pytest apps/api/tests/test_contract_parity.py --junitxml=eval-junit.xml
+      - name: Judge every gate row (offline exams run first; a regression fails the job)
+        run: >
+          python -m ai.rag.evaluation.gate --run-offline --reports-dir eval-reports --junit eval-junit.xml
+          --baseline docs/evaluation/baselines/gate_baseline.json --json eval-reports/gate.json --md "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: evaluation-gate
+          path: |
+            eval-reports/
+            eval-junit.xml
+
+  live:
+    name: Trick-question exam against a running API (manual)
+    needs: gate
+    if: github.event_name == 'workflow_dispatch' && inputs.api_origin != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run the exam through POST /api/chat
+        env:
+          FLAME_API_ORIGIN: ${{ inputs.api_origin }}
+          FLAME_READ_API_TOKEN: ${{ secrets.FLAME_READ_API_TOKEN }}
+        run: python -m ai.rag.evaluation.run_safety_exam --out eval-reports/safety-exam.json --delay 1 || true
+      - name: "Judge the rows with the live report (no strictness, read the table and the failures)"
+        run: python -m ai.rag.evaluation.gate --reports-dir eval-reports --json eval-reports/gate.json --md "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: evaluation-live
+          path: eval-reports/
