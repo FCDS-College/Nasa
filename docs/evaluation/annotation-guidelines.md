@@ -1,7 +1,6 @@
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Ziad | In review | 0.3.5 | 2026-11-14 | §5.10: person-written unanswerable questions (`add_unanswerable`), staged adoption (`--allow-incomplete`), the runner refuses an incomplete set. |
-| 0.3.4 | 2026-11-13 | C2, M10, D1, E2 | `docs/evaluation/annotation-guidelines.md`, `datasets/evaluation/nlp_gold_v1.schema.json`, `ai/rag/nlp/evaluation.py`, `datasets/evaluation/passage_gold_v1.schema.json`, `ai/rag/evaluation/passage_gold.py`, `ai/rag/evaluation/propose_candidates.py` |
+| Ziad | In review | 0.3.6 | 2026-11-14 | C2, M10, D1, E2 | `docs/evaluation/annotation-guidelines.md`, `datasets/evaluation/nlp_gold_v1.schema.json`, `ai/rag/nlp/evaluation.py`, `ai/rag/nlp/gold_worklist.py`, `datasets/evaluation/passage_gold_v1.schema.json`, `ai/rag/evaluation/passage_gold.py`, `ai/rag/evaluation/propose_candidates.py` |
 
 # E5-3: Annotation and Human-Review Guidelines
 
@@ -50,6 +49,14 @@ Gold set for the scientific NLP extractors of `docs/ai/nlp-pipeline.md`. Format:
 4. **Size and splits (proposal, owner: Ziad).** 60 chunks, at least 2 per document, split dev 50% / validation 25% / holdout 25%. The holdout split is not opened by extractor authors and is scored once.
 5. **Agreement.** 20% of chunks are annotated twice, independently. Token-level Cohen's κ must reach 0.65 (the §2 threshold) before ground truth freezes; discrepancies are adjudicated with the Lead (Anas).
 6. **Provenance.** Every case records its `annotator`. Spans proposed by an extractor are not gold: do not pre-fill annotations from the pipeline's output.
+7. **Worklist (2026-11-14).** `datasets/evaluation/nlp_gold_v1_worklist.jsonl` holds the 60 pages to annotate, each with its exact indexed text, an empty `annotations` list and an empty `annotator`; `nlp_gold_v1_worklist.manifest.json` records how they were chosen and which 12 cases are double-annotated (6 dev, 3 validation, 3 holdout). It is built by `python -m ai.rag.nlp.gold_worklist build` (seeded, deterministic; `build --check` and `tests/unit/test_nlp_gold_worklist.py` fail if the PDFs no longer give the same text). How the pages were chosen:
+   - pages with a native, non-garbled text layer of at least 300 indexed characters, from the 27 committed NTRS PDFs of cleared sources;
+   - 2 pages per document, then one more for each of the 9 documents with the most such pages (no document has more than 3);
+   - splits by **document** (31 dev, 14 validation, 15 holdout cases; no document in two splits).
+   
+   Two departures from item 4, both forced by the corpus: `FF-NTRS-20120016855` has no native text layer (it is OCR-only in production) and is left out, because OCR text depends on the Tesseract version and its offsets would not reproduce; `FF-NTRS-20120015928` has only one such page, so it contributes one case.
+   
+   To annotate: copy the worklist, fill `annotator` and `annotations` (one span per entity; `text` must equal `chunk_text[char_start:char_end]`), and run `python -m ai.rag.nlp.gold_worklist validate <copy> --partial` as you go and without `--partial` when done. The validator rejects a changed `chunk_text`, `split`, page or document, a label outside the 14, offsets that do not match the text, duplicate spans and an AI-looking annotator, and it warns when a case's spans are exactly what the extractors emit (item 6). For the double-annotated cases, two people fill separate copies and `python -m ai.rag.nlp.gold_worklist agreement <copy A> <copy B>` reports token-level Cohen's κ (each whitespace token labelled with the set of types covering it, or `O`); it exits non-zero below 0.65 and refuses two copies by the same annotator. Only after adjudication (item 5) do the cases go into `nlp_gold_v1.jsonl`.
 
 ---
 
@@ -90,7 +97,8 @@ scoring: `ai/rag/evaluation/passage_gold.py` (`validate`, `retrieval_report`). T
 
 ## Known limitations
 
-- `nlp_gold_v1.jsonl` is empty at version 0.2.0: no chunk has been annotated yet, so no extractor has a measured precision or recall. Items 4 and 5 are proposals until Ziad confirms them.
+- `nlp_gold_v1.jsonl` is still empty (0.3.6): the §4.7 worklist exists, but no chunk has been annotated, so no extractor has a measured precision or recall. Items 4 and 5 are proposals until Ziad confirms them.
+- The extractors also emit `platform` (vocabulary), `document_class` and `metadata_field` records, which are not among the 14 labels. Scored against this gold set they would all count as false positives, so either add `platform` to the labels or drop those types before scoring; that is a decision for the guideline owner.
 - `passage_gold_v1.jsonl` is empty at version 0.3.2 (35 AI drafts exist next to it, unverified): no question has been written or verified, so no retrieval or answer number can be reported from it. §5 sizes and thresholds are proposals until Ziad confirms them; the 20-case floor is a minimum for reporting, not a claim that 20 is enough.
 - Sections 1-3 are unchanged from 0.1.0 and keep their own open points.
 
@@ -98,6 +106,8 @@ scoring: `ai/rag/evaluation/passage_gold.py` (`validate`, `retrieval_report`). T
 
 | Version | Date | Change |
 |---|---|---|
+| 0.3.6 | 2026-11-14 | §4.7: NLP annotation worklist (60 pages, document-disjoint splits, 12 double-annotated), validator and agreement tool; header restored (0.3.5 had replaced it with its changelog row). |
+| 0.3.5 | 2026-11-14 | §5.10: person-written unanswerable questions (`add_unanswerable`), staged adoption (`--allow-incomplete`), the runner refuses an incomplete set. |
 | 0.3.4 | 2026-11-13 | §5.8: review pack; checks and verification sheet re-run on the 438 pages now in the corpus. |
 | 0.3.3 | 2026-11-13 | §5.9: runner that scores the verified set through the API, compares two runs, calibrates abstention. |
 | 0.3.2 | 2026-11-13 | §5.8: AI-drafted starting point (35 unverified drafts), verification sheet, adoption command. |
