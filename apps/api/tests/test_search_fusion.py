@@ -58,6 +58,26 @@ def test_dense_only_hit_scores_only_its_dense_rank(client, session_factory, monk
     assert by_id["c0"] == round(1 / 61, 6)
 
 
+
+def test_a_dense_only_hit_from_another_domain_is_dropped_under_domain_combustion(client, session_factory, monkeypatch):
+    """The dense leg ranks every chunk; its hits must pass the same domain filter as lexical matches (audit finding 2)."""
+    _seed(session_factory)
+    now = datetime.now(UTC)
+    with session_factory() as s:
+        s.add(SourceRecord(source_id="bio", title="B", repository="NASA", access_url="https://example.org", domain="biology"))
+        s.add(FileRecord(file_id="fb", source_id="bio", sha256="1" * 64, original_filename="b.pdf", media_type="application/pdf", size_bytes=1, retrieved_at=now))
+        s.add(DocumentRecord(document_id="db", source_id="bio", file_id="fb", title="Bio", ingested_at=now))
+        s.add(DocumentChunk(chunk_id="cbio", document_id="db", source_id="bio", file_id="fb", evidence_id="ebio", page=1, text="plant growth", ingested_at=now))
+        s.commit()
+    monkeypatch.setattr(main, "index_status", lambda session: {"state": "up", "version": "kv"})
+    monkeypatch.setattr(main, "search_chunks", lambda session, query, limit=20, **_: [("cbio", 0.9), ("c3", 0.8)])
+    combustion = client.get("/api/search", params={"q": "flame", "type": "document", "domain": "combustion"}).json()
+    ids = [r["result_id"] for r in combustion["results"]]
+    assert "cbio" not in ids and "c3" in ids, "a combustion dense-only hit stays; a biology one is dropped"
+    assert combustion["pagination"]["total_items"] == len(ids)
+    everything = client.get("/api/search", params={"q": "flame", "type": "document", "domain": "all"}).json()
+    assert "cbio" in [r["result_id"] for r in everything["results"]]
+
 def _seed_many(session_factory, n):
     """n chunks that all match "flame"; c00 has the most query terms in its first 400 characters."""
     now = datetime.now(UTC)

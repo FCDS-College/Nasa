@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Anas (E2) | In review (peer sign-off: Eman E1) | 1.0.1 | 2026-11-14 | M9, B2, D6, 2H Task 7 | `apps/api/flame_api/seed.py`, `ingest.py`, `vector_index.py`, `knowledge/ingestion/*` |
+| Anas (E2) | In review (peer sign-off: Eman E1) | 1.1.0 | 2026-11-14 | M9, B2, D6, 2H Task 7 | `apps/api/flame_api/seed.py`, `ingest.py`, `vector_index.py`, `knowledge/ingestion/*` |
 
 ## 1. Stages (raw → parsed → normalized → indexed)
 
@@ -48,6 +48,8 @@ What quarantine does:
 - skips the file on every later run until an administrator resets the status ([E2-8 §3](ADMIN_DATA_OPERATIONS.md)).
 
 A file that is simply **not on disk** is *skipped*, not quarantined. Git-ignored mirrors are legitimately absent on CI and on fresh machines.
+
+Any **other parser exception** (a `UnicodeDecodeError` in a table, a `csv.Error`, a PyMuPDF page error, a parser bug) makes the file *failed*, not quarantined, because the fault may be the parser's rather than the file's. Its savepoint is rolled back, the error is logged as `ingest_file_failed` with its traceback, no `ingestion_run` row is written and the run goes on with the next file, so the next run retries it. The totals count it under `failed` and `python -m flame_api.ingest` exits with status 1. Before the KB audit (2026-11-13) such an error rolled back the whole run. Database errors still end the run: they say nothing about the file.
 
 ## 4. Idempotency and retry
 
@@ -95,5 +97,6 @@ The 2 pages without chunks are pp. 14–15 of `20080034883.pdf`, which have no t
 - OCR quality is not evaluated yet.
 
 ## Changelog
+- 1.1.0 (2026-11-14): an unexpected parser exception fails one file (`failed`, retried next run, exit status 1) instead of rolling back the whole run (KB audit 2026-11-13).
 - 1.0.1 (2026-11-14): §6 notes the current table-stage count (1958 experiments) next to the 2026-10-12 run.
 - 1.0.0 (2026-10-12): first specification (OCR, HTML/JSON, quarantine, run records, corpus version).

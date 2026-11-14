@@ -3565,7 +3565,7 @@
                           "pressure_ratio": 0.88
                         },
                         "reasons": [],
-                        "method": "verdict = 'none' when the scenario's gravity was never flown or no flight test lies within +/-0.03 O2 (and +/-25% pressure when recorded) of it; 'partial' when 1-4 such tests exist or the atmosphere is outside the flown O2 or pressure range; otherwise 'covered' (5 or more such tests). nearest_test minimises sqrt((dO2/0.05)^2 + (ln(P/P_test)/0.25)^2), the scales of the relevance score."
+                        "method": "verdict = 'none' when the scenario's gravity was never flown or no flight test lies within +/-0.03 O2 (and +/-25% pressure when recorded) of it; 'partial' when 1-4 such tests exist or the atmosphere is outside the flown O2 or pressure range or fewer than 5 of those tests record a pressure within +/-25% (a test with no recorded pressure cannot show the scenario's pressure was flown); otherwise 'covered'. nearest_test minimises sqrt((dO2/0.05)^2 + (ln(P/P_test)/0.25)^2), the scales of the relevance score."
                       },
                       "items": [
                         {
@@ -11849,7 +11849,7 @@
       "Coverage": {
         "type": "object",
         "additionalProperties": false,
-        "description": "Scenario-level verdict (contract 0.7.0, ADR-013): does any flight test speak to this atmosphere? The relevance score of each investigation can stay above zero for an atmosphere nobody flew, so the dashboard shows this verdict, the nearest real test and the gap before the ranking. `none` when the scenario's gravity was never flown or no test lies within ±0.03 O2 (and ±25% pressure when recorded); `partial` when 1–4 such tests exist or the atmosphere is outside the flown O2 or pressure range; otherwise `covered` (5 or more).",
+        "description": "Scenario-level verdict (contract 0.7.0, ADR-013): does any flight test speak to this atmosphere? The relevance score of each investigation can stay above zero for an atmosphere nobody flew, so the dashboard shows this verdict, the nearest real test and the gap before the ranking. `none` when the scenario's gravity was never flown or no test lies within ±0.03 O2 (and ±25% pressure when recorded); `partial` when 1–4 such tests exist, the atmosphere is outside the flown O2 or pressure range, or fewer than 5 of those tests record a pressure within ±25% (a test with no recorded pressure, such as BASS-II or SAFFIRE, cannot show the scenario's pressure was flown); otherwise `covered`.",
         "required": [
           "verdict",
           "headline",

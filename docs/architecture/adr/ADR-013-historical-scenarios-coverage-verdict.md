@@ -37,7 +37,7 @@ The dashboard ranks investigations by evidence relevance (ADR-011), and the FLEX
 
    The rules:
    - `none`: the scenario's gravity was never flown, or no test lies within ±0.03 O₂ (and ±25 % pressure when recorded). These are the neighbourhood bounds ADR-011 already uses.
-   - `partial`: 1–4 such tests, or the atmosphere lies outside the flown O₂ or pressure range.
+   - `partial`: 1–4 such tests, or the atmosphere lies outside the flown O₂ or pressure range, or fewer than 5 of those tests record a pressure within ±25%. BASS-II and SAFFIRE publish no pressure, so their tests match on O₂ only; they count as nearby and are named in `reasons`, but they cannot make an untested pressure `covered` (audit 2026-11-13).
    - `covered`: otherwise.
 
    The nearest test minimises `sqrt((ΔO₂/0.05)² + (ln(P/Pₜ)/0.25)²)`, the scales of the relevance score. The relevance formula is unchanged. The dashboard shows the verdict before the ranking.

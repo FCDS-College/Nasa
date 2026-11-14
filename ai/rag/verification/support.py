@@ -19,7 +19,7 @@ from ai.rag.nlp.quantities import MeasurementExtractor
 from ai.rag.nlp.records import ChunkInput
 from ai.rag.nlp.vocab import VocabularyExtractor, load_vocabulary, vocabulary_version
 
-CHECK_VERSION = "answer-support-1.1.0"
+CHECK_VERSION = "answer-support-1.2.0"
 # Concrete things only: "ignition" or "pressure" are generic words a paraphrase can drop, a fuel or an instrument is not.
 TERM_TYPES = ("fuel", "material", "oxidizer", "instrument", "platform")
 UNIT_TOLERANCE = 0.01          # 1 %: "101.3 kPa" is "760 mmHg" (101.325 kPa) to the precision a sentence states
@@ -111,8 +111,15 @@ def check_answer_support(answer: str, passages: Sequence[dict[str, str]], *, cit
                          question: str = "", term_extractor: VocabularyExtractor | None = None) -> SupportReport:
     """Every figure in `answer` should occur in the cited passages (all passages when none are cited) or in the question."""
     source = _source_text(passages, cited_ids) + "\n" + question
-    source_measurements = [m.payload for m in MeasurementExtractor().extract(_chunk(source))]
+    source_records = MeasurementExtractor().extract(_chunk(source))
+    source_measurements = [m.payload for m in source_records]
     source_numbers = [v for token in _SOURCE_NUMBER.findall(source) if (v := _value(token)) is not None]
+    # A measurement in the answer may fall back to a bare number only where the evidence states that number without a
+    # unit (a table cell whose unit is in the header). "21% oxygen" must not support "21 kPa".
+    spans = [(m.char_start, m.char_end) for m in source_records]
+    unitless_numbers = [v for match in _SOURCE_NUMBER.finditer(source)
+                        if not any(start <= match.start() < end for start, end in spans)
+                        and (v := _value(match.group(0))) is not None]
     lowered_source = source.lower()
     checked, unsupported = 0, []
     masked: list[tuple[int, int]] = []
@@ -122,7 +129,7 @@ def check_answer_support(answer: str, passages: Sequence[dict[str, str]], *, cit
         checked += 1
         raw_numbers = [v for v in (record.payload["value"], record.payload["value_max"]) if v is not None]
         if _measurement_supported(record.payload, source_measurements) or any(
-                _close(raw, number) for raw in raw_numbers for number in source_numbers):
+                _close(raw, number) for raw in raw_numbers for number in unitless_numbers):
             continue
         unsupported.append(Unsupported(record.text, "measurement", record.char_start, record.char_end))
 

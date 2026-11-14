@@ -113,3 +113,32 @@ def test_few_neighbours_or_an_atmosphere_outside_the_flown_range_is_partial():
     assert edge["verdict"] == "covered"
     below = analytics.coverage(FLIGHT, scenarios.custom(0.34, 60.0))   # within 25% of the 72 kPa test, below every flown pressure
     assert below["verdict"] == "partial" and "outside the range that was flown" in below["headline"]
+
+
+def _bass(test_id: str, o2_pct: float) -> Canonical:
+    """A BASS-II solid test: the published table records O2 but no pressure."""
+    conditions = {"calibrated_initial_o2_by_vol": Condition(o2_pct, None, None, f"E-{test_id}-o2")}
+    return analytics.canonical(Row("FF-PSI-25", f"B-{test_id}", test_id, "PMMA", conditions))
+
+
+def test_tests_without_a_recorded_pressure_cannot_make_an_untested_pressure_covered():
+    """O2-only neighbours must not stand in for pressure nobody flew (audit finding 1).
+
+    FLEX flew 21% O2 only at 101 kPa here; BASS-II tests record O2 but no pressure. At 200 kPa only the
+    BASS-II tests lie 'near', so the verdict cannot be 'covered' and the headline must say why.
+    """
+    by_source = {"FF-PSI-69": [_flex("F1", 0.21, 101.3), _flex("F2", 0.21, 210.0)],
+                 "FF-PSI-25": [_bass(f"B{i}", 21.0) for i in range(10)]}
+    result = analytics.coverage(by_source, scenarios.custom(0.21, 200.0))
+    assert result["neighbourhood_tests"] == 11 and result["neighbourhood_by_investigation"]["FF-PSI-25"] == 10
+    assert result["verdict"] == "partial"
+    assert "only 1 record a pressure" in result["headline"]
+    assert any("record no pressure" in r for r in result["reasons"])
+
+
+def test_pressure_matched_neighbours_still_make_an_atmosphere_covered():
+    by_source = {"FF-PSI-69": [_flex(f"F{i}", 0.21, 101.3) for i in range(5)],
+                 "FF-PSI-25": [_bass(f"B{i}", 21.0) for i in range(10)]}
+    result = analytics.coverage(by_source, scenarios.custom(0.21, 101.3))
+    assert result["verdict"] == "covered" and result["neighbourhood_tests"] == 15
+    assert not any("record no pressure" in r for r in result["reasons"])

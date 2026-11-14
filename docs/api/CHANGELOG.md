@@ -8,6 +8,11 @@ Semver applies to `docs/api/openapi.json` `info.version`. Breaking changes need 
 
 ## Unreleased
 
+**Changed**
+- `Coverage` verdict `covered` now needs 5 or more neighbouring tests that **record a pressure** within ±25 %. BASS-II and SAFFIRE publish no pressure, so their tests match on O₂ only: they still count in `neighbourhood_tests` and are named in `reasons`, but they make the verdict at most `partial`. Before, 21 % O₂ at 200 kPa was `covered` by 74 tests, 70 of them BASS-II rows without pressure; it is now `partial` ("only 2 record a pressure near it"). The ISS, pre-EVA and Orion presets stay `covered`, the lunar lander stays `partial`, Apollo 1 stays `none`. No shape change.
+- `/api/chat`: `ANSWER_SUPPORT_CHECK` defaults to `strict` (was `warn`). An answer stating a figure that none of its cited passages contains is withheld (`answer_withheld_unsupported_values`) and the retrieved evidence is listed instead; set `ANSWER_SUPPORT_CHECK=warn` for the old behaviour. The check is unit-aware (`answer-support-1.2.0`): `21% oxygen` in the evidence no longer supports `21 kPa` in the answer.
+- `/api/search` and `/api/chat`: under `domain=combustion` (the chat default), a dense-only hit from a non-combustion source is now dropped like a lexical one. Before, it could be returned and cited.
+
 **Added**
 - `ChatWarning` value `low_evidence_score` and setting `FLAME_CHAT_ABSTAIN_BELOW` (default unset = off): when set, `/api/chat` returns "too weak to answer from" with the closest sources, calls no model and is not cached, if the best fused score of the search for the whole question is below the value. Calibrate it with `ai.rag.evaluation.run_passage_gold`; no value is recommended until the passage gold set is verified.
 - `ChatWarning` value `answer_terms_not_in_cited_evidence` (`/api/chat`): the answer names a fuel, material, oxidizer, instrument or platform (the controlled vocabulary of `ai/rag/nlp/vocab`, with aliases) that none of the cited passages mentions. A weaker signal than a figure: it warns in `warn` and `strict` mode and never withholds the answer; answers with it are not cached.

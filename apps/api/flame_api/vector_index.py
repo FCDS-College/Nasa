@@ -127,35 +127,42 @@ def _search_chunks(session: Session, query: str, *, limit: int, min_similarity: 
 
 
 def build_index(session: Session, *, batch_size: int = 64) -> dict[str, Any]:
-    """Embed chunks that have no vector yet, drop vectors of deleted chunks, publish a new version."""
+    """Embed every page with no vector, or whose text or model changed; drop vectors of other models; publish the version.
+
+    The version names the index by its content (`<model>-<rows>-<hash of (chunk_id, text_sha)>`), so a rebuild that changes
+    any page's text publishes a new version even on the same day with the same row count, and a rebuild that changes nothing
+    republishes the same one (a no-op). Vectors of deleted pages go with them (ON DELETE CASCADE, migration 0003).
+    """
     if session.bind.dialect.name != "postgresql":
         raise VectorUnavailableError("Vector search requires PostgreSQL.")
     session.execute(text("create extension if not exists vector"))
     session.commit()
-    pending = session.execute(
-        text(
-            "select c.chunk_id, c.text from document_chunk c "
-            "left join chunk_embedding e on e.chunk_id = c.chunk_id "
-            "where e.chunk_id is null or e.model <> :model order by c.chunk_id"
-        ),
-        {"model": MODEL_NAME},
-    ).all()
+    existing = {row.chunk_id: (row.text_sha, row.model)
+                for row in session.execute(text("select chunk_id, text_sha, model from chunk_embedding"))}
+    pending = [(row.chunk_id, row.text, sha)
+               for row in session.execute(text("select chunk_id, text from document_chunk order by chunk_id")).all()
+               if existing.get(row.chunk_id) != ((sha := _text_sha(row.text)), MODEL_NAME)]
     session.execute(text("delete from chunk_embedding where model <> :model"), {"model": MODEL_NAME})
     for start in range(0, len(pending), batch_size):
         batch = pending[start:start + batch_size]
-        vectors = embed_texts([row.text for row in batch])
+        vectors = embed_texts([body for _, body, _ in batch])
         session.execute(
             text(
-                "insert into chunk_embedding (chunk_id, model, embedding) values (:id, :model, cast(:v as vector)) "
-                "on conflict (chunk_id) do update set model = excluded.model, embedding = excluded.embedding"
+                "insert into chunk_embedding (chunk_id, model, embedding, text_sha) "
+                "values (:id, :model, cast(:v as vector), :sha) on conflict (chunk_id) do update set "
+                "model = excluded.model, embedding = excluded.embedding, text_sha = excluded.text_sha"
             ),
-            [{"id": row.chunk_id, "model": MODEL_NAME, "v": _literal(vec)} for row, vec in zip(batch, vectors)],
+            [{"id": chunk_id, "model": MODEL_NAME, "v": _literal(vec), "sha": sha}
+             for (chunk_id, _, sha), vec in zip(batch, vectors)],
         )
         session.commit()
         logger.info("vector_index embedded=%d/%d", start + len(batch), len(pending))
     total = session.execute(text("select count(*) from chunk_embedding")).scalar_one()
     built_at = datetime.now(UTC)
-    version = f"{MODEL_NAME.split('/')[-1]}-{total}-{built_at:%Y%m%d}"
+    content = hashlib.sha256(MODEL_NAME.encode("utf-8"))
+    for row in session.execute(text("select chunk_id, text_sha from chunk_embedding order by chunk_id")):
+        content.update(f"\n{row.chunk_id}:{row.text_sha}".encode())
+    version = f"{MODEL_NAME.split('/')[-1]}-{total}-{content.hexdigest()[:12]}"
     session.execute(
         text(
             "insert into vector_index_manifest (id, model, dim, row_count, knowledge_version, built_at) "

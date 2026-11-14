@@ -269,3 +269,70 @@ def test_large_format_drawings_are_ocred_at_a_capped_resolution(tmp_path):
     assert ingest.ocr_dpi(letter) == ingest.OCR_DPI == 300
     assert ingest.ocr_dpi(drawing) == 150
     assert max(drawing.rect.width, drawing.rect.height) / 72 * ingest.ocr_dpi(drawing) <= ingest.OCR_MAX_SIDE_PX
+
+
+# ------------------------------------------------- KB audit 2026-11-13, finding 5: an unexpected parser error
+
+def _bad_table(session, tmp_path):
+    """A BASS-II table (read as UTF-8) with a byte that is not UTF-8: csv raises UnicodeDecodeError mid-file."""
+    session.add(SourceRecord(source_id="FF-PSI-25", title="BASS-II", repository="NASA PSI", access_url="https://psi.nasa.gov"))
+    session.commit()
+    folder = tmp_path / "Experimental table"
+    folder.mkdir()
+    path = folder / "PSI-25_Experimental table_BASS-II.csv"
+    path.write_bytes(b"Test,Calibrated Initial O2 by vol\nT1,21.0\nT2,\xff\xfe21.5\n")
+    record = add_file(session, path)
+    record.source_id = "FF-PSI-25"
+    session.commit()
+    return record
+
+
+def test_an_unexpected_parser_error_fails_one_file_without_quarantining_it(session, tmp_path, caplog):
+    record = _bad_table(session, tmp_path)
+    outcome, counts = ingest.ingest_file(session, record)
+    assert (outcome, counts) == ("failed", {"reason": "parser_error:UnicodeDecodeError"})
+    assert "ingest_file_failed" in caplog.text and "UnicodeDecodeError" in caplog.text     # logged with its traceback
+    session.commit()
+    # Not the file's verdict (the parser may be at fault), so it is not quarantined and no completed run is recorded:
+    # the next ingest retries it.
+    assert record.status == "active" and record.quarantine_reason is None
+    assert session.query(IngestionRun).filter(IngestionRun.file_id == record.file_id).count() == 0
+    assert session.query(EvidenceRecord).count() == 0                                         # the savepoint rolled back
+
+
+def test_a_failed_file_does_not_undo_the_files_parsed_before_it(session, tmp_path, monkeypatch):
+    good = add_file(session, make_pdf(tmp_path / "good.pdf", ["Opposed flow flame spread over a thin fuel. " * 3]))
+    assert ingest.ingest_file(session, good)[0] == "ingested"
+
+    def half_then_crash(session_, file_record):
+        session_.add(DocumentRecord(document_id="partial", source_id=file_record.source_id, file_id=file_record.file_id,
+                                    title="partial", ingested_at=datetime.now(UTC)))
+        session_.flush()
+        raise KeyError("page_layout")                       # a parser bug, not a bad file
+
+    monkeypatch.setattr(ingest, "_create_document", half_then_crash)
+    bad = add_file(session, make_pdf(tmp_path / "bad.pdf", ["Another report page with enough text to parse."]))
+    assert ingest.ingest_file(session, bad) == ("failed", {"reason": "parser_error:KeyError"})
+    session.commit()
+    assert session.get(DocumentRecord, "partial") is None
+    assert session.query(DocumentRecord).count() == 1 and session.query(DocumentChunk).count() >= 1
+
+
+def test_a_database_error_is_not_blamed_on_the_file(session, tmp_path, monkeypatch):
+    from sqlalchemy.exc import OperationalError
+
+    def db_down(session_, file_record):
+        raise OperationalError("insert", {}, Exception("server closed the connection"))
+
+    monkeypatch.setattr(ingest, "_create_document", db_down)
+    record = add_file(session, make_pdf(tmp_path / "x.pdf", ["Text that would parse."]))
+    with pytest.raises(OperationalError):
+        ingest.ingest_file(session, record)
+
+
+def test_the_cli_exits_non_zero_when_a_file_failed(monkeypatch, capsys):
+    monkeypatch.setattr(ingest, "ingest", lambda force=False: {"failed": 1, "quarantined": 0})
+    assert ingest.main([]) == 1
+    assert json.loads(capsys.readouterr().out)["failed"] == 1
+    monkeypatch.setattr(ingest, "ingest", lambda force=False: {"failed": 0, "quarantined": 2})
+    assert ingest.main([]) == 0

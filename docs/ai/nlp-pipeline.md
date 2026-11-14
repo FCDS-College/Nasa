@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Eman | Draft; rule-based extractors run at ingest and are stored, everything else **Planned** | 0.3.1 | 2026-11-13 | D1 | `ai/rag/nlp/`, `apps/api/flame_api/nlp_extract.py`, `nlp_graph.py`, migration `0010`, `tests/unit/test_nlp_*.py`, `apps/api/tests/test_nlp_*.py` |
+| Eman | Draft; rule-based extractors run at ingest and are stored, everything else **Planned** | 0.3.2 | 2026-11-13 | D1 | `ai/rag/nlp/`, `apps/api/flame_api/nlp_extract.py`, `nlp_graph.py`, migration `0010`, `tests/unit/test_nlp_*.py`, `apps/api/tests/test_nlp_*.py` |
 
 **Status (2026-11-13):** six rule-based extractors exist in `ai/rag/nlp/` (identifiers, measurements and units, vocabulary lookup, document class, first-page metadata, table/figure association). `python -m flame_api.ingest` runs them over the indexed chunk text after the knowledge-graph build and stores the records in `nlp_record` (migration `0010`); `python -m flame_api.nlp_extract run|status` does the same on demand, and `python -m flame_api.nlp_graph build` turns co-occurrences into unreviewed graph edges (`docs/data/KNOWLEDGE_GRAPH_SCHEMA.md`). The API does not serve the records yet. Re-running creates nothing new; a human `human_verified` / `rejected` decision survives a re-run; a changed chunk, a new extractor version or a deleted chunk marks old rows `superseded`. The vocabulary is the seed files plus the graph's own fuels, phenomena and investigation names (an investigation name is matched in its own case only, because `SAME` is also a word). **The seed vocabularies are still unreviewed by a domain expert and no extractor has a measured precision or recall**; treat every record as a candidate. To make the review quick, `python -m ai.rag.nlp.review_sheet docs/research --out docs/data/vocabulary-review-2026-11-13.csv` writes one row per vocabulary entry (46 entries): hits, documents, the surface forms actually matched and three matches in context, from the 240 indexable pages of the 24 committed NTRS PDFs, with empty `decision`, `correction` and `notes` columns for the expert. Two entries have no hit in this corpus (`high-speed camera`, `flame speed`); that flags them for a look, it does not make them wrong. Nothing in the sheet is a precision figure: it only counts matches. Model NER, relation, claim and contradiction extraction, query classification and expansion, and summarisation remain **Planned**. Examples are synthetic.
 
@@ -44,6 +44,8 @@ The schema is extended only when real research needs justify it (D1).
 |---|---|---|---|
 | Identifier extraction | rule (regular expression) | n/a, rule set version | 1.0 for an exact pattern match, else not produced |
 | Unit and quantity extraction | rule + unit table | unit table version | 1.0 when the number and unit parse; otherwise dropped |
+
+Unit table `units-1.1.0` (measurement-rules 1.1.0): `g` is both grams and gravity in this corpus, so it is resolved from context. "700 g of fuel" is mass; "1g" written against the number is standard gravity (9.80665 m/s²); any other bare `g` keeps the dimension `gravity_or_mass` and is never converted. The grammar also reads `mm Hg`, `°F`, `m/s^2`, `5 × 10^-3` and `1,000`; it skips areas (`cm^2`), OCR'd clock times (`23:30:3g.5`) and descending hyphen "ranges" such as `10-6 g`, which are flattened superscript exponents.
 | Entity recognition | model | not chosen yet | model probability for the span; **not calibrated** until measured |
 | Relation, claim, contradiction | LLM with schema output | not chosen yet (local first, see 2H) | self-reported plus a check that the cited span exists; **not calibrated** |
 | Query classification, query expansion | rule first, model second | not chosen yet | label probability |
@@ -71,6 +73,7 @@ Precision, recall and F1 per extractor will be copied from Ziad's harness output
 
 | Version | Date | Change |
 |---|---|---|
+| 0.3.2 | 2026-11-13 | Unit table `units-1.1.0`: `g` resolved from context (grams, standard gravity or `gravity_or_mass`); `mm Hg`, `°F`, `m/s^2`, `× 10^n`, thousands separators; areas, OCR clock times and flattened exponents skipped (KB audit). |
 | 0.3.1 | 2026-11-13 | Vocabulary review sheet generator and its first output. |
 | 0.3.0 | 2026-11-13 | Ingest runs the extractors and stores `nlp_record` rows (migration `0010`); graph edges from co-occurrence; vocabulary draws on the graph. |
 | 0.2.0 | 2026-11-13 | Status updated: rule-based extractors implemented as an unwired library; example character offsets corrected (they did not match the sentence). |
