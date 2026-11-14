@@ -32,7 +32,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: anasibrahimgnedy-collab/AURA-AI
-          ref: 667c7c40836b87dc16ae3e8342ecdb6032bcaa62  # AURA main 2026-11-12 (after #232; connector, compiler and chat contract unchanged since d696fad)
+          ref: b655421c60e19d9f98964846b93ee80b98588594  # AURA main 2026-11-14 (#235: up to 12 optional query parameters per tool)
           path: aura-source
           token: ${{ secrets.AURA_REPO_TOKEN }}
       - name: Install dry-run dependency

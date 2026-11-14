@@ -20,9 +20,10 @@ from pathlib import Path
 FLAME_ROOT = Path(__file__).resolve().parents[2]
 SPEC_PATH = FLAME_ROOT / "docs" / "api" / "openapi.json"
 #: AURA carries at most this many optional query parameters per generated tool, in spec order (MAX_OPTIONAL_QUERY in
-#: aura_core/adaptation/normalize.py at the pinned revision). A parameter past it is unreachable by design; the contract
-#: marks such a parameter with `x-aura-unreachable` (its reason), and any other unreachable parameter fails this run.
-AURA_MAX_OPTIONAL_QUERY = 8
+#: aura_core/adaptation/normalize.py at the pinned revision: 12 since AURA #235, b655421; 8 before). A parameter past it is
+#: unreachable by design; the contract would mark such a parameter with `x-aura-unreachable` (its reason), and any other
+#: unreachable parameter fails this run. Keep this equal to the pinned AURA's value when the pin moves.
+AURA_MAX_OPTIONAL_QUERY = 12
 UNREACHABLE_EXTENSION = "x-aura-unreachable"
 
 
@@ -86,6 +87,7 @@ def main() -> int:
         print("  AURA revision does not honor x-aura-exclude (needs AURA PR #166 or later)")
         leaked += 1
 
+    # Per route: a parameter another tool happens to share a name with does not make it reachable here.
     exposed: dict[str, set[str]] = {}
     for tool in compiled.blueprint.tools:
         http = templates[tool.template].http

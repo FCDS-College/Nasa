@@ -1,7 +1,7 @@
 """Which optional query parameters AURA can reach (tests/integration/aura_blueprint_dryrun.py), checked without AURA.
 
 AURA carries at most AURA_MAX_OPTIONAL_QUERY optional query parameters per generated tool, in spec order
-(aura_core/adaptation/normalize.py, MAX_OPTIONAL_QUERY at the pinned revision). A parameter past the cap is unreachable by
+(aura_core/adaptation/normalize.py, MAX_OPTIONAL_QUERY at the pinned revision: 12 since AURA #235). A parameter past the cap is unreachable by
 design; the contract says so with `x-aura-unreachable` (the reason), and the dry run fails on any other unreachable one.
 """
 import importlib.util
@@ -65,7 +65,9 @@ def test_only_parameters_past_auras_cap_are_marked_unreachable_in_the_contract()
                 assert isinstance(note, str) and note.strip(), f"{path} {param['name']} is past AURA's cap and unmarked"
 
 
-def test_the_suppression_advice_endpoint_documents_its_two_parameters_past_the_cap():
+def test_every_suppression_advice_parameter_is_within_auras_cap():
+    """The widest route (10 optional query parameters) fits AURA's cap since AURA #235 (12), so nothing is marked."""
     operation = CONTRACT["paths"]["/api/insights/suppression-advice"]["get"]
-    past_cap = [p["name"] for p in dryrun.optional_query_parameters(CONTRACT, operation)[dryrun.AURA_MAX_OPTIONAL_QUERY:]]
-    assert past_cap == ["delivery_fraction", "droplet_diameter_mm"]
+    optional = dryrun.optional_query_parameters(CONTRACT, operation)
+    assert len(optional) == 10 <= dryrun.AURA_MAX_OPTIONAL_QUERY == 12
+    assert not any(p.get(dryrun.UNREACHABLE_EXTENSION) for p in optional)
