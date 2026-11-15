@@ -2,7 +2,7 @@
 
 | Owner | Status | Version | Last updated | Plan items | Code paths |
 |---|---|---|---|---|---|
-| Lead (Anas) | Current; kept current on every PR (PR template checkbox) | 1.4.0 | 2026-11-14 | G-1, G-3 | — |
+| Lead (Anas) | Current; kept current on every PR (PR template checkbox) | 1.4.1 | 2026-11-15 | G-1, G-3 | — |
 
 **Status key:** Draft → In review → Approved. "Due Wn" means the document doesn't exist yet and is due in Phase 2 week n. "On branch X" means it exists only on that engineer's branch. Requirements per engineer:
 - `docs/reports/DOC_REQUIREMENTS_Lead.md` and `DOC_REQUIREMENTS_Anas.md` on `main`;
@@ -66,6 +66,7 @@
 
 | Document | Status | Owner |
 |---|---|---|
+| **Space Apps 2026 submission pack (2026-11-15):** [paste-ready form fields, checklist and sources](submission/SPACE_APPS_2026_SUBMISSION.md) | Ready to paste | Lead |
 | **7-slide product demo deck (2026-11-14):** [README](presentations/demo-deck/README.md), [PDF](presentations/demo-deck/flame-in-freefall-demo.pdf), [live deck](https://claude.ai/artifact/BaR3E388cZyBNbpxKLXnLn) | Draft | Lead |
 | **Apollo 1 scenario and pitch (2026-11-13):** [analysis](reports/APOLLO1_SCENARIO_ANALYSIS.md), [3-minute deck](presentations/flame-in-freefall-3min-pitch.pptx) (built by [build_pitch_deck.py](presentations/build_pitch_deck.py)), [English script](presentations/PITCH_SCRIPT_3MIN.md), [Arabic rehearsal script](presentations/PITCH_SCRIPT_3MIN.ar.md), [business plan](business/BUSINESS_PLAN.md) (draft) | Current | Lead |
 | **Final challenge deliverables (2026-11-07, updated 2026-11-12 for PR #27–#32 and 2026-11-13 for the Apollo 1 scenario):** [status](../FINAL_PROJECT_STATUS.md), [architecture](../FINAL_ARCHITECTURE.md), [test report](../FINAL_TEST_REPORT.md), [demo runbook](../DEMO_RUNBOOK.md), [presentation](../FINAL_CHALLENGE_PRESENTATION.md) | Current | Lead |
@@ -122,3 +123,4 @@ Taken from each engineer's requirements file. Every document also gets the Lead'
 - 1.3.0 (2026-11-13): the Apollo 1 scenario: ADR-013 (L-1), contract 0.7.0 (L-4), NTRS report 1.2.0 (E2-9), the analysis, pitch deck and scripts, and the business plan.
 - 1.3.1 (2026-11-13): the RAG audit.
 - 1.4.0 (2026-11-14): the 7-slide product demo deck.
+- 1.4.1 (2026-11-15): the Space Apps 2026 submission pack.
