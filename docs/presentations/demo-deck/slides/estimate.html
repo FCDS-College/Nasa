@@ -1,0 +1,17 @@
+<section id="estimate" data-transition="fade">
+<div class="split">
+<div class="col">
+<p class="eyebrow rise" style="--i:0">STEP 4 · ESTIMATE</p>
+<h2 class="title rise" style="--i:1">Will a droplet flame put itself out?</h2>
+<div class="metric rise" style="--i:2"><p class="n">261</p><p class="l">real FLEX droplet tests on the ISS, across 80 test days</p></div>
+<div class="metric rise" style="--i:3"><p class="n">0.54</p><p class="l">macro-F1, against a 0.27 baseline, validated by test day</p></div>
+<div class="metric rise" style="--i:4"><p class="n">0.86</p><p class="l">ROC-AUC for predicting self-extinction</p></div>
+</div>
+<div class="ignite" style="width:1040px; display:flex; flex-direction:column; gap:24px">
+<img class="shot" src="/_blob/798ab078708aa5869006c196a8830b0d" alt="Flame Outcome Explorer screenshot: condition presets and sliders on the left; on the right the estimated end state for ISS air (16% self-extinguished, 34% droplet disruption, 51% burned to completion, inside the flight-tested domain) and a chart of how oxygen changes the outcome." style="width:1040px; height:611px">
+<p class="small">It refuses outside what NASA flew: no estimate for the lunar lander, because 62.7 kPa is below the lowest FLEX test pressure, 70.2 kPa.</p>
+</div>
+</div>
+<div class="footer"><p>FLAME IN FREEFALL · LIVE DEMO</p><p class="pg"></p></div>
+<aside>The Flame Outcome Explorer answers one concrete question: will a droplet flame put itself out? Set oxygen, pressure, diluents, droplet size and fuel. A multinomial logistic regression, trained on 261 real FLEX tests from the ISS, estimates whether the flame self-extinguishes, breaks up, or burns to completion, and shows the most similar real flight tests beside it. It scores 0.54 macro-F1 against a 0.27 baseline, validated by holding out whole test days, and 0.86 ROC-AUC for extinction. Most importantly, it has a strict applicability domain. Ask about the lunar lander and it declines, because that pressure is below anything FLEX flew.</aside>
+</section>
